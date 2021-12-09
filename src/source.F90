@@ -24,6 +24,7 @@ module source_module
   use kinds_module
   use source_network_module
   use fluid_module
+  use thermodynamics_module
   use hdf5io_module, only: max_field_name_length
 
   implicit none
@@ -36,15 +37,20 @@ module source_module
   PetscReal, parameter, public :: default_source_rate = 0._dp
   PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3
 
-  PetscInt, parameter, public :: num_source_scalar_variables = 10
+  PetscInt, parameter, public :: num_source_scalar_variables = 18
   PetscInt, parameter, public :: max_source_variable_name_length = 24
   character(max_source_variable_name_length), public :: &
        source_scalar_variable_names(num_source_scalar_variables) = [ &
+       "rate                ", "enthalpy            ", &
+       "separator_pressure  ", &
+       "ref_water_enthalpy  ", "ref_steam_enthalpy  ", &
+       "steam_fraction      ", &
+       "water_rate          ", "water_enthalpy      ", &
+       "steam_rate          ", "steam_enthalpy      ", &
        "source_index        ", "local_source_index  ", &
        "natural_cell_index  ", "local_cell_index    ", &
        "injection_enthalpy  ", "injection_component ", &
-       "production_component", "component           ", &
-       "rate                ", "enthalpy            "]
+       "production_component", "component           "]
   PetscInt, parameter, public :: num_source_array_variables = 3
   character(max_source_variable_name_length), public :: &
        source_array_variable_names(num_source_array_variables) = [ &
@@ -133,20 +139,21 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
     PetscInt, intent(in) :: offset  !! source array offset
     ! Locals:
-    PetscInt :: iflow_end
+    PetscInt :: iflow_start, iflow_end
 
-    self%source_index => data(offset)
-    self%local_source_index => data(offset + 1)
-    self%natural_cell_index => data(offset + 2)
-    self%local_cell_index => data(offset + 3)
-    self%injection_enthalpy => data(offset + 4)
-    self%injection_component => data(offset + 5)
-    self%production_component => data(offset + 6)
-    self%component => data(offset + 7)
-    self%rate => data(offset + 8)
-    self%enthalpy => data(offset + 9)
-    iflow_end = offset + 10 + self%num_primary_variables - 1
-    self%flow => data(offset + 10: iflow_end)
+    call self%source_network_node_type%assign(data, offset)
+
+    self%source_index => data(offset + 10)
+    self%local_source_index => data(offset + 11)
+    self%natural_cell_index => data(offset + 12)
+    self%local_cell_index => data(offset + 13)
+    self%injection_enthalpy => data(offset + 14)
+    self%injection_component => data(offset + 15)
+    self%production_component => data(offset + 16)
+    self%component => data(offset + 17)
+    iflow_start = offset + 18
+    iflow_end = iflow_start + self%num_primary_variables - 1
+    self%flow => data(iflow_start: iflow_end)
     if (self%num_tracers > 0) then
        self%tracer_injection_rate => data(iflow_end + 1: &
             iflow_end + self%num_tracers)
