@@ -41,6 +41,7 @@ module separator_module
      PetscReal, pointer, public :: water_enthalpy !! Output separated water enthalpy
      PetscReal, pointer, public :: steam_rate !! Output separated steam mass flow rate
      PetscReal, pointer, public :: steam_enthalpy !! Output separated steam enthalpy
+     PetscBool, public :: on !! Whether separator is active
    contains
      private
      procedure, public :: init => separator_init
@@ -107,6 +108,8 @@ contains
     self%water_enthalpy => data(offset + 5)
     self%steam_rate => data(offset + 6)
     self%steam_enthalpy => data(offset + 7)
+
+    self%on = (self%pressure > 0._dp)
 
   end subroutine separator_assign
 
