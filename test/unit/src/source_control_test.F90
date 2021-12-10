@@ -257,11 +257,15 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     character :: tracer_names(0)
-    PetscReal, parameter :: expected_rates(0: 14) = [ &
+    PetscReal, parameter :: expected_rates(0: 15) = [ &
          -12.8728519749_dp, -10._dp, -9.3081349399_dp, -11._dp, -10.1910078135_dp, &
          0.0_dp, 130.0_dp, -13.0_dp, 0.0_dp, -12.9264888581701_dp, &
          -10.3366086953508_dp, 0._dp, -2.25_dp, -12.8728519749_dp * 0.75_dp, &
-         -12.8728519749_dp * 0.375_dp]
+         -12.8728519749_dp * 0.375_dp, -10._dp]
+    PetscReal, parameter :: expected_steam_rates(0: 15) = [ &
+         0._dp, 0._dp, -5._dp, 0._dp, 0._dp, &
+         0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
+         0._dp, 0._dp, 0._dp, 0._dp, 0._dp, -5.37164537500731_dp]
     PetscMPIInt :: rank
     character(len = 16) :: srcstr
 
@@ -336,7 +340,7 @@ contains
     call source%init(eos, size(tracer_names))
 
     if (rank == 0) then
-      call test%assert(15, total_num_sources, "number of sources")
+      call test%assert(16, total_num_sources, "number of sources")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
@@ -348,7 +352,7 @@ contains
     call MPI_reduce(size(separated_source_indices), num_separators, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-       call test%assert(1, num_separators, "number of separators")
+       call test%assert(2, num_separators, "number of separators")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
@@ -371,9 +375,11 @@ contains
        source_offset = global_section_offset(source_section, s, source_range_start)
        call source%assign(source_array, source_offset)
        source_index = nint(source%source_index)
-       write(srcstr, '(a, i1, a)') 'source ', source_index + 1, ' rate'
+       write(srcstr, '(a, i2)') 'source ', source_index + 1
        call test%assert(expected_rates(source_index), source%rate, &
-            trim(srcstr))
+            trim(srcstr) // ' rate')
+       call test%assert(expected_steam_rates(source_index), source%separator%steam_rate, &
+            trim(srcstr) // ' steam rate')
        if (source_index == 12) s12 = s
     end do
 
