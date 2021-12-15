@@ -63,7 +63,7 @@ module flow_simulation_module
      type(list_type), public :: source_controls !! Source/sink controls
      type(list_type), public :: source_groups !! Groups of sources/sinks
      type(list_type), public :: rock_controls !! Rock property controls
-     PetscInt, allocatable :: separated_source_indices(:) !! Local indices of sources with separators
+     type(list_type) :: separated_sources !! Sources with separators
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
      class(eos_type), allocatable, public :: eos !! Fluid equation of state
      PetscReal, public :: gravity(3) !! Acceleration of gravity vector (\(m.s^{-1}\))
@@ -965,8 +965,9 @@ contains
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
                            self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
-                           self%num_local_sources, self%num_sources, self%source_controls, &
-                           self%source_index, self%separated_source_indices, self%logfile, err)
+                           self%sources, self%num_sources, self%source_controls, &
+                           self%source_index, self%separated_sources, &
+                           self%source_groups, self%logfile, err)
                       if (err == 0) then
                          call self%setup_output_fields(json)
                          call self%output_face_cell_indices()
@@ -1024,7 +1025,7 @@ contains
     call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
-    deallocate(self%separated_source_indices)
+    call self%separated_sources%destroy()
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%source_groups%destroy(source_group_list_node_data_destroy, &
@@ -1476,7 +1477,8 @@ contains
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
-    call update_separators()
+
+    call self%separated_sources%traverse(source_separator_iterator)
     call self%source_controls%traverse(source_control_iterator)
     call self%sources%traverse(source_iterator)
 
@@ -1497,21 +1499,22 @@ contains
 
 !........................................................................
 
-    subroutine update_separators()
+    subroutine source_separator_iterator(node, stopped)
       !! Updates enthalpy and separated outputs from separators.
 
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: i, s, source_offset
-      type(source_type) :: source
+      PetscInt :: s, source_offset
       PetscReal, allocatable :: phase_flow_fractions(:)
 
-      call source%init(self%eos, size(self%tracers))
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
 
-      do i = 1, size(self%separated_source_indices)
-
-         s = self%separated_source_indices(i)
-         source_offset = global_section_offset(source_section, s, &
-              self%source_range_start)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
          call source%assign(source_data, source_offset)
 
          if ((source%rate <= 0._dp) .and. (.not. source%heat)) then
@@ -1528,11 +1531,9 @@ contains
             call source%separator%zero()
          end if
 
-      end do
+      end select
 
-      call source%destroy()
-
-    end subroutine update_separators
+    end subroutine source_separator_iterator
 
 !........................................................................
 
