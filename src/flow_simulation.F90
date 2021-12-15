@@ -61,6 +61,7 @@ module flow_simulation_module
      type(tracer_type), allocatable, public :: tracers(:) !! Tracers
      IS, public :: source_index !! Index set defining natural to global source ordering
      type(list_type), public :: source_controls !! Source/sink controls
+     type(list_type), public :: source_groups !! Groups of sources/sinks
      type(list_type), public :: rock_controls !! Rock property controls
      PetscInt, allocatable :: separated_source_indices(:) !! Local indices of sources with separators
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -1026,6 +1027,8 @@ contains
     deallocate(self%separated_source_indices)
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
+    call self%source_groups%destroy(source_group_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
     call self%rock_controls%destroy(rock_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%mesh%destroy()
@@ -1067,6 +1070,21 @@ contains
          call source_control%destroy()
       end select
     end subroutine source_control_list_node_data_destroy
+
+!........................................................................
+
+    subroutine source_group_list_node_data_destroy(node)
+      ! Destroys source group in each list node.
+
+      use source_group_module, only: source_group_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source_group => node%data)
+      class is (source_group_type)
+         call source_group%destroy()
+      end select
+    end subroutine source_group_list_node_data_destroy
 
 !........................................................................
 
