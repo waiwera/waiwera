@@ -1030,6 +1030,7 @@ contains
          reverse = PETSC_TRUE)
     call self%source_groups%destroy(source_group_list_node_data_destroy, &
          reverse = PETSC_TRUE)
+    call self%sources%destroy(source_list_node_data_destroy)
     call self%rock_controls%destroy(rock_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%mesh%destroy()
@@ -1086,6 +1087,20 @@ contains
          call source_group%destroy()
       end select
     end subroutine source_group_list_node_data_destroy
+
+!........................................................................
+
+    subroutine source_list_node_data_destroy(node)
+      ! Destroys source in each list node.
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (source => node%data)
+      class is (source_type)
+         call source%destroy()
+      end select
+
+    end subroutine source_list_node_data_destroy
 
 !........................................................................
 
