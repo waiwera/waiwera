@@ -33,9 +33,9 @@ module separator_module
   type, public :: separator_type
      !! Separator in source network.
      private
+     PetscReal :: ref_water_enthalpy !! Reference enthalpy of water at separator pressure
+     PetscReal :: ref_steam_enthalpy !! Reference enthalpy of steam at separator pressure
      PetscReal, pointer, public :: pressure !! Separator pressure
-     PetscReal, pointer :: ref_water_enthalpy !! Reference enthalpy of water at separator pressure
-     PetscReal, pointer :: ref_steam_enthalpy !! Reference enthalpy of steam at separator pressure
      PetscReal, pointer, public :: steam_fraction !! Steam fraction
      PetscReal, pointer, public :: water_rate !! Output separated water mass flow rate
      PetscReal, pointer, public :: water_enthalpy !! Output separated water enthalpy
@@ -87,6 +87,8 @@ contains
            self%pressure / steam_density
     end associate
 
+    self%on = (self%pressure > 0._dp)
+
   end subroutine separator_init
   
 !------------------------------------------------------------------------
@@ -100,16 +102,11 @@ contains
     PetscInt, intent(in) :: offset  !! source array offset
 
     self%pressure => data(offset)
-    self%ref_water_enthalpy => data(offset + 1)
-    self%ref_steam_enthalpy => data(offset + 2)
-
-    self%steam_fraction => data(offset + 3)
-    self%water_rate => data(offset + 4)
-    self%water_enthalpy => data(offset + 5)
-    self%steam_rate => data(offset + 6)
-    self%steam_enthalpy => data(offset + 7)
-
-    self%on = (self%pressure > 0._dp)
+    self%steam_fraction => data(offset + 1)
+    self%water_rate => data(offset + 2)
+    self%water_enthalpy => data(offset + 3)
+    self%steam_rate => data(offset + 4)
+    self%steam_enthalpy => data(offset + 5)
 
   end subroutine separator_assign
 
@@ -207,9 +204,6 @@ contains
     class(separator_type), intent(in out) :: self
 
     self%pressure => null()
-    self%ref_water_enthalpy => null()
-    self%ref_steam_enthalpy => null()
-
     self%steam_fraction => null()
     self%water_rate => null()
     self%water_enthalpy => null()
