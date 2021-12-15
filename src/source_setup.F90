@@ -33,6 +33,7 @@ module source_setup_module
   use source_module
   use source_control_module
   use separator_module
+  use source_group_module
 
   implicit none
   private
@@ -45,11 +46,12 @@ contains
 
   subroutine setup_sources(json, dm, ao, eos, tracer_names, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
-       num_local_sources, num_sources, source_controls, source_index, &
-       separated_source_indices, logfile, err)
-    !! Sets up sinks / sources and source controls.
+       sources, num_sources, source_controls, source_index, &
+       separated_sources, source_groups, logfile, err)
+    !! Sets up sinks / sources, source controls and source groups.
 
     use dm_utils_module
+    use dictionary_module
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
@@ -62,27 +64,31 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
     Vec, intent(out) :: source_vector !! Source vector
     PetscInt, intent(out) :: source_range_start !! Range start for global source vector
-    PetscInt, intent(out) :: num_local_sources !! Number of sources created on current process
+    type(list_type), intent(in out) :: sources !! List of local source objects
     PetscInt, intent(out) :: num_sources !! Total number of sources created on all processes
     type(list_type), intent(in out) :: source_controls !! List of source controls
     IS, intent(in out) :: source_index !! IS defining natural-to-global source ordering
-    PetscInt, allocatable, intent(out) :: separated_source_indices(:) !! Indices of sources with separators
+    type(list_type), intent(out) :: separated_sources !! List of sources with separators
+    type(list_type), intent(in out) :: source_groups !! List of source groups
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
+    PetscMPIInt :: rank
     DM :: dm_source
-    type(source_type) :: source
-    PetscInt :: source_spec_index, local_source_index
-    type(fson_value), pointer :: sources_json, source_json
+    PetscInt :: num_local_sources, source_spec_index, local_source_index
+    type(fson_value), pointer :: sources_json, source_json, group_spec
     PetscInt :: num_source_specs, num_tracers
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:)
     PetscSection :: fluid_section, source_section
+    type(list_type) :: group_specs
+    type(dictionary_type) :: source_dict
+    PetscInt, allocatable :: indices(:)
     PetscErrorCode :: ierr
 
-    num_local_sources = 0
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
     num_sources = 0
     num_tracers = size(tracer_names)
-    call source%init(eos, num_tracers)
     err = 0
 
     call label_source_zones(json, num_local_sources, logfile, err)
@@ -100,8 +106,11 @@ contains
        call global_vec_section(source_vector, source_section)
        call VecGetArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
 
-       allocate(separated_source_indices(num_local_sources))
-       separated_source_indices = -1
+       call sources%init(owner = PETSC_TRUE)
+       call source_dict%init(owner = PETSC_FALSE)
+       call separated_sources%init(owner = PETSC_FALSE)
+       call source_groups%init(owner = PETSC_TRUE)
+       call group_specs%init(owner = PETSC_TRUE)
 
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
@@ -109,9 +118,17 @@ contains
           source_json => fson_value_children_mpi(sources_json)
           local_source_index = 0
           do source_spec_index = 0, num_source_specs - 1
-             call setup_source(source_spec_index, local_source_index, &
-                  source_json, ao, tracer_names, num_sources, &
-                  separated_source_indices, thermo, err)
+             if (fson_has_mpi(source_json, "source")) then ! source group
+                allocate(group_spec)
+                if (rank == 0) then
+                   group_spec = source_json
+                end if
+                call group_specs%append(group_spec)
+             else
+                call setup_source(source_spec_index, local_source_index, &
+                     source_json, ao, tracer_names, num_sources, &
+                     separated_sources, thermo, sources, source_dict, err)
+             end if
              if (err > 0) exit
              source_json => fson_value_next_mpi(source_json)
           end do
@@ -122,19 +139,20 @@ contains
        end if
 
        if (err == 0) then
-          call setup_source_index(num_local_sources, source_data, source_section, &
-               source_range_start, source, source_index)
-          separated_source_indices = pack(separated_source_indices, &
-               separated_source_indices >= 0)
+          allocate(indices(num_local_sources))
+          call sources%traverse(source_indices_iterator)
+          call setup_source_index(indices, source_index)
+          deallocate(indices)
+          call group_specs%traverse(setup_group_iterator)
        end if
 
        call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
        call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
        CHKERRQ(ierr)
+       call group_specs%destroy()
+       call source_dict%destroy()
 
     end if
-
-    call source%destroy()
 
   contains
 
@@ -262,13 +280,16 @@ contains
 
       DM, intent(in out) :: dm_source
       ! Locals:
+      type(source_type) :: source
       PetscInt :: i, j
       PetscInt, allocatable :: num_field_components(:), field_dim(:)
       PetscInt, parameter :: max_field_name_length = 40
       character(max_field_name_length), allocatable :: field_names(:)
 
+      call source%init("", eos, 0, 0, 0._dp, 1, 1, num_tracers)
       allocate(num_field_components(source%dof), field_dim(source%dof), &
            field_names(source%dof))
+      call source%destroy()
       num_field_components = 1
       field_dim = 0
       field_names(1: num_source_scalar_variables) = &
@@ -306,8 +327,9 @@ contains
 !........................................................................
 
     subroutine setup_source(source_spec_index, local_source_index, source_json, &
-         ao, tracer_names, num_sources, separated_source_indices, thermo, err)
-      !! Iterator for setting up cell sources for a source specification.
+         ao, tracer_names, num_sources, separated_sources, thermo, &
+         sources, source_dict, err)
+      !! Sets up all cell sources for a source specification.
 
       PetscInt, intent(in) :: source_spec_index !! Index of source specification
       PetscInt, intent(in out) :: local_source_index !! Index of source
@@ -315,22 +337,25 @@ contains
       AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
       character(*), intent(in) :: tracer_names(:) !! Tracer names
       PetscInt, intent(in out) :: num_sources !! Current total number of sources (on all processes)
-      PetscInt, intent(in out) :: separated_source_indices(:) !! Indices of sources with separators
+      type(list_type), intent(in out) :: separated_sources !! List of sources with separators
       class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
+      type(list_type), intent(in out) :: sources !! List of local sources
+      type(dictionary_type), intent(in out) :: source_dict !! Dictionary of local named sources
       PetscErrorCode, intent(out) :: err
       ! Locals:
+      type(source_type), pointer :: source
       character(len=64) :: srcstr
       character(len=12) :: istr
       PetscInt :: injection_component, production_component
-      PetscReal :: initial_rate, initial_enthalpy
-      PetscReal :: separator_pressure
+      PetscReal :: initial_rate, initial_enthalpy, separator_pressure
       PetscInt :: num_cells, num_cells_all, i, source_offset
-      PetscInt, allocatable :: local_source_indices(:), natural_source_index(:)
-      PetscInt, allocatable :: natural_cell_index(:)
+      PetscInt, allocatable :: natural_source_index(:), natural_cell_index(:)
+      type(list_type) :: spec_sources
       IS :: cell_IS
       PetscInt, pointer, contiguous :: local_cell_index(:)
       ISLocalToGlobalMapping :: l2g
       PetscReal :: tracer_injection_rate(size(tracer_names))
+      character(max_source_network_node_name_length) :: name
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -342,11 +367,17 @@ contains
       call get_initial_rate(source_json, initial_rate)
       call get_initial_enthalpy(source_json, eos, &
            injection_component, initial_enthalpy)
+      call get_separator_pressure(source_json, srcstr, separator_pressure, logfile)
       call get_tracer_injection_rate(source_json, tracer_names, &
            srcstr, tracer_injection_rate, logfile, err)
-      call get_separator_pressure(source_json, srcstr, separator_pressure, logfile)
 
       if (err == 0) then
+
+         if (fson_has_mpi(source_json, "name")) then
+            call fson_get_mpi(source_json, "name", val = name)
+         else
+            name = ""
+         end if
 
          call DMGetStratumSize(dm, source_label_name, source_spec_index, &
               num_cells, ierr); CHKERRQ(ierr)
@@ -364,21 +395,23 @@ contains
          natural_source_index = get_natural_source_indices(num_cells, num_cells_all, &
               natural_cell_index)
 
-         allocate(local_source_indices(num_cells))
+         call spec_sources%init(owner = PETSC_FALSE)
          if (num_cells > 0) then
             do i = 1, num_cells
                source_offset = global_section_offset(source_section, local_source_index, &
                     source_range_start)
+               allocate(source)
+               call source%init(name, eos, local_source_index, local_cell_index(i), &
+                    initial_enthalpy, injection_component, production_component, &
+                    num_tracers)
                call source%assign(source_data, source_offset)
-               call source%setup(natural_source_index(i), local_source_index, &
-                    natural_cell_index(i), local_cell_index(i), &
-                    initial_rate, initial_enthalpy, &
-                    injection_component, production_component, &
-                    tracer_injection_rate, separator_pressure, thermo)
+               call source%setup(natural_source_index(i), natural_cell_index(i), &
+                    initial_rate, tracer_injection_rate, separator_pressure, thermo)
+               call sources%append(source)
+               call spec_sources%append(source)
                if (separator_pressure > 0._dp) then
-                  separated_source_indices(local_source_index + 1) = local_source_index
+                  call separated_sources%append(source)
                end if
-               local_source_indices(i) = local_source_index
                local_source_index = local_source_index + 1
             end do
             call ISRestoreIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
@@ -387,9 +420,16 @@ contains
          call setup_inline_source_controls(source_json, eos, thermo, &
               start_time, source_data, source_section, source_range_start, &
               fluid_data, fluid_section, fluid_range_start, srcstr, &
-              tracer_names, local_source_indices, source_controls, logfile, err)
-         deallocate(local_source_indices)
+              tracer_names, spec_sources, source_controls, logfile, err)
+
+         if ((name /= "") .and. (num_cells == 1) .and. (num_cells_all == 1)) then
+            ! Uniquely named source- add to dictionary:
+            call source_dict%add(name, spec_sources%head)
+         end if
+
+         call spec_sources%destroy()
          num_sources = num_sources + num_cells_all
+
       end if
 
     end subroutine setup_source
@@ -511,23 +551,38 @@ contains
 
 !........................................................................
 
-    subroutine setup_source_index(num_local_sources, source_data, &
-         source_section, source_range_start, source, source_index)
+    subroutine source_indices_iterator(node, stopped)
+      !! Gets indices from all local sources.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_data, source_offset)
+         indices(s + 1) = nint(source%source_index)
+      end select
+
+    end subroutine source_indices_iterator
+
+!........................................................................
+
+    subroutine setup_source_index(indices, source_index)
       !! Sets up natural-to-global source ordering IS. This gives the
       !! global index corresponding to a natural source index.
 
       use utils_module, only: array_cumulative_sum
       use mpi_utils_module, only: get_mpi_int_gather_array
 
-      PetscInt, intent(in) :: num_local_sources
-      PetscReal, contiguous, pointer, intent(in) :: source_data(:)
-      PetscSection, intent(in) :: source_section
-      PetscInt, intent(in) :: source_range_start
-      type(source_type), intent(in out) :: source
+      PetscInt, intent(in) :: indices(num_local_sources)
       IS, intent(in out) :: source_index
       ! Locals:
-      PetscInt :: indices(num_local_sources)
-      PetscInt :: i, source_offset
+      PetscInt :: i
       PetscMPIInt :: rank, num_procs, num_all, is_count
       PetscInt, allocatable :: counts(:), displacements(:)
       PetscInt, allocatable :: indices_all(:), global_indices(:)
@@ -535,13 +590,6 @@ contains
 
       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
       call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
-
-      do i = 1, num_local_sources
-         source_offset = global_section_offset(source_section, i - 1, &
-              source_range_start)
-         call source%assign(source_data, source_offset)
-         indices(i) = nint(source%source_index)
-      end do
 
       counts = get_mpi_int_gather_array()
       displacements = get_mpi_int_gather_array()
@@ -574,6 +622,53 @@ contains
       deallocate(global_indices)
 
     end subroutine setup_source_index
+
+!........................................................................
+
+    subroutine setup_group_iterator(node, stopped)
+      !! Sets up source group.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      character(max_source_group_name_length) :: name
+      character(max_source_network_node_name_length), allocatable :: names(:)
+      PetscInt :: i
+      type(list_node_type), pointer :: dict_node
+      type(source_group_type), pointer :: group
+
+      stopped = PETSC_FALSE
+      select type (group_json => node%data)
+      type is (fson_value)
+
+         call fson_get_mpi(group_json, "name", &
+              "untitled", name)
+         call fson_get_mpi(group_json, "source", &
+              string_length = max_source_network_node_name_length, &
+              val = names)
+
+         allocate(group)
+         call group%init(name)
+
+         associate(num_names => size(names))
+           do i = 1, num_names
+              dict_node => source_dict%get(names(i))
+              if (associated(dict_node)) then
+                 select type (node => dict_node%data)
+                 type is (source_type)
+                    call group%nodes%append(node)
+                 end select
+              end if
+           end do
+         end associate
+
+         call source_groups%append(group)
+
+      end select
+
+    end subroutine setup_group_iterator
+
+!........................................................................
 
   end subroutine setup_sources
 
@@ -839,7 +934,7 @@ contains
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
        start_time, source_data, source_section, source_range_start, &
        fluid_data, fluid_section, fluid_range_start, &
-       srcstr, tracer_names, local_source_indices, source_controls, &
+       srcstr, tracer_names, spec_sources, source_controls, &
        logfile, err)
     !! Sets up any 'inline' source controls for the source specification,
     !! i.e. controls defined implicitly in the specification.
@@ -861,7 +956,7 @@ contains
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
     character(len = *), intent(in) :: tracer_names(:)
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in out) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -879,7 +974,7 @@ contains
     averaging_type = averaging_type_from_str(averaging_str)
 
     call setup_table_source_control(source_json, srcstr, interpolation_type, &
-         averaging_type, tracer_names, local_source_indices, source_controls, &
+         averaging_type, tracer_names, spec_sources, source_controls, &
          logfile, err)
 
     if (err == 0) then
@@ -887,7 +982,7 @@ contains
        call setup_deliverability_source_controls(source_json, srcstr, &
             start_time, source_data, source_section, source_range_start, &
             fluid_data, fluid_section, fluid_range_start, &
-            interpolation_type, averaging_type, local_source_indices, eos, &
+            interpolation_type, averaging_type, spec_sources, eos, &
             source_controls, logfile, err)
 
        if (err == 0) then
@@ -895,19 +990,19 @@ contains
           call setup_recharge_source_controls(source_json, srcstr, &
                source_data, source_section, source_range_start, &
                fluid_data, fluid_section, fluid_range_start, &
-               interpolation_type, averaging_type, local_source_indices, eos, &
+               interpolation_type, averaging_type, spec_sources, eos, &
                source_controls, logfile, err)
 
           if (err == 0) then
 
              call setup_limiter_source_controls(source_json, srcstr, thermo, &
-                  local_source_indices, source_controls, logfile)
+                  spec_sources, source_controls, logfile)
 
              call setup_direction_source_control(source_json, srcstr, thermo, &
-                  local_source_indices, source_controls, logfile)
+                  spec_sources, source_controls, logfile)
 
              call setup_factor_source_control(source_json, srcstr, &
-                  interpolation_type, averaging_type, local_source_indices, &
+                  interpolation_type, averaging_type, spec_sources, &
                   source_controls, logfile, err)
 
           end if
@@ -922,14 +1017,14 @@ contains
 
   subroutine setup_table_source_control(source_json, srcstr, &
        interpolation_type, averaging_type, tracer_names, &
-       local_source_indices, source_controls, logfile, err)
+       spec_sources, source_controls, logfile, err)
     !! Set up rate, enthalpy and tracer table source controls.
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
     character(*), intent(in) :: tracer_names(:)
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -966,10 +1061,10 @@ contains
       end if
 
       if (allocated(data_array)) then
-         if (size(local_source_indices) > 0) then
+         if (spec_sources%count > 0) then
             allocate(control)
             call control%init(data_array, interpolation_type, &
-                 averaging_type, local_source_indices)
+                 averaging_type, spec_sources)
             call source_controls%append(control)
          end if
          deallocate(data_array)
@@ -1005,10 +1100,10 @@ contains
       end if
 
       if (allocated(data_array)) then
-         if (size(local_source_indices) > 0) then
+         if (spec_sources%count > 0) then
             allocate(control)
             call control%init(data_array, interpolation_type, &
-                 averaging_type, local_source_indices)
+                 averaging_type, spec_sources)
             call source_controls%append(control)
          end if
          deallocate(data_array)
@@ -1046,11 +1141,11 @@ contains
             if (rank == 2) then
                call fson_get_mpi(source_json, "tracer", val = data_array)
                if (allocated(data_array)) then
-                  if (size(local_source_indices) > 0) then
+                  if (spec_sources%count > 0) then
                      do i = 1, size(tracer_names)
                         allocate(control)
                         call control%init(data_array, interpolation_type, &
-                             averaging_type, local_source_indices)
+                             averaging_type, spec_sources)
                         control%tracer_index = i
                         call source_controls%append(control)
                      end do
@@ -1077,7 +1172,7 @@ contains
                         if (tracer_index > 0) then
                            allocate(control)
                            call control%init(data_array, interpolation_type, &
-                                averaging_type, local_source_indices)
+                                averaging_type, spec_sources)
                            control%tracer_index = tracer_index
                            call source_controls%append(control)
                         else
@@ -1104,7 +1199,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_factor_source_control(source_json, srcstr, &
-       interpolation_type, averaging_type, local_source_indices, &
+       interpolation_type, averaging_type, spec_sources, &
        source_controls, logfile, err)
     !! Set up rate factor source controls.
 
@@ -1115,7 +1210,7 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -1161,10 +1256,10 @@ contains
        end select
     end if
 
-    if (allocated(factor_data_array) .and. size(local_source_indices) > 0) then
+    if (allocated(factor_data_array) .and. (spec_sources%count > 0)) then
        allocate(factor_control)
        call factor_control%init(factor_data_array, effective_interpolation_type, &
-            effective_averaging_type, local_source_indices)
+            effective_averaging_type, spec_sources)
        call source_controls%append(factor_control)
     end if
 
@@ -1314,7 +1409,7 @@ contains
   subroutine setup_deliverability_source_controls(source_json, srcstr, &
        start_time, source_data, source_section, source_range_start, &
        fluid_data, fluid_section, fluid_range_start, &
-       interpolation_type, averaging_type, local_source_indices, eos, &
+       interpolation_type, averaging_type, spec_sources, eos, &
        source_controls, logfile, err)
     !! Set up deliverability source controls. Deliverability controls
     !! can control only one source, so if multiple cells are
@@ -1333,7 +1428,7 @@ contains
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in out) :: spec_sources
     class(eos_type), intent(in) :: eos
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
@@ -1346,7 +1441,7 @@ contains
     PetscBool :: calculate_PI_from_rate
     PetscReal :: initial_rate, threshold
     PetscReal, allocatable :: productivity_array(:,:)
-    PetscInt :: pressure_table_coordinate, i, s
+    PetscInt :: pressure_table_coordinate
     PetscReal, parameter :: default_rate = 0._dp
     PetscReal, parameter :: default_threshold = -1._dp
 
@@ -1367,13 +1462,30 @@ contains
        call get_deliverability_productivity(deliv_json, source_json, &
             srcstr, productivity_array, calculate_PI_from_rate, logfile)
 
-       do i = 1, size(local_source_indices)
+       call spec_sources%traverse(setup_deliverability_iterator)
 
-          s = local_source_indices(i)
-          allocate(deliv)
+    end if
+
+  contains
+
+    subroutine setup_deliverability_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      type(list_type) :: single_source
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+
+         call single_source%init(owner = PETSC_FALSE)
+         call single_source%append(source)
+
+         allocate(deliv)
           call deliv%init(productivity_array, interpolation_type, &
                averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, threshold, s)
+               pressure_table_coordinate, threshold, single_source)
 
           if (calculate_reference_pressure) then
              call deliv%set_reference_pressure_initial(source_data, &
@@ -1392,9 +1504,9 @@ contains
           end if
           call source_controls%append(deliv)
 
-       end do
+      end select
 
-    end if
+    end subroutine setup_deliverability_iterator
 
   end subroutine setup_deliverability_source_controls
 
@@ -1459,7 +1571,7 @@ contains
   subroutine setup_recharge_source_controls(source_json, srcstr, &
        source_data, source_section, source_range_start, &
        fluid_data, fluid_section, fluid_range_start, &
-       interpolation_type, averaging_type, local_source_indices, eos, &
+       interpolation_type, averaging_type, spec_sources, eos, &
        source_controls, logfile, err)
     !! Set up recharge source controls. Recharge controls
     !! can control only one source, so if multiple cells are
@@ -1477,7 +1589,7 @@ contains
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in out) :: spec_sources
     class(eos_type), intent(in) :: eos
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
@@ -1488,7 +1600,7 @@ contains
     type(source_control_recharge_type), pointer :: recharge
     PetscBool :: calculate_reference_pressure
     PetscReal, allocatable :: recharge_array(:,:)
-    PetscInt :: pressure_table_coordinate, i, s
+    PetscInt :: pressure_table_coordinate
 
     if (fson_has_mpi(source_json, "recharge")) then
 
@@ -1503,21 +1615,7 @@ contains
           call get_recharge_coefficient(recharge_json, source_json, &
                srcstr, recharge_array, logfile)
 
-          do i = 1, size(local_source_indices)
-
-             s = local_source_indices(i)
-             allocate(recharge)
-             call recharge%init(recharge_array, interpolation_type, &
-                  averaging_type, reference_pressure_array, s)
-
-             if (calculate_reference_pressure) then
-                call recharge%set_reference_pressure_initial(source_data, &
-                     source_section, source_range_start, fluid_data, &
-                     fluid_section, fluid_range_start, eos)
-             end if
-             call source_controls%append(recharge)
-
-          end do
+          call spec_sources%traverse(setup_recharge_iterator)
 
        else
           if (present(logfile) .and. logfile%active) then
@@ -1529,12 +1627,44 @@ contains
 
     end if
 
+  contains
+
+    subroutine setup_recharge_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      type(list_type) :: single_source
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+
+         call single_source%init(owner = PETSC_FALSE)
+         call single_source%append(source)
+
+         allocate(recharge)
+         call recharge%init(recharge_array, interpolation_type, &
+              averaging_type, reference_pressure_array, single_source)
+
+         if (calculate_reference_pressure) then
+            call recharge%set_reference_pressure_initial(source_data, &
+                 source_section, source_range_start, fluid_data, &
+                 fluid_section, fluid_range_start, eos)
+         end if
+
+         call source_controls%append(recharge)
+
+      end select
+
+    end subroutine setup_recharge_iterator
+
   end subroutine setup_recharge_source_controls
 
 !------------------------------------------------------------------------
 
   subroutine setup_limiter_source_controls(source_json, srcstr, &
-       thermo, local_source_indices, source_controls, logfile)
+       thermo, spec_sources, source_controls, logfile)
     !! Set up limiter source control for each cell source.
 
     use utils_module, only: str_to_lower, str_array_index
@@ -1542,14 +1672,13 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in out) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: limiter_json
     character(8) :: limiter_type_str
     PetscReal :: limit
-    PetscInt :: i, s
     class(source_control_limiter_type), pointer :: limiter
 
     if (fson_has_mpi(source_json, "limiter")) then
@@ -1564,8 +1693,24 @@ contains
        call fson_get_mpi(limiter_json, "limit", &
             default_source_control_limiter_limit, limit, logfile, srcstr)
 
-       do i = 1, size(local_source_indices)
-          s = local_source_indices(i)
+       call spec_sources%traverse(limiter_iterator)
+
+    end if
+
+  contains
+
+    subroutine limiter_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      type(list_type) :: single_source
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         call single_source%init(owner = PETSC_FALSE)
+         call single_source%append(source)
           select case (limiter_type_str)
           case ("total")
              allocate(source_control_total_limiter_type :: limiter)
@@ -1576,18 +1721,18 @@ contains
           case default
              allocate(source_control_total_limiter_type :: limiter)
           end select
-          call limiter%init(s, limit, [s])
+          call limiter%init(limit, single_source)
           call source_controls%append(limiter)
-       end do
+       end select
 
-    end if
+    end subroutine limiter_iterator
 
   end subroutine setup_limiter_source_controls
 
 !------------------------------------------------------------------------
 
   subroutine setup_direction_source_control(source_json, srcstr, &
-       thermo, local_source_indices, source_controls, logfile)
+       thermo, spec_sources, source_controls, logfile)
     !! Set up direction source control. This can control multiple
     !! sources, so only one is created.
 
@@ -1596,7 +1741,7 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
@@ -1625,9 +1770,9 @@ contains
        end select
 
        if ((direction /= SRC_DIRECTION_BOTH) .and. &
-            size(local_source_indices) > 0) then
+            spec_sources%count > 0) then
          allocate(direction_control)
-         call direction_control%init(direction, local_source_indices)
+         call direction_control%init(direction, spec_sources)
          call source_controls%append(direction_control)
        end if
 
