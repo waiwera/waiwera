@@ -61,8 +61,7 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
     PetscInt, intent(in) :: offset  !! source array offset
 
-    self%rate => data(offset)
-    self%enthalpy => data(offset + 1)
+    call self%source_network_node_type%assign(data, offset)
 
   end subroutine source_group_assign
 
