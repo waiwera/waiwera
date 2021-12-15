@@ -55,8 +55,8 @@ module flow_simulation_module
      Vec, public :: balances !! Mass and energy balances for unperturbed primary variables
      Vec, public :: update_cell !! Which cells have primary variables being updated
      Vec, public :: flux !! Mass or energy fluxes through cell faces for each component and phase
-     Vec, public :: source !! Source/sink terms
-     PetscInt, public :: num_local_sources !! Number of source/sink terms on current process
+     Vec, public :: source !! Vector for source/sink data
+     type(list_type), public :: sources !! List of source objects
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
      type(tracer_type), allocatable, public :: tracers(:) !! Tracers
      IS, public :: source_index !! Index set defining natural to global source ordering
@@ -1478,7 +1478,8 @@ contains
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call update_separators()
     call self%source_controls%traverse(source_control_iterator)
-    call apply_sources()
+    call self%sources%traverse(source_iterator)
+
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
@@ -1553,24 +1554,26 @@ contains
 
 !........................................................................
 
-    subroutine apply_sources()
+    subroutine source_iterator(node, stopped)
       !! Assembles contributions from sources to global RHS array.
 
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, c
+      PetscInt :: s, c, source_offset, cell_geom_offset
       type(cell_type) :: cell
-      type(source_type) :: source
-      PetscInt :: source_offset, cell_geom_offset
 
-      call cell%init(self%eos%num_components, self%eos%num_phases)
-      call source%init(self%eos, size(self%tracers))
+      stopped = PETSC_FALSE
+      select type (source => node%data)
+      class is (source_type)
 
-      do s = 0, self%num_local_sources - 1
-
-         source_offset = global_section_offset(source_section, s, &
-              self%source_range_start)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
          call source%assign(source_data, source_offset)
-         c = nint(source%local_cell_index)
+
+         call cell%init(self%eos%num_components, self%eos%num_phases)
+         c = source%local_cell_index
 
          rhs_offset = global_section_offset(rhs_section, c, &
               self%solution_range_start)
@@ -1582,12 +1585,11 @@ contains
          call source%update_flow(fluid_array, fluid_section)
          inflow = inflow + source%flow / cell%volume
 
-      end do
+         call cell%destroy()
 
-      call source%destroy()
-      call cell%destroy()
+      end select
 
-    end subroutine apply_sources
+    end subroutine source_iterator
 
   end subroutine flow_simulation_cell_inflows
 
