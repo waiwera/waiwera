@@ -50,6 +50,7 @@ module source_control_module
      !! Abstract type for source control, controlling source
      !! parameters over time, for one or more sources.
      private
+     type(list_type), public :: sources
    contains
      procedure(source_control_destroy_procedure), public, deferred :: destroy
      procedure(source_control_update_procedure), public, deferred :: update
@@ -59,7 +60,6 @@ module source_control_module
      !! Controls a source parameter (e.g. rate or enthalpy) via a
      !! table of values vs. time.
      private
-     PetscInt, allocatable, public :: source_indices(:)
      type(interpolation_table_type), public :: table !! Table of values vs. time
    contains
      private
@@ -102,7 +102,6 @@ module source_control_module
      !! Controls a source by comparing fluid pressure with a reference
      !! pressure (e.g. deliverability or recharge).
      private
-     PetscInt, public :: local_source_index !! Index of source
      type(interpolation_table_type), public :: reference_pressure !! Reference pressure vs. time
    contains
      procedure, public :: set_reference_pressure_initial => &
@@ -138,8 +137,6 @@ module source_control_module
      !! Limits total flow, or separated steam or water flow (from a
      !! separator) through a source.
      private
-     PetscInt, allocatable, public :: local_source_indices(:) !! Local source indices
-     PetscInt, public :: input_local_source_index !! Local index of source to be used as input
      PetscReal, public :: limit !! Flow limit
    contains
      private
@@ -175,7 +172,6 @@ module source_control_module
      !! Allows source to flow only in a specified direction
      !! (production or injection).
      private
-     PetscInt, allocatable, public :: local_source_indices(:) !! Local source indices
      PetscInt, public :: direction !! Flow direction
    contains
      private
@@ -219,7 +215,7 @@ module source_control_module
           source_data, source_section, source_range_start, eos)
        use petscis
        import :: source_control_limiter_type, eos_type
-       class(source_control_limiter_type), intent(in) :: self
+       class(source_control_limiter_type), intent(in out) :: self
        PetscReal, pointer, contiguous, intent(in) :: source_data(:)
        PetscSection, intent(in) :: source_section
        PetscInt, intent(in) :: source_range_start
@@ -235,17 +231,17 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_table_init(self, data, interpolation_type, &
-       averaging_type, source_indices)
+       averaging_type, sources)
     !! Initialises source_control_table object.
 
     class(source_control_table_type), intent(in out) :: self
     PetscReal, intent(in) :: data(:,:)
     PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
-    PetscInt, intent(in) :: source_indices(:)
+    type(list_type), intent(in) :: sources
 
     call self%table%init(data, interpolation_type, averaging_type)
-    self%source_indices = source_indices
+    self%sources = sources
 
   end subroutine source_control_table_init
 
@@ -257,7 +253,7 @@ contains
     class(source_control_table_type), intent(in out) :: self
 
     call self%table%destroy()
-    if (allocated(self%source_indices)) deallocate(self%source_indices)
+    call self%sources%destroy()
 
   end subroutine source_control_table_destroy
 
@@ -283,21 +279,30 @@ contains
     PetscInt, intent(in) :: num_tracers
     ! Locals:
     PetscReal :: rate
-    type(source_type) :: source
-    PetscInt :: i, s, source_offset
 
-    call source%init(eos)
     rate = self%table%average(interval, 1)
+    call self%sources%traverse(rate_iterator)
 
-    do i = 1, size(self%source_indices)
-       s = self%source_indices(i)
-       source_offset = global_section_offset(source_section, s, &
-            source_range_start)
-       call source%assign(source_data, source_offset)
-       call source%set_rate(rate)
-    end do
+  contains
 
-    call source%destroy()
+    subroutine rate_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_data, source_offset)
+         call source%set_rate(rate)
+      end select
+
+    end subroutine rate_iterator
 
   end subroutine source_control_rate_table_update
 
@@ -323,21 +328,30 @@ contains
     PetscInt, intent(in) :: num_tracers
     ! Locals:
     PetscReal :: enthalpy
-    type(source_type) :: source
-    PetscInt :: i, s, source_offset
 
-    call source%init(eos)
     enthalpy = self%table%average(interval, 1)
+    call self%sources%traverse(enthalpy_iterator)
 
-    do i = 1, size(self%source_indices)
-       s = self%source_indices(i)
-       source_offset = global_section_offset(source_section, s, &
-            source_range_start)
-       call source%assign(source_data, source_offset)
-       source%injection_enthalpy = enthalpy
-    end do
+  contains
 
-    call source%destroy()
+    subroutine enthalpy_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_data, source_offset)
+         source%injection_enthalpy = enthalpy
+      end select
+
+    end subroutine enthalpy_iterator
 
   end subroutine source_control_enthalpy_table_update
 
@@ -363,21 +377,30 @@ contains
     PetscInt, intent(in) :: num_tracers
     ! Locals:
     PetscReal :: factor
-    type(source_type) :: source
-    PetscInt :: i, s, source_offset
 
-    call source%init(eos)
     factor = self%table%average(interval, 1)
+    call self%sources%traverse(rate_factor_iterator)
 
-    do i = 1, size(self%source_indices)
-       s = self%source_indices(i)
-       source_offset = global_section_offset(source_section, s, &
-            source_range_start)
-       call source%assign(source_data, source_offset)
-       call source%set_rate(source%rate * factor)
-    end do
+  contains
 
-    call source%destroy()
+    subroutine rate_factor_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_data, source_offset)
+         call source%set_rate(source%rate * factor)
+      end select
+
+    end subroutine rate_factor_iterator
 
   end subroutine source_control_rate_factor_update
 
@@ -403,21 +426,31 @@ contains
     PetscInt, intent(in) :: num_tracers
     ! Locals:
     PetscReal :: tracer_injection_rate
-    type(source_type) :: source
-    PetscInt :: i, s, source_offset
 
-    call source%init(eos, num_tracers)
     tracer_injection_rate = self%table%average(interval, 1)
-    do i = 1, size(self%source_indices)
-       s = self%source_indices(i)
-       source_offset = global_section_offset(source_section, s, &
-            source_range_start)
-       call source%assign(source_data, source_offset)
-       source%tracer_injection_rate(self%tracer_index) = &
-            tracer_injection_rate
-    end do
+    call self%sources%traverse(tracer_iterator)
 
-    call source%destroy()
+  contains
+
+    subroutine tracer_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_data, source_offset)
+         source%tracer_injection_rate(self%tracer_index) = &
+              tracer_injection_rate
+      end select
+
+    end subroutine tracer_iterator
 
   end subroutine source_control_tracer_table_update
 
@@ -441,23 +474,33 @@ contains
     PetscSection, intent(in) :: global_fluid_section
     PetscInt, intent(in) :: fluid_range_start
     class(eos_type), intent(in) :: eos
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: c, fluid_offset, source_offset
 
-    call source%init(eos)
-    source_offset = global_section_offset(source_section, &
-         self%local_source_index, source_range_start)
-    call source%assign(source_data, source_offset)
+    call self%sources%traverse(ref_pressure_iterator)
 
-    c = nint(source%local_cell_index)
-    fluid_offset = global_section_offset(global_fluid_section, c, &
-         fluid_range_start)
-    call source%fluid%assign(global_fluid_data, fluid_offset)
+  contains
 
-    self%reference_pressure%val(1, 1) = source%fluid%pressure
+    subroutine ref_pressure_iterator(node, stopped)
 
-    call source%destroy()
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset, c, fluid_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_data, source_offset)
+         c = source%local_cell_index
+         fluid_offset = global_section_offset(global_fluid_section, c, &
+              fluid_range_start)
+         call source%fluid%assign(global_fluid_data, fluid_offset)
+         self%reference_pressure%val(1, 1) = source%fluid%pressure
+      end select
+
+    end subroutine ref_pressure_iterator
 
   end subroutine source_control_set_reference_pressure_initial
 
@@ -467,7 +510,7 @@ contains
 
   subroutine source_control_deliverability_init(self, productivity_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       pressure_table_coordinate, threshold, local_source_index)
+       pressure_table_coordinate, threshold, sources)
     !! Initialises source_control_deliverability object.
 
     class(source_control_deliverability_type), intent(in out) :: self
@@ -476,7 +519,7 @@ contains
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: pressure_table_coordinate
     PetscReal, intent(in) :: threshold
-    PetscInt, intent(in) :: local_source_index
+    type(list_type), intent(in) :: sources
 
     call self%productivity%init(productivity_data, &
          interpolation_type, averaging_type)
@@ -484,7 +527,7 @@ contains
          interpolation_type, averaging_type)
     self%pressure_table_coordinate = pressure_table_coordinate
     self%threshold = threshold
-    self%local_source_index = local_source_index
+    self%sources = sources
 
   end subroutine source_control_deliverability_init
 
@@ -497,6 +540,7 @@ contains
 
     call self%productivity%destroy()
     call self%reference_pressure%destroy()
+    call self%sources%destroy()
 
   end subroutine source_control_deliverability_destroy
 
@@ -518,47 +562,60 @@ contains
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
     PetscInt, intent(in) :: num_tracers
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: source_offset
-    PetscReal :: productivity, qd
 
-    call source%init(eos)
-
-    source_offset = global_section_offset(source_section, &
-         self%local_source_index, source_range_start)
-    call source%assign(source_data, source_offset)
-    call source%assign_fluid_local(local_fluid_data, local_fluid_section)
-
-    if (self%threshold <= 0._dp) then
-       productivity = self%productivity%average(interval, 1)
-       call source%set_rate(flow_rate(source, productivity))
-    else
-       if (source%fluid%pressure < self%threshold) then
-          qd = flow_rate(source, self%threshold_productivity)
-          if (qd > source%rate) then
-             call source%set_rate(qd)
-          else ! don't use qd, but update PI
-             call self%calculate_PI_from_rate(t, source%rate, &
-                  source_data, source_section, source_range_start, &
-                  local_fluid_data, local_fluid_section, -1, &
-                  eos, self%threshold_productivity)
-          end if
-       else
-          call self%calculate_PI_from_rate(t, source%rate, &
-               source_data, source_section, source_range_start, &
-               local_fluid_data, local_fluid_section, -1, &
-               eos, self%threshold_productivity)
-       end if
-    end if
-
-    call source%destroy()
+    call self%sources%traverse(deliverability_iterator)
 
   contains
+
+    subroutine deliverability_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+      PetscReal :: productivity, qd
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
+         call source%assign_fluid_local(local_fluid_data, local_fluid_section)
+         
+         if (self%threshold <= 0._dp) then
+            productivity = self%productivity%average(interval, 1)
+            call source%set_rate(flow_rate(source, productivity))
+         else
+            if (source%fluid%pressure < self%threshold) then
+               qd = flow_rate(source, self%threshold_productivity)
+               if (qd > source%rate) then
+                  call source%set_rate(qd)
+               else ! don't use qd, but update PI
+                  call self%calculate_PI_from_rate(t, source%rate, &
+                       source_data, source_section, source_range_start, &
+                       local_fluid_data, local_fluid_section, -1, &
+                       eos, self%threshold_productivity)
+               end if
+            else
+               call self%calculate_PI_from_rate(t, source%rate, &
+                    source_data, source_section, source_range_start, &
+                    local_fluid_data, local_fluid_section, -1, &
+                    eos, self%threshold_productivity)
+            end if
+         end if
+
+      end select
+
+    end subroutine deliverability_iterator
+
+!........................................................................
 
     PetscReal function flow_rate(source, productivity)
       !! Computes flow rate using deliverability relation and the
       !! specified productivity index.
+
       type(source_type), intent(in)  :: source
       PetscReal, intent(in) :: productivity
       ! Locals:
@@ -618,40 +675,54 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Specify -1 for local data rather than global
     class(eos_type), intent(in) :: eos
     PetscReal, intent(out) :: productivity
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: c, fluid_offset, source_offset
-    PetscReal, allocatable :: phase_mobilities(:)
-    PetscReal :: reference_pressure, pressure_difference, factor
-    PetscReal, parameter :: tol = 1.e-9_dp
 
-    call source%init(eos)
-    source_offset = global_section_offset(source_section, self%local_source_index, &
-         source_range_start)
-    call source%assign(source_data, source_offset)
+    call self%sources%traverse(PI_iterator)
 
-    c = nint(source%local_cell_index)
-    if (fluid_range_start >= 0) then ! global
-       fluid_offset = global_section_offset(fluid_section, c, &
-            fluid_range_start)
-    else ! local
-       fluid_offset = section_offset(fluid_section, c)
-    end if
+  contains
 
-    call source%fluid%assign(fluid_data, fluid_offset)
-    allocate(phase_mobilities(source%fluid%num_phases))
-    phase_mobilities = source%fluid%phase_mobilities()
+    subroutine PI_iterator(node, stopped)
 
-    reference_pressure = self%reference_pressure%interpolate(time, 1)
-    pressure_difference = source%fluid%pressure - reference_pressure
-    factor = sum(phase_mobilities) * pressure_difference
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset, c, fluid_offset
+      PetscReal, allocatable :: phase_mobilities(:)
+      PetscReal :: reference_pressure, pressure_difference, factor
+      PetscReal, parameter :: tol = 1.e-9_dp
 
-    if (abs(factor) > tol) then
-       productivity = abs(rate) / factor
-    end if
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
 
-    deallocate(phase_mobilities)
-    call source%destroy()
+         c = source%local_cell_index
+         if (fluid_range_start >= 0) then ! global
+            fluid_offset = global_section_offset(fluid_section, c, &
+                 fluid_range_start)
+         else ! local
+            fluid_offset = section_offset(fluid_section, c)
+         end if
+
+         call source%fluid%assign(fluid_data, fluid_offset)
+         allocate(phase_mobilities(source%fluid%num_phases))
+         phase_mobilities = source%fluid%phase_mobilities()
+
+         reference_pressure = self%reference_pressure%interpolate(time, 1)
+         pressure_difference = source%fluid%pressure - reference_pressure
+         factor = sum(phase_mobilities) * pressure_difference
+
+         if (abs(factor) > tol) then
+            productivity = abs(rate) / factor
+         end if
+
+         deallocate(phase_mobilities)
+
+      end select
+
+    end subroutine PI_iterator
 
   end subroutine source_control_deliverability_calculate_PI_from_rate
 
@@ -661,20 +732,20 @@ contains
 
   subroutine source_control_recharge_init(self, recharge_data, &
        interpolation_type, averaging_type, reference_pressure_data, &
-       local_source_index)
+       sources)
     !! Initialises source_control_recharge object.
 
     class(source_control_recharge_type), intent(in out) :: self
     PetscReal, intent(in) :: recharge_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
-    PetscInt, intent(in) :: local_source_index
+    type(list_type), intent(in) :: sources
 
     call self%coefficient%init(recharge_data, &
          interpolation_type, averaging_type)
     call self%reference_pressure%init(reference_pressure_data, &
          interpolation_type, averaging_type)
-    self%local_source_index = local_source_index
+    self%sources = sources
 
   end subroutine source_control_recharge_init
 
@@ -687,6 +758,7 @@ contains
 
     call self%coefficient%destroy()
     call self%reference_pressure%destroy()
+    call self%sources%destroy()
 
   end subroutine source_control_recharge_destroy
 
@@ -708,25 +780,38 @@ contains
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
     PetscInt, intent(in) :: num_tracers
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: source_offset
-    PetscReal :: reference_pressure, pressure_difference
-    PetscReal :: recharge_coefficient
 
-    call source%init(eos)
+    call self%sources%traverse(recharge_iterator)
 
-    source_offset = global_section_offset(source_section, &
-         self%local_source_index, source_range_start)
-    call source%assign(source_data, source_offset)
-    call source%assign_fluid_local(local_fluid_data, local_fluid_section)
+  contains
 
-    reference_pressure = self%reference_pressure%average(interval, 1)
-    pressure_difference = source%fluid%pressure - reference_pressure
-    recharge_coefficient = self%coefficient%average(interval, 1)
-    call source%set_rate(-recharge_coefficient * pressure_difference)
+    subroutine recharge_iterator(node, stopped)
 
-    call source%destroy()
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+      PetscReal :: reference_pressure, pressure_difference
+      PetscReal :: recharge_coefficient
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
+         call source%assign_fluid_local(local_fluid_data, local_fluid_section)
+
+         reference_pressure = self%reference_pressure%average(interval, 1)
+         pressure_difference = source%fluid%pressure - reference_pressure
+         recharge_coefficient = self%coefficient%average(interval, 1)
+         call source%set_rate(-recharge_coefficient * pressure_difference)
+
+      end select
+
+    end subroutine recharge_iterator
 
   end subroutine source_control_recharge_update
 
@@ -734,18 +819,15 @@ contains
 ! Limiter source controls:
 !------------------------------------------------------------------------
 
-  subroutine source_control_limiter_init(self, input_local_source_index, &
-       limit, local_source_indices)
+  subroutine source_control_limiter_init(self, limit, sources)
     !! Initialises source_control_limiter object.
 
     class(source_control_limiter_type), intent(in out) :: self
-    PetscInt, intent(in) :: input_local_source_index
     PetscReal, intent(in) :: limit
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in) :: sources
 
-    self%input_local_source_index = input_local_source_index
     self%limit = limit
-    self%local_source_indices = local_source_indices
+    self%sources = sources
 
   end subroutine source_control_limiter_init
 
@@ -756,8 +838,7 @@ contains
 
     class(source_control_limiter_type), intent(in out) :: self
 
-    if (allocated(self%local_source_indices)) &
-         deallocate(self%local_source_indices)
+    call self%sources%destroy()
 
   end subroutine source_control_limiter_destroy
 
@@ -769,7 +850,7 @@ contains
     !! Returns factor by which flow should be scaled to avoid
     !! exceededing limit.
 
-    class(source_control_limiter_type), intent(in) :: self
+    class(source_control_limiter_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
     PetscInt, intent(in) :: source_range_start
@@ -809,24 +890,32 @@ contains
     class(eos_type), intent(in) :: eos
     PetscInt, intent(in) :: num_tracers
     ! Locals:
-    type(source_type) :: source
     PetscReal :: scale
-    PetscInt :: i, s, source_offset
 
-    call source%init(eos)
     scale = self%rate_scale(source_data, source_section, &
          source_range_start, eos)
+    call self%sources%traverse(limiter_iterator)
 
-    do i = 1, size(self%local_source_indices)
+  contains
 
-       s = self%local_source_indices(i)
-       source_offset = global_section_offset(source_section, s, source_range_start)
-       call source%assign(source_data, source_offset)
-       call source%set_rate(source%rate * scale)
+    subroutine limiter_iterator(node, stopped)
 
-    end do
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
 
-    call source%destroy()
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
+         call source%set_rate(source%rate * scale)
+      end select
+
+    end subroutine limiter_iterator
 
   end subroutine source_control_limiter_update
 
@@ -838,23 +927,34 @@ contains
 
     use dm_utils_module, only: global_section_offset
 
-    class(source_control_total_limiter_type), intent(in) :: self
+    class(source_control_total_limiter_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
     PetscInt, intent(in) :: source_range_start
     class(eos_type), intent(in) :: eos
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: source_offset
 
-    call source%init(eos)
-    source_offset = global_section_offset(source_section, &
-         self%input_local_source_index, source_range_start)
-    call source%assign(source_data, source_offset)
+    call self%sources%traverse(total_limiter_rate_iterator)
 
-    rate = source%rate
+  contains
 
-    call source%destroy()
+    subroutine total_limiter_rate_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
+         rate = source%rate
+      end select
+
+    end subroutine total_limiter_rate_iterator
 
   end function source_control_total_limiter_get_rate
 
@@ -866,23 +966,34 @@ contains
 
     use dm_utils_module, only: global_section_offset
 
-    class(source_control_water_limiter_type), intent(in) :: self
+    class(source_control_water_limiter_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
     PetscInt, intent(in) :: source_range_start
     class(eos_type), intent(in) :: eos
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: source_offset
 
-    call source%init(eos)
-    source_offset = global_section_offset(source_section, &
-         self%input_local_source_index, source_range_start)
-    call source%assign(source_data, source_offset)
+    call self%sources%traverse(water_limiter_rate_iterator)
 
-    rate = source%separator%water_rate
+  contains
 
-    call source%destroy()
+    subroutine water_limiter_rate_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
+         rate = source%separator%water_rate
+      end select
+
+    end subroutine water_limiter_rate_iterator
 
   end function source_control_water_limiter_get_rate
 
@@ -894,23 +1005,34 @@ contains
 
     use dm_utils_module, only: global_section_offset
 
-    class(source_control_steam_limiter_type), intent(in) :: self
+    class(source_control_steam_limiter_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
     PetscInt, intent(in) :: source_range_start
     class(eos_type), intent(in) :: eos
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: source_offset
 
-    call source%init(eos)
-    source_offset = global_section_offset(source_section, &
-         self%input_local_source_index, source_range_start)
-    call source%assign(source_data, source_offset)
+    call self%sources%traverse(steam_limiter_rate_iterator)
 
-    rate = source%separator%steam_rate
+  contains
 
-    call source%destroy()
+    subroutine steam_limiter_rate_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
+         rate = source%separator%steam_rate
+      end select
+
+    end subroutine steam_limiter_rate_iterator
 
   end function source_control_steam_limiter_get_rate
 
@@ -918,16 +1040,15 @@ contains
 ! Direction source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_direction_init(self, direction, &
-       local_source_indices)
+  subroutine source_control_direction_init(self, direction, sources)
     !! Initialises source_control_direction object.
 
     class(source_control_direction_type), intent(in out) :: self
     PetscInt, intent(in) :: direction
-    PetscInt, intent(in) :: local_source_indices(:)
+    type(list_type), intent(in) :: sources
 
     self%direction = direction
-    self%local_source_indices = local_source_indices
+    self%sources = sources
 
   end subroutine source_control_direction_init
 
@@ -938,8 +1059,7 @@ contains
 
     class(source_control_direction_type), intent(in out) :: self
 
-    if (allocated(self%local_source_indices)) &
-         deallocate(self%local_source_indices)
+    call self%sources%destroy()
 
   end subroutine source_control_direction_destroy
 
@@ -961,18 +1081,26 @@ contains
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
     PetscInt, intent(in) :: num_tracers
-    ! Locals:
-    type(source_type) :: source
-    PetscInt :: i, s, source_offset
-    PetscBool :: flowing
 
-    call source%init(eos)
+    call self%sources%traverse(direction_iterator)
 
-    do i = 1, size(self%local_source_indices)
+  contains
 
-       s = self%local_source_indices(i)
-       source_offset = global_section_offset(source_section, s, source_range_start)
-       call source%assign(source_data, source_offset)
+    subroutine direction_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+      PetscBool :: flowing
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
 
          select case (self%direction)
          case (SRC_DIRECTION_PRODUCTION)
@@ -984,9 +1112,9 @@ contains
          end select
          if (.not. flowing) call source%set_rate(0._dp)
 
-      end do
+      end select
 
-    call source%destroy()
+    end subroutine direction_iterator
 
   end subroutine source_control_direction_update
 
