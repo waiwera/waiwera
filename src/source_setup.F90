@@ -100,7 +100,6 @@ contains
        call PetscObjectSetName(source_vector, "source", ierr); CHKERRQ(ierr)
        call global_vec_range_start(source_vector, source_range_start)
 
-       call source_controls%init(owner = PETSC_TRUE)
        call global_vec_section(fluid_vector, fluid_section)
        call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
        call global_vec_section(source_vector, source_section)
@@ -109,6 +108,7 @@ contains
        call sources%init(owner = PETSC_TRUE)
        call source_dict%init(owner = PETSC_FALSE)
        call separated_sources%init(owner = PETSC_FALSE)
+       call source_controls%init(owner = PETSC_TRUE)
        call source_groups%init(owner = PETSC_TRUE)
        call group_specs%init(owner = PETSC_TRUE)
 
