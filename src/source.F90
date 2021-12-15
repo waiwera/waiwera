@@ -30,7 +30,6 @@ module source_module
   implicit none
   private
 
-  PetscInt, parameter, public :: max_source_name_length = 32
   PetscInt, parameter, public :: default_source_component = 0
   PetscInt, parameter, public :: default_source_injection_component = 1
   PetscInt, parameter, public :: default_source_production_component = 0
