@@ -36,7 +36,7 @@ module source_module
   PetscReal, parameter, public :: default_source_rate = 0._dp
   PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3
 
-  PetscInt, parameter, public :: num_source_scalar_variables = 18
+  PetscInt, parameter, public :: num_source_scalar_variables = 13
   PetscInt, parameter, public :: max_source_variable_name_length = 24
   character(max_source_variable_name_length), public :: &
        source_scalar_variable_names(num_source_scalar_variables) = [ &
@@ -46,10 +46,8 @@ module source_module
        "steam_fraction      ", &
        "water_rate          ", "water_enthalpy      ", &
        "steam_rate          ", "steam_enthalpy      ", &
-       "source_index        ", "local_source_index  ", &
-       "natural_cell_index  ", "local_cell_index    ", &
-       "injection_enthalpy  ", "injection_component ", &
-       "production_component", "component           "]
+       "source_index        ", "natural_cell_index  ", &
+       "component           "]
   PetscInt, parameter, public :: num_source_array_variables = 3
   character(max_source_variable_name_length), public :: &
        source_array_variable_names(num_source_array_variables) = [ &
@@ -68,22 +66,22 @@ module source_module
      !! generation to each equation in a particular cell at the
      !! current time.
      private
+     PetscInt, public :: local_source_index !! Index of source in local part of source vector
+     PetscInt, public :: local_cell_index !! Local index of cell the source is in
+     PetscReal, public :: injection_enthalpy !! Enthalpy to apply for injection
+     PetscReal, public :: injection_component !! Component for injection
+     PetscInt, public :: production_component !! Component for production (default 0 means all)
+     PetscInt, public :: dof !! Number of degrees of freedom
+     PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
+     PetscInt, public :: num_tracers !! Number of tracers
+     PetscBool, public :: isothermal !! Whether equation of state is isothermal
      PetscReal, pointer, public :: source_index !! Index of source in input
-     PetscReal, pointer, public :: local_source_index !! Index of source in local part of source vector
      PetscReal, pointer, public :: natural_cell_index !! Natural index of cell the source is in
-     PetscReal, pointer, public :: local_cell_index !! Local index of cell the source is in
-     PetscReal, pointer, public :: injection_enthalpy !! Enthalpy to apply for injection
-     PetscReal, pointer, public :: injection_component !! Component for injection
-     PetscReal, pointer, public :: production_component !! Component for production (default 0 means all)
      PetscReal, pointer, public :: component !! Mass (or energy) component being produced or injected
      PetscReal, pointer, contiguous, public :: flow(:) !! Flows in each mass and energy component
      type(fluid_type), public :: fluid !! Fluid properties in cell (for production)
      PetscReal, pointer, contiguous, public :: tracer_injection_rate(:) !! Tracer injection rates
      PetscReal, pointer, contiguous, public :: tracer_flow(:) !! Tracer flow rates
-     PetscInt, public :: dof !! Number of degrees of freedom
-     PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
-     PetscInt, public :: num_tracers !! Number of tracers
-     PetscBool, public :: isothermal !! Whether equation of state is isothermal
    contains
      private
      procedure :: update_injection_mass_flow => source_update_injection_mass_flow
@@ -106,25 +104,42 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_init(self, eos, num_tracers)
+  subroutine source_init(self, name, eos, local_source_index, &
+       local_cell_index, injection_enthalpy, injection_component, &
+       production_component, num_tracers)
     !! Initialises a source object.
 
     use eos_module, only: eos_type
 
     class(source_type), intent(in out) :: self
+    character(*), intent(in) :: name !! Source name
     class(eos_type), intent(in) :: eos !! Equation of state
+    PetscInt, intent(in) :: local_source_index !! Source index on local process
+    PetscInt, intent(in) :: local_cell_index !! Cell index on local process
+    PetscReal, intent(in) :: injection_enthalpy !! Enthalpy for injection
+    PetscInt, intent(in) :: injection_component !! Component for injection
+    PetscInt, intent(in) :: production_component !! Component for production
     PetscInt, intent(in), optional :: num_tracers !! Number of tracers
 
+    self%name = name
     self%num_primary_variables = eos%num_primary_variables
     call self%fluid%init(eos%num_components, eos%num_phases)
+    self%local_source_index = local_source_index
+    self%local_cell_index = local_cell_index
+    self%injection_enthalpy = injection_enthalpy
+    self%injection_component = injection_component
+    self%production_component = production_component
     self%isothermal = eos%isothermal
+
     if (present(num_tracers)) then
        self%num_tracers = num_tracers
     else
        self%num_tracers = 0
     end if
+
     self%dof = num_source_scalar_variables + self%num_primary_variables + &
          self%num_tracers * 2
+    self%heat = (self%production_component == self%num_primary_variables)
 
   end subroutine source_init
 
@@ -142,15 +157,10 @@ contains
 
     call self%source_network_node_type%assign(data, offset)
 
-    self%source_index => data(offset + 10)
-    self%local_source_index => data(offset + 11)
-    self%natural_cell_index => data(offset + 12)
-    self%local_cell_index => data(offset + 13)
-    self%injection_enthalpy => data(offset + 14)
-    self%injection_component => data(offset + 15)
-    self%production_component => data(offset + 16)
-    self%component => data(offset + 17)
-    iflow_start = offset + 18
+    self%source_index => data(offset + 8)
+    self%natural_cell_index => data(offset + 9)
+    self%component => data(offset + 10)
+    iflow_start = offset + 11
     iflow_end = iflow_start + self%num_primary_variables - 1
     self%flow => data(iflow_start: iflow_end)
     if (self%num_tracers > 0) then
@@ -162,7 +172,6 @@ contains
        self%tracer_injection_rate => null()
        self%tracer_flow => null()
     end if
-    self%heat = (self%production_component == self%num_primary_variables)
 
   end subroutine source_assign
 
@@ -179,7 +188,7 @@ contains
     ! Locals:
     PetscInt :: fluid_offset
 
-    fluid_offset = section_offset(local_fluid_section, nint(self%local_cell_index))
+    fluid_offset = section_offset(local_fluid_section, self%local_cell_index)
     call self%fluid%assign(local_fluid_data, fluid_offset)
 
   end subroutine source_assign_fluid_local
@@ -199,42 +208,30 @@ contains
     PetscInt :: fluid_offset
 
     fluid_offset = global_section_offset(fluid_section, &
-         nint(self%local_cell_index), fluid_range_start)
+         self%local_cell_index, fluid_range_start)
     call self%fluid%assign(fluid_data, fluid_offset)
 
   end subroutine source_assign_fluid
 
 !------------------------------------------------------------------------
 
-  subroutine source_setup(self, source_index, local_source_index, &
-       natural_cell_index, local_cell_index, rate, &
-       injection_enthalpy, injection_component, production_component, &
+  subroutine source_setup(self, source_index, natural_cell_index, rate, &
        tracer_injection_rate, separator_pressure, thermo)
     !! Sets up main parameters of a source object.
 
     class(source_type), intent(in out) :: self
     PetscInt, intent(in) :: source_index !! index of source in input
-    PetscInt, intent(in) :: local_source_index !! index of source in local part of source vector
     PetscInt, intent(in) :: natural_cell_index !! natural index of cell the source is in
-    PetscInt, intent(in) :: local_cell_index !! local index of cell the source is in
     PetscReal, intent(in) :: rate !! source flow rate
-    PetscReal, intent(in) :: injection_enthalpy !! enthalpy for injection
-    PetscInt, intent(in) :: injection_component !! mass (or energy) component for injection
-    PetscInt, intent(in) :: production_component !! mass (or energy) component for production
     PetscReal, intent(in) :: tracer_injection_rate(:) !! tracer injection rates
     PetscReal, intent(in) :: separator_pressure !! Separator pressure (-1 for no separator)
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
 
     self%source_index = source_index
-    self%local_source_index = local_source_index
     self%natural_cell_index = natural_cell_index
-    self%local_cell_index = local_cell_index
-    self%injection_enthalpy = injection_enthalpy
-    self%injection_component = injection_component
     if (self%num_tracers > 0) then
        self%tracer_injection_rate = tracer_injection_rate
     end if
-    self%production_component = production_component
     if (separator_pressure > 0._dp) then
        call self%separator%init(separator_pressure, thermo)
     end if
@@ -251,12 +248,7 @@ contains
 
     call self%source_network_node_type%destroy()
     self%source_index => null()
-    self%local_source_index => null()
     self%natural_cell_index => null()
-    self%local_cell_index => null()
-    self%injection_enthalpy => null()
-    self%injection_component => null()
-    self%production_component => null()
     self%component => null()
     self%flow => null()
     self%tracer_injection_rate => null()
@@ -273,7 +265,7 @@ contains
 
     class(source_type), intent(in out) :: self
     
-    if (nint(self%production_component) <= 0) then
+    if (self%production_component <= 0) then
        self%component = default_source_production_component
     else
        self%component = self%production_component
@@ -288,7 +280,7 @@ contains
 
     class(source_type), intent(in out) :: self
 
-    if (nint(self%injection_component) <= 0) then
+    if (self%injection_component <= 0) then
        self%component = default_source_injection_component
     else
        self%component = self%injection_component
@@ -438,7 +430,7 @@ contains
        call self%assign_fluid(fluid_data, fluid_section, &
             fluid_range_start)
        tracer_offset = global_section_offset(tracer_section, &
-            nint(self%local_cell_index), tracer_range_start)
+            self%local_cell_index, tracer_range_start)
        tracer_mass_fraction => tracer_data(tracer_offset: &
             tracer_offset + self%num_tracers - 1)
        phase_flow_fractions = self%fluid%phase_flow_fractions()
