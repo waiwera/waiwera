@@ -9,6 +9,7 @@ module source_control_test
   use zofu
   use source_module
   use source_control_module
+  use source_group_module
   use source_setup_module
 
   implicit none
@@ -73,13 +74,14 @@ contains
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: source_controls
+    type(list_type) :: source_controls, source_groups
     type(source_type) :: source
     Vec :: fluid_vector, local_fluid_vector, source_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: fluid_section, local_fluid_section, source_section
-    PetscInt :: num_sources, total_num_sources, source_vector_size
+    type(list_type) :: sources
+    PetscInt :: total_num_sources, source_vector_size
     PetscInt :: fluid_range_start, source_range_start
     PetscInt :: s, source_offset, source_index
     PetscReal :: t, interval(2)
@@ -88,7 +90,7 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
-    PetscInt, allocatable :: separated_source_indices(:)
+    type(list_type) :: separated_sources
     PetscInt, parameter :: expected_num_sources = 11
     PetscMPIInt :: rank
     IS :: source_is
@@ -111,8 +113,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, num_sources, total_num_sources, source_controls, &
-         source_is, separated_source_indices, err = err)
+         source_range_start, sources, total_num_sources, source_controls, &
+         source_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
     call source%init(eos, size(tracers))
     call test%assert(21 + size(tracers) * 2, source%dof, "source dof")
@@ -175,7 +177,10 @@ contains
     call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
-    deallocate(separated_source_indices)
+    call source_groups%destroy(source_group_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
+    call separated_sources%destroy()
+    call sources%destroy(source_list_node_data_destroy)
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
@@ -208,6 +213,22 @@ contains
       end select
     end subroutine source_control_list_node_data_destroy
 
+     subroutine source_group_list_node_data_destroy(node)
+      type(list_node_type), pointer, intent(in out) :: node
+      select type (source_group => node%data)
+      class is (source_group_type)
+         call source_group%destroy()
+      end select
+    end subroutine source_group_list_node_data_destroy
+
+    subroutine source_list_node_data_destroy(node)
+      type(list_node_type), pointer, intent(in out) :: node
+      select type (source => node%data)
+      class is (source_type)
+         call source%destroy()
+      end select
+    end subroutine source_list_node_data_destroy
+
   end subroutine test_source_control_table
 
 !------------------------------------------------------------------------
@@ -233,7 +254,7 @@ contains
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: source_controls
+    type(list_type) :: source_controls, source_groups
     type(source_type) :: source
     Vec :: source_vector
     Vec :: fluid_vector, local_fluid_vector
@@ -335,7 +356,7 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, num_sources, total_num_sources, source_controls, &
-         source_is, separated_source_indices, err = err)
+         source_is, separated_source_indices, source_groups, err = err)
     call test%assert(0, err, "source setup error")
     call source%init(eos, size(tracer_names))
 
@@ -418,6 +439,8 @@ contains
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
+         reverse = PETSC_TRUE)
+    call source_groups%destroy(source_group_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     deallocate(separated_source_indices)
     call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
@@ -591,6 +614,14 @@ contains
          call source_control%destroy()
       end select
     end subroutine source_control_list_node_data_destroy
+
+     subroutine source_group_list_node_data_destroy(node)
+      type(list_node_type), pointer, intent(in out) :: node
+      select type (source_group => node%data)
+      class is (source_group_type)
+         call source_group%destroy()
+      end select
+    end subroutine source_group_list_node_data_destroy
 
   end subroutine test_source_control_pressure_reference
 

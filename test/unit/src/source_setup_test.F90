@@ -73,14 +73,12 @@ contains
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(source_type) :: source
     Vec :: fluid_vector, source_vector
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section
     PetscInt :: fluid_range_start, source_range_start
-    PetscInt :: s, source_offset, source_index
-    type(list_type) :: source_controls
-    PetscInt :: num_sources, total_num_sources, num_zone_sources, n_all, i
+    type(list_type) :: sources, source_controls, source_groups, separated_sources
+    PetscInt :: total_num_sources, num_zone_sources, n_all, i
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
@@ -88,7 +86,6 @@ contains
     PetscInt, parameter :: expected_num_sources = 23
     PetscMPIInt :: rank, num_procs
     IS :: source_is
-    PetscInt, allocatable :: separated_source_indices(:)
     PetscInt, allocatable :: zone_source(:), isort(:)
     PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
     PetscInt, allocatable :: zone_source_counts(:), zone_source_displacements(:)
@@ -101,7 +98,6 @@ contains
     call thermo%init()
     call eos%init(json, thermo)
     call setup_tracers(json, eos, tracers, err = err)
-    call source%init(eos, size(tracers))
     call mesh%init(eos, json)
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
@@ -109,8 +105,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, num_sources, total_num_sources, source_controls, &
-         source_is, separated_source_indices, err = err)
+         source_range_start, sources, total_num_sources, source_controls, &
+         source_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
@@ -123,12 +119,76 @@ contains
     zone_source = -1
     num_zone_sources = 0
 
-    do s = 0, num_sources - 1
-       source_offset = global_section_offset(source_section, s, source_range_start)
-       call source%assign(source_array, source_offset)
-       source_index = nint(source%source_index)
-       select case (source_index)
-       case (0)
+    call sources%traverse(source_test_iterator)
+
+    ! Test cells in last source, defined on a zone:
+    zone_source = pack(zone_source, zone_source >= 0)
+    zone_source_counts = get_mpi_int_gather_array()
+    zone_source_displacements = get_mpi_int_gather_array()
+    call MPI_gather(num_zone_sources, 1, MPI_INTEGER, zone_source_counts, 1, &
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       zone_source_displacements = [[0], &
+            array_cumulative_sum(zone_source_counts(1: num_procs - 1))]
+       n_all = sum(zone_source_counts)
+    else
+       n_all = 1
+    end if
+    allocate(zone_source_all(n_all))
+    call MPI_gatherv(zone_source, num_zone_sources, MPI_INTEGER, &
+         zone_source_all, zone_source_counts, zone_source_displacements, &
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       isort = [(i - 1, i = 1, n_all)]
+       call PetscSortIntWithPermutation(n_all, &
+            zone_source_all, isort, ierr); CHKERRQ(ierr)
+       isort = isort + 1 ! convert to 1-based
+       allocate(zone_source_sorted(n_all))
+       do i = 1, n_all
+          zone_source_sorted(i) = zone_source_all(isort(i))
+       end do
+       call test%assert(expected_zone_source_cells, zone_source_sorted, &
+            "zone source cells")
+       deallocate(zone_source_sorted, isort)
+    end if
+
+    deallocate(zone_source, zone_source_counts, zone_source_displacements, &
+         zone_source_all, tracers)
+    call ISDestroy(source_is, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
+    call source_controls%destroy(source_control_list_node_data_destroy)
+    call separated_sources%destroy()
+    call source_groups%destroy(source_group_list_node_data_destroy)
+    call sources%destroy(source_list_node_data_destroy)
+    call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
+    call mesh%destroy_distribution_data()
+    call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+
+  contains
+
+    subroutine source_test_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset, source_index
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
+
+         source_index = nint(source%source_index)
+         select case (source_index)
+         case (0)
             call source_test(test, source_index, source, &
                  0, 10._dp, 90.e3_dp, 0, 0, [0._dp, 0._dp])
          case (1)
@@ -196,55 +256,10 @@ contains
             num_zone_sources = num_zone_sources + 1
             zone_source(num_zone_sources) = nint(source%natural_cell_index)
          end select
-    end do
 
-    ! Test cells in last source, defined on a zone:
-    zone_source = pack(zone_source, zone_source >= 0)
-    zone_source_counts = get_mpi_int_gather_array()
-    zone_source_displacements = get_mpi_int_gather_array()
-    call MPI_gather(num_zone_sources, 1, MPI_INTEGER, zone_source_counts, 1, &
-         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-    if (rank == 0) then
-       zone_source_displacements = [[0], &
-            array_cumulative_sum(zone_source_counts(1: num_procs - 1))]
-       n_all = sum(zone_source_counts)
-    else
-       n_all = 1
-    end if
-    allocate(zone_source_all(n_all))
-    call MPI_gatherv(zone_source, num_zone_sources, MPI_INTEGER, &
-         zone_source_all, zone_source_counts, zone_source_displacements, &
-         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-    if (rank == 0) then
-       isort = [(i - 1, i = 1, n_all)]
-       call PetscSortIntWithPermutation(n_all, &
-            zone_source_all, isort, ierr); CHKERRQ(ierr)
-       isort = isort + 1 ! convert to 1-based
-       allocate(zone_source_sorted(n_all))
-       do i = 1, n_all
-          zone_source_sorted(i) = zone_source_all(isort(i))
-       end do
-       call test%assert(expected_zone_source_cells, zone_source_sorted, &
-            "zone source cells")
-       deallocate(zone_source_sorted, isort)
-    end if
+      end select
 
-    deallocate(zone_source, zone_source_counts, zone_source_displacements, &
-         zone_source_all, tracers)
-    call ISDestroy(source_is, ierr); CHKERRQ(ierr)
-    deallocate(separated_source_indices)
-    call source%destroy()
-    call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
-    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
-    call source_controls%destroy()
-    call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
-    call mesh%destroy_distribution_data()
-    call mesh%destroy()
-    call eos%destroy()
-    call thermo%destroy()
-    call fson_destroy_mpi(json)
-
-  contains
+    end subroutine source_test_iterator
 
     subroutine source_test(test, source_index, source, index, rate, enthalpy, &
          injection_component, production_component, tracer)
@@ -278,7 +293,7 @@ contains
       end if
 
     end subroutine source_test
-
+    
   end subroutine test_setup_sources
 
 !------------------------------------------------------------------------
@@ -306,9 +321,8 @@ contains
     Vec :: fluid_vector, source_vector
     PetscInt :: num_sources, total_num_sources
     PetscInt :: fluid_range_start, source_range_start
-    type(list_type) :: source_controls
+    type(list_type) :: sources, source_controls, source_groups, separated_sources
     IS :: source_index
-    PetscInt, allocatable :: separated_source_indices(:)
     PetscInt, pointer, contiguous :: source_index_array(:)
     PetscMPIInt :: rank, num_procs
     PetscErrorCode :: err, ierr
@@ -330,8 +344,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, num_sources, total_num_sources, source_controls, &
-         source_index, separated_source_indices, err = err)
+         source_range_start, sources, total_num_sources, source_controls, &
+         source_index, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
@@ -346,9 +360,11 @@ contains
     call ISRestoreIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
-    deallocate(separated_source_indices)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
-    call source_controls%destroy()
+    call separated_sources%destroy()
+    call source_groups%destroy(source_group_list_node_data_destroy)
+    call source_controls%destroy(source_control_list_node_data_destroy)
+    call sources%destroy(source_list_node_data_destroy)
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
     call mesh%destroy()
@@ -357,6 +373,32 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_source_index
+
+!------------------------------------------------------------------------
+
+  subroutine source_control_list_node_data_destroy(node)
+    type(list_node_type), pointer, intent(in out) :: node
+    select type (source_control => node%data)
+    class is (source_control_type)
+       call source_control%destroy()
+    end select
+  end subroutine source_control_list_node_data_destroy
+
+  subroutine source_group_list_node_data_destroy(node)
+    type(list_node_type), pointer, intent(in out) :: node
+    select type (source_group => node%data)
+    class is (source_group_type)
+       call source_group%destroy()
+    end select
+  end subroutine source_group_list_node_data_destroy
+
+  subroutine source_list_node_data_destroy(node)
+    type(list_node_type), pointer, intent(in out) :: node
+    select type (source => node%data)
+    class is (source_type)
+       call source%destroy()
+    end select
+  end subroutine source_list_node_data_destroy
 
 !------------------------------------------------------------------------
 
