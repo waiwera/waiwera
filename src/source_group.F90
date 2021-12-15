@@ -29,10 +29,10 @@ module source_group_module
   private
 
   type, public, extends(source_network_node_type) :: source_group_type
-     !! Type for group of sources, e.g. multi-feed well or group of
-     !! makeup wells.
+     !! Type for group of source network nodes, e.g. multi-feed well
+     !! or group of makeup wells.
      private
-     type(list_type), public :: sources !! List of sources in group
+     type(list_type), public :: nodes !! List of nodes in group
    contains
      private
      procedure, public :: init => source_group_init
@@ -76,7 +76,7 @@ contains
 
     class(source_group_type), intent(in out) :: self
 
-    call self%sources%destroy()
+    call self%nodes%destroy()
     call self%source_network_node_type%destroy()
 
   end subroutine source_group_destroy
