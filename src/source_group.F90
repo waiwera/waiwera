@@ -35,7 +35,7 @@ module source_group_module
      type(list_type), public :: sources !! List of sources in group
    contains
      private
-     procedure, public :: setup => source_group_setup
+     procedure, public :: init => source_group_init
      procedure, public :: assign => source_group_assign
      procedure, public :: destroy => source_group_destroy
   end type source_group_type
@@ -44,12 +44,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_setup(self)
-    !! Sets up main parameters of a source group.
+  subroutine source_group_init(self, name)
+    !! Initialises a source group.
 
     class(source_group_type), intent(in out) :: self
-    
-  end subroutine source_group_setup
+    character(*), intent(in) :: name !! Group name
+
+    self%name = name
+    call self%nodes%init(owner = PETSC_FALSE)
+
+  end subroutine source_group_init
 
 !------------------------------------------------------------------------
 
