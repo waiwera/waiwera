@@ -559,6 +559,7 @@ contains
       ! Locals:
       PetscInt :: s, source_offset
 
+      stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
          s = source%local_source_index
