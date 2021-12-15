@@ -27,9 +27,12 @@ module source_network_module
   implicit none
   private
 
+  PetscInt, parameter, public :: max_source_network_node_name_length = 32
+
   type, public :: source_network_node_type
      !! Type for node in source network, e.g. source or source group.
      private
+     character(max_source_network_node_name_length), public :: name !! Name of source network node
      PetscReal, pointer, public :: rate !! Flow rate
      PetscReal, pointer, public :: enthalpy !! Enthalpy of fluid
      type(separator_type), public :: separator !! Separator
