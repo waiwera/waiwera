@@ -1531,7 +1531,7 @@ contains
 
          s = source%local_source_index
          source_offset = global_section_offset(source_section, &
-              s, source_range_start)
+              s, self%source_range_start)
          call source%assign(source_data, source_offset)
 
          if ((source%rate <= 0._dp) .and. (.not. source%heat)) then
@@ -1587,7 +1587,7 @@ contains
 
          s = source%local_source_index
          source_offset = global_section_offset(source_section, &
-              s, source_range_start)
+              s, self%source_range_start)
          call source%assign(source_data, source_offset)
 
          call cell%init(self%eos%num_components, self%eos%num_phases)
