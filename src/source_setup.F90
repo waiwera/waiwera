@@ -34,6 +34,7 @@ module source_setup_module
   use source_control_module
   use separator_module
   use source_group_module
+  use source_network_module
 
   implicit none
   private
@@ -632,7 +633,7 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      character(max_source_group_name_length) :: name
+      character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: names(:)
       PetscInt :: i
       type(list_node_type), pointer :: dict_node
