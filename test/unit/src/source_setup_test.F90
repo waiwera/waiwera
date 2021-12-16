@@ -7,8 +7,12 @@ module source_setup_test
   use petsc
   use kinds_module
   use zofu
+  use source_module, only: source_type
   use source_setup_module
+  use source_control_module, only: source_control_type
+  use source_group_module, only: source_group_type
   use eos_wge_module
+  use list_module
 
   implicit none
   private
@@ -58,7 +62,6 @@ contains
     use fson
     use fson_mpi_module
     use mesh_module
-    use list_module
     use source_module
     use IAPWS_module
     use eos_module
@@ -115,7 +118,7 @@ contains
 
     call global_vec_section(source_vector, source_section)
     call VecGetArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
-    allocate(zone_source(num_sources))
+    allocate(zone_source(sources%count))
     zone_source = -1
     num_zone_sources = 0
 
@@ -184,7 +187,7 @@ contains
          s = source%local_source_index
          source_offset = global_section_offset(source_section, &
               s, source_range_start)
-         call source%assign(source_data, source_offset)
+         call source%assign(source_array, source_offset)
 
          source_index = nint(source%source_index)
          select case (source_index)
@@ -283,9 +286,9 @@ contains
            trim(srcstr) // ": rate")
       call test%assert(enthalpy, source%injection_enthalpy, &
            trim(srcstr) // ": enthalpy")
-      call test%assert(injection_component, nint(source%injection_component), &
+      call test%assert(injection_component, source%injection_component, &
            trim(srcstr) // ": injection component")
-      call test%assert(production_component, nint(source%production_component), &
+      call test%assert(production_component, source%production_component, &
            trim(srcstr) // ": production component")
       if (present(tracer)) then
          call test%assert(tracer, source%tracer_injection_rate, &
@@ -304,7 +307,6 @@ contains
     use fson
     use fson_mpi_module
     use mesh_module
-    use list_module
     use source_module
     use IAPWS_module
     use eos_we_module

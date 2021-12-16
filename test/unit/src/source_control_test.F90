@@ -74,23 +74,19 @@ contains
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: source_controls, source_groups
     type(source_type) :: source
     Vec :: fluid_vector, local_fluid_vector, source_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: fluid_section, local_fluid_section, source_section
-    type(list_type) :: sources
+    type(list_type) :: sources, source_controls, source_groups, separated_sources
     PetscInt :: total_num_sources, source_vector_size
     PetscInt :: fluid_range_start, source_range_start
-    PetscInt :: s, source_offset, source_index
     PetscReal :: t, interval(2)
-    character(len = 8) :: srcstr
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
-    type(list_type) :: separated_sources
     PetscInt, parameter :: expected_num_sources = 11
     PetscMPIInt :: rank
     IS :: source_is
@@ -116,8 +112,9 @@ contains
          source_range_start, sources, total_num_sources, source_controls, &
          source_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
-    call source%init(eos, size(tracers))
+    call source%init("", eos, 0, 0, 0._dp, 0, 0, size(tracers))
     call test%assert(21 + size(tracers) * 2, source%dof, "source dof")
+    call source%destroy()
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -139,42 +136,13 @@ contains
     t = 120._dp
     interval = [30._dp, t]
     call source_controls%traverse(source_control_iterator)
-    do s = 0, num_sources - 1
-       source_offset = global_section_offset(source_section, s, &
-            source_range_start)
-       call source%assign(source_array, source_offset)
-       source_index = nint(source%source_index)
-       write(srcstr, '(a, i1)') 'source ', source_index
-       select case (source_index)
-       case (0)
-          call test%assert(-2.25_dp, source%rate, trim(srcstr))
-       case (1: 3)
-          call test%assert(2.25_dp, source%rate, trim(srcstr))
-       case (4: 5)
-          call test%assert(104.5e3_dp, source%injection_enthalpy, &
-               trim(srcstr))
-       case (6)
-          call test%assert(-2.5_dp * 0.75_dp, source%rate, trim(srcstr))
-       case (7)
-          call test%assert(-2.5_dp * 0.5_dp, source%rate, trim(srcstr))
-       case (8)
-          call test%assert([0.001_dp / 3._dp, 0.001_dp / 3._dp], &
-               source%tracer_injection_rate, trim(srcstr))
-       case (9)
-          call test%assert([0.001_dp / 3._dp, 0.001_dp * 7._dp / 9._dp], &
-               source%tracer_injection_rate, trim(srcstr))
-       case (10)
-          call test%assert([0._dp, 0.001_dp * 7._dp / 9._dp], &
-               source%tracer_injection_rate, trim(srcstr))
-       end select
-    end do
+    call sources%traverse(source_test_iterator)
 
     call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
-    call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call source_groups%destroy(source_group_list_node_data_destroy, &
@@ -196,16 +164,59 @@ contains
     subroutine source_control_iterator(node, stopped)
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
+      stopped = PETSC_FALSE
       select type (source_control => node%data)
       class is (source_control_type)
          call source_control%update(t, interval, source_array, &
               source_section, source_range_start, fluid_array, &
               fluid_section, eos, size(tracers))
       end select
-      stopped = PETSC_FALSE
     end subroutine source_control_iterator
 
-     subroutine source_control_list_node_data_destroy(node)
+    subroutine source_test_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset, source_index
+      character(len = 8) :: srcstr
+
+      stopped = PETSC_FALSE
+      select type (source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              source_range_start)
+         call source%assign(source_array, source_offset)
+         source_index = nint(source%source_index)
+         write(srcstr, '(a, i1)') 'source ', source_index
+         select case (source_index)
+         case (0)
+            call test%assert(-2.25_dp, source%rate, trim(srcstr))
+         case (1: 3)
+            call test%assert(2.25_dp, source%rate, trim(srcstr))
+         case (4: 5)
+            call test%assert(104.5e3_dp, source%injection_enthalpy, &
+                 trim(srcstr))
+         case (6)
+            call test%assert(-2.5_dp * 0.75_dp, source%rate, trim(srcstr))
+         case (7)
+            call test%assert(-2.5_dp * 0.5_dp, source%rate, trim(srcstr))
+         case (8)
+            call test%assert([0.001_dp / 3._dp, 0.001_dp / 3._dp], &
+                 source%tracer_injection_rate, trim(srcstr))
+         case (9)
+            call test%assert([0.001_dp / 3._dp, 0.001_dp * 7._dp / 9._dp], &
+                 source%tracer_injection_rate, trim(srcstr))
+         case (10)
+            call test%assert([0._dp, 0.001_dp * 7._dp / 9._dp], &
+                 source%tracer_injection_rate, trim(srcstr))
+         end select
+      end select
+
+    end subroutine source_test_iterator
+
+    subroutine source_control_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
       select type (source_control => node%data)
       class is (source_control_type)
@@ -214,7 +225,7 @@ contains
     end subroutine source_control_list_node_data_destroy
 
      subroutine source_group_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
+       type(list_node_type), pointer, intent(in out) :: node
       select type (source_group => node%data)
       class is (source_group_type)
          call source_group%destroy()
@@ -254,7 +265,7 @@ contains
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: source_controls, source_groups
+    type(list_type) :: sources, source_controls, source_groups, separated_sources
     type(source_type) :: source
     Vec :: source_vector
     Vec :: fluid_vector, local_fluid_vector
@@ -262,16 +273,14 @@ contains
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section, fluid_section, local_fluid_section
     type(fluid_type) :: fluid
-    PetscInt :: num_sources, total_num_sources, num_source_controls
-    PetscInt :: num_separators, source_index
-    PetscInt :: start_cell, end_cell, c, s, s12, source_range_start, fluid_range_start
+    PetscInt :: total_num_sources, num_separators, num_source_controls
+    PetscInt :: start_cell, end_cell, c, s12, source_range_start, fluid_range_start
     PetscInt :: fluid_offset, source_offset, cell_phase_composition
     PetscReal :: t, interval(2), props(2)
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
     PetscReal :: cell_vapour_density, cell_vapour_internal_energy
     PetscReal :: cell_liquid_viscosity, cell_vapour_viscosity
     IS :: source_is
-    PetscInt, allocatable :: separated_source_indices(:)
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
@@ -288,7 +297,6 @@ contains
          0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
          0._dp, 0._dp, 0._dp, 0._dp, 0._dp, -5.37164537500731_dp]
     PetscMPIInt :: rank
-    character(len = 16) :: srcstr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // &
@@ -355,10 +363,9 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, num_sources, total_num_sources, source_controls, &
-         source_is, separated_source_indices, source_groups, err = err)
+         source_range_start, sources, total_num_sources, source_controls, &
+         source_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
-    call source%init(eos, size(tracer_names))
 
     if (rank == 0) then
       call test%assert(16, total_num_sources, "number of sources")
@@ -370,7 +377,7 @@ contains
        call test%assert(27, num_source_controls, "number of source controls")
     end if
 
-    call MPI_reduce(size(separated_source_indices), num_separators, 1, &
+    call MPI_reduce(separated_sources%count, num_separators, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
        call test%assert(2, num_separators, "number of separators")
@@ -387,24 +394,15 @@ contains
     t = 120._dp
     interval = [30._dp, t]
 
-    call update_separators()
+    call separated_sources%traverse(source_separator_iterator)
     call source_controls%traverse(source_control_update_iterator)
     call source_controls%traverse(source_control_test_iterator)
 
     s12 = -1
-    do s = 0, num_sources - 1
-       source_offset = global_section_offset(source_section, s, source_range_start)
-       call source%assign(source_array, source_offset)
-       source_index = nint(source%source_index)
-       write(srcstr, '(a, i2)') 'source ', source_index + 1
-       call test%assert(expected_rates(source_index), source%rate, &
-            trim(srcstr) // ' rate')
-       call test%assert(expected_steam_rates(source_index), source%separator%steam_rate, &
-            trim(srcstr) // ' steam rate')
-       if (source_index == 12) s12 = s
-    end do
+    call sources%traverse(source_rate_test_iterator)
 
     ! Test deliverability threshold control- reduce fluid pressure:
+    call source%init("source 12", eos, 0, 0, 0._dp, 0, 0, size(tracer_names))
     call reset_fluid_pressures(6.e5_dp)
     call source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
@@ -442,7 +440,8 @@ contains
          reverse = PETSC_TRUE)
     call source_groups%destroy(source_group_list_node_data_destroy, &
          reverse = PETSC_TRUE)
-    deallocate(separated_source_indices)
+    call separated_sources%destroy()
+    call sources%destroy(source_list_node_data_destroy)
     call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call fluid%destroy()
@@ -455,21 +454,22 @@ contains
 
   contains
 
-    subroutine update_separators()
+    subroutine source_separator_iterator(node, stopped)
       !! Updates enthalpy and separated outputs from separators.
 
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: i, s, source_offset
-      type(source_type) :: source
+      PetscInt :: s, source_offset
       PetscReal, allocatable :: phase_flow_fractions(:)
 
-      call source%init(eos, size(tracer_names))
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
 
-      do i = 1, size(separated_source_indices)
-
-         s = separated_source_indices(i)
-         source_offset = global_section_offset(source_section, s, &
-              source_range_start)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
          call source%assign(source_array, source_offset)
 
          if ((source%rate <= 0._dp) .and. (.not. source%heat)) then
@@ -486,11 +486,9 @@ contains
             call source%separator%zero()
          end if
 
-      end do
+      end select
 
-      call source%destroy()
-
-    end subroutine update_separators
+    end subroutine source_separator_iterator
 
     subroutine source_control_update_iterator(node, stopped)
       type(list_node_type), pointer, intent(in out) :: node
@@ -512,68 +510,74 @@ contains
       select type (source_control => node%data)
 
       type is (source_control_deliverability_type)
-         s = source_control%local_source_index
-         source_offset = global_section_offset(source_section, s, &
+         select type (source => source_control%sources%head%data)
+         type is (source_type)
+            s = source%local_source_index
+            source_offset = global_section_offset(source_section, s, &
               source_range_start)
-         call source%assign(source_array, source_offset)
-         source_index = nint(source%source_index)
-         select case (source_index)
-         case (1)
-            call test%assert(1.e-12_dp, &
-                 source_control%productivity%val(1,1), &
-                 "source 2 productivity")
-            call test%assert(2.e5_dp, &
-                 source_control%reference_pressure%val(1,1), &
-                 "source 2 reference pressure")
-         case (2)
-            call test%assert(10.e5_dp, source%separator%pressure, &
-                 "source 3 separator pressure")
-         case (3)
-            call test%assert(8.54511496085953E-13_dp, &
-                 source_control%productivity%val(1,1), &
-                 "source 4 productivity")
-         case (9)
-            call test%assert(SRC_PRESSURE_TABLE_COORD_TIME, &
-                 source_control%pressure_table_coordinate, &
-                 "source 10 pressure table coordinate")
-            call test%assert(4, &
-                 source_control%reference_pressure%coord%size, &
-                 "source 10 pressure table size")
-            call test%assert(INTERP_STEP, &
-                 source_control%reference_pressure%interpolation_type, &
-                 "source 10 interpolation type")
-            call test%assert(INTERP_AVERAGING_ENDPOINT, &
-                 source_control%reference_pressure%averaging_type, &
-                 "source 10 averaging type")
-            call test%assert(1.8e5_dp, &
-                 source_control%reference_pressure%average(interval, 1), &
-                 "source 10 reference pressure")
-         case (10)
-            call test%assert(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
-                 source_control%pressure_table_coordinate, &
-                 "source 11 pressure table coordinate")
-         case (12)
-            call test%assert(5.e5_dp, source_control%threshold, &
-                 "source 13 deliverability threshold")
+            call source%assign(source_array, source_offset)
+            source_index = nint(source%source_index)
+            select case (source_index)
+            case (1)
+               call test%assert(1.e-12_dp, &
+                    source_control%productivity%val(1,1), &
+                    "source 2 productivity")
+               call test%assert(2.e5_dp, &
+                    source_control%reference_pressure%val(1,1), &
+                    "source 2 reference pressure")
+            case (2)
+               call test%assert(10.e5_dp, source%separator%pressure, &
+                    "source 3 separator pressure")
+            case (3)
+               call test%assert(8.54511496085953E-13_dp, &
+                    source_control%productivity%val(1,1), &
+                    "source 4 productivity")
+            case (9)
+               call test%assert(SRC_PRESSURE_TABLE_COORD_TIME, &
+                    source_control%pressure_table_coordinate, &
+                    "source 10 pressure table coordinate")
+               call test%assert(4, &
+                    source_control%reference_pressure%coord%size, &
+                    "source 10 pressure table size")
+               call test%assert(INTERP_STEP, &
+                    source_control%reference_pressure%interpolation_type, &
+                    "source 10 interpolation type")
+               call test%assert(INTERP_AVERAGING_ENDPOINT, &
+                    source_control%reference_pressure%averaging_type, &
+                    "source 10 averaging type")
+               call test%assert(1.8e5_dp, &
+                    source_control%reference_pressure%average(interval, 1), &
+                    "source 10 reference pressure")
+            case (10)
+               call test%assert(SRC_PRESSURE_TABLE_COORD_ENTHALPY, &
+                    source_control%pressure_table_coordinate, &
+                    "source 11 pressure table coordinate")
+            case (12)
+               call test%assert(5.e5_dp, source_control%threshold, &
+                    "source 13 deliverability threshold")
+            end select
          end select
 
       type is (source_control_recharge_type)
-         s = source_control%local_source_index
-         source_offset = global_section_offset(source_section, s, source_range_start)
-         call source%assign(source_array, source_offset)
-         source_index = nint(source%source_index)
-         select case (source_index)
-         case (6)
-            call test%assert(1.3e-2_dp, &
-                 source_control%coefficient%val(1, 1), &
-                 "source 7 recharge coefficient")
-            call test%assert(50.1e5_dp, &
-                 source_control%reference_pressure%val(1, 1), &
-                 "source 7 reference pressure")
-         case (11)
-            call test%assert(cell_pressure, &
-                 source_control%reference_pressure%val(1, 1), &
-                 "source 12 reference pressure")
+         select type (source => source_control%sources%head%data)
+         type is (source_type)
+            s = source%local_source_index
+            source_offset = global_section_offset(source_section, s, source_range_start)
+            call source%assign(source_array, source_offset)
+            source_index = nint(source%source_index)
+            select case (source_index)
+            case (6)
+               call test%assert(1.3e-2_dp, &
+                    source_control%coefficient%val(1, 1), &
+                    "source 7 recharge coefficient")
+               call test%assert(50.1e5_dp, &
+                    source_control%reference_pressure%val(1, 1), &
+                    "source 7 reference pressure")
+            case (11)
+               call test%assert(cell_pressure, &
+                    source_control%reference_pressure%val(1, 1), &
+                    "source 12 reference pressure")
+            end select
          end select
 
       type is (source_control_total_limiter_type)
@@ -586,6 +590,28 @@ contains
       stopped = PETSC_FALSE
 
     end subroutine source_control_test_iterator
+
+    subroutine source_rate_test_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      PetscInt :: s, source_index
+      character(len = 16) :: srcstr
+
+      select type (source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, source_range_start)
+         call source%assign(source_array, source_offset)
+         source_index = nint(source%source_index)
+         write(srcstr, '(a, i2)') 'source ', source_index + 1
+         call test%assert(expected_rates(source_index), source%rate, &
+              trim(srcstr) // ' rate')
+         call test%assert(expected_steam_rates(source_index), source%separator%steam_rate, &
+              trim(srcstr) // ' steam rate')
+         if (source_index == 12) s12 = s
+      end select
+
+    end subroutine source_rate_test_iterator
 
     subroutine reset_fluid_pressures(P)
       PetscReal, intent(in) :: P

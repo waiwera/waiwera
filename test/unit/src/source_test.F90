@@ -66,7 +66,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    type(source_type) :: source
     type(fluid_type) :: fluid
     type(fson_value), pointer :: json
     type(IAPWS_type) :: thermo
@@ -121,10 +120,6 @@ contains
     call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
 
-    call source%init(eos, nt)
-    allocate(source_data(source%dof))
-    call source%assign(source_data, 1)
-
     if (rank == 0) then
 
        call source_flow_test("inject 1", 10._dp, 200.e3_dp, 1, 0, &
@@ -150,8 +145,6 @@ contains
 
     end if
 
-    call source%destroy()
-    deallocate(source_data)
     call fluid%destroy()
     call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
@@ -175,16 +168,22 @@ contains
       PetscReal, intent(in) :: flow(:)
       PetscInt, intent(in) :: component
       ! Locals:
+      type(source_type) :: source
       PetscReal :: injection_tracer(0)
       PetscReal, parameter :: separator_pressure = -1._dp
 
-      call source%setup(0, 0, 0, 0, rate, enthalpy, &
-           injection_component, production_component, injection_tracer, &
+      call source%init(tag, eos, 0, 0, enthalpy, injection_component, &
+           production_component, nt)
+      allocate(source_data(source%dof))
+      call source%assign(source_data, 1)
+      call source%setup(0, 0, rate, injection_tracer, &
            separator_pressure, thermo)
       call source%update_flow(local_fluid_array, local_fluid_section)
       call test%assert(flow, source%flow, trim(tag) // " flow")
       call test%assert(component, nint(source%component), &
            trim(tag) // " component")
+      call source%destroy()
+      deallocate(source_data)
 
     end subroutine source_flow_test
 
