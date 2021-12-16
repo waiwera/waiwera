@@ -69,7 +69,7 @@ module source_module
      PetscInt, public :: local_source_index !! Index of source in local part of source vector
      PetscInt, public :: local_cell_index !! Local index of cell the source is in
      PetscReal, public :: injection_enthalpy !! Enthalpy to apply for injection
-     PetscReal, public :: injection_component !! Component for injection
+     PetscInt, public :: injection_component !! Component for injection
      PetscInt, public :: production_component !! Component for production (default 0 means all)
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
