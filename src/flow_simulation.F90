@@ -1093,6 +1093,8 @@ contains
     subroutine source_list_node_data_destroy(node)
       ! Destroys source in each list node.
 
+      use source_module, only: source_type
+
       type(list_node_type), pointer, intent(in out) :: node
 
       select type (source => node%data)
