@@ -2960,6 +2960,27 @@ contains
 
     end if
 
+  contains
+
+    subroutine source_cell_indices_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, s, &
+              self%source_range_start)
+         call source%assign(source_data, source_offset)
+          source_cell_indices(s + 1) = nint(source%natural_cell_index)
+      end select
+
+    end subroutine source_cell_indices_iterator
+
   end subroutine flow_simulation_output_source_cell_indices
 
 !------------------------------------------------------------------------
