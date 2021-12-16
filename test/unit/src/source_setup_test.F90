@@ -321,8 +321,7 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector, source_vector
-    PetscInt :: num_sources, total_num_sources
-    PetscInt :: fluid_range_start, source_range_start
+    PetscInt :: total_num_sources, fluid_range_start, source_range_start
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     IS :: source_index
     PetscInt, pointer, contiguous :: source_index_array(:)
