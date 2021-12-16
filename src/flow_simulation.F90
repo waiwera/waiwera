@@ -2088,14 +2088,11 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
-    type(source_type) :: source
     PetscSection :: fluid_section, tracer_section, source_section
     PetscReal, pointer, contiguous :: fluid_array(:), tracer_array(:), &
          source_data(:)
-    PetscInt :: s, source_offset
     PetscErrorCode :: ierr
 
-    call source%init(self%eos, size(self%tracers))
     call global_vec_section(self%current_fluid, fluid_section)
     call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr)
     CHKERRQ(ierr)
@@ -2104,21 +2101,36 @@ contains
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
 
-    do s = 0, self%num_local_sources - 1
-       source_offset = global_section_offset(source_section, s, &
-            self%source_range_start)
-       call source%assign(source_data, source_offset)
-       call source%update_tracer_flow(fluid_array, fluid_section, &
-            self%fluid_range_start, tracer_array, tracer_section, &
-            self%aux_solution_range_start, self%tracers%phase_index)
-    end do
+    call self%sources%traverse(source_tracer_flow_iterator)
 
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%aux_solution, tracer_array, ierr)
     CHKERRQ(ierr)
     call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr)
     CHKERRQ(ierr)
-    call source%destroy()
+
+  contains
+
+    subroutine source_tracer_flow_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, self%source_range_start)
+         call source%assign(source_data, source_offset)
+         call source%update_tracer_flow(fluid_array, fluid_section, &
+              self%fluid_range_start, tracer_array, tracer_section, &
+              self%aux_solution_range_start, self%tracers%phase_index)
+      end select
+
+    end subroutine source_tracer_flow_iterator
 
   end subroutine flow_simulation_source_tracer_flows
 
@@ -2921,11 +2933,9 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: i, source_offset
     PetscSection :: source_section
     PetscReal, pointer, contiguous :: source_data(:)
     PetscInt, allocatable :: source_cell_indices(:)
-    type(source_type) :: source
     IS :: is_cell_indices
     PetscErrorCode :: ierr
 
@@ -2933,17 +2943,10 @@ contains
 
        call global_vec_section(self%source, source_section)
        call VecGetArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
-       call source%init(self%eos, size(self%tracers))
-       allocate(source_cell_indices(self%num_local_sources))
-       do i = 1, self%num_local_sources
-          source_offset = global_section_offset(source_section, i - 1, &
-               self%source_range_start)
-          call source%assign(source_data, source_offset)
-          source_cell_indices(i) = nint(source%natural_cell_index)
-       end do
+       allocate(source_cell_indices(self%sources%count))
+       call self%sources%traverse(source_cell_indices_iterator)
        call VecRestoreArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
-       call source%destroy()
-       call ISCreateGeneral(PETSC_COMM_WORLD, self%num_local_sources, &
+       call ISCreateGeneral(PETSC_COMM_WORLD, self%sources%count, &
             source_cell_indices, PETSC_COPY_VALUES, is_cell_indices, ierr)
        CHKERRQ(ierr)
        deallocate(source_cell_indices)
