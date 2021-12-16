@@ -1701,10 +1701,11 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscSection :: cell_geom_section, face_geom_section, flux_section, &
-         source_section, local_tracer_section, fluid_section, rock_section
+         source_section, local_tracer_section, fluid_section, rock_section, &
+         br_section
     Vec :: local_fluid, local_rock
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:), &
-         flux_array(:), source_data(:), fluid_array(:), rock_array(:)
+         flux_array(:), source_data(:), fluid_array(:), rock_array(:), br_array(:)
     PetscInt :: start_cell, end_cell, end_interior_cell, f
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
     PetscInt :: tracer_offsets(2), fluid_offsets(2), rock_offsets(2)
@@ -1817,7 +1818,13 @@ contains
 
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
-    call apply_tracer_sources()
+    call global_vec_section(self%current_fluid, fluid_section)
+    call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(br, br_section)
+    call VecGetArrayF90(br, br_array, ierr); CHKERRQ(ierr)
+    call self%sources%traverse(tracer_source_iterator)
+    call VecRestoreArrayF90(br, br_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call apply_tracer_decay()
     call VecRestoreArrayReadF90(self%mesh%cell_geom, cell_geom_array, ierr)
@@ -1830,37 +1837,30 @@ contains
 
 !........................................................................
 
-    subroutine apply_tracer_sources()
-      !! Assembles contributions from source terms to tracer RHS matrix
-      !! and vector.
+    subroutine tracer_source_iterator(node, stopped)
 
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
       ! Locals:
-      type(cell_type) :: cell
-      type(source_type) :: source
-      PetscSection :: fluid_section, br_section
-      PetscReal, pointer, contiguous :: fluid_array(:), br_array(:)
-      PetscInt :: s, c, tracer_offset_i
-      PetscInt :: source_offset, cell_geom_offset, br_offset, irow
+      PetscInt :: s, source_offset, c, cell_geom_offset
+      PetscInt :: br_offset, tracer_offset_i, it, irow
       PetscReal :: q, phase_flow_fractions(self%eos%num_phases), qv(nt)
+      type(cell_type) :: cell
 
-      call cell%init(self%eos%num_components, self%eos%num_phases)
-      call source%init(self%eos, size(self%tracers))
-      call global_vec_section(self%current_fluid, fluid_section)
-      call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr)
-      CHKERRQ(ierr)
-      call global_vec_section(br, br_section)
-      call VecGetArrayF90(br, br_array, ierr); CHKERRQ(ierr)
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
 
-      do s = 0, self%num_local_sources - 1
-
-         source_offset = global_section_offset(source_section, s, &
-              self%source_range_start)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, self%source_range_start)
          call source%assign(source_data, source_offset)
          call source%assign_fluid(fluid_array, fluid_section, &
               self%fluid_range_start)
-         c = nint(source%local_cell_index)
+         c = source%local_cell_index
 
          cell_geom_offset = section_offset(cell_geom_section, c)
+         call cell%init(self%eos%num_components, self%eos%num_phases)
          call cell%assign_geometry(cell_geom_array, cell_geom_offset)
 
          if (nint(source%component) < np) then
@@ -1884,16 +1884,11 @@ contains
                end associate
             end if
          end if
+         call cell%destroy()
 
-      end do
+      end select
 
-      call VecRestoreArrayF90(br, br_array, ierr); CHKERRQ(ierr)
-      call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr)
-      CHKERRQ(ierr)
-      call source%destroy()
-      call cell%destroy()
-
-    end subroutine apply_tracer_sources
+    end subroutine tracer_source_iterator
 
 !........................................................................
 
