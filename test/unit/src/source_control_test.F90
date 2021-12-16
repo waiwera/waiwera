@@ -80,7 +80,7 @@ contains
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: fluid_section, local_fluid_section, source_section
     type(list_type) :: sources, source_controls, source_groups, separated_sources
-    PetscInt :: total_num_sources, source_vector_size
+    PetscInt :: total_num_sources, source_vector_size, num_source_controls
     PetscInt :: fluid_range_start, source_range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr, err
@@ -88,6 +88,7 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
     PetscInt, parameter :: expected_num_sources = 11
+    PetscInt, parameter :: expected_num_source_controls = 11
     PetscMPIInt :: rank
     IS :: source_is
 
@@ -124,6 +125,13 @@ contains
             "number of sources")
        call test%assert(expected_num_sources * source%dof, &
             source_vector_size, "source vector size")
+    end if
+
+    call MPI_reduce(source_controls%count, num_source_controls, 1, &
+         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       call test%assert(expected_num_source_controls, &
+            num_source_controls, "number of source controls")
     end if
 
     call global_to_local_vec_section(fluid_vector, local_fluid_vector, &
