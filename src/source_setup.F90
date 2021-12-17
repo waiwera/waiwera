@@ -425,7 +425,7 @@ contains
 
          if ((name /= "") .and. (num_cells == 1) .and. (num_cells_all == 1)) then
             ! Uniquely named source- add to dictionary:
-            call source_dict%add(name, spec_sources%head)
+            call source_dict%add(name, spec_sources%head%data)
          end if
 
          call spec_sources%destroy()
