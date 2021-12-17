@@ -232,9 +232,7 @@ contains
     if (self%num_tracers > 0) then
        self%tracer_injection_rate = tracer_injection_rate
     end if
-    if (separator_pressure > 0._dp) then
-       call self%separator%init(separator_pressure, thermo)
-    end if
+    call self%separator%init(separator_pressure, thermo)
     call self%set_rate(rate)
 
   end subroutine source_setup

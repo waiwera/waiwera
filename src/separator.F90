@@ -71,23 +71,29 @@ contains
     PetscErrorCode :: err
 
     self%pressure = pressure
-    call thermo%saturation%temperature(self%pressure, &
-         saturation_temperature, err)
-    params = [self%pressure, saturation_temperature]
-    call thermo%water%properties(params, water_props, err)
-    call thermo%steam%properties(params, steam_props, err)
-
-    associate(water_density => water_props(1), &
-         water_internal_energy => water_props(2), &
-         steam_density => steam_props(1), &
-         steam_internal_energy => steam_props(2))
-      self%ref_water_enthalpy = water_internal_energy + &
-           self%pressure / water_density
-      self%ref_steam_enthalpy = steam_internal_energy + &
-           self%pressure / steam_density
-    end associate
-
     self%on = (self%pressure > 0._dp)
+
+    if (self%on) then
+
+       call thermo%saturation%temperature(self%pressure, &
+            saturation_temperature, err)
+       params = [self%pressure, saturation_temperature]
+       call thermo%water%properties(params, water_props, err)
+       call thermo%steam%properties(params, steam_props, err)
+
+       associate(water_density => water_props(1), &
+            water_internal_energy => water_props(2), &
+            steam_density => steam_props(1), &
+            steam_internal_energy => steam_props(2))
+         self%ref_water_enthalpy = water_internal_energy + &
+              self%pressure / water_density
+         self%ref_steam_enthalpy = steam_internal_energy + &
+              self%pressure / steam_density
+       end associate
+
+    else
+       call self%zero()
+    end if
 
   end subroutine separator_init
   
