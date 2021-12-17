@@ -1026,7 +1026,7 @@ contains
     character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
     character(*), intent(in) :: tracer_names(:)
-    type(list_type), intent(in) :: spec_sources
+    type(list_type), intent(in out) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -1066,7 +1066,7 @@ contains
          if (spec_sources%count > 0) then
             allocate(control)
             call control%init(data_array, interpolation_type, &
-                 averaging_type, spec_sources)
+                 averaging_type, spec_sources%copy())
             call source_controls%append(control)
          end if
          deallocate(data_array)
@@ -1105,7 +1105,7 @@ contains
          if (spec_sources%count > 0) then
             allocate(control)
             call control%init(data_array, interpolation_type, &
-                 averaging_type, spec_sources)
+                 averaging_type, spec_sources%copy())
             call source_controls%append(control)
          end if
          deallocate(data_array)
@@ -1147,7 +1147,7 @@ contains
                      do i = 1, size(tracer_names)
                         allocate(control)
                         call control%init(data_array, interpolation_type, &
-                             averaging_type, spec_sources)
+                             averaging_type, spec_sources%copy())
                         control%tracer_index = i
                         call source_controls%append(control)
                      end do
@@ -1174,7 +1174,7 @@ contains
                         if (tracer_index > 0) then
                            allocate(control)
                            call control%init(data_array, interpolation_type, &
-                                averaging_type, spec_sources)
+                                averaging_type, spec_sources%copy())
                            control%tracer_index = tracer_index
                            call source_controls%append(control)
                         else
@@ -1212,7 +1212,7 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    type(list_type), intent(in) :: spec_sources
+    type(list_type), intent(in out) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -1261,7 +1261,7 @@ contains
     if (allocated(factor_data_array) .and. (spec_sources%count > 0)) then
        allocate(factor_control)
        call factor_control%init(factor_data_array, effective_interpolation_type, &
-            effective_averaging_type, spec_sources)
+            effective_averaging_type, spec_sources%copy())
        call source_controls%append(factor_control)
     end if
 
@@ -1743,7 +1743,7 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
-    type(list_type), intent(in) :: spec_sources
+    type(list_type), intent(in out) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
@@ -1774,7 +1774,7 @@ contains
        if ((direction /= SRC_DIRECTION_BOTH) .and. &
             spec_sources%count > 0) then
          allocate(direction_control)
-         call direction_control%init(direction, spec_sources)
+         call direction_control%init(direction, spec_sources%copy())
          call source_controls%append(direction_control)
        end if
 
