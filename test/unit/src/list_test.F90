@@ -174,6 +174,18 @@ contains
        call list2%destroy()
        call test%assert(7, list%count, 'list count after add')
 
+       list2 = list%copy()
+       call test%assert(list%count, list2%count, 'copied list count')
+       node => list2%find('number')
+       call test%assert(associated(node), 'find number in copy')
+       if (associated(node)) then
+          select type (d => node%data)
+          type is (PetscInt)
+             call test%assert(2, d, 'value in copy')
+          end select
+       end if
+       call list2%destroy()
+
        node => list%get(-1)
        call test%assert(associated(node), 'get(-1) after add')
        if (associated(node)) then

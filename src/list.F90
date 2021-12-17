@@ -76,6 +76,7 @@ module list_module
           destroy_default_direction, destroy_proc_forward, &
           destroy_proc_direction
      procedure, public :: tags => list_tags
+     procedure, public :: copy => list_copy
   end type list_type
 
   abstract interface
@@ -555,6 +556,35 @@ contains
      end subroutine get_tag_iterator
 
   end subroutine list_tags
+
+!------------------------------------------------------------------------
+
+  type(list_type) function list_copy(self)
+    !! Returns a copy of the list. The copy is assumed not to be the
+    !! owner of any data at the list nodes.
+
+    class(list_type), intent(in out) :: self
+    ! Locals:
+
+    call list_copy%init(owner = PETSC_FALSE)
+    call self%traverse(copy_iterator)
+
+  contains
+
+    subroutine copy_iterator(node, stopped)
+      type(list_node_type), pointer, intent(in out)  :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      if (allocated(node%tag)) then
+         call list_copy%append(node%data, node%tag)
+      else
+         call list_copy%append(node%data)
+      end if
+
+    end subroutine copy_iterator
+
+  end function list_copy
 
 !------------------------------------------------------------------------
 
