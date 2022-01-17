@@ -55,6 +55,9 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |"averaging"            |string          |"integrate" |averaging method for data|
    |                       |                |            |tables                   |
    +-----------------------+----------------+------------+-------------------------+
+   |"separator"            |boolean | object|``false``   |separator properties (see|
+   |                       |                |            |:ref:`source_separators`)|
+   +-----------------------+----------------+------------+-------------------------+
    |"deliverability"       |object          |{}          |:ref:`deliverability`    |
    |                       |                |            |source control           |
    +-----------------------+----------------+------------+-------------------------+
@@ -228,6 +231,71 @@ Here is an example of specifying tracer injection using an object to refer to in
    ]}
 
 In this case, it is assumed that tracers with names "T1" and "T2" have been defined separately in the input JSON file (see :ref:`setup_tracers`). For this source, tracer "T1" is injected at :math:`10^{-6}` kg/s for the first hour, after which tracer "T2" is injected at :math:`10^{-5}` kg/s for the second hour. Any tracers not included in this type of source specification will be given the default injection rate of zero.
+
+.. index:: sources; separators, separators
+.. _source_separators:
+
+Separators
+==========
+
+A source may optionally have a **separator** which calculates separated water and steam flows from the total flow. These separated flows may then be included in the simulation output. They can also be used by certain kinds of source controls (e.g. a steam :ref:`limiter`) which require the separated flows as input. A separator also calculates the separated water and steam enthalpies.
+
+The separated steam (:math:`q_s`) and water (:math:`q_w`) flows are calculated from the source flow rate :math:`q` as follows:
+
+.. math::
+
+   q_s & = f q \\
+   q_w & = (1 - f) q
+
+where :math:`f` is the steam fraction, calculated from:
+
+.. math::
+
+   f = \begin{cases}
+   0 & h \le h_w \\
+   \frac{h - h_w}{h_s - h_w} & h_w < h \le h_s \\
+   1 & h > h_s
+   \end{cases}
+
+where the reference steam and water enthalpies :math:`h_s`, :math:`h_w` are calculated from their respective internal energies (:math:`U_s`, :math:`U_w`) and densities (:math:`\rho_s`, :math:`\rho_w`), and the **separator pressure** :math:`P_0` (a specified parameter) as follows:
+
+.. math::
+
+   h_s & = U_s + P_0 / \rho_s \\
+   h_w & = U_w + P_0 / \rho_w \\
+
+
+Separator properties for a source can be specified via its **"separator"** value. This can be either a Boolean value or an object. Setting it to ``true`` specifies a separator with default separator pressure, while setting it to ``false`` (the default) means no separator is used (and any output values such as separated steam flow will be zero) . Setting it as an object containing a **"pressure"** value allows the separator pressure to be specified.
+
+.. note::
+   **JSON object**: source separator
+
+   **JSON path**: source[`index`]["separator"]
+
+   +---------------+-----------------+--------------+---------------------+
+   |**name**       |**type**         |**default**   |**value**            |
+   +---------------+-----------------+--------------+---------------------+
+   |"pressure"     |number           |0.55 MPa      |separator pressure   |
+   |               |                 |              |:math:`P_0` (Pa)     |
+   |               |                 |              |                     |
+   |               |                 |              |                     |
+   +---------------+-----------------+--------------+---------------------+
+
+For example, here a fixed-rate production source is defined with a default separator:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 53, "rate": -6.2, "separator": true}
+   ]}
+
+Here the separator is given a separator pressure of 50 bar:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 53, "rate": -6.2, "separator": {"pressure": 50e5}}
+   ]}
 
 .. index:: sources; controls, source controls
 .. _source_controls:
@@ -489,35 +557,13 @@ A limiter may be added to a source in the Waiwera JSON input file by specifying 
    |"limit"              |number      |1 kg/s      |flow rate limit   |
    |                     |            |            |(kg/s)            |
    +---------------------+------------+------------+------------------+
-   |"separator_pressure" |number      |55×10\      |separator pressure|
-   |                     |            |:sup:`5` Pa |:math:`P_0` (Pa)  |
+   |"separator_pressure" |number      |0.55 MPa    |separator pressure|
+   |                     |            |            |(Pa)              |
    +---------------------+------------+------------+------------------+
 
-When the "type" value is "water" or "steam", a simple separator is simulated to compute the flow rates of separated steam (:math:`q_s`) and water (:math:`q_w`) from the source flow rate :math:`q` and fluid composition:
+When the "type" value is "water" or "steam", a separator (see :ref:`source_separators`) is used to compute the flow rates of separated steam and water. The separator pressure may be specified in the limiter specification (for backwards compatibility), although this is now deprecated: it should be specified  via the **"separator.pressure"** value for the source instead.
 
-.. math::
-
-   q_s & = f q \\
-   q_w & = (1 - f) q
-
-where :math:`f` is the steam fraction, calculated from:
-
-.. math::
-
-   f = \begin{cases}
-   0 & h \le h_w \\
-   \frac{h - h_w}{h_s - h_w} & hw < h \le h_s \\
-   1 & h > h_s
-   \end{cases}
-
-where the steam and water enthalpies :math:`h_s`, :math:`h_w` are calculated from their respective internal energies (:math:`U_s`, :math:`U_w`) and densities (:math:`\rho_s`, :math:`\rho_w`), and the separator pressure :math:`P_0` (specified via the **"separator_pressure"** value), as follows:
-
-.. math::
-
-   h_s & = U_s + P_0 / \rho_s \\
-   h_w & = U_w + P_0 / \rho_w \\
-
-The example below specifies a source on deliverability, with a simple limit of 5.1 kg/s on the total flow rate. (Because it is the total flow being limited, there is no need to specify a separator pressure.) 
+The example below specifies a source on deliverability, with a simple limit of 5.1 kg/s on the total flow rate. (Because it is the total flow being limited, a separator is not needed.) 
 
 .. code-block:: json
 
@@ -527,14 +573,15 @@ The example below specifies a source on deliverability, with a simple limit of 5
       "limiter": {"limit": 5.1}}
    ]}
 
-Here is the same source but with a limit of 3.5 kg/s on the steam flow, and the separator pressure set at 50 bar:
+Here is the same source but with a limit of 3.5 kg/s on the steam flow, and a separator is defined with separator  pressure set at 50 bar:
 
 .. code-block:: json
 
    {"source": [
      {"cell": 100,
       "deliverability": {"pressure": 2e5, "productivity": 1e-12},
-      "limiter": {"limit": 3.5, "type": "steam", "separator_pressure": 50e5}}
+      "separator": {"pressure": 50e5},
+      "limiter": {"limit": 3.5, "type": "steam"}}
    ]}
 
 .. index:: source controls; direction
