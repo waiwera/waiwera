@@ -325,34 +325,47 @@ The available source output fields are:
 +-----------------------+-------------------------------+
 |**name**               |**value**                      |
 +-----------------------+-------------------------------+
+|"source_index"         |index of source in input       |
++-----------------------+-------------------------------+
+|"natural_cell_index"   |cell index of source           |
++-----------------------+-------------------------------+
 |"component"            |mass or energy component       |
 +-----------------------+-------------------------------+
 |"rate"                 |flow rate (kg/s or J/s)        |
 +-----------------------+-------------------------------+
 |"enthalpy"             |enthalpy (J/kg)                |
 +-----------------------+-------------------------------+
+|"separator_pressure"   |separator pressure (Pa)        |
+|                       |                               |
++-----------------------+-------------------------------+
+|"ref_water_enthalpy"   |reference water enthalpy (J/kg)|
+|                       |                               |
++-----------------------+-------------------------------+
+|"ref_steam_enthalpy"   |reference steam enthalpy (J/kg)|
+|                       |                               |
++-----------------------+-------------------------------+
+|"steam_fraction"       |separated steam fraction       |
+|                       |                               |
++-----------------------+-------------------------------+
+|"water_rate"           |separated water flow rate      |
+|                       |(kg/s)                         |
++-----------------------+-------------------------------+
+|"water_enthalpy"       |separated water enthalpy (J/kg)|
+|                       |                               |
++-----------------------+-------------------------------+
+|"steam_rate"           |separated steam flow rate      |
+|                       |(kg/s)                         |
++-----------------------+-------------------------------+
+|"steam_enthalpy"       |separated steam enthalpy (J/kg)|
+|                       |                               |
++-----------------------+-------------------------------+
 |`component_name` +     |mass or energy component flow  |
 |"_flow"                |(kg/s or J/s)                  |
 +-----------------------+-------------------------------+
-|"source_index"         |index of source in input       |
-+-----------------------+-------------------------------+
-|"local_source_index"   |index of source on local       |
-|                       |processor                      |
-+-----------------------+-------------------------------+
-|"natural_cell_index"   |cell index of source           |
-+-----------------------+-------------------------------+
-|"local_cell_index"     |cell index of source on local  |
-|                       |processor                      |
-+-----------------------+-------------------------------+
-|"injection_enthalpy"   |enthalpy applied for injection |
-|                       |(J/kg)                         |
-+-----------------------+-------------------------------+
-|"injection_component"  |component for injection        |
-+-----------------------+-------------------------------+
-|"production_component" |component for production       |
-+-----------------------+-------------------------------+
 |`tracer_name` + "_flow"|tracer flow rate (kg/s)        |
 +-----------------------+-------------------------------+
+
+The "separator_pressure" and "steam_fraction" fields, as well as those referring to "water" or "steam" (e.g. "steam_rate") will give non-zero values for a particular source only if a separator is defined on it (see :ref:`source_separators`).
 
 There is a mass component flow field for each mass component in the :ref:`eos` module being used. For example, for the :ref:`water_air_energy_eos` EOS, there will be two mass component flow fields, "water_flow" and "air_flow".
 
