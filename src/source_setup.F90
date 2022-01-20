@@ -111,7 +111,7 @@ contains
        call separated_sources%init(owner = PETSC_FALSE)
        call source_controls%init(owner = PETSC_TRUE)
        call source_groups%init(owner = PETSC_TRUE)
-       call group_specs%init(owner = PETSC_TRUE)
+       call group_specs%init(owner = PETSC_FALSE)
 
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
