@@ -664,6 +664,7 @@ contains
            end do
          end associate
 
+         call group%init_comm()
          call source_groups%append(group)
 
       end select

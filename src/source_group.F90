@@ -33,9 +33,11 @@ module source_group_module
      !! or group of makeup wells.
      private
      type(list_type), public :: nodes !! List of nodes in group
+     MPI_Comm :: comm !! MPI communicator for group
    contains
      private
      procedure, public :: init => source_group_init
+     procedure, public :: init_comm => source_group_init_comm
      procedure, public :: assign => source_group_assign
      procedure, public :: destroy => source_group_destroy
   end type source_group_type
@@ -57,6 +59,27 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine source_group_init_comm(self)
+    !! Initialises MPI communicator for the group. It is assumed that
+    !! the nodes list has already been populated.
+
+    class(source_group_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: colour
+    PetscErrorCode :: ierr
+
+    if (self%nodes%count > 0) then
+       colour = 1
+    else
+       colour = MPI_UNDEFINED
+    end if
+
+    call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
+
+  end subroutine source_group_init_comm
+
+!------------------------------------------------------------------------
+
   subroutine source_group_assign(self, data, offset)
     !! Assigns pointers in source group object to elements in the data
     !! array, starting from the specified offset.
@@ -75,8 +98,11 @@ contains
     !! Destroys a source group.
 
     class(source_group_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
 
     call self%nodes%destroy()
+    call MPI_comm_free(self%comm, ierr)
     call self%source_network_node_type%destroy()
 
   end subroutine source_group_destroy
