@@ -33,7 +33,7 @@ module source_group_module
      !! or group of makeup wells.
      private
      type(list_type), public :: nodes !! List of nodes in group
-     MPI_Comm :: comm !! MPI communicator for group
+     MPI_Comm, public :: comm !! MPI communicator for group
    contains
      private
      procedure, public :: init => source_group_init
