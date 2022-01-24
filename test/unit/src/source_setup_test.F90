@@ -21,6 +21,7 @@ module source_setup_test
 
   public :: setup, teardown
   public :: test_setup_sources, test_source_index
+  public :: test_source_groups
 
 contains
 
@@ -325,14 +326,13 @@ contains
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     IS :: source_index
     PetscInt, pointer, contiguous :: source_index_array(:)
-    PetscMPIInt :: rank, num_procs
+    PetscMPIInt :: rank
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: expected_num_sources = 6
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_index.json")
 
     call thermo%init()
@@ -374,6 +374,104 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_source_index
+
+!------------------------------------------------------------------------
+
+  subroutine test_source_groups(test)
+    ! Source groups
+
+    use fson
+    use fson_mpi_module
+    use IAPWS_module
+    use eos_we_module
+    use mesh_module
+    use tracer_module
+    use source_module
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    type(fson_value), pointer :: json
+    type(mesh_type) :: mesh
+    type(tracer_type), allocatable :: tracers(:)
+    Vec :: fluid_vector, source_vector
+    PetscInt :: total_num_sources, fluid_range_start, source_range_start
+    type(list_type) :: sources, source_controls, source_groups, separated_sources
+    IS :: source_index
+    PetscInt :: num_local_root_groups, total_num_groups
+    PetscMPIInt :: rank
+    PetscErrorCode :: err, ierr
+    PetscReal, parameter :: start_time = 0._dp
+    PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
+    PetscInt, parameter :: expected_num_sources = 4
+    PetscInt, parameter :: expected_num_groups = 1
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_groups.json")
+
+    call thermo%init()
+    call eos%init(json, thermo)
+    call setup_tracers(json, eos, tracers, err = err)
+    call mesh%init(eos, json)
+    call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
+    call mesh%configure(gravity, json, err = err)
+    call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
+
+    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
+         thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
+         source_range_start, sources, total_num_sources, source_controls, &
+         source_index, separated_sources, source_groups, err = err)
+    call test%assert(0, err, "error")
+
+    num_local_root_groups = 0
+    call source_groups%traverse(num_root_groups_iterator)
+    call MPI_reduce(num_local_root_groups, total_num_groups, 1, &
+         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+      call test%assert(expected_num_sources, total_num_sources, "number of sources")
+      call test%assert(expected_num_groups, total_num_groups, "number of groups")
+    end if
+
+    call ISDestroy(source_index, ierr); CHKERRQ(ierr)
+    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
+    call separated_sources%destroy()
+    call source_groups%destroy(source_group_list_node_data_destroy)
+    call source_controls%destroy(source_control_list_node_data_destroy)
+    call sources%destroy(source_list_node_data_destroy)
+    call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
+    call mesh%destroy_distribution_data()
+    call mesh%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+
+  contains
+
+    subroutine num_root_groups_iterator(node, stopped)
+
+      ! Counts local source groups which have rank zero in their group
+      ! communicator.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset, source_index
+      PetscMPIInt :: group_rank
+      PetscErrorCode :: ierr
+
+      stopped = PETSC_FALSE
+      select type(group => node%data)
+      type is (source_group_type)
+         call MPI_COMM_RANK(group%comm, group_rank, ierr)
+         if (group_rank == 0) then
+            num_local_root_groups = num_local_root_groups + 1
+         end if
+      end select
+
+    end subroutine num_root_groups_iterator
+
+  end subroutine test_source_groups
 
 !------------------------------------------------------------------------
 
