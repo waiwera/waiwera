@@ -23,7 +23,8 @@ module source_group_module
   use petsc
   use kinds_module
   use source_network_module
-  use list_module, only: list_type
+  use source_module, only: source_type
+  use list_module, only: list_type, list_node_type
 
   implicit none
   private
@@ -39,6 +40,7 @@ module source_group_module
      procedure, public :: init => source_group_init
      procedure, public :: init_comm => source_group_init_comm
      procedure, public :: assign => source_group_assign
+     procedure, public :: sum => source_group_sum
      procedure, public :: destroy => source_group_destroy
   end type source_group_type
 
@@ -91,6 +93,58 @@ contains
     call self%source_network_node_type%assign(data, offset)
 
   end subroutine source_group_assign
+
+!------------------------------------------------------------------------
+
+  subroutine source_group_sum(self)
+    !! Computes total flow rate, enthalpy etc. in a source group. The
+    !! results are stored only on the root rank of the group
+    !! communicator.
+
+    class(source_group_type), intent(in out) :: self
+    ! Locals:
+    PetscReal :: local_q, local_qh
+    PetscReal :: total_qh
+    PetscMPIInt :: group_rank
+    PetscErrorCode :: ierr
+    PetscReal, parameter :: rate_tol = 1.e-9_dp
+
+    call MPI_COMM_RANK(self%comm, group_rank, ierr)
+
+    self%rate = 0._dp
+    self%enthalpy = 0._dp
+    local_q = 0._dp
+    local_qh = 0._dp
+
+    call self%nodes%traverse(group_sum_iterator)
+
+    call MPI_reduce(local_q, self%rate, 1, &
+         MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+    call MPI_reduce(local_qh, total_qh, 1, &
+         MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+
+    if ((group_rank == 0) .and. (abs(self%rate) > rate_tol)) then
+       self%enthalpy = total_qh / self%rate
+    end if
+
+  contains
+
+    subroutine group_sum_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+
+      stopped = PETSC_FALSE
+      select type (source => node%data)
+      type is (source_type)
+         local_q = local_q + source%rate
+         local_qh = local_qh + source%rate * source%enthalpy
+      end select
+
+    end subroutine group_sum_iterator
+
+  end subroutine source_group_sum
 
 !------------------------------------------------------------------------
 
