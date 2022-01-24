@@ -769,7 +769,9 @@
                                                  "enum": ["endpoint", "Endpoint",
                                                           "integrate", "Integrate"]}
                                }, "additionalProperties": false}
-                           ]}
+                           ]},
+                           "source": {"type": "array",
+                                      "items": {"type": "string"}}
                        }, "additionalProperties": false
                    }},
         "initial": {
