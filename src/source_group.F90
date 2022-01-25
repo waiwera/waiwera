@@ -43,6 +43,7 @@ module source_group_module
      private
      type(list_type), public :: nodes !! List of nodes in group
      MPI_Comm :: comm !! MPI communicator for group
+     PetscBool, public :: is_root !! Whether group is on root rank of its communicator
    contains
      private
      procedure, public :: init => source_group_init
@@ -75,7 +76,7 @@ contains
 
     class(source_group_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: colour
+    PetscInt :: colour, group_rank
     PetscErrorCode :: ierr
 
     if (self%nodes%count > 0) then
@@ -85,6 +86,13 @@ contains
     end if
 
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
+
+    if (self%comm /= MPI_COMM_NULL) then
+       call MPI_COMM_RANK(self%comm, group_rank, ierr)
+       self%is_root = (group_rank == 0)
+    else
+       self%is_root = PETSC_FALSE
+    end if
 
   end subroutine source_group_init_comm
 
@@ -113,14 +121,13 @@ contains
     ! Locals:
     PetscReal :: local_q, local_qh
     PetscReal :: total_qh
-    PetscMPIInt :: group_rank
     PetscErrorCode :: ierr
     PetscReal, parameter :: rate_tol = 1.e-9_dp
 
-    call MPI_COMM_RANK(self%comm, group_rank, ierr)
-
-    self%rate = 0._dp
-    self%enthalpy = 0._dp
+    if (self%is_root) then
+       self%rate = 0._dp
+       self%enthalpy = 0._dp
+    end if
     local_q = 0._dp
     local_qh = 0._dp
 
@@ -131,7 +138,7 @@ contains
     call MPI_reduce(local_qh, total_qh, 1, &
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
 
-    if ((group_rank == 0) .and. (abs(self%rate) > rate_tol)) then
+    if (self%is_root .and. (abs(self%rate) > rate_tol)) then
        self%enthalpy = total_qh / self%rate
     end if
 
@@ -141,7 +148,6 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
 
       stopped = PETSC_FALSE
       select type (source => node%data)
