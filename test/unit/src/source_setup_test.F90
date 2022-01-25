@@ -461,15 +461,12 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset, source_index
-      PetscMPIInt :: group_rank
       PetscErrorCode :: ierr
 
       stopped = PETSC_FALSE
       select type(group => node%data)
       type is (source_group_type)
-         call MPI_COMM_RANK(group%comm, group_rank, ierr)
-         if (group_rank == 0) then
+         if (group%is_root) then
             num_local_root_groups = num_local_root_groups + 1
          end if
       end select
