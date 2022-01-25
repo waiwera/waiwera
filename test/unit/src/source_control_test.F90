@@ -75,13 +75,13 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(source_type) :: source
-    Vec :: fluid_vector, local_fluid_vector, source_vector
+    Vec :: fluid_vector, local_fluid_vector, source_vector, group_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: fluid_section, local_fluid_section, source_section
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     PetscInt :: total_num_sources, source_vector_size
-    PetscInt :: fluid_range_start, source_range_start
+    PetscInt :: fluid_range_start, source_range_start, group_range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
@@ -109,7 +109,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, sources, total_num_sources, source_controls, &
+         source_range_start, group_vector, group_range_start, &
+         sources, total_num_sources, source_controls, &
          source_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
     call source%init("", eos, 0, 0, 0._dp, 0, 0, size(tracers))
@@ -151,6 +152,7 @@ contains
     call sources%destroy(source_list_node_data_destroy)
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
     call mesh%destroy()
@@ -267,14 +269,15 @@ contains
     type(mesh_type) :: mesh
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     type(source_type) :: source
-    Vec :: source_vector
+    Vec :: source_vector, group_vector
     Vec :: fluid_vector, local_fluid_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section, fluid_section, local_fluid_section
     type(fluid_type) :: fluid
     PetscInt :: total_num_sources, num_separators, num_source_controls
-    PetscInt :: start_cell, end_cell, c, s12, source_range_start, fluid_range_start
+    PetscInt :: start_cell, end_cell, c, s12, source_range_start, group_range_start, &
+         fluid_range_start
     PetscInt :: fluid_offset, source_offset, cell_phase_composition
     PetscReal :: t, interval(2), props(2)
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
@@ -363,7 +366,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, sources, total_num_sources, source_controls, &
+         source_range_start, group_vector, group_range_start, &
+         sources, total_num_sources, source_controls, &
          source_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
 
@@ -444,6 +448,7 @@ contains
     call sources%destroy(source_list_node_data_destroy)
     call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call fluid%destroy()
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()

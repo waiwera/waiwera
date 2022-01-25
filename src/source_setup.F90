@@ -47,6 +47,7 @@ contains
 
   subroutine setup_sources(json, dm, ao, eos, tracer_names, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
+       source_group_vector, source_group_range_start, &
        sources, num_sources, source_controls, source_index, &
        separated_sources, source_groups, logfile, err)
     !! Sets up sinks / sources, source controls and source groups.
@@ -65,6 +66,8 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
     Vec, intent(out) :: source_vector !! Source vector
     PetscInt, intent(out) :: source_range_start !! Range start for global source vector
+    Vec, intent(out) :: source_group_vector !! Source group vector
+    PetscInt, intent(out) :: source_group_range_start !! Range start for global source group vector
     type(list_type), intent(in out) :: sources !! List of local source objects
     PetscInt, intent(out) :: num_sources !! Total number of sources created on all processes
     type(list_type), intent(in out) :: source_controls !! List of source controls
@@ -75,10 +78,10 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscMPIInt :: rank
-    DM :: dm_source
+    DM :: dm_source, dm_group
     PetscInt :: num_local_sources, source_spec_index, local_source_index
     type(fson_value), pointer :: sources_json, source_json, group_spec
-    PetscInt :: num_source_specs, num_tracers
+    PetscInt :: num_source_specs, num_tracers, num_local_root_groups
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:)
     PetscSection :: fluid_section, source_section
     type(list_type) :: group_specs
@@ -140,11 +143,21 @@ contains
        end if
 
        if (err == 0) then
+
           allocate(indices(num_local_sources))
           call sources%traverse(source_indices_iterator)
           call setup_source_index(indices, source_index)
           deallocate(indices)
+
+          num_local_root_groups = 0
           call group_specs%traverse(setup_group_iterator)
+
+          call create_path_dm(num_local_root_groups, dm_group)
+          call setup_group_dm_data_layout(dm_group)
+          call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
+          call PetscObjectSetName(source_vector, "source_group", ierr); CHKERRQ(ierr)
+          call global_vec_range_start(source_group_vector, source_group_range_start)
+
        end if
 
        call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
@@ -324,6 +337,29 @@ contains
       deallocate(num_field_components, field_dim, field_names)
 
     end subroutine setup_source_dm_data_layout
+
+!........................................................................
+
+    subroutine setup_group_dm_data_layout(dm_group)
+      !! Sets up data layout on source group DM.
+
+      DM, intent(in out) :: dm_group
+      ! Locals:
+      PetscInt, allocatable :: num_field_components(:), field_dim(:)
+      character(max_source_network_variable_name_length), allocatable :: field_names(:)
+
+      allocate(num_field_components(num_source_group_variables), &
+           field_dim(num_source_group_variables), &
+           field_names(num_source_group_variables))
+      num_field_components = 1
+      field_dim = 0
+      field_names = source_group_variable_names
+
+      call dm_set_data_layout(dm_group, num_field_components, field_dim, &
+           field_names)
+      deallocate(num_field_components, field_dim, field_names)
+
+    end subroutine setup_group_dm_data_layout
 
 !........................................................................
 
@@ -634,7 +670,7 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       character(max_source_network_node_name_length) :: name
-      character(max_source_network_node_name_length), allocatable :: names(:)
+      character(max_source_network_node_name_length), allocatable :: node_names(:)
       PetscInt :: i
       type(list_node_type), pointer :: dict_node
       type(source_group_type), pointer :: group
@@ -643,18 +679,17 @@ contains
       select type (group_json => node%data)
       type is (fson_value)
 
-         call fson_get_mpi(group_json, "name", &
-              "untitled", name)
+         call fson_get_mpi(group_json, "name", "", name)
          call fson_get_mpi(group_json, "source", &
               string_length = max_source_network_node_name_length, &
-              val = names)
+              val = node_names)
 
          allocate(group)
          call group%init(name)
 
-         associate(num_names => size(names))
+         associate(num_names => size(node_names))
            do i = 1, num_names
-              dict_node => source_dict%get(names(i))
+              dict_node => source_dict%get(node_names(i))
               if (associated(dict_node)) then
                  select type (node => dict_node%data)
                  type is (source_type)
@@ -665,6 +700,11 @@ contains
          end associate
 
          call group%init_comm()
+
+         if (group%is_root) then
+            num_local_root_groups = num_local_root_groups + 1
+         end if
+
          call source_groups%append(group)
 
       end select

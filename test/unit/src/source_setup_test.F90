@@ -77,10 +77,10 @@ contains
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    Vec :: fluid_vector, source_vector
+    Vec :: fluid_vector, source_vector, group_vector
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section
-    PetscInt :: fluid_range_start, source_range_start
+    PetscInt :: fluid_range_start, source_range_start, group_range_start
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     PetscInt :: total_num_sources, num_zone_sources, n_all, i
     PetscErrorCode :: ierr, err
@@ -109,7 +109,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, sources, total_num_sources, source_controls, &
+         source_range_start, group_vector, group_range_start, &
+         sources, total_num_sources, source_controls, &
          source_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
@@ -161,6 +162,7 @@ contains
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call source_controls%destroy(source_control_list_node_data_destroy)
     call separated_sources%destroy()
     call source_groups%destroy(source_group_list_node_data_destroy)
@@ -321,8 +323,8 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
-    Vec :: fluid_vector, source_vector
-    PetscInt :: total_num_sources, fluid_range_start, source_range_start
+    Vec :: fluid_vector, source_vector, group_vector
+    PetscInt :: total_num_sources, fluid_range_start, source_range_start, group_range_start
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     IS :: source_index
     PetscInt, pointer, contiguous :: source_index_array(:)
@@ -345,7 +347,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, sources, total_num_sources, source_controls, &
+         source_range_start, group_vector, group_range_start, &
+         sources, total_num_sources, source_controls, &
          source_index, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
@@ -362,6 +365,7 @@ contains
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call separated_sources%destroy()
     call source_groups%destroy(source_group_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)
@@ -395,8 +399,8 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
-    Vec :: fluid_vector, source_vector
-    PetscInt :: total_num_sources, fluid_range_start, source_range_start
+    Vec :: fluid_vector, source_vector, group_vector
+    PetscInt :: total_num_sources, fluid_range_start, source_range_start, group_range_start
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     IS :: source_index
     PetscInt :: num_local_root_groups, total_num_groups
@@ -435,6 +439,7 @@ contains
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call separated_sources%destroy()
     call source_groups%destroy(source_group_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)

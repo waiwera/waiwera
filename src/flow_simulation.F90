@@ -965,6 +965,7 @@ contains
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
                            self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
+                           self%source_group, self%source_group_range_start, &
                            self%sources, self%num_sources, self%source_controls, &
                            self%source_index, self%separated_sources, &
                            self%source_groups, self%logfile, err)
