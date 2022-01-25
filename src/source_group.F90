@@ -24,10 +24,18 @@ module source_group_module
   use kinds_module
   use source_network_module
   use source_module, only: source_type
+  use separator_module, only: num_separator_variables, separator_variable_names
   use list_module, only: list_type, list_node_type
 
   implicit none
   private
+
+  PetscInt, parameter, public :: num_source_group_variables = &
+       num_source_network_node_variables + num_separator_variables
+  PetscInt, parameter, public :: max_source_group_variable_name_length = 24
+  character(max_source_group_variable_name_length), parameter, public :: &
+       source_group_variable_names(num_source_group_variables) = [ &
+       source_network_variable_names, separator_variable_names]
 
   type, public, extends(source_network_node_type) :: source_group_type
      !! Type for group of source network nodes, e.g. multi-feed well

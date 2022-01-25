@@ -23,6 +23,7 @@ module source_module
   use petsc
   use kinds_module
   use source_network_module
+  use separator_module, only: num_separator_variables, separator_variable_names
   use fluid_module
   use thermodynamics_module
   use hdf5io_module, only: max_field_name_length
@@ -36,18 +37,14 @@ module source_module
   PetscReal, parameter, public :: default_source_rate = 0._dp
   PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3
 
-  PetscInt, parameter, public :: num_source_scalar_variables = 13
+  PetscInt, parameter, public :: num_source_scalar_variables = &
+       num_source_network_node_variables + num_separator_variables + 3
   PetscInt, parameter, public :: max_source_variable_name_length = 24
-  character(max_source_variable_name_length), public :: &
+  character(max_source_variable_name_length), parameter, public :: &
        source_scalar_variable_names(num_source_scalar_variables) = [ &
-       "rate                ", "enthalpy            ", &
-       "separator_pressure  ", &
-       "ref_water_enthalpy  ", "ref_steam_enthalpy  ", &
-       "steam_fraction      ", &
-       "water_rate          ", "water_enthalpy      ", &
-       "steam_rate          ", "steam_enthalpy      ", &
+       source_network_variable_names, separator_variable_names, [ &
        "source_index        ", "natural_cell_index  ", &
-       "component           "]
+       "component           "]]
   PetscInt, parameter, public :: num_source_array_variables = 3
   character(max_source_variable_name_length), public :: &
        source_array_variable_names(num_source_array_variables) = [ &

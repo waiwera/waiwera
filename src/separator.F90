@@ -30,6 +30,16 @@ module separator_module
 
   PetscReal, parameter, public :: default_separator_pressure = 0.55e6_dp
 
+  PetscInt, parameter, public :: num_separator_variables = 8
+  PetscInt, parameter, public :: max_separator_variable_name_length = 24
+  character(max_separator_variable_name_length), parameter, public :: &
+       separator_variable_names(num_separator_variables) = [ &
+       "separator_pressure  ", &
+       "ref_water_enthalpy  ", "ref_steam_enthalpy  ", &
+       "steam_fraction      ", &
+       "water_rate          ", "water_enthalpy      ", &
+       "steam_rate          ", "steam_enthalpy      "]
+
   type, public :: separator_type
      !! Separator in source network.
      private

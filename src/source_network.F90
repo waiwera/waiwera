@@ -28,6 +28,11 @@ module source_network_module
   private
 
   PetscInt, parameter, public :: max_source_network_node_name_length = 32
+  PetscInt, parameter, public :: num_source_network_node_variables = 2
+  PetscInt, parameter, public :: max_source_network_variable_name_length = 24
+  character(max_source_network_variable_name_length), parameter, public :: &
+       source_network_variable_names(num_source_network_node_variables) = [ &
+       "rate                ", "enthalpy            "]
 
   type, public :: source_network_node_type
      !! Type for node in source network, e.g. source or source group.
