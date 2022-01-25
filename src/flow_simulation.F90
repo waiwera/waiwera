@@ -44,7 +44,8 @@ module flow_simulation_module
      !! Type for simulation of fluid mass and energy flows in porous media.
      private
      PetscInt :: solution_range_start, aux_solution_range_start, rock_range_start
-     PetscInt :: fluid_range_start, update_cell_range_start, source_range_start
+     PetscInt :: fluid_range_start, update_cell_range_start
+     PetscInt :: source_range_start, source_group_range_start
      character(:), allocatable, public :: filename !! JSON input filename
      character(max_title_length), public :: title !! Descriptive title for the simulation
      Vec, public :: rock !! Rock properties in each cell
@@ -56,6 +57,7 @@ module flow_simulation_module
      Vec, public :: update_cell !! Which cells have primary variables being updated
      Vec, public :: flux !! Mass or energy fluxes through cell faces for each component and phase
      Vec, public :: source !! Vector for source/sink data
+     Vec, public :: source_group !! Vector for source/sink group data
      type(list_type), public :: sources !! List of source objects
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
      type(tracer_type), allocatable, public :: tracers(:) !! Tracers
@@ -1025,6 +1027,7 @@ contains
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%source_group, ierr); CHKERRQ(ierr)
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
     call self%separated_sources%destroy()
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
