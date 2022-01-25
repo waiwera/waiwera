@@ -1,0 +1,12 @@
+{
+    "title": "Test source groups",
+    "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo"},
+    "source": [
+        {"name": "s1", "cell": 0, "rate": -5},
+        {"name": "s2", "cell": 1, "rate": -3},
+        {"name": "s3", "cell": 7, "rate": -1.5},
+        {"name": "s4", "cell": 11, "rate": -2},
+        {"name": "group1", "source": ["s1", "s2", "s4"]},
+        {"name": "group2", "source": ["s4", "s3"]}
+    ]
+}
