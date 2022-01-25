@@ -391,6 +391,7 @@ contains
     use mesh_module
     use tracer_module
     use source_module
+    use dm_utils_module, only: global_vec_section, global_section_offset
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -401,15 +402,17 @@ contains
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector, source_vector, group_vector
     PetscInt :: total_num_sources, fluid_range_start, source_range_start, group_range_start
+    PetscReal, pointer, contiguous :: source_array(:), group_array(:)
+    PetscSection :: source_section, group_section
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     IS :: source_index
-    PetscInt :: num_local_root_groups, total_num_groups
+    PetscInt :: num_local_root_groups, total_num_groups, g
     PetscMPIInt :: rank
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: expected_num_sources = 4
-    PetscInt, parameter :: expected_num_groups = 1
+    PetscInt, parameter :: expected_num_groups = 2
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_groups.json")
@@ -424,7 +427,8 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, sources, total_num_sources, source_controls, &
+         source_range_start, group_vector, group_range_start, &
+         sources, total_num_sources, source_controls, &
          source_index, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
@@ -433,10 +437,21 @@ contains
     call MPI_reduce(num_local_root_groups, total_num_groups, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-      call test%assert(expected_num_sources, total_num_sources, "number of sources")
-      call test%assert(expected_num_groups, total_num_groups, "number of groups")
+       call test%assert(expected_num_sources, total_num_sources, "number of sources")
+       call test%assert(expected_num_groups, total_num_groups, "number of groups")
     end if
 
+    call global_vec_section(source_vector, source_section)
+    call global_vec_section(group_vector, group_section)
+    call VecGetArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call VecGetArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
+
+    call sources%traverse(set_source_enthalpy_iterator)
+    g = 0
+    call source_groups%traverse(group_test_iterator)
+
+    call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
@@ -472,6 +487,82 @@ contains
       end select
 
     end subroutine num_root_groups_iterator
+
+!........................................................................
+
+    subroutine set_source_enthalpy_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_array, source_offset)
+         select case (source%name)
+         case ("s1")
+            source%enthalpy = 500.e3_dp
+         case ("s2")
+            source%enthalpy = 800.e3_dp
+         case ("s3")
+            source%enthalpy = 1200.e3_dp
+         case ("s4")
+            source%enthalpy = 1750.e3_dp
+         end select
+      end select
+
+    end subroutine set_source_enthalpy_iterator
+
+!........................................................................
+
+    subroutine group_test_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: group_offset
+      PetscErrorCode :: ierr
+
+      stopped = PETSC_FALSE
+      select type(group => node%data)
+      type is (source_group_type)
+
+         if (group%is_root) then
+            group_offset = global_section_offset(group_section, &
+              g, group_range_start)
+            call group%assign(group_array, group_offset)
+         end if
+         call group%sum()
+         if (group%is_root) then
+            select case (group%name)
+            case ("group1")
+               call group_test(group, -10._dp, 840.e3_dp)
+            case ("group2")
+               call group_test(group, -3.5_dp, 1514.28571429e3_dp)
+            end select
+            g = g + 1
+         end if
+
+      end select
+
+    end subroutine group_test_iterator
+
+!........................................................................
+
+    subroutine group_test(group, rate, enthalpy)
+
+      type(source_group_type), intent(in) :: group
+      PetscReal, intent(in) :: rate, enthalpy
+
+      call test%assert(rate, group%rate, trim(group%name) // ' rate')
+      call test%assert(enthalpy, group%enthalpy, trim(group%name) // ' enthalpy')
+
+    end subroutine group_test
 
   end subroutine test_source_groups
 
