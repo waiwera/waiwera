@@ -155,7 +155,7 @@ contains
           call create_path_dm(num_local_root_groups, dm_group)
           call setup_group_dm_data_layout(dm_group)
           call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
-          call PetscObjectSetName(source_vector, "source_group", ierr); CHKERRQ(ierr)
+          call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
           call global_vec_range_start(source_group_vector, source_group_range_start)
 
        end if
