@@ -53,8 +53,9 @@ module source_module
        "flow          "]
   character(max_field_name_length), parameter, public :: required_output_source_fields(0) = [&
        character(max_field_name_length)::]
-  character(max_field_name_length), parameter, public :: default_output_source_fields(3) = [&
-       "component         ",  "rate              ", "enthalpy          "]
+  character(max_field_name_length), parameter, public :: default_output_source_fields(4) = [&
+       "source_index      ", "component         ",  &
+       "rate              ", "enthalpy          "]
 
   character(len = 6), public :: source_label_name = "source" !! Name of DMLabel for identifying source locations
 
