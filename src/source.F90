@@ -150,14 +150,17 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
     PetscInt, intent(in) :: offset  !! source array offset
     ! Locals:
-    PetscInt :: iflow_start, iflow_end
+    PetscInt :: iflow_start, iflow_end, source_offset
 
     call self%source_network_node_type%assign(data, offset)
 
-    self%source_index => data(offset + 8)
-    self%natural_cell_index => data(offset + 9)
-    self%component => data(offset + 10)
-    iflow_start = offset + 11
+    source_offset = offset + num_source_network_node_variables + &
+         num_separator_variables
+
+    self%source_index => data(source_offset)
+    self%natural_cell_index => data(source_offset + 1)
+    self%component => data(source_offset + 2)
+    iflow_start = source_offset + 3
     iflow_end = iflow_start + self%num_primary_variables - 1
     self%flow => data(iflow_start: iflow_end)
     if (self%num_tracers > 0) then
