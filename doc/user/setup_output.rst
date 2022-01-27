@@ -373,7 +373,7 @@ For non-isothermal EOS modules there is also a "heat_flow" field, for flow in th
 
 If tracers are being simulated (see :ref:`setup_tracers`), then there is an additional flow field for each tracer, with "_flow" appended to the tracer name. (Note that tracer flow rates at sources are not output by default.)
 
-Regardless of the :ref:`eos`, the default source output fields are ["source_index", "component", "rate", "enthalpy"].
+Regardless of the :ref:`eos`, the default source output fields are ["component", "rate", "enthalpy"].
 
 .. index:: output; mesh geometry
 .. _output_geometry_fields:
