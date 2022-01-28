@@ -124,7 +124,7 @@ module flow_simulation_module
      procedure, public :: output_cell_indices => flow_simulation_output_cell_indices
      procedure, public :: output_face_cell_indices => flow_simulation_output_face_cell_indices
      procedure, public :: output_source_indices => flow_simulation_output_source_indices
-     procedure, public :: output_source_cell_indices => flow_simulation_output_source_cell_indices
+     procedure, public :: output_source_constant_integer_fields => flow_simulation_output_source_constant_integer_fields
      procedure, public :: output => flow_simulation_output
      procedure, public :: get_dof => flow_simulation_get_dof
   end type flow_simulation_type
@@ -977,7 +977,7 @@ contains
                          call self%output_mesh_geometry()
                          call self%output_minc_data()
                          call self%output_source_indices()
-                         call self%output_source_cell_indices()
+                         call self%output_source_constant_integer_fields()
                          call self%setup_jacobian()
                          call self%setup_auxiliary()
                       end if
@@ -2929,63 +2929,68 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_output_source_cell_indices(self)
-    !! Writes source cell natural indices to output.
+  subroutine flow_simulation_output_source_constant_integer_fields(self)
+    !! Writes constant integer fields for sources to output. Not being
+    !! time-dependent, these are output only once at the start of the
+    !! simulation.
 
-    use source_module, only: source_type
-    use dm_utils_module, only: global_vec_section, global_section_offset
+    use source_module, only: source_type, max_source_variable_name_length, &
+         source_constant_integer_variables
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         section_get_field_names, get_field_subvector
+    use hdf5io_module, only: max_field_name_length
+    use utils_module, only: str_array_index
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
+    PetscInt :: f, i, num_fields
+    character(max_field_name_length), allocatable :: fields(:)
+    character(max_source_variable_name_length) :: field_name
+    DM :: source_dm
     PetscSection :: source_section
     PetscReal, pointer, contiguous :: source_data(:)
-    PetscInt, allocatable :: source_cell_indices(:)
-    IS :: is_cell_indices
+    PetscInt, allocatable :: source_field(:)
+    IS :: field_IS, index_set
+    Vec :: sub_v
     PetscErrorCode :: ierr
 
     if ((self%output_filename /= "") .and. (self%num_sources > 0)) then
 
-       call global_vec_section(self%source, source_section)
-       call VecGetArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
-       allocate(source_cell_indices(self%sources%count))
-       call self%sources%traverse(source_cell_indices_iterator)
-       call VecRestoreArrayReadF90(self%source, source_data, ierr); CHKERRQ(ierr)
-       call ISCreateGeneral(PETSC_COMM_WORLD, self%sources%count, &
-            source_cell_indices, PETSC_COPY_VALUES, is_cell_indices, ierr)
-       CHKERRQ(ierr)
-       deallocate(source_cell_indices)
-       call PetscObjectSetName(is_cell_indices, "source_natural_cell_index", &
-            ierr); CHKERRQ(ierr)
-       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
-            ierr); CHKERRQ(ierr)
-       call ISView(is_cell_indices, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-       call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
-       call ISDestroy(is_cell_indices, ierr); CHKERRQ(ierr)
+       call VecGetDM(self%source, source_dm, ierr); CHKERRQ(ierr)
+       call DMGetSection(source_dm, source_section, ierr); CHKERRQ(ierr)
+       call section_get_field_names(source_section, PETSC_TRUE, fields)
+
+       num_fields = size(self%output_source_field_indices)
+       do f = 1, num_fields
+          i = self%output_source_field_indices(f)
+          field_name = fields(i + 1)(1: max_source_variable_name_length)
+          if (str_array_index(field_name, source_constant_integer_variables) > 0) then
+             allocate(source_field(self%sources%count))
+             call get_field_subvector(self%source, i, index_set, sub_v)
+             call VecGetArrayReadF90(sub_v, source_data, ierr); CHKERRQ(ierr)
+             source_field = int(source_data)
+             call VecRestoreArrayReadF90(sub_v, source_data, ierr); CHKERRQ(ierr)
+             call ISCreateGeneral(PETSC_COMM_WORLD, self%sources%count, &
+                  source_field, PETSC_COPY_VALUES, field_IS, ierr)
+             CHKERRQ(ierr)             
+             call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+             deallocate(source_field)
+             call PetscObjectSetName(field_IS, "source_" // trim(field_name), &
+                  ierr); CHKERRQ(ierr)
+             call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
+                  ierr); CHKERRQ(ierr)
+             call ISView(field_IS, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+             call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+             call ISDestroy(field_IS, ierr); CHKERRQ(ierr)
+             self%output_source_field_indices(f) = -1
+          end if
+       end do
+       self%output_source_field_indices = pack(self%output_source_field_indices, &
+            self%output_source_field_indices >= 0)
 
     end if
 
-  contains
-
-    subroutine source_cell_indices_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, s, &
-              self%source_range_start)
-         call source%assign(source_data, source_offset)
-          source_cell_indices(s + 1) = nint(source%natural_cell_index)
-      end select
-
-    end subroutine source_cell_indices_iterator
-
-  end subroutine flow_simulation_output_source_cell_indices
+  end subroutine flow_simulation_output_source_constant_integer_fields
 
 !------------------------------------------------------------------------
 
