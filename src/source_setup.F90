@@ -150,7 +150,7 @@ contains
           deallocate(indices)
 
           num_local_root_groups = 0
-          call group_specs%traverse(setup_group_iterator)
+          call group_specs%traverse(group_init_iterator)
 
           call create_path_dm(num_local_root_groups, dm_group)
           call setup_group_dm_data_layout(dm_group)
@@ -663,8 +663,8 @@ contains
 
 !........................................................................
 
-    subroutine setup_group_iterator(node, stopped)
-      !! Sets up source group.
+    subroutine group_init_iterator(node, stopped)
+      !! Initialises a source group.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
@@ -709,7 +709,7 @@ contains
 
       end select
 
-    end subroutine setup_group_iterator
+    end subroutine group_init_iterator
 
 !........................................................................
 
