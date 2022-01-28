@@ -475,8 +475,6 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscErrorCode :: ierr
 
       stopped = PETSC_FALSE
       select type(group => node%data)
@@ -526,7 +524,6 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: group_offset
-      PetscErrorCode :: ierr
 
       stopped = PETSC_FALSE
       select type(group => node%data)
