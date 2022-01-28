@@ -45,9 +45,9 @@ module source_module
        source_network_variable_names, separator_variable_names, [ &
        "source_index        ", "natural_cell_index  ", &
        "component           "]]
-  PetscInt, parameter, public :: num_constant_integer_variables = 2
+  PetscInt, parameter, public :: num_source_constant_integer_variables = 2
   character(max_source_variable_name_length), parameter, public :: &
-       source_constant_integer_variables(num_constant_integer_variables) = [ &
+       source_constant_integer_variables(num_source_constant_integer_variables) = [ &
        "source_index        ", "natural_cell_index  "]
   PetscInt, parameter, public :: num_source_array_variables = 3
   character(max_source_variable_name_length), public :: &
