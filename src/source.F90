@@ -109,7 +109,9 @@ contains
   subroutine source_init(self, name, eos, local_source_index, &
        local_cell_index, injection_enthalpy, injection_component, &
        production_component, num_tracers)
-    !! Initialises a source object.
+    !! Initialises a source object. Only values stored in the object
+    !! itself are initialised, not those in the source data vector
+    !! accesssed via pointers.
 
     use eos_module, only: eos_type
 
@@ -222,7 +224,9 @@ contains
 
   subroutine source_setup(self, source_index, natural_cell_index, rate, &
        tracer_injection_rate, separator_pressure, thermo)
-    !! Sets up main parameters of a source object.
+    !! Sets up main parameters of a source object. Parameters stored
+    !! in the source data vector are set up, not those stored in the
+    !! object itself.
 
     class(source_type), intent(in out) :: self
     PetscInt, intent(in) :: source_index !! index of source in input
