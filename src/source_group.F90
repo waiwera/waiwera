@@ -114,8 +114,15 @@ contains
     class(source_group_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
     PetscInt, intent(in) :: offset  !! source array offset
+    ! Locals:
+    PetscInt :: group_offset
 
     call self%source_network_node_type%assign(data, offset)
+
+    group_offset = offset + num_source_network_node_variables + &
+         num_separator_variables
+
+    self%group_index => data(group_offset)
 
   end subroutine source_group_assign
 
