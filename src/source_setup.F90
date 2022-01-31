@@ -442,7 +442,7 @@ contains
                     initial_enthalpy, injection_component, production_component, &
                     num_tracers)
                call source%assign(source_data, source_offset)
-               call source%setup(natural_source_index(i), natural_cell_index(i), &
+               call source%init_data(natural_source_index(i), natural_cell_index(i), &
                     initial_rate, tracer_injection_rate, separator_pressure, thermo)
                call sources%append(source)
                call spec_sources%append(source)

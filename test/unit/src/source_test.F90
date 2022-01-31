@@ -176,7 +176,7 @@ contains
            production_component, nt)
       allocate(source_data(source%dof))
       call source%assign(source_data, 1)
-      call source%setup(0, 0, rate, injection_tracer, &
+      call source%init_data(0, 0, rate, injection_tracer, &
            separator_pressure, thermo)
       call source%update_flow(local_fluid_array, local_fluid_section)
       call test%assert(flow, source%flow, trim(tag) // " flow")

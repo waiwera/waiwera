@@ -95,7 +95,7 @@ module source_module
      procedure, public :: assign => source_assign
      procedure, public :: assign_fluid_local => source_assign_fluid_local
      procedure, public :: assign_fluid => source_assign_fluid
-     procedure, public :: setup => source_setup
+     procedure, public :: init_data => source_init_data
      procedure, public :: update_component => source_update_component
      procedure, public :: update_flow => source_update_flow
      procedure, public :: update_tracer_flow => source_update_tracer_flow
@@ -222,11 +222,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_setup(self, source_index, natural_cell_index, rate, &
+  subroutine source_init_data(self, source_index, natural_cell_index, rate, &
        tracer_injection_rate, separator_pressure, thermo)
-    !! Sets up main parameters of a source object. Parameters stored
-    !! in the source data vector are set up, not those stored in the
-    !! object itself.
+    !! Sets up main data stored in the source data vector. The source
+    !! assign() method must be called first.
 
     class(source_type), intent(in out) :: self
     PetscInt, intent(in) :: source_index !! index of source in input
@@ -244,7 +243,7 @@ contains
     call self%separator%init(separator_pressure, thermo)
     call self%set_rate(rate)
 
-  end subroutine source_setup
+  end subroutine source_init_data
 
 !------------------------------------------------------------------------
 
