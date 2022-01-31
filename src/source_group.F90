@@ -65,7 +65,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_group_init(self, name)
-    !! Initialises a source group.
+    !! Initialises a source group. Only variables stored in the object
+    !! itself are initialised, not those stored in the group data
+    !! vector and accessed via pointers.
 
     class(source_group_type), intent(in out) :: self
     character(*), intent(in) :: name !! Group name
