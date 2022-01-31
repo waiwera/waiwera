@@ -31,11 +31,17 @@ module source_group_module
   private
 
   PetscInt, parameter, public :: num_source_group_variables = &
-       num_source_network_node_variables + num_separator_variables
+       num_source_network_node_variables + num_separator_variables + 1
   PetscInt, parameter, public :: max_source_group_variable_name_length = 24
   character(max_source_group_variable_name_length), parameter, public :: &
        source_group_variable_names(num_source_group_variables) = [ &
-       source_network_variable_names, separator_variable_names]
+       source_network_variable_names, separator_variable_names, [ &
+       "group_index         "]]
+  PetscInt, parameter, public :: num_source_group_constant_integer_variables = 1
+  character(max_source_group_variable_name_length), parameter, public :: &
+       source_group_constant_integer_variables( &
+       num_source_group_constant_integer_variables) = [ &
+       "group_index       "]
 
   type, public, extends(source_network_node_type) :: source_group_type
      !! Type for group of source network nodes, e.g. multi-feed well
@@ -44,6 +50,7 @@ module source_group_module
      type(list_type), public :: nodes !! List of nodes in group
      MPI_Comm :: comm !! MPI communicator for group
      PetscBool, public :: is_root !! Whether group is on root rank of its communicator
+     PetscReal, pointer, public :: group_index !! Index of source group in input
    contains
      private
      procedure, public :: init => source_group_init
