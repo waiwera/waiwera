@@ -56,6 +56,7 @@ module source_group_module
      procedure, public :: init => source_group_init
      procedure, public :: init_comm => source_group_init_comm
      procedure, public :: assign => source_group_assign
+     procedure, public :: init_data => source_group_init_data
      procedure, public :: sum => source_group_sum
      procedure, public :: destroy => source_group_destroy
   end type source_group_type
@@ -125,6 +126,20 @@ contains
     self%group_index => data(group_offset)
 
   end subroutine source_group_assign
+
+!------------------------------------------------------------------------
+
+  subroutine source_group_init_data(self, group_index)
+    !! Initialised source group variables accessed via pointers to the
+    !! source group vector. The group assign() method must be called
+    !! first.
+
+    class(source_group_type), intent(in out) :: self
+    PetscInt, intent(in) :: group_index !! Index of group in input
+
+    self%group_index = dble(group_index)
+
+  end subroutine source_group_init_data
 
 !------------------------------------------------------------------------
 
