@@ -81,9 +81,9 @@ contains
     DM :: dm_source, dm_group
     PetscInt :: num_local_sources, source_spec_index, local_source_index
     type(fson_value), pointer :: sources_json, source_json, group_spec
-    PetscInt :: num_source_specs, num_tracers, num_local_root_groups, g
-    PetscReal, pointer, contiguous :: fluid_data(:), source_data(:)
-    PetscSection :: fluid_section, source_section
+    PetscInt :: num_source_specs, num_tracers, num_local_root_groups
+    PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_group_data(:)
+    PetscSection :: fluid_section, source_section, source_group_section
     type(list_type) :: group_specs
     type(dictionary_type) :: source_dict
     PetscInt, allocatable :: indices(:)
@@ -157,7 +157,6 @@ contains
           call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
           call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
           call global_vec_range_start(source_group_vector, source_group_range_start)
-          g = 0
           call source_groups%traverse(group_init_data_iterator)
 
        end if
@@ -724,12 +723,20 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: g, source_group_offset
 
       stopped = PETSC_FALSE
       select type (group => node%data)
       type is (source_group_type)
-         call group%init_data(g)
-         g = g + 1
+         if (group%is_root) then
+            g = group%local_group_index
+            source_group_offset = global_section_offset(source_group_section, g, &
+                 source_group_range_start)
+            call group%assign(source_group_data, source_group_offset)
+            call group%init_data(g)
+            g = g + 1
+         end if
       end select
 
     end subroutine group_init_data_iterator
