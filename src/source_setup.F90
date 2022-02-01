@@ -673,7 +673,7 @@ contains
       ! Locals:
       character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
-      PetscInt :: i
+      PetscInt :: i, g
       type(list_node_type), pointer :: dict_node
       type(source_group_type), pointer :: group
 
@@ -704,8 +704,12 @@ contains
          call group%init_comm()
 
          if (group%is_root) then
+            g = num_local_root_groups
             num_local_root_groups = num_local_root_groups + 1
+         else
+            g = -1
          end if
+         group%local_group_index = g
 
          call source_groups%append(group)
 

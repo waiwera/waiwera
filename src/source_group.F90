@@ -50,6 +50,7 @@ module source_group_module
      type(list_type), public :: nodes !! List of nodes in group
      MPI_Comm :: comm !! MPI communicator for group
      PetscBool, public :: is_root !! Whether group is on root rank of its communicator
+     PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
      PetscReal, pointer, public :: group_index !! Index of source group in input
    contains
      private
