@@ -406,7 +406,7 @@ contains
     PetscSection :: source_section, group_section
     type(list_type) :: sources, source_controls, source_groups, separated_sources
     IS :: source_index
-    PetscInt :: num_local_root_groups, total_num_groups, g
+    PetscInt :: num_local_root_groups, total_num_groups
     PetscMPIInt :: rank
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
@@ -447,7 +447,6 @@ contains
     call VecGetArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
 
     call sources%traverse(set_source_enthalpy_iterator)
-    g = 0
     call source_groups%traverse(group_test_iterator)
 
     call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
@@ -523,13 +522,14 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: group_offset
+      PetscInt :: g, group_offset
 
       stopped = PETSC_FALSE
       select type(group => node%data)
       type is (source_group_type)
 
          if (group%is_root) then
+            g = group%local_group_index
             group_offset = global_section_offset(group_section, &
               g, group_range_start)
             call group%assign(group_array, group_offset)
