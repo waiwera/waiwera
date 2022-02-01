@@ -157,7 +157,11 @@ contains
           call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
           call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
           call global_vec_range_start(source_group_vector, source_group_range_start)
+          call global_vec_section(source_group_vector, source_group_section)
+          call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
           call source_groups%traverse(group_init_data_iterator)
+          call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
+          CHKERRQ(ierr)
 
        end if
 
