@@ -152,26 +152,27 @@ contains
     class(source_group_type), intent(in out) :: self
     ! Locals:
     PetscReal :: local_q, local_qh
-    PetscReal :: total_qh
+    PetscReal :: total_q, total_qh
     PetscErrorCode :: ierr
     PetscReal, parameter :: rate_tol = 1.e-9_dp
 
-    if (self%is_root) then
-       self%rate = 0._dp
-       self%enthalpy = 0._dp
-    end if
     local_q = 0._dp
     local_qh = 0._dp
 
     call self%nodes%traverse(group_sum_iterator)
 
-    call MPI_reduce(local_q, self%rate, 1, &
+    call MPI_reduce(local_q, total_q, 1, &
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
     call MPI_reduce(local_qh, total_qh, 1, &
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
 
-    if (self%is_root .and. (abs(self%rate) > rate_tol)) then
-       self%enthalpy = total_qh / self%rate
+    if (self%is_root) then
+       self%rate = total_q
+       if (abs(total_q) > rate_tol) then
+          self%enthalpy = total_qh / total_q
+       else
+          self%enthalpy = 0._dp
+       end if
     end if
 
   contains
