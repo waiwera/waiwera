@@ -60,8 +60,10 @@ module flow_simulation_module
      Vec, public :: source_group !! Vector for source/sink group data
      type(list_type), public :: sources !! List of source objects
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
+     PetscInt, public :: num_source_groups !! Total number of source groups on all processes
      type(tracer_type), allocatable, public :: tracers(:) !! Tracers
      IS, public :: source_index !! Index set defining natural to global source ordering
+     IS, public :: source_group_index !! Index set defining natural to global source group ordering
      type(list_type), public :: source_controls !! Source/sink controls
      type(list_type), public :: source_groups !! Groups of sources/sinks
      type(list_type), public :: rock_controls !! Rock property controls
@@ -698,6 +700,8 @@ contains
          real_values = [dof_imbalance], rank = 0)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'sources', &
          int_keys = ['count'], int_values = [self%num_sources])
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'source_groups', &
+         int_keys = ['count'], int_values = [self%num_source_groups])
 
     call self%logfile%write_blank()
 
@@ -968,9 +972,9 @@ contains
                            self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
                            self%source_group, self%source_group_range_start, &
-                           self%sources, self%num_sources, self%source_controls, &
-                           self%source_index, self%separated_sources, &
-                           self%source_groups, self%logfile, err)
+                           self%sources, self%num_sources, self%num_source_groups, &
+                           self%source_controls, self%source_index, self%source_group_index, &
+                           self%separated_sources, self%source_groups, self%logfile, err)
                       if (err == 0) then
                          call self%setup_output_fields(json)
                          call self%output_face_cell_indices()
@@ -1029,6 +1033,7 @@ contains
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source_group, ierr); CHKERRQ(ierr)
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%source_group_index, ierr); CHKERRQ(ierr)
     call self%separated_sources%destroy()
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
@@ -2913,16 +2918,21 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_output_source_indices(self)
-    !! Writes source indices to output.
+    !! Writes source and source group indices to output.
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
 
-    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
-         (self%num_sources > 0)) then
-       call ISView(self%source_index, self%hdf5_viewer, ierr)
-       CHKERRQ(ierr)
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+         if (self%num_sources > 0) then
+            call ISView(self%source_index, self%hdf5_viewer, ierr)
+            CHKERRQ(ierr)
+            if (self%num_source_groups > 0) then
+               call ISView(self%source_group_index, self%hdf5_viewer, ierr)
+               CHKERRQ(ierr)
+            end if
+         end if
     end if
 
   end subroutine flow_simulation_output_source_indices
