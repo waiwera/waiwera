@@ -82,14 +82,14 @@ contains
     PetscSection :: source_section
     PetscInt :: fluid_range_start, source_range_start, group_range_start
     type(list_type) :: sources, source_controls, source_groups, separated_sources
-    PetscInt :: total_num_sources, num_zone_sources, n_all, i
+    PetscInt :: total_num_sources, total_num_source_groups, num_zone_sources, n_all, i
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
     PetscInt, parameter :: expected_num_sources = 23
     PetscMPIInt :: rank, num_procs
-    IS :: source_is
+    IS :: source_is, source_group_is
     PetscInt, allocatable :: zone_source(:), isort(:)
     PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
     PetscInt, allocatable :: zone_source_counts(:), zone_source_displacements(:)
@@ -110,12 +110,13 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, source_controls, &
-         source_is, separated_sources, source_groups, err = err)
+         sources, total_num_sources, total_num_source_groups, source_controls, &
+         source_is, source_group_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
       call test%assert(expected_num_sources, total_num_sources, "number of sources")
+      call test%assert(0, total_num_source_groups, "number of source groups")
     end if
 
     call global_vec_section(source_vector, source_section)
@@ -160,6 +161,7 @@ contains
     deallocate(zone_source, zone_source_counts, zone_source_displacements, &
          zone_source_all, tracers)
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_group_is, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
@@ -323,10 +325,11 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
-    Vec :: fluid_vector, source_vector, group_vector
-    PetscInt :: total_num_sources, fluid_range_start, source_range_start, group_range_start
+    Vec :: fluid_vector, source_vector, source_group_vector
+    PetscInt :: total_num_sources, total_num_source_groups
+    PetscInt :: fluid_range_start, source_range_start, group_range_start
     type(list_type) :: sources, source_controls, source_groups, separated_sources
-    IS :: source_index
+    IS :: source_index, source_group_index
     PetscInt, pointer, contiguous :: source_index_array(:)
     PetscMPIInt :: rank
     PetscErrorCode :: err, ierr
@@ -347,13 +350,14 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, source_controls, &
-         source_index, separated_sources, source_groups, err = err)
+         source_range_start, source_group_vector, group_range_start, &
+         sources, total_num_sources, total_num_source_groups, source_controls, &
+         source_index, source_group_index, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
       call test%assert(expected_num_sources, total_num_sources, "number of sources")
+      call test%assert(0, total_num_source_groups, "number of source groups")
     end if
 
     call ISGetIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
@@ -364,8 +368,9 @@ contains
     call ISRestoreIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_group_index, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
-    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(source_group_vector, ierr); CHKERRQ(ierr)
     call separated_sources%destroy()
     call source_groups%destroy(source_group_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)
@@ -392,6 +397,7 @@ contains
     use tracer_module
     use source_module
     use dm_utils_module, only: global_vec_section, global_section_offset
+    use utils_module, only: is_permutation
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -401,12 +407,13 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector, source_vector, group_vector
-    PetscInt :: total_num_sources, fluid_range_start, source_range_start, group_range_start
+    PetscInt :: total_num_sources, total_num_source_groups, source_group_index_size
+    PetscInt :: fluid_range_start, source_range_start, group_range_start
     PetscReal, pointer, contiguous :: source_array(:), group_array(:)
     PetscSection :: source_section, group_section
     type(list_type) :: sources, source_controls, source_groups, separated_sources
-    IS :: source_index
-    PetscInt :: num_local_root_groups, total_num_groups
+    IS :: source_index, source_group_index
+    PetscInt, pointer, contiguous :: source_group_index_array(:)
     PetscMPIInt :: rank
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
@@ -428,17 +435,13 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, source_controls, &
-         source_index, separated_sources, source_groups, err = err)
+         sources, total_num_sources, total_num_source_groups, source_controls, &
+         source_index, source_group_index, separated_sources, source_groups, err = err)
     call test%assert(0, err, "error")
 
-    num_local_root_groups = 0
-    call source_groups%traverse(num_root_groups_iterator)
-    call MPI_reduce(num_local_root_groups, total_num_groups, 1, &
-         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
        call test%assert(expected_num_sources, total_num_sources, "number of sources")
-       call test%assert(expected_num_groups, total_num_groups, "number of groups")
+       call test%assert(expected_num_groups, total_num_source_groups, "number of groups")
     end if
 
     call global_vec_section(source_vector, source_section)
@@ -451,7 +454,18 @@ contains
 
     call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+
+    call ISGetIndicesF90(source_group_index, source_group_index_array, ierr); CHKERRQ(ierr)
+    call ISGetSize(source_group_index, source_group_index_size, ierr); CHKERRQ(ierr)
+    if (rank == 0) then
+       call test%assert(expected_num_groups, source_group_index_size, "source group index size")
+       call test%assert(all(source_group_index_array >= 0), "indices >= 0")
+       call test%assert(is_permutation(source_group_index_array), "indices permutation")
+    end if
+    call ISRestoreIndicesF90(source_group_index, source_group_index_array, ierr); CHKERRQ(ierr)
+
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_group_index, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call separated_sources%destroy()
@@ -466,26 +480,6 @@ contains
     call fson_destroy_mpi(json)
 
   contains
-
-    subroutine num_root_groups_iterator(node, stopped)
-
-      ! Counts local source groups which have rank zero in their group
-      ! communicator.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(group => node%data)
-      type is (source_group_type)
-         if (group%is_root) then
-            num_local_root_groups = num_local_root_groups + 1
-         end if
-      end select
-
-    end subroutine num_root_groups_iterator
-
-!........................................................................
 
     subroutine set_source_enthalpy_iterator(node, stopped)
 

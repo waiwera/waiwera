@@ -80,7 +80,7 @@ contains
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: fluid_section, local_fluid_section, source_section
     type(list_type) :: sources, source_controls, source_groups, separated_sources
-    PetscInt :: total_num_sources, source_vector_size
+    PetscInt :: total_num_sources, total_num_source_groups, source_vector_size
     PetscInt :: fluid_range_start, source_range_start, group_range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr, err
@@ -89,7 +89,7 @@ contains
     type(tracer_type), allocatable :: tracers(:)
     PetscInt, parameter :: expected_num_sources = 11
     PetscMPIInt :: rank
-    IS :: source_is
+    IS :: source_is, source_group_is
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_controls_table.json")
@@ -110,8 +110,8 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, source_controls, &
-         source_is, separated_sources, source_groups, err = err)
+         sources, total_num_sources, total_num_source_groups, source_controls, &
+         source_is, source_group_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
     call source%init("", eos, 0, 0, 0._dp, 0, 0, size(tracers))
     call test%assert(14 + size(tracers) * 2, source%dof, "source dof")
@@ -123,6 +123,7 @@ contains
     if (rank == 0) then
        call test%assert(expected_num_sources, total_num_sources, &
             "number of sources")
+       call test%assert(0, total_num_source_groups, "number of source groups")
        call test%assert(expected_num_sources * source%dof, &
             source_vector_size, "source vector size")
     end if
@@ -144,6 +145,7 @@ contains
     call restore_dm_local_vec(local_fluid_vector)
 
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_group_is, ierr); CHKERRQ(ierr)
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call source_groups%destroy(source_group_list_node_data_destroy, &
@@ -275,7 +277,8 @@ contains
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section, fluid_section, local_fluid_section
     type(fluid_type) :: fluid
-    PetscInt :: total_num_sources, num_separators, num_source_controls
+    PetscInt :: total_num_sources, total_num_source_groups
+    PetscInt :: num_separators, num_source_controls
     PetscInt :: start_cell, end_cell, c, s12, source_range_start, group_range_start, &
          fluid_range_start
     PetscInt :: fluid_offset, source_offset, cell_phase_composition
@@ -283,7 +286,7 @@ contains
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
     PetscReal :: cell_vapour_density, cell_vapour_internal_energy
     PetscReal :: cell_liquid_viscosity, cell_vapour_viscosity
-    IS :: source_is
+    IS :: source_is, source_group_is
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
@@ -367,12 +370,13 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, source_controls, &
-         source_is, separated_sources, source_groups, err = err)
+         sources, total_num_sources, total_num_source_groups, source_controls, &
+         source_is, source_group_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
 
     if (rank == 0) then
       call test%assert(16, total_num_sources, "number of sources")
+      call test%assert(0, total_num_source_groups, "number of source groups")
     end if
 
     call MPI_reduce(source_controls%count, num_source_controls, 1, &
@@ -439,6 +443,7 @@ contains
     call restore_dm_local_vec(local_fluid_vector)
 
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_group_is, ierr); CHKERRQ(ierr)
     call source%destroy()
     call source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
