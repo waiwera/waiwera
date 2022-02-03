@@ -48,8 +48,8 @@ contains
   subroutine setup_sources(json, dm, ao, eos, tracer_names, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
        source_group_vector, source_group_range_start, &
-       sources, num_sources, source_controls, source_index, &
-       separated_sources, source_groups, logfile, err)
+       sources, num_sources, num_source_groups, source_controls, source_index, &
+       source_group_index, separated_sources, source_groups, logfile, err)
     !! Sets up sinks / sources, source controls and source groups.
 
     use dm_utils_module
@@ -70,8 +70,10 @@ contains
     PetscInt, intent(out) :: source_group_range_start !! Range start for global source group vector
     type(list_type), intent(in out) :: sources !! List of local source objects
     PetscInt, intent(out) :: num_sources !! Total number of sources created on all processes
+    PetscInt, intent(out) :: num_source_groups !! Total number of source groups created on all processes
     type(list_type), intent(in out) :: source_controls !! List of source controls
     IS, intent(in out) :: source_index !! IS defining natural-to-global source ordering
+    IS, intent(in out) :: source_group_index !! IS defining natural-to-global source group ordering
     type(list_type), intent(out) :: separated_sources !! List of sources with separators
     type(list_type), intent(in out) :: source_groups !! List of source groups
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
@@ -79,19 +81,20 @@ contains
     ! Locals:
     PetscMPIInt :: rank
     DM :: dm_source, dm_group
-    PetscInt :: num_local_sources, source_spec_index, local_source_index
+    PetscInt :: num_local_sources, source_spec_index, local_source_index, group_index
     type(fson_value), pointer :: sources_json, source_json, group_spec
     PetscInt :: num_source_specs, num_tracers, num_local_root_groups
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_group_data(:)
     PetscSection :: fluid_section, source_section, source_group_section
     type(list_type) :: group_specs
     type(dictionary_type) :: source_dict
-    PetscInt, allocatable :: indices(:)
+    PetscInt, allocatable :: indices(:), group_indices(:)
     PetscErrorCode :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     num_sources = 0
+    num_source_groups = 0
     num_tracers = size(tracer_names)
     err = 0
 
@@ -151,7 +154,6 @@ contains
 
           num_local_root_groups = 0
           call group_specs%traverse(group_init_iterator)
-
           call create_path_dm(num_local_root_groups, dm_group)
           call setup_group_dm_data_layout(dm_group)
           call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
@@ -159,7 +161,17 @@ contains
           call global_vec_range_start(source_group_vector, source_group_range_start)
           call global_vec_section(source_group_vector, source_group_section)
           call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
+          group_index = 0
           call source_groups%traverse(group_init_data_iterator)
+
+          call MPI_reduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
+               MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+
+          allocate(group_indices(num_local_root_groups))
+          call source_groups%traverse(source_group_indices_iterator)
+          call setup_source_group_index(group_indices, source_group_index)
+          deallocate(group_indices)
+
           call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
           CHKERRQ(ierr)
 
@@ -668,6 +680,84 @@ contains
 
 !........................................................................
 
+    subroutine source_group_indices_iterator(node, stopped)
+      !! Gets indices from all local source groups.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: g, source_group_offset
+
+      stopped = PETSC_FALSE
+      select type(group => node%data)
+      type is (source_group_type)
+         if (group%is_root) then
+            g = group%local_group_index
+            source_group_offset = global_section_offset(source_group_section, g, &
+                 source_group_range_start)
+            call group%assign(source_group_data, source_group_offset)
+            group_indices(g + 1) = nint(group%group_index)
+         end if
+      end select
+
+    end subroutine source_group_indices_iterator
+
+!........................................................................
+
+    subroutine setup_source_group_index(indices, source_group_index)
+      !! Sets up natural-to-global source group ordering IS. This
+      !! gives the global index corresponding to a natural source
+      !! group index.
+
+      use utils_module, only: array_cumulative_sum
+      use mpi_utils_module, only: get_mpi_int_gather_array
+
+      PetscInt, intent(in) :: indices(num_local_root_groups)
+      IS, intent(in out) :: source_group_index
+      ! Locals:
+      PetscInt :: i
+      PetscMPIInt :: rank, num_procs, num_all, is_count
+      PetscInt, allocatable :: counts(:), displacements(:)
+      PetscInt, allocatable :: indices_all(:), global_indices(:)
+      PetscErrorCode :: ierr
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+      call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+
+      counts = get_mpi_int_gather_array()
+      displacements = get_mpi_int_gather_array()
+      call MPI_gather(num_local_root_groups, 1, MPI_INTEGER, counts, 1, &
+           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         displacements = [[0], &
+              array_cumulative_sum(counts(1: num_procs - 1))]
+         num_all = sum(counts)
+         is_count = num_all
+      else
+         num_all = 1
+         is_count = 0
+      end if
+      allocate(indices_all(0: num_all - 1), global_indices(0: num_all - 1))
+      global_indices = -1
+      call MPI_gatherv(indices, num_local_root_groups, MPI_INTEGER, &
+           indices_all, counts, displacements, &
+           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+      if (rank == 0) then
+         do i = 0, num_all - 1
+            global_indices(indices_all(i)) = i
+         end do
+      end if
+      deallocate(indices_all, counts, displacements)
+      call ISCreateGeneral(PETSC_COMM_WORLD, is_count, &
+           global_indices, PETSC_COPY_VALUES, source_group_index, ierr)
+      CHKERRQ(ierr)
+      call PetscObjectSetName(source_index, "source_group_index", ierr)
+      deallocate(global_indices)
+
+    end subroutine setup_source_group_index
+
+!........................................................................
+
     subroutine group_init_iterator(node, stopped)
       !! Initialises a source group.
 
@@ -738,9 +828,9 @@ contains
             source_group_offset = global_section_offset(source_group_section, g, &
                  source_group_range_start)
             call group%assign(source_group_data, source_group_offset)
-            call group%init_data(g)
-            g = g + 1
+            call group%init_data(group_index)
          end if
+         group_index = group_index + 1
       end select
 
     end subroutine group_init_data_iterator
