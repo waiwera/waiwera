@@ -54,6 +54,7 @@ contains
 
     use dm_utils_module
     use dictionary_module
+    use utils_module, only: invert_indices
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
@@ -149,7 +150,7 @@ contains
 
           allocate(indices(num_local_sources))
           call sources%traverse(source_indices_iterator)
-          call setup_source_index(indices, source_index)
+          source_index = invert_indices(indices, "source_index")
           deallocate(indices)
 
           num_local_root_groups = 0
@@ -169,7 +170,7 @@ contains
 
           allocate(group_indices(num_local_root_groups))
           call source_groups%traverse(source_group_indices_iterator)
-          call setup_source_group_index(group_indices, source_group_index)
+          source_group_index = invert_indices(group_indices, "source_group_index")
           deallocate(group_indices)
 
           call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
@@ -627,59 +628,6 @@ contains
 
 !........................................................................
 
-    subroutine setup_source_index(indices, source_index)
-      !! Sets up natural-to-global source ordering IS. This gives the
-      !! global index corresponding to a natural source index.
-
-      use utils_module, only: array_cumulative_sum
-      use mpi_utils_module, only: get_mpi_int_gather_array
-
-      PetscInt, intent(in) :: indices(num_local_sources)
-      IS, intent(in out) :: source_index
-      ! Locals:
-      PetscInt :: i
-      PetscMPIInt :: rank, num_procs, num_all, is_count
-      PetscInt, allocatable :: counts(:), displacements(:)
-      PetscInt, allocatable :: indices_all(:), global_indices(:)
-      PetscErrorCode :: ierr
-
-      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-      call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
-
-      counts = get_mpi_int_gather_array()
-      displacements = get_mpi_int_gather_array()
-      call MPI_gather(num_local_sources, 1, MPI_INTEGER, counts, 1, &
-           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-      if (rank == 0) then
-         displacements = [[0], &
-              array_cumulative_sum(counts(1: num_procs - 1))]
-         num_all = sum(counts)
-         is_count = num_all
-      else
-         num_all = 1
-         is_count = 0
-      end if
-      allocate(indices_all(0: num_all - 1), global_indices(0: num_all - 1))
-      global_indices = -1
-      call MPI_gatherv(indices, num_local_sources, MPI_INTEGER, &
-           indices_all, counts, displacements, &
-           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-      if (rank == 0) then
-         do i = 0, num_all - 1
-            global_indices(indices_all(i)) = i
-         end do
-      end if
-      deallocate(indices_all, counts, displacements)
-      call ISCreateGeneral(PETSC_COMM_WORLD, is_count, &
-           global_indices, PETSC_COPY_VALUES, source_index, ierr)
-      CHKERRQ(ierr)
-      call PetscObjectSetName(source_index, "source_index", ierr)
-      deallocate(global_indices)
-
-    end subroutine setup_source_index
-
-!........................................................................
-
     subroutine source_group_indices_iterator(node, stopped)
       !! Gets indices from all local source groups.
 
@@ -701,60 +649,6 @@ contains
       end select
 
     end subroutine source_group_indices_iterator
-
-!........................................................................
-
-    subroutine setup_source_group_index(indices, source_group_index)
-      !! Sets up natural-to-global source group ordering IS. This
-      !! gives the global index corresponding to a natural source
-      !! group index.
-
-      use utils_module, only: array_cumulative_sum
-      use mpi_utils_module, only: get_mpi_int_gather_array
-
-      PetscInt, intent(in) :: indices(num_local_root_groups)
-      IS, intent(in out) :: source_group_index
-      ! Locals:
-      PetscInt :: i
-      PetscMPIInt :: rank, num_procs, num_all, is_count
-      PetscInt, allocatable :: counts(:), displacements(:)
-      PetscInt, allocatable :: indices_all(:), global_indices(:)
-      PetscErrorCode :: ierr
-
-      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-      call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
-
-      counts = get_mpi_int_gather_array()
-      displacements = get_mpi_int_gather_array()
-      call MPI_gather(num_local_root_groups, 1, MPI_INTEGER, counts, 1, &
-           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-      if (rank == 0) then
-         displacements = [[0], &
-              array_cumulative_sum(counts(1: num_procs - 1))]
-         num_all = sum(counts)
-         is_count = num_all
-      else
-         num_all = 1
-         is_count = 0
-      end if
-      allocate(indices_all(0: num_all - 1), global_indices(0: num_all - 1))
-      global_indices = -1
-      call MPI_gatherv(indices, num_local_root_groups, MPI_INTEGER, &
-           indices_all, counts, displacements, &
-           MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
-      if (rank == 0) then
-         do i = 0, num_all - 1
-            global_indices(indices_all(i)) = i
-         end do
-      end if
-      deallocate(indices_all, counts, displacements)
-      call ISCreateGeneral(PETSC_COMM_WORLD, is_count, &
-           global_indices, PETSC_COPY_VALUES, source_group_index, ierr)
-      CHKERRQ(ierr)
-      call PetscObjectSetName(source_group_index, "source_group_index", ierr)
-      deallocate(global_indices)
-
-    end subroutine setup_source_group_index
 
 !........................................................................
 
