@@ -751,7 +751,7 @@ contains
       call ISCreateGeneral(PETSC_COMM_WORLD, is_count, &
            global_indices, PETSC_COPY_VALUES, source_group_index, ierr)
       CHKERRQ(ierr)
-      call PetscObjectSetName(source_index, "source_group_index", ierr)
+      call PetscObjectSetName(source_group_index, "source_group_index", ierr)
       deallocate(global_indices)
 
     end subroutine setup_source_group_index
