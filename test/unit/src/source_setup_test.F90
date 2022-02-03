@@ -316,7 +316,7 @@ contains
     use IAPWS_module
     use eos_we_module
     use tracer_module
-    use utils_module, only: is_permutation
+    use utils_module, only: array_is_permutation
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -363,7 +363,7 @@ contains
     call ISGetIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
     call test%assert(all(source_index_array >= 0), "indices >= 0")
     if (rank == 0) then
-       call test%assert(is_permutation(source_index_array), "indices permutation")
+       call test%assert(array_is_permutation(source_index_array), "indices permutation")
     end if
     call ISRestoreIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
 
@@ -397,7 +397,7 @@ contains
     use tracer_module
     use source_module
     use dm_utils_module, only: global_vec_section, global_section_offset
-    use utils_module, only: is_permutation
+    use utils_module, only: array_is_permutation
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -460,7 +460,7 @@ contains
     if (rank == 0) then
        call test%assert(expected_num_groups, source_group_index_size, "source group index size")
        call test%assert(all(source_group_index_array >= 0), "indices >= 0")
-       call test%assert(is_permutation(source_group_index_array), "indices permutation")
+       call test%assert(array_is_permutation(source_group_index_array), "indices permutation")
     end if
     call ISRestoreIndicesF90(source_group_index, source_group_index_array, ierr); CHKERRQ(ierr)
 

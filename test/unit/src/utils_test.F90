@@ -504,7 +504,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_is_permutation(test)
-    ! Test is_permutation
+    ! Test array_is_permutation
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -515,27 +515,27 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call test%assert(is_permutation([0]), 'case 1')
-       call test%assert(is_permutation([1]), 'case 2')
-       call test%assert(is_permutation([1, 2]), 'case 3')
-       call test%assert(is_permutation([0, 1]), 'case 4')
-       call test%assert(.not. is_permutation([1, 1]), 'case 5')
-       call test%assert(is_permutation([2, 1]), 'case 6')
+       call test%assert(array_is_permutation([0]), 'case 1')
+       call test%assert(array_is_permutation([1]), 'case 2')
+       call test%assert(array_is_permutation([1, 2]), 'case 3')
+       call test%assert(array_is_permutation([0, 1]), 'case 4')
+       call test%assert(.not. array_is_permutation([1, 1]), 'case 5')
+       call test%assert(array_is_permutation([2, 1]), 'case 6')
 
        allocate(a(0: 2))
        a(0) = 1; a(1) = 2; a(2) = 0
-       call test%assert(is_permutation(a), 'case 7')
+       call test%assert(array_is_permutation(a), 'case 7')
        deallocate(a)
 
        allocate(a(0: 2))
        a(0) = 2; a(1) = 3; a(2) = 1
-       call test%assert(is_permutation(a), 'case 8')
+       call test%assert(array_is_permutation(a), 'case 8')
        deallocate(a)
 
-       call test%assert(.not. is_permutation([1, 2, 4]), 'case 9')
-       call test%assert(.not. is_permutation([2, 1, 2]), 'case 10')
+       call test%assert(.not. array_is_permutation([1, 2, 4]), 'case 9')
+       call test%assert(.not. array_is_permutation([2, 1, 2]), 'case 10')
 
-       call test%assert(is_permutation([3, 0, 5, 4, 1, 2]), 'case 11')
+       call test%assert(array_is_permutation([3, 0, 5, 4, 1, 2]), 'case 11')
 
     end if
 

@@ -19,9 +19,9 @@ module utils_module
   !! Utility functions for string handling, formatting, file names
   !! etc. and constants.
 
-#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petsc.h>
 
-  use petscsys
+  use petsc
   use kinds_module
 
   implicit none
@@ -57,7 +57,7 @@ module utils_module
        array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
-       is_permutation
+       array_is_permutation, &
   
 contains
 
@@ -474,7 +474,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscBool function is_permutation(a)
+  PetscBool function array_is_permutation(a)
     !! Returns true if the integer array a is a permutation.
 
     PetscInt, intent(in) :: a(:)
@@ -487,20 +487,20 @@ contains
       amax = amin + n - 1
       allocate(count(amin: amax))
       count = 0
-      is_permutation = PETSC_TRUE
+      array_is_permutation = PETSC_TRUE
       do i = 1, n
          if (a(i) <= amax) then
             count(a(i)) = count(a(i)) + 1
          else
-            is_permutation = PETSC_FALSE
+            array_is_permutation = PETSC_FALSE
             exit
          end if
       end do
-      is_permutation = (is_permutation .and. all(count == 1))
+      array_is_permutation = (array_is_permutation .and. all(count == 1))
       deallocate(count)
     end associate
 
-  end function is_permutation
+  end function array_is_permutation
 
 !------------------------------------------------------------------------
 
