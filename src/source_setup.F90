@@ -165,8 +165,8 @@ contains
           group_index = 0
           call source_groups%traverse(group_init_data_iterator)
 
-          call MPI_reduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
-               MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+          call MPI_allreduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
+               MPI_SUM, PETSC_COMM_WORLD, ierr)
 
           allocate(group_indices(num_local_root_groups))
           call source_groups%traverse(source_group_indices_iterator)
