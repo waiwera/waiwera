@@ -80,6 +80,7 @@ module flow_simulation_module
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
      PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
+     PetscInt, allocatable :: output_source_group_field_indices(:) !! Field indices for source group output
      PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
      character(max_output_filename_length), public :: jacobian_filename !! Binary Jacobian output filename
      PetscViewer :: jacobian_viewer !! Viewer for binary Jacobian output
@@ -427,6 +428,7 @@ contains
     call check_deallocate(self%output_fluid_field_indices)
     call check_deallocate(self%output_flux_field_indices)
     call check_deallocate(self%output_source_field_indices)
+    call check_deallocate(self%output_source_group_field_indices)
     call check_deallocate(self%output_tracer_field_indices)
 
   contains
@@ -446,6 +448,8 @@ contains
     use fson
     use source_module, only: default_output_source_fields, &
          required_output_source_fields
+    use source_group_module, only: default_output_source_group_fields, &
+         required_output_source_group_fields
     use hdf5io_module, only: max_field_name_length
 
     class(flow_simulation_type), intent(in out) :: self
@@ -504,6 +508,11 @@ contains
     else
        self%source_tracer_output = PETSC_FALSE
     end if
+    deallocate(output_fields)
+
+    call setup_vector_output_fields("source_group", self%source_group, &
+         default_output_source_group_fields, required_output_source_group_fields, &
+         self%output_source_group_field_indices, output_fields)
     deallocate(output_fields)
 
   contains
@@ -2940,12 +2949,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_output_source_constant_integer_fields(self)
-    !! Writes constant integer fields for sources to output. Not being
-    !! time-dependent, these are output only once at the start of the
-    !! simulation.
+    !! Writes constant integer fields for sources and source groups to
+    !! output. Not being time-dependent, these are output only once at
+    !! the start of the simulation.
 
-    use source_module, only: source_type, max_source_variable_name_length, &
+    use source_module, only: max_source_variable_name_length, &
          source_constant_integer_variables
+    use source_group_module, only: max_source_group_variable_name_length, &
+         source_group_constant_integer_variables
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          section_get_field_names, get_field_subvector
     use hdf5io_module, only: max_field_name_length
@@ -2956,35 +2967,35 @@ contains
     PetscInt :: f, i, num_fields
     character(max_field_name_length), allocatable :: fields(:)
     character(max_source_variable_name_length) :: field_name
-    DM :: source_dm
-    PetscSection :: source_section
-    PetscReal, pointer, contiguous :: source_data(:)
-    PetscInt, allocatable :: source_field(:)
+    DM :: dm
+    PetscSection :: section
+    PetscReal, pointer, contiguous :: data(:)
+    PetscInt, allocatable :: field(:)
     IS :: field_IS, index_set
     Vec :: sub_v
     PetscErrorCode :: ierr
 
     if ((self%output_filename /= "") .and. (self%num_sources > 0)) then
 
-       call VecGetDM(self%source, source_dm, ierr); CHKERRQ(ierr)
-       call DMGetSection(source_dm, source_section, ierr); CHKERRQ(ierr)
-       call section_get_field_names(source_section, PETSC_TRUE, fields)
+       call VecGetDM(self%source, dm, ierr); CHKERRQ(ierr)
+       call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
+       call section_get_field_names(section, PETSC_TRUE, fields)
 
        num_fields = size(self%output_source_field_indices)
        do f = 1, num_fields
           i = self%output_source_field_indices(f)
           field_name = fields(i + 1)(1: max_source_variable_name_length)
           if (str_array_index(field_name, source_constant_integer_variables) > 0) then
-             allocate(source_field(self%sources%count))
+             allocate(field(self%sources%count))
              call get_field_subvector(self%source, i, index_set, sub_v)
-             call VecGetArrayReadF90(sub_v, source_data, ierr); CHKERRQ(ierr)
-             source_field = int(source_data)
-             call VecRestoreArrayReadF90(sub_v, source_data, ierr); CHKERRQ(ierr)
+             call VecGetArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
+             field = int(data)
+             call VecRestoreArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
              call ISCreateGeneral(PETSC_COMM_WORLD, self%sources%count, &
-                  source_field, PETSC_COPY_VALUES, field_IS, ierr)
+                  field, PETSC_COPY_VALUES, field_IS, ierr)
              CHKERRQ(ierr)             
              call ISDestroy(index_set, ierr); CHKERRQ(ierr)
-             deallocate(source_field)
+             deallocate(field)
              call PetscObjectSetName(field_IS, "source_" // trim(field_name), &
                   ierr); CHKERRQ(ierr)
              call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
@@ -2997,6 +3008,44 @@ contains
        end do
        self%output_source_field_indices = pack(self%output_source_field_indices, &
             self%output_source_field_indices >= 0)
+       deallocate(fields)
+
+       if (self%num_source_groups > 0) then
+
+          call VecGetDM(self%source_group, dm, ierr); CHKERRQ(ierr)
+          call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
+          call section_get_field_names(section, PETSC_TRUE, fields)
+
+          num_fields = size(self%output_source_group_field_indices)
+          do f = 1, num_fields
+             i = self%output_source_group_field_indices(f)
+             field_name = fields(i + 1)(1: max_source_group_variable_name_length)
+             if (str_array_index(field_name, source_group_constant_integer_variables) > 0) then
+                allocate(field(self%source_groups%count))
+                call get_field_subvector(self%source_group, i, index_set, sub_v)
+                call VecGetArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
+                field = int(data)
+                call VecRestoreArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
+                call ISCreateGeneral(PETSC_COMM_WORLD, self%source_groups%count, &
+                     field, PETSC_COPY_VALUES, field_IS, ierr); CHKERRQ(ierr)
+                call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+                deallocate(field)
+                call PetscObjectSetName(field_IS, "source_group_" // trim(field_name), &
+                     ierr); CHKERRQ(ierr)
+                call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
+                     ierr); CHKERRQ(ierr)
+                call ISView(field_IS, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+                call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+                call ISDestroy(field_IS, ierr); CHKERRQ(ierr)
+                self%output_source_group_field_indices(f) = -1
+             end if
+          end do
+          self%output_source_group_field_indices = pack( &
+               self%output_source_group_field_indices, &
+               self%output_source_group_field_indices >= 0)
+          deallocate(fields)
+
+       end if
 
     end if
 
@@ -3042,6 +3091,11 @@ contains
           call vec_sequence_view_hdf5(self%source, &
                self%output_source_field_indices, "/source_fields", time_index, &
                time, self%hdf5_viewer)
+          if (self%num_source_groups > 0) then
+             call vec_sequence_view_hdf5(self%source_group, &
+                  self%output_source_group_field_indices, "/source_fields", &
+                  time_index, time, self%hdf5_viewer)
+          end if
        end if
        if (self%auxiliary) then
           call vec_sequence_view_hdf5(self%aux_solution, &

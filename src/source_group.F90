@@ -26,6 +26,7 @@ module source_group_module
   use source_module, only: source_type
   use separator_module, only: num_separator_variables, separator_variable_names
   use list_module, only: list_type, list_node_type
+  use hdf5io_module, only: max_field_name_length
 
   implicit none
   private
@@ -42,6 +43,12 @@ module source_group_module
        source_group_constant_integer_variables( &
        num_source_group_constant_integer_variables) = [ &
        "group_index       "]
+  character(max_field_name_length), parameter, public :: &
+       required_output_source_group_fields(0) = [&
+       character(max_field_name_length)::]
+  character(max_field_name_length), parameter, public :: &
+       default_output_source_group_fields(2) = [&
+       "rate              ", "enthalpy          "]
 
   type, public, extends(source_network_node_type) :: source_group_type
      !! Type for group of source network nodes, e.g. multi-feed well
