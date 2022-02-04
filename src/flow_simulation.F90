@@ -1383,6 +1383,7 @@ contains
     use face_module, only: face_type
     use source_module, only: source_type
     use source_control_module, only: source_control_type
+    use source_group_module, only: source_group_type
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
@@ -1399,10 +1400,10 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: update(:), flux_array(:)
-    PetscReal, pointer, contiguous :: source_data(:)
+    PetscReal, pointer, contiguous :: source_data(:), source_group_data(:)
     PetscSection :: rhs_section, rock_section, fluid_section, update_section
     PetscSection :: cell_geom_section, face_geom_section, flux_section
-    PetscSection :: source_section
+    PetscSection :: source_section, source_group_section
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offset
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
@@ -1512,11 +1513,15 @@ contains
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%source_group, source_group_section)
+    call VecGetArrayF90(self%source_group, source_group_data, ierr); CHKERRQ(ierr)
 
     call self%separated_sources%traverse(source_separator_iterator)
     call self%source_controls%traverse(source_control_iterator)
     call self%sources%traverse(source_iterator)
+    call self%source_groups%traverse(source_group_iterator)
 
+    call VecRestoreArrayF90(self%source_group, source_group_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
@@ -1626,6 +1631,30 @@ contains
       end select
 
     end subroutine source_iterator
+
+!........................................................................
+
+    subroutine source_group_iterator(node, stopped)
+      !! Computes output for source groups.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: g, source_group_offset
+
+      stopped = PETSC_FALSE
+      select type (group => node%data)
+      type is (source_group_type)
+         if (group%is_root) then
+            g = group%local_group_index
+            source_group_offset = global_section_offset(source_group_section, &
+                 g, self%source_group_range_start)
+            call group%assign(source_group_data, source_group_offset)
+         end if
+         call group%sum()
+      end select
+
+    end subroutine source_group_iterator
 
   end subroutine flow_simulation_cell_inflows
 
