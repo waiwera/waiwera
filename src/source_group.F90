@@ -174,12 +174,12 @@ contains
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
 
     if (self%is_root) then
-       self%rate = total_q
        if (abs(total_q) > rate_tol) then
           self%enthalpy = total_qh / total_q
        else
           self%enthalpy = 0._dp
        end if
+       call self%set_rate(total_q)
     end if
 
   contains
