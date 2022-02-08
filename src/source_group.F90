@@ -27,6 +27,7 @@ module source_group_module
   use separator_module, only: num_separator_variables, separator_variable_names
   use list_module, only: list_type, list_node_type
   use hdf5io_module, only: max_field_name_length
+  use thermodynamics_module
 
   implicit none
   private
@@ -137,15 +138,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_init_data(self, group_index)
+  subroutine source_group_init_data(self, group_index, separator_pressure, &
+       thermo)
     !! Initialised source group variables accessed via pointers to the
     !! source group vector. The group assign() method must be called
     !! first.
 
     class(source_group_type), intent(in out) :: self
     PetscInt, intent(in) :: group_index !! Index of group in input
+    PetscReal, intent(in) :: separator_pressure !! Separator pressure (-1 for no separator)
+    class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
 
     self%group_index = dble(group_index)
+    call self%separator%init(separator_pressure, thermo)
 
   end subroutine source_group_init_data
 

@@ -88,6 +88,7 @@ contains
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_group_data(:)
     PetscSection :: fluid_section, source_section, source_group_section
     type(list_type) :: group_specs
+    type(list_node_type), pointer :: group_node
     type(dictionary_type) :: source_dict
     PetscInt, allocatable :: indices(:), group_indices(:)
     PetscErrorCode :: ierr
@@ -163,6 +164,7 @@ contains
           call global_vec_section(source_group_vector, source_group_section)
           call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
           group_index = 0
+          group_node => group_specs%head
           call source_groups%traverse(group_init_data_iterator)
 
           call MPI_allreduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
@@ -713,18 +715,29 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscInt :: g, source_group_offset
+      character(len=64) :: grpstr
+      character(len=12) :: istr
+      PetscReal :: separator_pressure
 
       stopped = PETSC_FALSE
       select type (group => node%data)
       type is (source_group_type)
+         write(istr, '(i0)') group_index
+         grpstr = 'source_group[' // trim(istr) // '].'
+         select type (group_json => group_node%data)
+         type is (fson_value)
+            call get_separator_pressure(group_json, grpstr, &
+                 separator_pressure, logfile)
+         end select
          if (group%is_root) then
             g = group%local_group_index
             source_group_offset = global_section_offset(source_group_section, g, &
                  source_group_range_start)
             call group%assign(source_group_data, source_group_offset)
-            call group%init_data(group_index)
+            call group%init_data(group_index, separator_pressure, thermo)
          end if
          group_index = group_index + 1
+         group_node => group_node%next
       end select
 
     end subroutine group_init_data_iterator
