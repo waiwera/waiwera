@@ -30,8 +30,8 @@ module list_module
      private
      character(:), allocatable, public :: tag !! Optional character tag
      class(*), pointer, public :: data => null() !! Node data
-     type(list_node_type), pointer :: next => null() !! Pointer to next node
-     type(list_node_type), pointer :: previous => null() !! Pointer to previous node
+     type(list_node_type), pointer, public :: next => null() !! Pointer to next node
+     type(list_node_type), pointer, public :: previous => null() !! Pointer to previous node
   end type list_node_type
 
   type, public :: list_type
