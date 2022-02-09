@@ -156,12 +156,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_sum(self)
+  subroutine source_group_sum(self, source_data, source_section, &
+       source_range_start)
     !! Computes total flow rate, enthalpy etc. in a source group. The
     !! results are stored only on the root rank of the group
     !! communicator.
 
+    use dm_utils_module, only: global_section_offset
+
     class(source_group_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
+    PetscSection, intent(in out) :: source_section
+    PetscInt, intent(in) :: source_range_start
     ! Locals:
     PetscReal :: local_q, local_qh
     PetscReal :: total_q, total_qh
@@ -193,10 +199,16 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type (source => node%data)
       type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, source_range_start)
+         call source%assign(source_data, source_offset)
          local_q = local_q + source%rate
          local_qh = local_qh + source%rate * source%enthalpy
       end select
