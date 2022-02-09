@@ -707,10 +707,9 @@ contains
          int_values = [dof_total, dof_min, dof_max], &
          real_keys = ['imbalance'], &
          real_values = [dof_imbalance], rank = 0)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'sources', &
-         int_keys = ['count'], int_values = [self%num_sources])
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'source_groups', &
-         int_keys = ['count'], int_values = [self%num_source_groups])
+    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'source', &
+         int_keys = ['sources', 'groups '], &
+         int_values = [self%num_sources, self%num_source_groups])
 
     call self%logfile%write_blank()
 
