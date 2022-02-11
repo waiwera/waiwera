@@ -46,12 +46,8 @@ module list_module
      procedure :: list_init
      procedure :: list_init_default
      generic, public :: init => list_init, list_init_default
-     procedure :: list_append
-     procedure :: list_append_with_tag
-     generic, public :: append => list_append, list_append_with_tag
-     procedure :: list_prepend
-     procedure :: list_prepend_with_tag
-     generic, public :: prepend => list_prepend, list_prepend_with_tag
+     procedure, public :: append => list_append
+     procedure, public :: prepend => list_prepend
      procedure, public :: add => list_add
      procedure :: list_delete
      procedure :: list_delete_tag
@@ -125,11 +121,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine list_append(self, data)
-    !! Adds node with specified data to end of list.
+  subroutine list_append(self, data, tag)
+    !! Adds node with specified data to end of list, with an optional
+    !! tag.
 
     class(list_type), intent(in out) :: self
-    class(*), target, intent(in) :: data
+    class(*), target, intent(in), optional :: data
+    character(len = *), intent(in), optional :: tag
     ! Locals:
     type(list_node_type), pointer :: old_tail
 
@@ -143,32 +141,29 @@ contains
        self%head => self%tail
     end if
 
-    self%tail%data => data
     self%count = self%count + 1
+
+    if (present(data)) then
+       self%tail%data => data
+    end if
+
+    if (present(tag)) then
+       if (tag /= "") then
+          self%tail%tag = tag
+       end if
+    end if
 
   end subroutine list_append
 
-  subroutine list_append_with_tag(self, data, tag)
-    !! Adds node with specified data to end of list, with a tag.
-
-    class(list_type), intent(in out) :: self
-    class(*), target, intent(in) :: data
-    character(len = *), intent(in) :: tag
-
-    call self%append(data)
-    if (tag /= "") then
-       self%tail%tag = tag
-    end if
-
-  end subroutine list_append_with_tag
-
 !------------------------------------------------------------------------
 
-  subroutine list_prepend(self, data)
-    !! Adds node with specified data to start of list.
+  subroutine list_prepend(self, data, tag)
+    !! Adds node with specified data to start of list, with an
+    !! optional tag.
 
     class(list_type), intent(in out) :: self
-    class(*), target, intent(in) :: data
+    class(*), target, intent(in), optional :: data
+    character(len = *), intent(in), optional :: tag
     ! Locals:
     type(list_node_type), pointer :: old_head
 
@@ -182,24 +177,19 @@ contains
        self%tail => self%head
     end if
 
-    self%head%data => data
     self%count = self%count + 1
 
-  end subroutine list_prepend
-
-  subroutine list_prepend_with_tag(self, data, tag)
-    !! Adds node with specified data to start of list, with a tag.
-
-    class(list_type), intent(in out) :: self
-    class(*), target, intent(in) :: data
-    character(len = *), intent(in) :: tag
-
-    call self%prepend(data)
-    if (tag /= "") then
-       self%head%tag  = tag
+    if (present(data)) then
+       self%head%data => data
     end if
 
-  end subroutine list_prepend_with_tag
+    if (present(tag)) then
+       if (tag /= "") then
+          self%head%tag  = tag
+       end if
+    end if
+
+  end subroutine list_prepend
 
 !------------------------------------------------------------------------
 
