@@ -98,11 +98,8 @@ contains
     PetscInt :: colour, group_rank
     PetscErrorCode :: ierr
 
-    if (self%nodes%count > 0) then
-       colour = 1
-    else
-       colour = MPI_UNDEFINED
-    end if
+    colour = MPI_UNDEFINED
+    call self%nodes%traverse(group_comm_iterator)
 
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
 
@@ -112,6 +109,29 @@ contains
     else
        self%is_root = PETSC_FALSE
     end if
+
+  contains
+
+    subroutine group_comm_iterator(node, stopped)
+      !! Stops and sets colour if there are any local sources, or any
+      !! groups with this rank as root, in the group node list,
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (n => node%data)
+      type is (source_type)
+         colour = 1
+         stopped = PETSC_TRUE
+      type is (source_group_type)
+         if (n%is_root) then
+            colour = 1
+            stopped = PETSC_TRUE
+         end if
+      end select
+
+    end subroutine group_comm_iterator
 
   end subroutine source_group_init_comm
 
