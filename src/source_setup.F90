@@ -89,7 +89,7 @@ contains
     PetscSection :: fluid_section, source_section, source_group_section
     type(list_type) :: group_specs
     type(list_node_type), pointer :: group_node
-    type(dictionary_type) :: source_dict
+    type(dictionary_type) :: source_dict, source_dict_all, source_group_dict
     PetscInt, allocatable :: indices(:), group_indices(:)
     PetscErrorCode :: ierr
 
@@ -116,6 +116,8 @@ contains
 
        call sources%init(owner = PETSC_TRUE)
        call source_dict%init(owner = PETSC_FALSE)
+       call source_dict_all%init(owner = PETSC_FALSE)
+       call source_group_dict%init(owner = PETSC_FALSE)
        call separated_sources%init(owner = PETSC_FALSE)
        call source_controls%init(owner = PETSC_TRUE)
        call source_groups%init(owner = PETSC_TRUE)
@@ -136,7 +138,8 @@ contains
              else
                 call setup_source(source_spec_index, local_source_index, &
                      source_json, ao, tracer_names, num_sources, &
-                     separated_sources, thermo, sources, source_dict, err)
+                     separated_sources, thermo, sources, source_dict, &
+                     source_dict_all, err)
              end if
              if (err > 0) exit
              source_json => fson_value_next_mpi(source_json)
@@ -156,27 +159,32 @@ contains
 
           num_local_root_groups = 0
           call group_specs%traverse(group_init_iterator)
-          call create_path_dm(num_local_root_groups, dm_group)
-          call setup_group_dm_data_layout(dm_group)
-          call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
-          call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
-          call global_vec_range_start(source_group_vector, source_group_range_start)
-          call global_vec_section(source_group_vector, source_group_section)
-          call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
-          group_index = 0
-          group_node => group_specs%head
-          call source_groups%traverse(group_init_data_iterator)
 
-          call MPI_allreduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
-               MPI_SUM, PETSC_COMM_WORLD, ierr)
+          if (err == 0) then
 
-          allocate(group_indices(num_local_root_groups))
-          call source_groups%traverse(source_group_indices_iterator)
-          source_group_index = invert_indices(group_indices, "source_group_index")
-          deallocate(group_indices)
+             call create_path_dm(num_local_root_groups, dm_group)
+             call setup_group_dm_data_layout(dm_group)
+             call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
+             call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
+             call global_vec_range_start(source_group_vector, source_group_range_start)
+             call global_vec_section(source_group_vector, source_group_section)
+             call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
+             group_index = 0
+             group_node => group_specs%head
+             call source_groups%traverse(group_init_data_iterator)
 
-          call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
-          CHKERRQ(ierr)
+             call MPI_allreduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
+                  MPI_SUM, PETSC_COMM_WORLD, ierr)
+
+             allocate(group_indices(num_local_root_groups))
+             call source_groups%traverse(source_group_indices_iterator)
+             source_group_index = invert_indices(group_indices, "source_group_index")
+             deallocate(group_indices)
+
+             call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
+             CHKERRQ(ierr)
+
+          end if
 
        end if
 
@@ -185,6 +193,8 @@ contains
        CHKERRQ(ierr)
        call group_specs%destroy()
        call source_dict%destroy()
+       call source_dict_all%destroy()
+       call source_group_dict%destroy()
 
     end if
 
@@ -385,7 +395,7 @@ contains
 
     subroutine setup_source(source_spec_index, local_source_index, source_json, &
          ao, tracer_names, num_sources, separated_sources, thermo, &
-         sources, source_dict, err)
+         sources, source_dict, source_dict_all, err)
       !! Sets up all cell sources for a source specification.
 
       PetscInt, intent(in) :: source_spec_index !! Index of source specification
@@ -398,6 +408,7 @@ contains
       class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
       type(list_type), intent(in out) :: sources !! List of local sources
       type(dictionary_type), intent(in out) :: source_dict !! Dictionary of local named sources
+      type(dictionary_type), intent(in out) :: source_dict_all !! Dictionary of all named sources
       PetscErrorCode, intent(out) :: err
       ! Locals:
       type(source_type), pointer :: source
@@ -479,9 +490,12 @@ contains
               fluid_data, fluid_section, fluid_range_start, srcstr, &
               tracer_names, spec_sources, source_controls, logfile, err)
 
-         if ((name /= "") .and. (num_cells == 1) .and. (num_cells_all == 1)) then
-            ! Uniquely named source- add to dictionary:
-            call source_dict%add(name, spec_sources%head%data)
+         if ((name /= "") .and. (num_cells_all == 1)) then
+            ! Uniquely named source- add to dictionaries:
+            call source_dict_all%add(name)
+            if (num_cells == 1) then
+               call source_dict%add(name, spec_sources%head%data)
+            end if
          end if
 
          call spec_sources%destroy()
@@ -663,7 +677,7 @@ contains
       character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
       PetscInt :: i, g
-      type(list_node_type), pointer :: dict_node
+      type(list_node_type), pointer :: source_dict_node, source_group_dict_node
       type(source_group_type), pointer :: group
 
       stopped = PETSC_FALSE
@@ -680,27 +694,54 @@ contains
 
          associate(num_names => size(node_names))
            do i = 1, num_names
-              dict_node => source_dict%get(node_names(i))
-              if (associated(dict_node)) then
-                 select type (node => dict_node%data)
-                 type is (source_type)
-                    call group%nodes%append(node)
-                 end select
-              end if
+              associate(node_name => node_names(i))
+                if (source_dict_all%has(node_name)) then
+                   source_dict_node => source_dict%get(node_name)
+                   if (associated(source_dict_node)) then
+                      select type (node => source_dict_node%data)
+                      type is (source_type)
+                         call group%nodes%append(node)
+                      end select
+                   end if
+                else
+                   source_group_dict_node => source_group_dict%get(node_name)
+                   if (associated(source_group_dict_node)) then
+                      select type (node => source_group_dict_node%data)
+                      type is (source_group_type)
+                         call group%nodes%append(node)
+                      end select
+                   else
+                      if (present(logfile)) then
+                         call logfile%write(LOG_LEVEL_ERR, "input", &
+                              "unrecognised_source/group: " // trim(node_name))
+                      end if
+                      stopped = PETSC_TRUE
+                      err = 1
+                      exit
+                   end if
+                end if
+              end associate
            end do
          end associate
 
-         call group%init_comm()
+         if (.not. stopped) then
 
-         if (group%is_root) then
-            g = num_local_root_groups
-            num_local_root_groups = num_local_root_groups + 1
-         else
-            g = -1
+            call group%init_comm()
+
+            if (group%is_root) then
+               g = num_local_root_groups
+               num_local_root_groups = num_local_root_groups + 1
+            else
+               g = -1
+            end if
+            group%local_group_index = g
+
+            call source_groups%append(group)
+            if (name /= "") then
+               call source_group_dict%add(name, group)
+            end if
+
          end if
-         group%local_group_index = g
-
-         call source_groups%append(group)
 
       end select
 
