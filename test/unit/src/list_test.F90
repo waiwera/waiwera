@@ -20,7 +20,7 @@ module list_test
   end type thing_type
 
   public :: setup, teardown, setup_test
-  public :: test_list
+  public :: test_list, test_list_no_data
 
 contains
 
@@ -236,6 +236,42 @@ contains
     end subroutine list_node_destroy_data
 
   end subroutine test_list
+
+!------------------------------------------------------------------------
+
+  subroutine test_list_no_data(test)
+    ! Test list with no data
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(list_type) :: list
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    character(16), allocatable :: tags(:)
+    type(list_node_type), pointer :: node
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call list%init()
+       call list%append(tag = 'foo')
+       call list%append(tag = 'bar')
+
+       call test%assert(2, list%count, 'initial list count')
+       call list%tags(tags)
+       call test%assert(['foo', 'bar'], tags, 'tags')
+       deallocate(tags)
+
+       node => list%find('foo')
+       call test%assert(associated(node), 'find tag')
+       node => list%find('bat')
+       call test%assert(.not. associated(node), 'find missing tag')
+
+       call list%destroy()
+
+    end if
+
+  end subroutine test_list_no_data
 
 !------------------------------------------------------------------------
 

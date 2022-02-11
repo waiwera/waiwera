@@ -20,7 +20,7 @@ module dictionary_test
   end type thing_type
 
   public :: setup, teardown
-  public :: test_integer, test_thing, test_dict_list
+  public :: test_integer, test_thing, test_dict_list, test_dict_no_data
 
 contains
 
@@ -220,6 +220,34 @@ contains
     call list%destroy()
 
   end subroutine test_dict_list
+
+!------------------------------------------------------------------------
+
+  subroutine test_dict_no_data(test)
+    ! dict with no data
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(dictionary_type) :: dict
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    call dict%init()
+
+    call dict%add("foo")
+    call dict%add("bar")
+
+    call test%assert(2, dict%count(), "count")
+
+    call test%assert(dict%has("foo"), "has foo")
+    call test%assert(dict%has("bar"), "has bar")
+    call test%assert(.not. dict%has("bat"), "has no bat")
+
+    call dict%destroy()
+
+  end subroutine test_dict_no_data
 
 !------------------------------------------------------------------------
 
