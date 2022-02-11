@@ -1650,7 +1650,8 @@ contains
                  g, self%source_group_range_start)
             call group%assign(source_group_data, source_group_offset)
          end if
-         call group%sum(source_data, source_section, self%source_range_start)
+         call group%sum(source_data, source_section, self%source_range_start, &
+              source_group_data, source_group_section, self%source_group_range_start)
       end select
 
     end subroutine source_group_iterator
