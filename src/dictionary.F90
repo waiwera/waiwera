@@ -137,7 +137,11 @@ contains
 
       stopped = PETSC_FALSE
       if (node%tag /= "") then
-         call self%add(node%tag, node%data)
+         if (associated(node%data)) then
+            call self%add(node%tag, node%data)
+         else
+            call self%add(node%tag)
+         end if
       end if
       
     end subroutine add_node_to_dict
@@ -199,11 +203,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine dictionary_add(self, key, data)
-    !! Add key, data pair to dictionary.
+    !! Add key, data pair to dictionary. If data is not present, a
+    !! node is still added. This can be used to create a dictionary
+    !! without data, which can be used essentially as a set of
+    !! strings.
 
     class(dictionary_type), intent(in out) :: self
     character(*), intent(in) :: key !! Key to add
-    class(*), target, intent(in) :: data !! Data to add
+    class(*), target, intent(in), optional :: data !! Data to add
     ! Locals:
     type(list_node_type), pointer :: node
     PetscInt :: hash
@@ -211,10 +218,16 @@ contains
     node => self%get(key)
 
     if (associated(node)) then
-       node%data => data
+       if (present(data)) then
+          node%data => data
+       end if
     else
        hash = self%hash_key(key)
-       call self%list(hash)%append(data, key)
+       if (present(data)) then
+          call self%list(hash)%append(data, key)
+       else
+          call self%list(hash)%append(tag = key)
+       end if
     end if
     
   end subroutine dictionary_add
