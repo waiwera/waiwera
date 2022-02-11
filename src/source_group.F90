@@ -177,7 +177,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_group_sum(self, source_data, source_section, &
-       source_range_start)
+       source_range_start, source_group_data, source_group_section, &
+       source_group_range_start)
     !! Computes total flow rate, enthalpy etc. in a source group. The
     !! results are stored only on the root rank of the group
     !! communicator.
@@ -188,6 +189,9 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in out) :: source_section
     PetscInt, intent(in) :: source_range_start
+    PetscReal, pointer, contiguous, intent(in) :: source_group_data(:)
+    PetscSection, intent(in out) :: source_group_section
+    PetscInt, intent(in) :: source_group_range_start
     ! Locals:
     PetscReal :: local_q, local_qh
     PetscReal :: total_q, total_qh
@@ -220,17 +224,24 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset
+      PetscInt :: offset
 
       stopped = PETSC_FALSE
-      select type (source => node%data)
+      select type (s => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
-         local_q = local_q + source%rate
-         local_qh = local_qh + source%rate * source%enthalpy
+         offset = global_section_offset(source_section, &
+              s%local_source_index, source_range_start)
+         call s%assign(source_data, offset)
+         local_q = local_q + s%rate
+         local_qh = local_qh + s%rate * s%enthalpy
+      type is (source_group_type)
+         if (s%is_root) then
+            offset = global_section_offset(source_group_section, &
+                 s%local_group_index, source_group_range_start)
+            call s%assign(source_group_data, offset)
+            local_q = local_q + s%rate
+            local_qh = local_qh + s%rate * s%enthalpy
+         end if
       end select
 
     end subroutine group_sum_iterator
