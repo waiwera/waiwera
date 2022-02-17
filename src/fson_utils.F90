@@ -44,6 +44,14 @@ module fson_utils_module
      module procedure fson_get_default_array_2d_logical
   end interface fson_get_default
 
+  type, public :: pfson_value_type
+     !! Pointer to fson_value (used for creating arrays of fson_value
+     !! pointers)
+     type(fson_value), pointer, public :: ptr
+   contains
+     procedure, public :: set => pfson_value_set
+  end type pfson_value_type
+
   public :: assoc_non_null, fson_array_rank, fson_get_default
 
 contains
@@ -106,6 +114,21 @@ contains
     end if
 
   end function fson_array_rank
+
+!------------------------------------------------------------------------
+! pfson_value routines
+
+  subroutine pfson_value_set(self, tgt)
+    !! Sets an fson_value pointer. This is just a workaround to give
+    !! tgt the 'target' attribute, which can't always be done as part of
+    !! its declaration, e.g. if it's a component of a derived type.
+
+    class(pfson_value_type), intent(in out) :: self
+    class(fson_value), target, intent(in) :: tgt
+
+    self%ptr => tgt
+
+  end subroutine pfson_value_set
 
 !------------------------------------------------------------------------
 ! fson_get_default routines
