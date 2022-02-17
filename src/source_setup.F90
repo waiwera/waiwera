@@ -55,6 +55,8 @@ contains
     use dm_utils_module
     use dictionary_module
     use utils_module, only: invert_indices
+    use dag_module
+    use fson_utils_module, only: pfson_value_type
 
     type(fson_value), pointer, intent(in) :: json !! JSON file object
     DM, intent(in) :: dm !! Mesh DM
@@ -82,15 +84,19 @@ contains
     ! Locals:
     PetscMPIInt :: rank
     DM :: dm_source, dm_group
-    PetscInt :: num_local_sources, source_spec_index, local_source_index, group_index
+    PetscInt :: num_local_sources, source_spec_index, local_source_index
+    PetscInt :: group_index, sorted_group_index
     type(fson_value), pointer :: sources_json, source_json, group_spec
     PetscInt :: num_source_specs, num_tracers, num_local_root_groups
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_group_data(:)
     PetscSection :: fluid_section, source_section, source_group_section
     type(list_type) :: group_specs
-    type(list_node_type), pointer :: group_node
-    type(dictionary_type) :: source_dict, source_dict_all, source_group_dict
+    type(pfson_value_type), allocatable :: group_specs_array(:)
+    type(dag_type) :: group_dag
+    type(dictionary_type) :: source_dict, source_dict_all
+    type(dictionary_type) :: source_group_index_dict, source_group_dict
     PetscInt, allocatable :: indices(:), group_indices(:)
+    PetscInt, allocatable :: group_order(:)
     PetscErrorCode :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -117,7 +123,7 @@ contains
        call sources%init(owner = PETSC_TRUE)
        call source_dict%init(owner = PETSC_FALSE)
        call source_dict_all%init(owner = PETSC_FALSE)
-       call source_group_dict%init(owner = PETSC_FALSE)
+       call source_group_index_dict%init(owner = PETSC_TRUE)
        call separated_sources%init(owner = PETSC_FALSE)
        call source_controls%init(owner = PETSC_TRUE)
        call source_groups%init(owner = PETSC_TRUE)
@@ -157,44 +163,56 @@ contains
           source_index = invert_indices(indices, "source_index")
           deallocate(indices)
 
-          num_local_root_groups = 0
-          call group_specs%traverse(group_init_iterator)
+          group_index = 1
+          call group_specs%traverse(source_group_index_dict_iterator)
+          call group_dag%init(group_specs%count)
+          allocate(group_specs_array(group_specs%count))
+          group_index = 1
+          call group_specs%traverse(source_group_dag_iterator)
+          call group_dag%sort(group_order, err)
 
           if (err == 0) then
 
-             call create_path_dm(num_local_root_groups, dm_group)
-             call setup_group_dm_data_layout(dm_group)
-             call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
-             call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
-             call global_vec_range_start(source_group_vector, source_group_range_start)
-             call global_vec_section(source_group_vector, source_group_section)
-             call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
-             group_index = 0
-             group_node => group_specs%head
-             call source_groups%traverse(group_init_data_iterator)
+             call source_group_dict%init(PETSC_FALSE)
+             call init_source_groups(source_groups, source_group_dict, &
+                  num_local_root_groups, err)
+             call source_group_dict%destroy()
 
-             call MPI_allreduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
-                  MPI_SUM, PETSC_COMM_WORLD, ierr)
+             if (err == 0) then
 
-             allocate(group_indices(num_local_root_groups))
-             call source_groups%traverse(source_group_indices_iterator)
-             source_group_index = invert_indices(group_indices, "source_group_index")
-             deallocate(group_indices)
+                call create_path_dm(num_local_root_groups, dm_group)
+                call setup_group_dm_data_layout(dm_group)
+                call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
+                call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
+                call global_vec_range_start(source_group_vector, source_group_range_start)
+                call global_vec_section(source_group_vector, source_group_section)
+                call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
+                sorted_group_index = 0
+                call source_groups%traverse(group_init_data_iterator)
 
-             call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
-             CHKERRQ(ierr)
+                call MPI_allreduce(num_local_root_groups, num_source_groups, 1, MPI_INTEGER, &
+                     MPI_SUM, PETSC_COMM_WORLD, ierr)
 
+                allocate(group_indices(num_local_root_groups))
+                call source_groups%traverse(source_group_indices_iterator)
+                source_group_index = invert_indices(group_indices, "source_group_index")
+                deallocate(group_indices)
+
+                call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
+                CHKERRQ(ierr)
+
+             end if
           end if
-
        end if
 
        call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
        call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
        CHKERRQ(ierr)
        call group_specs%destroy()
+       deallocate(group_specs_array)
        call source_dict%destroy()
        call source_dict_all%destroy()
-       call source_group_dict%destroy()
+       call source_group_index_dict%destroy()
 
     end if
 
@@ -644,6 +662,77 @@ contains
 
 !........................................................................
 
+    subroutine source_group_index_dict_iterator(node, stopped)
+      !! Forms dictionary mapping source group names to their group
+      !! indices.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      character(max_source_network_node_name_length) :: name
+      PetscInt, pointer :: i
+
+      stopped = PETSC_FALSE
+      select type(group_json => node%data)
+      type is (fson_value)
+         call fson_get_mpi(group_json, "name", "", name)
+         if (name /= "") then
+            allocate(i)
+            i = group_index
+            call source_group_index_dict%add(name, i)
+         end if
+         group_index = group_index + 1
+      end select
+
+    end subroutine source_group_index_dict_iterator
+
+!........................................................................
+
+    subroutine source_group_dag_iterator(node, stopped)
+      !! Forms directed acyclic graph (DAG) representing source group
+      !! dependencies. (Also populates group_specs_array, for random
+      !! access into group JSON specifications.)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      character(max_source_network_node_name_length), allocatable :: node_names(:)
+      PetscInt, allocatable :: dependency_indices(:)
+      type(list_node_type), pointer :: dict_node
+      PetscInt :: i
+
+      stopped = PETSC_FALSE
+      select type(group_json => node%data)
+      type is (fson_value)
+         call fson_get_mpi(group_json, "source", &
+              string_length = max_source_network_node_name_length, &
+              val = node_names)
+         associate(num_nodes => size(node_names))
+           allocate(dependency_indices(num_nodes))
+           do i = 1, num_nodes
+              dict_node => source_group_index_dict%get(node_names(i))
+              if (associated(dict_node)) then
+                 select type (idx => dict_node%data)
+                 type is (PetscInt)
+                    dependency_indices(i) = idx - 1
+                 end select
+              else
+                 dependency_indices(i) = -1
+              end if
+           end do
+         end associate
+         dependency_indices = pack(dependency_indices, &
+              dependency_indices > 0)
+         call group_dag%set_edges(group_index - 1, dependency_indices)
+         call group_specs_array(group_index)%set(group_json)
+         group_index = group_index + 1
+         deallocate(node_names, dependency_indices)
+      end select
+
+    end subroutine source_group_dag_iterator
+
+!........................................................................
+
     subroutine source_group_indices_iterator(node, stopped)
       !! Gets indices from all local source groups.
 
@@ -668,21 +757,31 @@ contains
 
 !........................................................................
 
-    subroutine group_init_iterator(node, stopped)
-      !! Initialises a source group.
+    subroutine init_source_groups(source_groups, source_group_dict, &
+         num_local_root_groups, err)
+      !! Initialise source groups, populate source_group_dict and
+      !! return number of local root groups. An error is returned if
+      !! any unrecognised nodes are specified.
 
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
+      type(list_type), intent(in out) :: source_groups
+      type(dictionary_type), intent(in out) :: source_group_dict
+      PetscInt, intent(out) :: num_local_root_groups
+      PetscErrorCode, intent(out) :: err
       ! Locals:
+      PetscInt :: ig, i, g, group_index
+      type(fson_value), pointer :: group_json
       character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
-      PetscInt :: i, g
-      type(list_node_type), pointer :: source_dict_node, source_group_dict_node
       type(source_group_type), pointer :: group
+      type(list_node_type), pointer :: source_dict_node, source_group_dict_node
 
-      stopped = PETSC_FALSE
-      select type (group_json => node%data)
-      type is (fson_value)
+      err = 0
+      num_local_root_groups = 0
+
+      do ig = 0, group_specs%count - 1
+
+         group_index = group_order(ig) + 1
+         group_json => group_specs_array(group_index)%ptr
 
          call fson_get_mpi(group_json, "name", "", name)
          call fson_get_mpi(group_json, "source", &
@@ -692,39 +791,36 @@ contains
          allocate(group)
          call group%init(name)
 
-         associate(num_names => size(node_names))
-           do i = 1, num_names
-              associate(node_name => node_names(i))
-                if (source_dict_all%has(node_name)) then
-                   source_dict_node => source_dict%get(node_name)
-                   if (associated(source_dict_node)) then
-                      select type (node => source_dict_node%data)
-                      type is (source_type)
-                         call group%nodes%append(node)
-                      end select
-                   end if
-                else
-                   source_group_dict_node => source_group_dict%get(node_name)
-                   if (associated(source_group_dict_node)) then
-                      select type (node => source_group_dict_node%data)
-                      type is (source_group_type)
-                         call group%nodes%append(node)
-                      end select
-                   else
-                      if (present(logfile)) then
-                         call logfile%write(LOG_LEVEL_ERR, "input", &
-                              "unrecognised_source/group: " // trim(node_name))
-                      end if
-                      stopped = PETSC_TRUE
-                      err = 1
-                      exit
-                   end if
-                end if
-              end associate
-           end do
-         end associate
+         do i = 1, size(node_names)
+            associate(node_name => node_names(i))
+              if (source_dict_all%has(node_name)) then
+                 source_dict_node => source_dict%get(node_name)
+                 if (associated(source_dict_node)) then
+                    select type (node => source_dict_node%data)
+                    type is (source_type)
+                       call group%nodes%append(node)
+                    end select
+                 end if
+              else
+                 source_group_dict_node => source_group_dict%get(node_name)
+                 if (associated(source_group_dict_node)) then
+                    select type (dep_group => source_group_dict_node%data)
+                    type is (source_group_type)
+                       call group%nodes%append(dep_group)
+                    end select
+                 else
+                    if (present(logfile)) then
+                       call logfile%write(LOG_LEVEL_ERR, "input", &
+                            "unrecognised_source/group: " // trim(node_name))
+                    end if
+                    err = 1
+                    exit
+                 end if
+              end if
+            end associate
+         end do
 
-         if (.not. stopped) then
+         if (err == 0) then
 
             call group%init_comm()
 
@@ -743,9 +839,9 @@ contains
 
          end if
 
-      end select
+      end do
 
-    end subroutine group_init_iterator
+    end subroutine init_source_groups
 
 !........................................................................
 
@@ -758,18 +854,18 @@ contains
       PetscInt :: g, source_group_offset
       character(len=64) :: grpstr
       character(len=12) :: istr
+      type(fson_value), pointer :: group_json
       PetscReal :: separator_pressure
 
       stopped = PETSC_FALSE
       select type (group => node%data)
       type is (source_group_type)
+         group_index = group_order(sorted_group_index)
          write(istr, '(i0)') group_index
          grpstr = 'source_group[' // trim(istr) // '].'
-         select type (group_json => group_node%data)
-         type is (fson_value)
-            call get_separator_pressure(group_json, grpstr, &
-                 separator_pressure, logfile)
-         end select
+         group_json => group_specs_array(group_index + 1)%ptr
+         call get_separator_pressure(group_json, grpstr, &
+              separator_pressure, logfile)
          if (group%is_root) then
             g = group%local_group_index
             source_group_offset = global_section_offset(source_group_section, g, &
@@ -777,8 +873,7 @@ contains
             call group%assign(source_group_data, source_group_offset)
             call group%init_data(group_index, separator_pressure, thermo)
          end if
-         group_index = group_index + 1
-         group_node => group_node%next
+         sorted_group_index = sorted_group_index + 1
       end select
 
     end subroutine group_init_data_iterator
