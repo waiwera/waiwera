@@ -419,7 +419,7 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: expected_num_sources = 4
-    PetscInt, parameter :: expected_num_groups = 2
+    PetscInt, parameter :: expected_num_groups = 3
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_groups.json")
@@ -536,6 +536,8 @@ contains
                call group_test(group, -10._dp, 840.e3_dp)
             case ("group2")
                call group_test(group, -3.5_dp, 1514.28571429e3_dp)
+            case ("group3")
+               call group_test(group, -11.5_dp, 886.956521739e3_dp)
             end select
             g = g + 1
          end if
