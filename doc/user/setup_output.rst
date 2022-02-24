@@ -335,9 +335,6 @@ The available source output fields are:
 +-----------------------+-------------------------------+
 |"enthalpy"             |enthalpy (J/kg)                |
 +-----------------------+-------------------------------+
-|"separator_pressure"   |separator pressure (Pa)        |
-|                       |                               |
-+-----------------------+-------------------------------+
 |"steam_fraction"       |separated steam fraction       |
 |                       |                               |
 +-----------------------+-------------------------------+
@@ -359,7 +356,7 @@ The available source output fields are:
 |`tracer_name` + "_flow"|tracer flow rate (kg/s)        |
 +-----------------------+-------------------------------+
 
-The "separator_pressure" and "steam_fraction" fields, as well as the water and steam rates and enthalpies (e.g. "steam_rate") will give non-zero values for a particular source only if a separator is defined on it (see :ref:`source_separators`).
+The "steam_fraction" field, as well as the water and steam rates and enthalpies (e.g. "steam_rate") will give non-zero values for a particular source only if a separator is defined on it (see :ref:`source_separators`).
 
 There is a mass component flow field for each mass component in the :ref:`eos` module being used. For example, for the :ref:`water_air_energy_eos` EOS, there will be two mass component flow fields, "water_flow" and "air_flow".
 

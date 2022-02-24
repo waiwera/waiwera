@@ -114,7 +114,7 @@ contains
          source_is, source_group_is, separated_sources, source_groups, err = err)
     call test%assert(0, err, "source setup error")
     call source%init("", eos, 0, 0, 0._dp, 0, 0, size(tracers))
-    call test%assert(14 + size(tracers) * 2, source%dof, "source dof")
+    call test%assert(13 + size(tracers) * 2, source%dof, "source dof")
     call source%destroy()
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -536,8 +536,8 @@ contains
                     source_control%reference_pressure%val(1,1), &
                     "source 2 reference pressure")
             case (2)
-               call test%assert(10.e5_dp, source%separator%pressure, &
-                    "source 3 separator pressure")
+               call test%assert(source%separator%on, &
+                    "source 3 separator on")
             case (3)
                call test%assert(8.54511496085953E-13_dp, &
                     source_control%productivity%val(1,1), &

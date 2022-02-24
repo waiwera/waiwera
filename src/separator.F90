@@ -30,20 +30,20 @@ module separator_module
 
   PetscReal, parameter, public :: default_separator_pressure = 0.55e6_dp
 
-  PetscInt, parameter, public :: num_separator_variables = 6
+  PetscInt, parameter, public :: num_separator_variables = 5
   PetscInt, parameter, public :: max_separator_variable_name_length = 24
   character(max_separator_variable_name_length), parameter, public :: &
        separator_variable_names(num_separator_variables) = [ &
-       "separator_pressure  ", "steam_fraction      ", &
-       "water_rate          ", "water_enthalpy      ", &
-       "steam_rate          ", "steam_enthalpy      "]
+       "steam_fraction      ", "water_rate          ", &
+       "water_enthalpy      ", "steam_rate          ", &
+       "steam_enthalpy      "]
 
   type, public :: separator_type
      !! Separator in source network.
      private
      PetscReal :: ref_water_enthalpy !! Reference enthalpy of water at separator pressure
      PetscReal :: ref_steam_enthalpy !! Reference enthalpy of steam at separator pressure
-     PetscReal, pointer, public :: pressure !! Separator pressure
+     PetscReal :: pressure !! Separator pressure
      PetscReal, pointer, public :: steam_fraction !! Steam fraction
      PetscReal, pointer, public :: water_rate !! Output separated water mass flow rate
      PetscReal, pointer, public :: water_enthalpy !! Output separated water enthalpy
@@ -115,12 +115,11 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
     PetscInt, intent(in) :: offset  !! source array offset
 
-    self%pressure => data(offset)
-    self%steam_fraction => data(offset + 1)
-    self%water_rate => data(offset + 2)
-    self%water_enthalpy => data(offset + 3)
-    self%steam_rate => data(offset + 4)
-    self%steam_enthalpy => data(offset + 5)
+    self%steam_fraction => data(offset)
+    self%water_rate => data(offset + 1)
+    self%water_enthalpy => data(offset + 2)
+    self%steam_rate => data(offset + 3)
+    self%steam_enthalpy => data(offset + 4)
 
   end subroutine separator_assign
 
@@ -217,7 +216,6 @@ contains
 
     class(separator_type), intent(in out) :: self
 
-    self%pressure => null()
     self%steam_fraction => null()
     self%water_rate => null()
     self%water_enthalpy => null()

@@ -277,8 +277,6 @@ Separator properties for a source can be specified via its **"separator"** value
    +---------------+-----------------+--------------+---------------------+
    |"pressure"     |number           |0.55 MPa      |separator pressure   |
    |               |                 |              |:math:`P_0` (Pa)     |
-   |               |                 |              |                     |
-   |               |                 |              |                     |
    +---------------+-----------------+--------------+---------------------+
 
 For example, here a fixed-rate production source is defined with a default separator:
