@@ -166,7 +166,7 @@ contains
 
     class(source_group_type), intent(in out) :: self
     PetscInt, intent(in) :: group_index !! Index of group in input
-    PetscReal, intent(in) :: separator_pressure !! Separator pressure (-1 for no separator)
+    PetscReal, intent(in) :: separator_pressure(:) !! Separator pressures ([-1] for no separator)
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
 
     self%group_index = dble(group_index)

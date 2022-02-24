@@ -170,7 +170,7 @@ contains
       ! Locals:
       type(source_type) :: source
       PetscReal :: injection_tracer(0)
-      PetscReal, parameter :: separator_pressure = -1._dp
+      PetscReal, parameter :: separator_pressure(1) = [-1._dp]
 
       call source%init(tag, eos, 0, 0, enthalpy, injection_component, &
            production_component, nt)

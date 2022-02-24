@@ -433,7 +433,8 @@ contains
       character(len=64) :: srcstr
       character(len=12) :: istr
       PetscInt :: injection_component, production_component
-      PetscReal :: initial_rate, initial_enthalpy, separator_pressure
+      PetscReal :: initial_rate, initial_enthalpy
+      PetscReal, allocatable :: separator_pressure(:)
       PetscInt :: num_cells, num_cells_all, i, source_offset
       PetscInt, allocatable :: natural_source_index(:), natural_cell_index(:)
       type(list_type) :: spec_sources
@@ -495,7 +496,7 @@ contains
                     initial_rate, tracer_injection_rate, separator_pressure, thermo)
                call sources%append(source)
                call spec_sources%append(source)
-               if (separator_pressure > 0._dp) then
+               if (source%separator%on) then
                   call separated_sources%append(source)
                end if
                local_source_index = local_source_index + 1
@@ -855,7 +856,7 @@ contains
       character(len=64) :: grpstr
       character(len=12) :: istr
       type(fson_value), pointer :: group_json
-      PetscReal :: separator_pressure
+      PetscReal, allocatable :: separator_pressure(:)
 
       stopped = PETSC_FALSE
       select type (group => node%data)
@@ -1094,21 +1095,20 @@ contains
 
   subroutine get_separator_pressure(source_json, srcstr, separator_pressure, &
        logfile)
-    !! Gets separator pressure. Returns -1 if no separator is
+    !! Gets separator pressure array. Returns [-1] if no separator is
     !! specified.
 
     use utils_module, only: str_to_lower
 
     type(fson_value), pointer, intent(in) :: source_json
     character(*), intent(in) :: srcstr !! source identifier
-    PetscReal, intent(out) :: separator_pressure !! Separator pressure
+    PetscReal, allocatable, intent(out) :: separator_pressure(:) !! Separator pressures
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: separator_json_type
+    PetscInt :: separator_json_type, separator_pressure_type
     PetscBool :: has_separator
     character(8) :: limiter_type_str
-
-    separator_pressure = -1._dp
+    PetscReal :: scalar_separator_pressure
 
     if (fson_has_mpi(source_json, "separator")) then
        separator_json_type = fson_type_mpi(source_json, "separator")
@@ -1116,25 +1116,56 @@ contains
        case (TYPE_LOGICAL)
           call fson_get_mpi(source_json, "separator", val = has_separator)
           if (has_separator) then
-             separator_pressure = default_separator_pressure
+             separator_pressure = [default_separator_pressure]
              if (present(logfile) .and. logfile%active) then
                 call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
                      [trim(srcstr) // "separator.pressure"], &
-                     real_values = [separator_pressure])
+                     real_values = separator_pressure)
              end if
           end if
        case (TYPE_OBJECT)
-          call fson_get_mpi(source_json, "separator.pressure", &
-               default_separator_pressure, separator_pressure, logfile, srcstr)
+          if (fson_has_mpi(source_json, "separator.pressure")) then
+             separator_pressure_type = fson_type_mpi(source_json, "separator.pressure")
+             select case (separator_pressure_type)
+             case (TYPE_REAL, TYPE_INTEGER)
+                call fson_get_mpi(source_json, "separator.pressure", &
+                     val = scalar_separator_pressure)
+                separator_pressure = [scalar_separator_pressure]
+             case (TYPE_ARRAY)
+                call fson_get_mpi(source_json, "separator.pressure", &
+                     val = separator_pressure)
+             end select
+          else
+             separator_pressure = [default_separator_pressure]
+             if (present(logfile) .and. logfile%active) then
+                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+                     [trim(srcstr) // "separator.pressure"], &
+                     real_values = separator_pressure)
+             end if
+          end if
        end select
     else if (fson_has_mpi(source_json, "limiter")) then
        call fson_get_mpi(source_json, "limiter.type", &
             default_source_control_limiter_type_str, limiter_type_str)
        limiter_type_str = str_to_lower(limiter_type_str)
        if (limiter_type_str /= "total") then
-          call fson_get_mpi(source_json, "limiter.separator_pressure", &
-               default_separator_pressure, separator_pressure, logfile, srcstr)
+          separator_pressure_type = fson_type_mpi(source_json, &
+               "limiter.separator_pressure")
+          select case (separator_pressure_type)
+          case (TYPE_REAL, TYPE_INTEGER)
+             call fson_get_mpi(source_json, "limiter.separator_pressure", &
+                  val = scalar_separator_pressure)
+             separator_pressure = [scalar_separator_pressure]
+          case (TYPE_ARRAY)
+             call fson_get_mpi(source_json, "limiter.separator_pressure", &
+                  val = separator_pressure)
+          end select
        end if
+    end if
+
+    if (.not. allocated(separator_pressure)) then
+       ! no separator:
+       separator_pressure = [-1._dp]
     end if
 
   end subroutine get_separator_pressure

@@ -301,7 +301,7 @@ contains
     PetscReal, parameter :: expected_steam_rates(0: 15) = [ &
          0._dp, 0._dp, -5._dp, 0._dp, 0._dp, &
          0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
-         0._dp, 0._dp, 0._dp, 0._dp, 0._dp, -5.37164537500731_dp]
+         0._dp, 0._dp, 0._dp, 0._dp, 0._dp, -5.60996474758954_dp]
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)

@@ -232,7 +232,7 @@ contains
     PetscInt, intent(in) :: natural_cell_index !! natural index of cell the source is in
     PetscReal, intent(in) :: rate !! source flow rate
     PetscReal, intent(in) :: tracer_injection_rate(:) !! tracer injection rates
-    PetscReal, intent(in) :: separator_pressure !! Separator pressure (-1 for no separator)
+    PetscReal, intent(in) :: separator_pressure(:) !! Separator pressures ([-1] for no separator)
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
 
     self%source_index = source_index

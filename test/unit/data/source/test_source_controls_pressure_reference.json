@@ -123,6 +123,6 @@
         },
         {"name": "source 16", "cell": 4,
          "rate": -10,
-         "separator": {"pressure": 10e5}}
+         "separator": {"pressure": [1.5e6, 0.5e6]}}
     ]
 }
