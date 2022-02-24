@@ -99,29 +99,29 @@ VERTICES
  cs   4000.00   4000.00
  ct   4500.00   4000.00
  cu   5000.00   4000.00
- cv   1580.54    252.01
- cw   1000.00    250.00
- cx   1000.00    750.00
- cy    750.00    500.00
- cz   1255.89   1103.03
- da    500.00    250.00
- db    250.00    500.00
- dc    753.11   1092.22
- dd    251.05   1081.12
- de   1584.91    762.46
- df    500.00    750.00
- dg   1250.00    500.00
+ cv    500.00    250.00
+ cw    750.00    500.00
+ cx   1584.91    762.46
+ cy   1580.54    252.01
+ cz   1250.00    500.00
+ da    500.00    750.00
+ db   1000.00    250.00
+ dc    250.00    500.00
+ dd    753.11   1092.22
+ de   1255.89   1103.03
+ df    251.05   1081.12
+ dg   1000.00    750.00
  dh      0.00    250.00
  di    250.00      0.00
  dj    750.00      0.00
  dk   1250.00      0.00
  dl      0.00    750.00
- dm   1250.00    750.00
- dn    750.00    250.00
+ dm   1250.00    250.00
+ dn   1250.00    750.00
  do    250.00    250.00
- dp   1250.00    250.00
- dq    250.00    750.00
- dr    750.00    750.00
+ dp    750.00    250.00
+ dq    750.00    750.00
+ dr    250.00    750.00
 
 GRID
   e0 4                    
@@ -469,186 +469,186 @@ GRID
  cu
  ct
  ci
- cc0 4                    
-  o
- de
- dm
- dg
- cd0 4                    
- de
+ cc0 3                    
   z
- cz
- dm
- ce0 4                    
- cz
-  y
  cx
- dm
+ aa
+ cd0 3                    
+ cx
+  o
+  p
+ ce0 3                    
+ cx
+  p
+ aa
  cf0 4                    
- cx
-  n
- dg
+  d
+ cy
  dm
+ dk
  cg0 4                    
-  c
- cw
- dn
- dj
+ cy
+  o
+ cz
+ dm
  ch0 4                    
- cw
+ cz
   n
- cy
- dn
+ db
+ dm
  ci0 4                    
- cy
-  m
- da
- dn
- cj0 4                    
- da
-  b
- dj
- dn
+ db
+  c
+ dk
+ dm
+ cj0 3                    
+  x
+ dd
+ ai
  ck0 3                    
-  x
- dc
- ai
+ dd
+  y
+ aj
  cl0 3                    
- dc
-  y
+ dd
  aj
+ ai
  cm0 3                    
- dc
- aj
- ai
- cn0 3                    
-  w
- dd
- ah
- co0 3                    
- dd
-  x
- ai
- cp0 3                    
- dd
- ai
- ah
- cq0 3                    
   y
- cz
+ de
  aj
- cr0 3                    
- cz
+ cn0 3                    
+ de
   z
  ak
- cs0 3                    
- cz
+ co0 3                    
+ de
  ak
  aj
- ct0 3                    
+ cp0 4                    
   o
- cv
-  p
- cu0 3                    
- cv
-  d
-  e
- cv0 3                    
- cv
-  e
-  p
- cw0 4                    
+ cx
+ dn
+ cz
+ cq0 4                    
+ cx
+  z
+ de
+ dn
+ cr0 4                    
+ de
+  y
+ dg
+ dn
+ cs0 4                    
+ dg
+  n
+ cz
+ dn
+ ct0 4                    
   b
- da
+ cv
  do
  di
- cx0 4                    
- da
+ cu0 4                    
+ cv
   m
- db
+ dc
  do
- cy0 4                    
- db
+ cv0 4                    
+ dc
   l
  dh
  do
- cz0 4                    
+ cw0 4                    
  dh
   a
  di
  do
- da0 4                    
-  d
- cv
+ cx0 4                    
+  c
+ db
  dp
- dk
- db0 4                    
- cv
-  o
- dg
- dp
- dc0 4                    
- dg
+ dj
+ cy0 4                    
+ db
   n
  cw
  dp
- dd0 4                    
+ cz0 4                    
  cw
-  c
- dk
- dp
- de0 4                    
   m
- df
+ cv
+ dp
+ da0 4                    
+ cv
+  b
+ dj
+ dp
+ db0 3                    
+  o
+ cy
+  p
+ dc0 3                    
+ cy
+  d
+  e
+ dd0 3                    
+ cy
+  e
+  p
+ de0 4                    
+  n
+ dg
  dq
- db
+ cw
  df0 4                    
- df
-  x
+ dg
+  y
  dd
  dq
  dg0 4                    
  dd
-  w
- dl
+  x
+ da
  dq
  dh0 4                    
- dl
-  l
- db
+ da
+  m
+ cw
  dq
- di0 4                    
-  n
- cx
+ di0 3                    
+  w
+ df
+ ah
+ dj0 3                    
+ df
+  x
+ ai
+ dk0 3                    
+ df
+ ai
+ ah
+ dl0 4                    
+  m
+ da
  dr
- cy
- dj0 4                    
- cx
-  y
  dc
- dr
- dk0 4                    
- dc
+ dm0 4                    
+ da
   x
  df
  dr
- dl0 4                    
+ dn0 4                    
  df
-  m
- cy
+  w
+ dl
  dr
- dm0 3                    
-  z
- de
- aa
- dn0 3                    
- de
-  o
-  p
- do0 3                    
- de
-  p
- aa
+ do0 4                    
+ dl
+  l
+ dc
+ dr
 
 CONNECTIONS
   e  f
@@ -771,74 +771,74 @@ CONNECTIONS
  ax bh
  bh br
  br cb
- dc dd
- cx de
- df dk
- cl cm
- ci cx
- ct dn
- dj dk
- di dj
- da dd
- cc cd
- cc dn
-  o do
- cu da
- dn do
- ck cm
- cn dg
- cg cj
- de dh
- cx cy
- ce dj
- de df
- co df
- cg ch
- cj cw
- de dl
- cr cs
- cd ce
- ct cv
- cw cz
+ cf ci
+ di dn
+ ae dk
+ cm cr
+ cn cq
+ cv cw
+ cp cs
+ cn co
+ ct cw
+ dl do
+ cs de
+ cz da
+ cj dj
+ cu cz
  dg dh
-  x dm
- cy cz
- da db
- cq cs
- cd cr
-  x cr
- ch di
- co cp
- ct db
- ci dl
- cc cf
- di dl
- df dg
- dk dl
- cg dd
- cu cv
- cy dh
- ci cj
- ck co
- cw cx
- ae cp
- ag cs
- cc db
- cl cq
- cl dj
- cf di
-  e cv
- ce cf
+ cx da
+ cg ch
+ dj dk
+ dj dm
  ch ci
- cd dm
+ dc dd
+ cv do
+ cy de
+  x cc
+ ct da
+  x cn
+ cr cs
+ cq cr
+ db dd
+ cy cz
+ ci cx
+ cz dh
+ cj dg
+ cj cl
+ dh dl
  cf dc
- db dc
- ce cq
- af cm
- ch dc
- ck dk
- cn cp
- dm do
+ dm dn
+ dg dm
+ dn do
+ cd cp
+ cg cp
+ de df
+ ch cy
+ af cl
+ cr df
+ cu dl
+ ck cm
+ dl dm
+ di dk
+ ct cu
+ ck df
+ cd db
+ cp cq
+ cc cq
+ cg db
+ cc ce
+ ch cs
+ ag co
+ cf cg
+ cu cv
+ ck cl
+ cx cy
+ de dh
+  e dd
+ cm co
+ cd ce
+  o ce
+ df dg
 
 LAYERS
  0       0.00      0.00

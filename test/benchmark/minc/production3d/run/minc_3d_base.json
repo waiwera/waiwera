@@ -1108,7 +1108,7 @@
     "filename": "minc_3d_base.h5", 
     "final": true, 
     "frequency": 1, 
-    "initial": true
+    "initial": false
   }, 
   "rock": {
     "capillary_pressure": {

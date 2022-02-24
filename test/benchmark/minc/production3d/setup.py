@@ -96,7 +96,7 @@ for case in ['base', 'refined']:
     dat.parameter['option'][11] = 2 # permeability weighting
     dat.parameter['option'][12] = 1 # generation rate interpolation
     dat.parameter['option'][16] = 5 # adaptive time stepping
-    dat.parameter['option'][24] = 2 # initial output
+    dat.parameter['option'][24] = 0 # initial output
 
     dat.multi = {'eos': 'EW', 'num_components': 1, 'num_phases': 2,
                  'num_equations': 2, 'num_secondary_parameters': 6}
