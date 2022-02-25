@@ -613,7 +613,10 @@
                                {"type": "boolean"},
                                {"type": "object",
                                 "properties": {
-                                    "pressure": {"type": "number", "minimum": 0}
+                                    "pressure": {"oneOf": [
+                                        {"type": "number", "minimum": 0},
+                                        {"type": "array",
+                                         "items": {"type": "number", "minimum": 0}}]}
                                 }, "additionalProperties": false}]},
                            "deliverability": {"type": "object",
                                               "properties": {
@@ -738,8 +741,10 @@
                                                     "enum": ["total", "Total",
                                                              "water", "Water",
                                                              "steam", "Steam"]},
-                                           "separator_pressure": {"type": "number",
-                                                                  "minimum": 0},
+                                           "separator_pressure": {"oneOf": [
+                                               {"type": "number", "minimum": 0},
+                                               {"type": "array",
+                                                "items": {"type": "number", "minimum": 0}}]},
                                            "limit": {"type": "number"}
                                        }, "additionalProperties": false
                                       },
