@@ -264,8 +264,11 @@ where the reference steam and water enthalpies :math:`h_s`, :math:`h_w` are calc
    h_s & = U_s + P_0 / \rho_s \\
    h_w & = U_w + P_0 / \rho_w \\
 
+Multi-stage separators (e.g. two-stage flash) are also used, which essentially consist of several separators chained together, the separated water output of one stage being fed into the input of the next. Typically the first stage has a high separator pressure and produces high-pressure steam, the next has lower separator pressure and produces lower-pressure steam, and so on. For multi-stage separators, the calculated separated steam flow represents the total from all stages, and the steam fraction is the ratio of the total separated steam flow to the total mass flow. Similarly, the separated steam enthalpy is the (mass-flow weighted) combined enthalpy from all stages. The separated water flow rate and enthalpy are taken from the final stage.
 
-Separator properties for a source can be specified via its **"separator"** value. This can be either a Boolean value or an object. Setting it to ``true`` specifies a separator with default separator pressure, while setting it to ``false`` (the default) means no separator is used (and any output values such as separated steam flow will be zero) . Setting it as an object containing a **"pressure"** value allows the separator pressure to be specified.
+Separator properties for a source can be specified via its **"separator"** value. This can be either a Boolean value or an object. Setting it to ``true`` specifies a separator with default separator pressure, while setting it to ``false`` (the default) means no separator is used (and any output values such as separated steam flow will be zero).
+
+Setting it as an object containing a **"pressure"** value allows the separator pressure to be specified. This can be either a single number (for a single-stage separator) or a rank-1 array of stage separator pressures (for a multi-stage separator). Any number of stages may be used.
 
 .. note::
    **JSON object**: source separator
@@ -275,8 +278,10 @@ Separator properties for a source can be specified via its **"separator"** value
    +---------------+-----------------+--------------+---------------------+
    |**name**       |**type**         |**default**   |**value**            |
    +---------------+-----------------+--------------+---------------------+
-   |"pressure"     |number           |0.55 MPa      |separator pressure   |
-   |               |                 |              |:math:`P_0` (Pa)     |
+   |"pressure"     |number | array   |0.55 MPa      |separator pressure   |
+   |               |                 |              |:math:`P_0` (Pa), or |
+   |               |                 |              |stage separator      |
+   |               |                 |              |pressures            |
    +---------------+-----------------+--------------+---------------------+
 
 For example, here a fixed-rate production source is defined with a default separator:
