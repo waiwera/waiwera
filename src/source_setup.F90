@@ -135,7 +135,7 @@ contains
           source_json => fson_value_children_mpi(sources_json)
           local_source_index = 0
           do source_spec_index = 0, num_source_specs - 1
-             if (fson_has_mpi(source_json, "source")) then ! source group
+             if (fson_has_mpi(source_json, "in")) then ! source group
                 allocate(group_spec)
                 if (rank == 0) then
                    group_spec = source_json
@@ -705,7 +705,7 @@ contains
       stopped = PETSC_FALSE
       select type(group_json => node%data)
       type is (fson_value)
-         call fson_get_mpi(group_json, "source", &
+         call fson_get_mpi(group_json, "in", &
               string_length = max_source_network_node_name_length, &
               val = node_names)
          associate(num_nodes => size(node_names))
@@ -785,7 +785,7 @@ contains
          group_json => group_specs_array(group_index)%ptr
 
          call fson_get_mpi(group_json, "name", "", name)
-         call fson_get_mpi(group_json, "source", &
+         call fson_get_mpi(group_json, "in", &
               string_length = max_source_network_node_name_length, &
               val = node_names)
 
@@ -812,7 +812,7 @@ contains
                  else
                     if (present(logfile)) then
                        call logfile%write(LOG_LEVEL_ERR, "input", &
-                            "unrecognised_source/group: " // trim(node_name))
+                            "unrecognised_group_input: " // trim(node_name))
                     end if
                     err = 1
                     exit

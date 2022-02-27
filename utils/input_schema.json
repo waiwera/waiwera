@@ -775,7 +775,7 @@
                                                           "integrate", "Integrate"]}
                                }, "additionalProperties": false}
                            ]},
-                           "source": {"type": "array",
+                           "in": {"type": "array",
                                       "items": {"type": "string"}}
                        }, "additionalProperties": false
                    }},
