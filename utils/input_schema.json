@@ -774,11 +774,33 @@
                                                  "enum": ["endpoint", "Endpoint",
                                                           "integrate", "Integrate"]}
                                }, "additionalProperties": false}
-                           ]},
-                           "in": {"type": "array",
-                                      "items": {"type": "string"}}
+                           ]}
                        }, "additionalProperties": false
                    }},
+        "network": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "separator": {"oneOf": [
+                                {"type": "boolean"},
+                                {"type": "object",
+                                 "properties": {
+                                     "pressure": {"oneOf": [
+                                         {"type": "number", "minimum": 0},
+                                         {"type": "array",
+                                          "items": {"type": "number", "minimum": 0}}]}
+                                 }, "additionalProperties": false}]},
+                            "in": {"type": "array", "items": {"type": "string"}}
+                        }
+                    }
+                }
+            }, "additionalProperties": false
+        },
         "initial": {
             "type": "object",
             "properties": {
