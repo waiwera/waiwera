@@ -1,5 +1,5 @@
 {
-    "title": "Test source groups",
+    "title": "Test network groups",
     "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo"},
     "source": [
         {"name": "s1", "cell": 0, "rate": -5},

@@ -33,7 +33,7 @@ module source_setup_module
   use source_module
   use source_control_module
   use separator_module
-  use source_group_module
+  use source_network_group_module
   use source_network_module
 
   implicit none
@@ -47,9 +47,9 @@ contains
 
   subroutine setup_sources(json, dm, ao, eos, tracer_names, thermo, start_time, &
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
-       source_group_vector, source_group_range_start, &
-       sources, num_sources, num_source_groups, source_controls, source_index, &
-       source_group_index, separated_sources, source_groups, logfile, err)
+       source_network_group_vector, source_network_group_range_start, &
+       sources, num_sources, num_source_network_groups, source_controls, source_index, &
+       source_network_group_index, separated_sources, source_network_groups, logfile, err)
     !! Sets up sinks / sources, source controls and source groups.
 
     use dm_utils_module
@@ -69,16 +69,16 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
     Vec, intent(out) :: source_vector !! Source vector
     PetscInt, intent(out) :: source_range_start !! Range start for global source vector
-    Vec, intent(out) :: source_group_vector !! Source group vector
-    PetscInt, intent(out) :: source_group_range_start !! Range start for global source group vector
+    Vec, intent(out) :: source_network_group_vector !! Source network group vector
+    PetscInt, intent(out) :: source_network_group_range_start !! Range start for global source network group vector
     type(list_type), intent(in out) :: sources !! List of local source objects
     PetscInt, intent(out) :: num_sources !! Total number of sources created on all processes
-    PetscInt, intent(out) :: num_source_groups !! Total number of source groups created on all processes
+    PetscInt, intent(out) :: num_source_network_groups !! Total number of source network groups created on all processes
     type(list_type), intent(in out) :: source_controls !! List of source controls
     IS, intent(in out) :: source_index !! IS defining natural-to-global source ordering
-    IS, intent(in out) :: source_group_index !! IS defining natural-to-global source group ordering
+    IS, intent(in out) :: source_network_group_index !! IS defining natural-to-global source network group ordering
     type(list_type), intent(out) :: separated_sources !! List of sources with separators
-    type(list_type), intent(in out) :: source_groups !! List of source groups
+    type(list_type), intent(in out) :: source_network_groups !! List of source network groups
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
@@ -88,12 +88,12 @@ contains
     PetscInt :: group_index, sorted_group_index
     type(fson_value), pointer :: sources_json, source_json, groups_json
     PetscInt :: num_source_specs, num_tracers, num_local_root_groups
-    PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_group_data(:)
-    PetscSection :: fluid_section, source_section, source_group_section
+    PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_network_group_data(:)
+    PetscSection :: fluid_section, source_section, source_network_group_section
     type(pfson_value_type), allocatable :: group_specs_array(:)
     type(dag_type) :: group_dag
     type(dictionary_type) :: source_dict, source_dict_all
-    type(dictionary_type) :: source_group_index_dict
+    type(dictionary_type) :: source_network_group_index_dict
     PetscInt, allocatable :: indices(:), group_indices(:)
     PetscInt, allocatable :: group_order(:)
     PetscErrorCode :: ierr
@@ -101,7 +101,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     num_sources = 0
-    num_source_groups = 0
+    num_source_network_groups = 0
     num_tracers = size(tracer_names)
     num_local_root_groups = 0
     err = 0
@@ -123,10 +123,10 @@ contains
        call sources%init(owner = PETSC_TRUE)
        call source_dict%init(owner = PETSC_FALSE)
        call source_dict_all%init(owner = PETSC_FALSE)
-       call source_group_index_dict%init(owner = PETSC_TRUE)
+       call source_network_group_index_dict%init(owner = PETSC_TRUE)
        call separated_sources%init(owner = PETSC_FALSE)
        call source_controls%init(owner = PETSC_TRUE)
-       call source_groups%init(owner = PETSC_TRUE)
+       call source_network_groups%init(owner = PETSC_TRUE)
 
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
@@ -156,14 +156,14 @@ contains
 
           if (fson_has_mpi(json, "network.group")) then
              call fson_get_mpi(json, "network.group", groups_json)
-             num_source_groups = fson_value_count_mpi(groups_json, ".")
-             call setup_source_group_index_dict(groups_json, num_source_groups, &
-                  source_group_index_dict)
-             call setup_group_dag(groups_json, num_source_groups, &
+             num_source_network_groups = fson_value_count_mpi(groups_json, ".")
+             call setup_source_network_group_index_dict(groups_json, num_source_network_groups, &
+                  source_network_group_index_dict)
+             call setup_group_dag(groups_json, num_source_network_groups, &
                   group_dag, group_specs_array)
              call group_dag%sort(group_order, err)
              if (err == 0) then
-                call init_source_groups(num_source_groups, source_groups, &
+                call init_source_network_groups(num_source_network_groups, source_network_groups, &
                      num_local_root_groups, err)
              end if
           end if
@@ -171,18 +171,22 @@ contains
           if (err == 0) then
              call create_path_dm(num_local_root_groups, dm_group)
              call setup_group_dm_data_layout(dm_group)
-             call DMCreateGlobalVector(dm_group, source_group_vector, ierr); CHKERRQ(ierr)
-             call PetscObjectSetName(source_group_vector, "source_group", ierr); CHKERRQ(ierr)
-             call global_vec_range_start(source_group_vector, source_group_range_start)
-             call global_vec_section(source_group_vector, source_group_section)
-             call VecGetArrayF90(source_group_vector, source_group_data, ierr); CHKERRQ(ierr)
+             call DMCreateGlobalVector(dm_group, source_network_group_vector, &
+                  ierr); CHKERRQ(ierr)
+             call PetscObjectSetName(source_network_group_vector, "network_group", &
+                  ierr); CHKERRQ(ierr)
+             call global_vec_range_start(source_network_group_vector, &
+                  source_network_group_range_start)
+             call global_vec_section(source_network_group_vector, source_network_group_section)
+             call VecGetArrayF90(source_network_group_vector, source_network_group_data, &
+                  ierr); CHKERRQ(ierr)
              sorted_group_index = 0
-             call source_groups%traverse(group_init_data_iterator)
+             call source_network_groups%traverse(group_init_data_iterator)
              allocate(group_indices(num_local_root_groups))
-             call source_groups%traverse(source_group_indices_iterator)
-             source_group_index = invert_indices(group_indices, "source_group_index")
+             call source_network_groups%traverse(source_network_group_indices_iterator)
+             source_network_group_index = invert_indices(group_indices, "network_group_index")
              deallocate(group_indices)
-             call VecRestoreArrayF90(source_group_vector, source_group_data, ierr)
+             call VecRestoreArrayF90(source_network_group_vector, source_network_group_data, ierr)
              CHKERRQ(ierr)
           end if
 
@@ -193,7 +197,7 @@ contains
        CHKERRQ(ierr)
        call source_dict%destroy()
        call source_dict_all%destroy()
-       call source_group_index_dict%destroy()
+       call source_network_group_index_dict%destroy()
        if (allocated(group_specs_array)) then
           deallocate(group_specs_array)
        end if
@@ -380,12 +384,12 @@ contains
       PetscInt, allocatable :: num_field_components(:), field_dim(:)
       character(max_source_network_variable_name_length), allocatable :: field_names(:)
 
-      allocate(num_field_components(num_source_group_variables), &
-           field_dim(num_source_group_variables), &
-           field_names(num_source_group_variables))
+      allocate(num_field_components(num_source_network_group_variables), &
+           field_dim(num_source_network_group_variables), &
+           field_names(num_source_network_group_variables))
       num_field_components = 1
       field_dim = 0
-      field_names = source_group_variable_names
+      field_names = source_network_group_variable_names
 
       call dm_set_data_layout(dm_group, num_field_components, field_dim, &
            field_names)
@@ -647,14 +651,14 @@ contains
 
 !........................................................................
 
-    subroutine setup_source_group_index_dict(groups_json, num_groups, &
-         source_group_index_dict)
-      !! Forms dictionary mapping source group names to their group
-      !! indices.
+    subroutine setup_source_network_group_index_dict(groups_json, num_groups, &
+         source_network_group_index_dict)
+      !! Forms dictionary mapping source network group names to their
+      !! group indices.
 
       type(fson_value), pointer, intent(in out) :: groups_json
       PetscInt, intent(in) :: num_groups
-      type(dictionary_type), intent(in out) :: source_group_index_dict
+      type(dictionary_type), intent(in out) :: source_network_group_index_dict
       ! Locals:
       type(fson_value), pointer :: group_json
       PetscInt :: group_index
@@ -667,12 +671,12 @@ contains
          if (name /= "") then
             allocate(i)
             i = group_index
-            call source_group_index_dict%add(name, i)
+            call source_network_group_index_dict%add(name, i)
          end if
          group_json => fson_value_next_mpi(group_json)
       end do
 
-    end subroutine setup_source_group_index_dict
+    end subroutine setup_source_network_group_index_dict
 
 !........................................................................
 
@@ -704,7 +708,7 @@ contains
          associate(num_nodes => size(node_names))
            allocate(dependency_indices(num_nodes))
            do i = 1, num_nodes
-              dict_node => source_group_index_dict%get(node_names(i))
+              dict_node => source_network_group_index_dict%get(node_names(i))
               if (associated(dict_node)) then
                  select type (idx => dict_node%data)
                  type is (PetscInt)
@@ -727,38 +731,39 @@ contains
 
 !........................................................................
 
-    subroutine source_group_indices_iterator(node, stopped)
+    subroutine source_network_group_indices_iterator(node, stopped)
       !! Gets indices from all local source groups.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: g, source_group_offset
+      PetscInt :: g, source_network_group_offset
 
       stopped = PETSC_FALSE
       select type(group => node%data)
-      type is (source_group_type)
+      type is (source_network_group_type)
          if (group%is_root) then
             g = group%local_group_index
-            source_group_offset = global_section_offset(source_group_section, g, &
-                 source_group_range_start)
-            call group%assign(source_group_data, source_group_offset)
+            source_network_group_offset = global_section_offset( &
+                 source_network_group_section, g, source_network_group_range_start)
+            call group%assign(source_network_group_data, &
+                 source_network_group_offset)
             group_indices(g + 1) = nint(group%group_index)
          end if
       end select
 
-    end subroutine source_group_indices_iterator
+    end subroutine source_network_group_indices_iterator
 
 !........................................................................
 
-    subroutine init_source_groups(num_groups, source_groups, &
+    subroutine init_source_network_groups(num_groups, source_network_groups, &
          num_local_root_groups, err)
-      !! Initialise source groups and return number of local root
-      !! groups. An error is returned if any unrecognised group input
-      !! nodes are specified.
+      !! Initialise source network groups and return number of local
+      !! root groups. An error is returned if any unrecognised group
+      !! input nodes are specified.
 
       PetscInt, intent(in) :: num_groups
-      type(list_type), intent(in out) :: source_groups
+      type(list_type), intent(in out) :: source_network_groups
       PetscInt, intent(out) :: num_local_root_groups
       PetscErrorCode, intent(out) :: err
       ! Locals:
@@ -766,13 +771,13 @@ contains
       type(fson_value), pointer :: group_json
       character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
-      type(source_group_type), pointer :: group
-      type(list_node_type), pointer :: source_dict_node, source_group_dict_node
-      type(dictionary_type) :: source_group_dict
+      type(source_network_group_type), pointer :: group
+      type(list_node_type), pointer :: source_dict_node, source_network_group_dict_node
+      type(dictionary_type) :: source_network_group_dict
 
       err = 0
       num_local_root_groups = 0
-      call source_group_dict%init(PETSC_FALSE)
+      call source_network_group_dict%init(PETSC_FALSE)
 
       do ig = 0, num_groups - 1
 
@@ -798,10 +803,10 @@ contains
                     end select
                  end if
               else
-                 source_group_dict_node => source_group_dict%get(node_name)
-                 if (associated(source_group_dict_node)) then
-                    select type (dep_group => source_group_dict_node%data)
-                    type is (source_group_type)
+                 source_network_group_dict_node => source_network_group_dict%get(node_name)
+                 if (associated(source_network_group_dict_node)) then
+                    select type (dep_group => source_network_group_dict_node%data)
+                    type is (source_network_group_type)
                        call group%nodes%append(dep_group)
                     end select
                  else
@@ -828,18 +833,18 @@ contains
             end if
             group%local_group_index = g
 
-            call source_groups%append(group)
+            call source_network_groups%append(group)
             if (name /= "") then
-               call source_group_dict%add(name, group)
+               call source_network_group_dict%add(name, group)
             end if
 
          end if
 
       end do
 
-      call source_group_dict%destroy()
+      call source_network_group_dict%destroy()
 
-    end subroutine init_source_groups
+    end subroutine init_source_network_groups
 
 !........................................................................
 
@@ -849,7 +854,7 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: g, source_group_offset
+      PetscInt :: g, source_network_group_offset
       character(len=64) :: grpstr
       character(len=12) :: istr
       type(fson_value), pointer :: group_json
@@ -857,18 +862,18 @@ contains
 
       stopped = PETSC_FALSE
       select type (group => node%data)
-      type is (source_group_type)
+      type is (source_network_group_type)
          group_index = group_order(sorted_group_index)
          write(istr, '(i0)') group_index
-         grpstr = 'source_group[' // trim(istr) // '].'
+         grpstr = 'network.group[' // trim(istr) // '].'
          group_json => group_specs_array(group_index + 1)%ptr
          call get_separator_pressure(group_json, grpstr, &
               separator_pressure, logfile)
          if (group%is_root) then
             g = group%local_group_index
-            source_group_offset = global_section_offset(source_group_section, g, &
-                 source_group_range_start)
-            call group%assign(source_group_data, source_group_offset)
+            source_network_group_offset = global_section_offset( &
+                 source_network_group_section, g, source_network_group_range_start)
+            call group%assign(source_network_group_data, source_network_group_offset)
             call group%init_data(group_index, separator_pressure, thermo)
          end if
          sorted_group_index = sorted_group_index + 1

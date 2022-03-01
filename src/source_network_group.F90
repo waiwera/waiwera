@@ -15,7 +15,7 @@
 !   You should have received a copy of the GNU Lesser General Public License
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
-module source_group_module
+module source_network_group_module
   !! Module for source groups.
 
 #include <petsc/finclude/petsc.h>
@@ -32,26 +32,26 @@ module source_group_module
   implicit none
   private
 
-  PetscInt, parameter, public :: num_source_group_variables = &
+  PetscInt, parameter, public :: num_source_network_group_variables = &
        num_source_network_node_variables + num_separator_variables + 1
-  PetscInt, parameter, public :: max_source_group_variable_name_length = 24
-  character(max_source_group_variable_name_length), parameter, public :: &
-       source_group_variable_names(num_source_group_variables) = [ &
+  PetscInt, parameter, public :: max_source_network_group_variable_name_length = 24
+  character(max_source_network_group_variable_name_length), parameter, public :: &
+       source_network_group_variable_names(num_source_network_group_variables) = [ &
        source_network_variable_names, separator_variable_names, [ &
        "group_index         "]]
-  PetscInt, parameter, public :: num_source_group_constant_integer_variables = 1
-  character(max_source_group_variable_name_length), parameter, public :: &
-       source_group_constant_integer_variables( &
-       num_source_group_constant_integer_variables) = [ &
+  PetscInt, parameter, public :: num_source_network_group_constant_integer_variables = 1
+  character(max_source_network_group_variable_name_length), parameter, public :: &
+       source_network_group_constant_integer_variables( &
+       num_source_network_group_constant_integer_variables) = [ &
        "group_index       "]
   character(max_field_name_length), parameter, public :: &
-       required_output_source_group_fields(0) = [&
+       required_output_source_network_group_fields(0) = [&
        character(max_field_name_length)::]
   character(max_field_name_length), parameter, public :: &
-       default_output_source_group_fields(2) = [&
+       default_output_source_network_group_fields(2) = [&
        "rate              ", "enthalpy          "]
 
-  type, public, extends(source_network_node_type) :: source_group_type
+  type, public, extends(source_network_node_type) :: source_network_group_type
      !! Type for group of source network nodes, e.g. multi-feed well
      !! or group of makeup wells.
      private
@@ -62,38 +62,38 @@ module source_group_module
      PetscReal, pointer, public :: group_index !! Index of source group in input
    contains
      private
-     procedure, public :: init => source_group_init
-     procedure, public :: init_comm => source_group_init_comm
-     procedure, public :: assign => source_group_assign
-     procedure, public :: init_data => source_group_init_data
-     procedure, public :: sum => source_group_sum
-     procedure, public :: destroy => source_group_destroy
-  end type source_group_type
+     procedure, public :: init => source_network_group_init
+     procedure, public :: init_comm => source_network_group_init_comm
+     procedure, public :: assign => source_network_group_assign
+     procedure, public :: init_data => source_network_group_init_data
+     procedure, public :: sum => source_network_group_sum
+     procedure, public :: destroy => source_network_group_destroy
+  end type source_network_group_type
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_init(self, name)
-    !! Initialises a source group. Only variables stored in the object
-    !! itself are initialised, not those stored in the group data
-    !! vector and accessed via pointers.
+  subroutine source_network_group_init(self, name)
+    !! Initialises a source network group. Only variables stored in
+    !! the object itself are initialised, not those stored in the
+    !! group data vector and accessed via pointers.
 
-    class(source_group_type), intent(in out) :: self
+    class(source_network_group_type), intent(in out) :: self
     character(*), intent(in) :: name !! Group name
 
     self%name = name
     call self%nodes%init(owner = PETSC_FALSE)
 
-  end subroutine source_group_init
+  end subroutine source_network_group_init
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_init_comm(self)
+  subroutine source_network_group_init_comm(self)
     !! Initialises MPI communicator for the group. It is assumed that
     !! the nodes list has already been populated.
 
-    class(source_group_type), intent(in out) :: self
+    class(source_network_group_type), intent(in out) :: self
     ! Locals:
     PetscInt :: colour, group_rank
     PetscErrorCode :: ierr
@@ -124,7 +124,7 @@ contains
       type is (source_type)
          colour = 1
          stopped = PETSC_TRUE
-      type is (source_group_type)
+      type is (source_network_group_type)
          if (n%is_root) then
             colour = 1
             stopped = PETSC_TRUE
@@ -133,15 +133,15 @@ contains
 
     end subroutine group_comm_iterator
 
-  end subroutine source_group_init_comm
+  end subroutine source_network_group_init_comm
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_assign(self, data, offset)
-    !! Assigns pointers in source group object to elements in the data
-    !! array, starting from the specified offset.
+  subroutine source_network_group_assign(self, data, offset)
+    !! Assigns pointers in source network group object to elements in
+    !! the data array, starting from the specified offset.
 
-    class(source_group_type), intent(in out) :: self
+    class(source_network_group_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
     PetscInt, intent(in) :: offset  !! source array offset
     ! Locals:
@@ -154,17 +154,17 @@ contains
 
     self%group_index => data(group_offset)
 
-  end subroutine source_group_assign
+  end subroutine source_network_group_assign
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_init_data(self, group_index, separator_pressure, &
+  subroutine source_network_group_init_data(self, group_index, separator_pressure, &
        thermo)
-    !! Initialised source group variables accessed via pointers to the
-    !! source group vector. The group assign() method must be called
-    !! first.
+    !! Initialised source network group variables accessed via
+    !! pointers to the source group vector. The group assign() method
+    !! must be called first.
 
-    class(source_group_type), intent(in out) :: self
+    class(source_network_group_type), intent(in out) :: self
     PetscInt, intent(in) :: group_index !! Index of group in input
     PetscReal, intent(in) :: separator_pressure(:) !! Separator pressures ([-1] for no separator)
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
@@ -172,26 +172,26 @@ contains
     self%group_index = dble(group_index)
     call self%separator%init(separator_pressure, thermo)
 
-  end subroutine source_group_init_data
+  end subroutine source_network_group_init_data
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_sum(self, source_data, source_section, &
-       source_range_start, source_group_data, source_group_section, &
-       source_group_range_start)
+  subroutine source_network_group_sum(self, source_data, source_section, &
+       source_range_start, source_network_group_data, source_network_group_section, &
+       source_network_group_range_start)
     !! Computes total flow rate, enthalpy etc. in a source group. The
     !! results are stored only on the root rank of the group
     !! communicator.
 
     use dm_utils_module, only: global_section_offset
 
-    class(source_group_type), intent(in out) :: self
+    class(source_network_group_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in out) :: source_section
     PetscInt, intent(in) :: source_range_start
-    PetscReal, pointer, contiguous, intent(in) :: source_group_data(:)
-    PetscSection, intent(in out) :: source_group_section
-    PetscInt, intent(in) :: source_group_range_start
+    PetscReal, pointer, contiguous, intent(in) :: source_network_group_data(:)
+    PetscSection, intent(in out) :: source_network_group_section
+    PetscInt, intent(in) :: source_network_group_range_start
     ! Locals:
     PetscReal :: local_q, local_qh
     PetscReal :: total_q, total_qh
@@ -234,11 +234,11 @@ contains
          call s%assign(source_data, offset)
          local_q = local_q + s%rate
          local_qh = local_qh + s%rate * s%enthalpy
-      type is (source_group_type)
+      type is (source_network_group_type)
          if (s%is_root) then
-            offset = global_section_offset(source_group_section, &
-                 s%local_group_index, source_group_range_start)
-            call s%assign(source_group_data, offset)
+            offset = global_section_offset(source_network_group_section, &
+                 s%local_group_index, source_network_group_range_start)
+            call s%assign(source_network_group_data, offset)
             local_q = local_q + s%rate
             local_qh = local_qh + s%rate * s%enthalpy
          end if
@@ -246,14 +246,14 @@ contains
 
     end subroutine group_sum_iterator
 
-  end subroutine source_group_sum
+  end subroutine source_network_group_sum
 
 !------------------------------------------------------------------------
 
-  subroutine source_group_destroy(self)
-    !! Destroys a source group.
+  subroutine source_network_group_destroy(self)
+    !! Destroys a source network group.
 
-    class(source_group_type), intent(in out) :: self
+    class(source_network_group_type), intent(in out) :: self
     ! Locals:
     PetscErrorCode :: ierr
 
@@ -261,8 +261,8 @@ contains
     call MPI_comm_free(self%comm, ierr)
     call self%source_network_node_type%destroy()
 
-  end subroutine source_group_destroy
+  end subroutine source_network_group_destroy
     
 !------------------------------------------------------------------------
 
-end module source_group_module
+end module source_network_group_module

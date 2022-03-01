@@ -45,7 +45,7 @@ module flow_simulation_module
      private
      PetscInt :: solution_range_start, aux_solution_range_start, rock_range_start
      PetscInt :: fluid_range_start, update_cell_range_start
-     PetscInt :: source_range_start, source_group_range_start
+     PetscInt :: source_range_start, source_network_group_range_start
      character(:), allocatable, public :: filename !! JSON input filename
      character(max_title_length), public :: title !! Descriptive title for the simulation
      Vec, public :: rock !! Rock properties in each cell
@@ -57,15 +57,15 @@ module flow_simulation_module
      Vec, public :: update_cell !! Which cells have primary variables being updated
      Vec, public :: flux !! Mass or energy fluxes through cell faces for each component and phase
      Vec, public :: source !! Vector for source/sink data
-     Vec, public :: source_group !! Vector for source/sink group data
+     Vec, public :: source_network_group !! Vector for source network group data
      type(list_type), public :: sources !! List of source objects
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
-     PetscInt, public :: num_source_groups !! Total number of source groups on all processes
+     PetscInt, public :: num_source_network_groups !! Total number of source network groups on all processes
      type(tracer_type), allocatable, public :: tracers(:) !! Tracers
      IS, public :: source_index !! Index set defining natural to global source ordering
-     IS, public :: source_group_index !! Index set defining natural to global source group ordering
+     IS, public :: source_network_group_index !! Index set defining natural to global source network group ordering
      type(list_type), public :: source_controls !! Source/sink controls
-     type(list_type), public :: source_groups !! Groups of sources/sinks
+     type(list_type), public :: source_network_groups !! Source network groups
      type(list_type), public :: rock_controls !! Rock property controls
      type(list_type) :: separated_sources !! Sources with separators
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -80,7 +80,7 @@ module flow_simulation_module
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
      PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
-     PetscInt, allocatable :: output_source_group_field_indices(:) !! Field indices for source group output
+     PetscInt, allocatable :: output_source_network_group_field_indices(:) !! Field indices for sourcenetwork group output
      PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
      character(max_output_filename_length), public :: jacobian_filename !! Binary Jacobian output filename
      PetscViewer :: jacobian_viewer !! Viewer for binary Jacobian output
@@ -428,7 +428,7 @@ contains
     call check_deallocate(self%output_fluid_field_indices)
     call check_deallocate(self%output_flux_field_indices)
     call check_deallocate(self%output_source_field_indices)
-    call check_deallocate(self%output_source_group_field_indices)
+    call check_deallocate(self%output_source_network_group_field_indices)
     call check_deallocate(self%output_tracer_field_indices)
 
   contains
@@ -448,8 +448,9 @@ contains
     use fson
     use source_module, only: default_output_source_fields, &
          required_output_source_fields
-    use source_group_module, only: default_output_source_group_fields, &
-         required_output_source_group_fields
+    use source_network_group_module, only: &
+         default_output_source_network_group_fields, &
+         required_output_source_network_group_fields
     use hdf5io_module, only: max_field_name_length
 
     class(flow_simulation_type), intent(in out) :: self
@@ -510,9 +511,10 @@ contains
     end if
     deallocate(output_fields)
 
-    call setup_vector_output_fields("source_group", self%source_group, &
-         default_output_source_group_fields, required_output_source_group_fields, &
-         self%output_source_group_field_indices, output_fields)
+    call setup_vector_output_fields("network_group", self%source_network_group, &
+         default_output_source_network_group_fields, &
+         required_output_source_network_group_fields, &
+         self%output_source_network_group_field_indices, output_fields)
     deallocate(output_fields)
 
   contains
@@ -709,7 +711,7 @@ contains
          real_values = [dof_imbalance], rank = 0)
     call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'source', &
          int_keys = ['sources', 'groups '], &
-         int_values = [self%num_sources, self%num_source_groups])
+         int_values = [self%num_sources, self%num_source_network_groups])
 
     call self%logfile%write_blank()
 
@@ -979,10 +981,11 @@ contains
                       call setup_sources(json, self%mesh%dm, self%mesh%cell_natural_global, &
                            self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
                            self%fluid_range_start, self%source, self%source_range_start, &
-                           self%source_group, self%source_group_range_start, &
-                           self%sources, self%num_sources, self%num_source_groups, &
-                           self%source_controls, self%source_index, self%source_group_index, &
-                           self%separated_sources, self%source_groups, self%logfile, err)
+                           self%source_network_group, self%source_network_group_range_start, &
+                           self%sources, self%num_sources, self%num_source_network_groups, &
+                           self%source_controls, self%source_index, &
+                           self%source_network_group_index, self%separated_sources, &
+                           self%source_network_groups, self%logfile, err)
                       if (err == 0) then
                          call self%setup_output_fields(json)
                          call self%output_face_cell_indices()
@@ -1039,14 +1042,14 @@ contains
     call VecDestroy(self%rock, ierr); CHKERRQ(ierr)
     call VecDestroy(self%update_cell, ierr); CHKERRQ(ierr)
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
-    call VecDestroy(self%source_group, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%source_network_group, ierr); CHKERRQ(ierr)
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
-    call ISDestroy(self%source_group_index, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%source_network_group_index, ierr); CHKERRQ(ierr)
     call self%separated_sources%destroy()
     call self%source_controls%destroy(source_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
-    call self%source_groups%destroy(source_group_list_node_data_destroy, &
-         reverse = PETSC_TRUE)
+    call self%source_network_groups%destroy( &
+         source_network_group_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%sources%destroy(source_list_node_data_destroy)
     call self%rock_controls%destroy(rock_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
@@ -1092,18 +1095,18 @@ contains
 
 !........................................................................
 
-    subroutine source_group_list_node_data_destroy(node)
+    subroutine source_network_group_list_node_data_destroy(node)
       ! Destroys source group in each list node.
 
-      use source_group_module, only: source_group_type
+      use source_network_group_module, only: source_network_group_type
 
       type(list_node_type), pointer, intent(in out) :: node
 
-      select type (source_group => node%data)
-      class is (source_group_type)
-         call source_group%destroy()
+      select type (source_network_group => node%data)
+      class is (source_network_group_type)
+         call source_network_group%destroy()
       end select
-    end subroutine source_group_list_node_data_destroy
+    end subroutine source_network_group_list_node_data_destroy
 
 !........................................................................
 
@@ -1382,7 +1385,7 @@ contains
     use face_module, only: face_type
     use source_module, only: source_type
     use source_control_module, only: source_control_type
-    use source_group_module, only: source_group_type
+    use source_network_group_module, only: source_network_group_type
     use profiling_module, only: cell_inflows_event, sources_event
 
     class(flow_simulation_type), intent(in out) :: self
@@ -1399,10 +1402,10 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: update(:), flux_array(:)
-    PetscReal, pointer, contiguous :: source_data(:), source_group_data(:)
+    PetscReal, pointer, contiguous :: source_data(:), source_network_group_data(:)
     PetscSection :: rhs_section, rock_section, fluid_section, update_section
     PetscSection :: cell_geom_section, face_geom_section, flux_section
-    PetscSection :: source_section, source_group_section
+    PetscSection :: source_section, source_network_group_section
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offset
     PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
@@ -1512,15 +1515,17 @@ contains
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
-    call global_vec_section(self%source_group, source_group_section)
-    call VecGetArrayF90(self%source_group, source_group_data, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%source_network_group, source_network_group_section)
+    call VecGetArrayF90(self%source_network_group, source_network_group_data, &
+         ierr); CHKERRQ(ierr)
 
     call self%separated_sources%traverse(source_separator_iterator)
     call self%source_controls%traverse(source_control_iterator)
     call self%sources%traverse(source_iterator)
-    call self%source_groups%traverse(source_group_iterator)
+    call self%source_network_groups%traverse(source_network_group_iterator)
 
-    call VecRestoreArrayF90(self%source_group, source_group_data, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%source_network_group, source_network_group_data, &
+         ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
@@ -1633,28 +1638,29 @@ contains
 
 !........................................................................
 
-    subroutine source_group_iterator(node, stopped)
-      !! Computes output for source groups.
+    subroutine source_network_group_iterator(node, stopped)
+      !! Computes output for source network groups.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: g, source_group_offset
+      PetscInt :: g, source_network_group_offset
 
       stopped = PETSC_FALSE
       select type (group => node%data)
-      type is (source_group_type)
+      type is (source_network_group_type)
          if (group%is_root) then
             g = group%local_group_index
-            source_group_offset = global_section_offset(source_group_section, &
-                 g, self%source_group_range_start)
-            call group%assign(source_group_data, source_group_offset)
+            source_network_group_offset = global_section_offset(source_network_group_section, &
+                 g, self%source_network_group_range_start)
+            call group%assign(source_network_group_data, source_network_group_offset)
          end if
          call group%sum(source_data, source_section, self%source_range_start, &
-              source_group_data, source_group_section, self%source_group_range_start)
+              source_network_group_data, source_network_group_section, &
+              self%source_network_group_range_start)
       end select
 
-    end subroutine source_group_iterator
+    end subroutine source_network_group_iterator
 
   end subroutine flow_simulation_cell_inflows
 
@@ -2966,9 +2972,9 @@ contains
          if (self%num_sources > 0) then
             call ISView(self%source_index, self%hdf5_viewer, ierr)
             CHKERRQ(ierr)
-            if (self%num_source_groups > 0) then
-               call ISView(self%source_group_index, self%hdf5_viewer, ierr)
-               CHKERRQ(ierr)
+            if (self%num_source_network_groups > 0) then
+               call ISView(self%source_network_group_index, &
+                    self%hdf5_viewer, ierr); CHKERRQ(ierr)
             end if
          end if
     end if
@@ -2984,8 +2990,8 @@ contains
 
     use source_module, only: max_source_variable_name_length, &
          source_constant_integer_variables
-    use source_group_module, only: max_source_group_variable_name_length, &
-         source_group_constant_integer_variables
+    use source_network_group_module, only: max_source_network_group_variable_name_length, &
+         source_network_group_constant_integer_variables
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          section_get_field_names, get_field_subvector
     use hdf5io_module, only: max_field_name_length
@@ -3039,39 +3045,40 @@ contains
             self%output_source_field_indices >= 0)
        deallocate(fields)
 
-       if (self%num_source_groups > 0) then
+       if (self%num_source_network_groups > 0) then
 
-          call VecGetDM(self%source_group, dm, ierr); CHKERRQ(ierr)
+          call VecGetDM(self%source_network_group, dm, ierr); CHKERRQ(ierr)
           call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
           call section_get_field_names(section, PETSC_TRUE, fields)
 
-          num_fields = size(self%output_source_group_field_indices)
+          num_fields = size(self%output_source_network_group_field_indices)
           do f = 1, num_fields
-             i = self%output_source_group_field_indices(f)
-             field_name = fields(i + 1)(1: max_source_group_variable_name_length)
-             if (str_array_index(field_name, source_group_constant_integer_variables) > 0) then
-                allocate(field(self%source_groups%count))
-                call get_field_subvector(self%source_group, i, index_set, sub_v)
+             i = self%output_source_network_group_field_indices(f)
+             field_name = fields(i + 1)(1: max_source_network_group_variable_name_length)
+             if (str_array_index(field_name, &
+                  source_network_group_constant_integer_variables) > 0) then
+                allocate(field(self%source_network_groups%count))
+                call get_field_subvector(self%source_network_group, i, index_set, sub_v)
                 call VecGetArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
                 field = int(data)
                 call VecRestoreArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
-                call ISCreateGeneral(PETSC_COMM_WORLD, self%source_groups%count, &
+                call ISCreateGeneral(PETSC_COMM_WORLD, self%source_network_groups%count, &
                      field, PETSC_COPY_VALUES, field_IS, ierr); CHKERRQ(ierr)
                 call ISDestroy(index_set, ierr); CHKERRQ(ierr)
                 deallocate(field)
-                call PetscObjectSetName(field_IS, "source_group_" // trim(field_name), &
+                call PetscObjectSetName(field_IS, "network_group_" // trim(field_name), &
                      ierr); CHKERRQ(ierr)
                 call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
                      ierr); CHKERRQ(ierr)
                 call ISView(field_IS, self%hdf5_viewer, ierr); CHKERRQ(ierr)
                 call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
                 call ISDestroy(field_IS, ierr); CHKERRQ(ierr)
-                self%output_source_group_field_indices(f) = -1
+                self%output_source_network_group_field_indices(f) = -1
              end if
           end do
-          self%output_source_group_field_indices = pack( &
-               self%output_source_group_field_indices, &
-               self%output_source_group_field_indices >= 0)
+          self%output_source_network_group_field_indices = pack( &
+               self%output_source_network_group_field_indices, &
+               self%output_source_network_group_field_indices >= 0)
           deallocate(fields)
 
        end if
@@ -3120,9 +3127,9 @@ contains
           call vec_sequence_view_hdf5(self%source, &
                self%output_source_field_indices, "/source_fields", time_index, &
                time, self%hdf5_viewer)
-          if (self%num_source_groups > 0) then
-             call vec_sequence_view_hdf5(self%source_group, &
-                  self%output_source_group_field_indices, "/source_fields", &
+          if (self%num_source_network_groups > 0) then
+             call vec_sequence_view_hdf5(self%source_network_group, &
+                  self%output_source_network_group_field_indices, "/source_fields", &
                   time_index, time, self%hdf5_viewer)
           end if
        end if

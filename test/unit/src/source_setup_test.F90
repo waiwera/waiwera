@@ -10,7 +10,7 @@ module source_setup_test
   use source_module, only: source_type
   use source_setup_module
   use source_control_module, only: source_control_type
-  use source_group_module, only: source_group_type
+  use source_network_group_module, only: source_network_group_type
   use eos_wge_module
   use list_module
 
@@ -21,7 +21,7 @@ module source_setup_test
 
   public :: setup, teardown
   public :: test_setup_sources, test_source_index
-  public :: test_source_groups
+  public :: test_source_network_groups
 
 contains
 
@@ -81,15 +81,15 @@ contains
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section
     PetscInt :: fluid_range_start, source_range_start, group_range_start
-    type(list_type) :: sources, source_controls, source_groups, separated_sources
-    PetscInt :: total_num_sources, total_num_source_groups, num_zone_sources, n_all, i
+    type(list_type) :: sources, source_controls, source_network_groups, separated_sources
+    PetscInt :: total_num_sources, total_num_source_network_groups, num_zone_sources, n_all, i
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
     PetscInt, parameter :: expected_num_sources = 23
     PetscMPIInt :: rank, num_procs
-    IS :: source_is, source_group_is
+    IS :: source_is, source_network_group_is
     PetscInt, allocatable :: zone_source(:), isort(:)
     PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
     PetscInt, allocatable :: zone_source_counts(:), zone_source_displacements(:)
@@ -110,13 +110,13 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, total_num_source_groups, source_controls, &
-         source_is, source_group_is, separated_sources, source_groups, err = err)
+         sources, total_num_sources, total_num_source_network_groups, source_controls, &
+         source_is, source_network_group_is, separated_sources, source_network_groups, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
       call test%assert(expected_num_sources, total_num_sources, "number of sources")
-      call test%assert(0, total_num_source_groups, "number of source groups")
+      call test%assert(0, total_num_source_network_groups, "number of source groups")
     end if
 
     call global_vec_section(source_vector, source_section)
@@ -161,13 +161,13 @@ contains
     deallocate(zone_source, zone_source_counts, zone_source_displacements, &
          zone_source_all, tracers)
     call ISDestroy(source_is, ierr); CHKERRQ(ierr)
-    call ISDestroy(source_group_is, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_network_group_is, ierr); CHKERRQ(ierr)
     call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call source_controls%destroy(source_control_list_node_data_destroy)
     call separated_sources%destroy()
-    call source_groups%destroy(source_group_list_node_data_destroy)
+    call source_network_groups%destroy(source_network_group_list_node_data_destroy)
     call sources%destroy(source_list_node_data_destroy)
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
@@ -325,11 +325,11 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
-    Vec :: fluid_vector, source_vector, source_group_vector
-    PetscInt :: total_num_sources, total_num_source_groups
+    Vec :: fluid_vector, source_vector, source_network_group_vector
+    PetscInt :: total_num_sources, total_num_source_network_groups
     PetscInt :: fluid_range_start, source_range_start, group_range_start
-    type(list_type) :: sources, source_controls, source_groups, separated_sources
-    IS :: source_index, source_group_index
+    type(list_type) :: sources, source_controls, source_network_groups, separated_sources
+    IS :: source_index, source_network_group_index
     PetscInt, pointer, contiguous :: source_index_array(:)
     PetscMPIInt :: rank
     PetscErrorCode :: err, ierr
@@ -350,14 +350,15 @@ contains
 
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, source_group_vector, group_range_start, &
-         sources, total_num_sources, total_num_source_groups, source_controls, &
-         source_index, source_group_index, separated_sources, source_groups, err = err)
+         source_range_start, source_network_group_vector, group_range_start, &
+         sources, total_num_sources, total_num_source_network_groups, source_controls, &
+         source_index, source_network_group_index, separated_sources, source_network_groups, &
+         err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
       call test%assert(expected_num_sources, total_num_sources, "number of sources")
-      call test%assert(0, total_num_source_groups, "number of source groups")
+      call test%assert(0, total_num_source_network_groups, "number of network groups")
     end if
 
     call ISGetIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
@@ -368,11 +369,11 @@ contains
     call ISRestoreIndicesF90(source_index, source_index_array, ierr); CHKERRQ(ierr)
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
-    call ISDestroy(source_group_index, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_network_group_index, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
-    call VecDestroy(source_group_vector, ierr); CHKERRQ(ierr)
+    call VecDestroy(source_network_group_vector, ierr); CHKERRQ(ierr)
     call separated_sources%destroy()
-    call source_groups%destroy(source_group_list_node_data_destroy)
+    call source_network_groups%destroy(source_network_group_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)
     call sources%destroy(source_list_node_data_destroy)
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
@@ -386,8 +387,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_source_groups(test)
-    ! Source groups
+  subroutine test_source_network_groups(test)
+    ! Network groups
 
     use fson
     use fson_mpi_module
@@ -407,13 +408,14 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector, source_vector, group_vector
-    PetscInt :: total_num_sources, total_num_source_groups, source_group_index_size
+    PetscInt :: total_num_sources, total_num_source_network_groups, &
+         source_network_group_index_size
     PetscInt :: fluid_range_start, source_range_start, group_range_start
     PetscReal, pointer, contiguous :: source_array(:), group_array(:)
     PetscSection :: source_section, group_section
-    type(list_type) :: sources, source_controls, source_groups, separated_sources
-    IS :: source_index, source_group_index
-    PetscInt, pointer, contiguous :: source_group_index_array(:)
+    type(list_type) :: sources, source_controls, source_network_groups, separated_sources
+    IS :: source_index, source_network_group_index
+    PetscInt, pointer, contiguous :: source_network_group_index_array(:)
     PetscMPIInt :: rank
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
@@ -422,7 +424,7 @@ contains
     PetscInt, parameter :: expected_num_groups = 3
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_groups.json")
+    json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_groups.json")
 
     call thermo%init()
     call eos%init(json, thermo)
@@ -435,13 +437,13 @@ contains
     call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, total_num_source_groups, source_controls, &
-         source_index, source_group_index, separated_sources, source_groups, err = err)
+         sources, total_num_sources, total_num_source_network_groups, source_controls, &
+         source_index, source_network_group_index, separated_sources, source_network_groups, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
        call test%assert(expected_num_sources, total_num_sources, "number of sources")
-       call test%assert(expected_num_groups, total_num_source_groups, "number of groups")
+       call test%assert(expected_num_groups, total_num_source_network_groups, "number of groups")
     end if
 
     call global_vec_section(source_vector, source_section)
@@ -450,26 +452,31 @@ contains
     call VecGetArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
 
     call sources%traverse(set_source_enthalpy_iterator)
-    call source_groups%traverse(group_test_iterator)
+    call source_network_groups%traverse(group_test_iterator)
 
     call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
 
-    call ISGetIndicesF90(source_group_index, source_group_index_array, ierr); CHKERRQ(ierr)
-    call ISGetSize(source_group_index, source_group_index_size, ierr); CHKERRQ(ierr)
+    call ISGetIndicesF90(source_network_group_index, source_network_group_index_array, &
+         ierr); CHKERRQ(ierr)
+    call ISGetSize(source_network_group_index, source_network_group_index_size, &
+         ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       call test%assert(expected_num_groups, source_group_index_size, "source group index size")
-       call test%assert(all(source_group_index_array >= 0), "indices >= 0")
-       call test%assert(array_is_permutation(source_group_index_array), "indices permutation")
+       call test%assert(expected_num_groups, source_network_group_index_size, &
+            "network group index size")
+       call test%assert(all(source_network_group_index_array >= 0), "indices >= 0")
+       call test%assert(array_is_permutation(source_network_group_index_array), &
+            "indices permutation")
     end if
-    call ISRestoreIndicesF90(source_group_index, source_group_index_array, ierr); CHKERRQ(ierr)
+    call ISRestoreIndicesF90(source_network_group_index, &
+         source_network_group_index_array, ierr); CHKERRQ(ierr)
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
-    call ISDestroy(source_group_index, ierr); CHKERRQ(ierr)
+    call ISDestroy(source_network_group_index, ierr); CHKERRQ(ierr)
     call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
     call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
     call separated_sources%destroy()
-    call source_groups%destroy(source_group_list_node_data_destroy)
+    call source_network_groups%destroy(source_network_group_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)
     call sources%destroy(source_list_node_data_destroy)
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
@@ -520,7 +527,7 @@ contains
 
       stopped = PETSC_FALSE
       select type(group => node%data)
-      type is (source_group_type)
+      type is (source_network_group_type)
 
          if (group%is_root) then
             g = group%local_group_index
@@ -550,7 +557,7 @@ contains
 
     subroutine group_test(group, rate, enthalpy)
 
-      type(source_group_type), intent(in) :: group
+      type(source_network_group_type), intent(in) :: group
       PetscReal, intent(in) :: rate, enthalpy
 
       call test%assert(rate, group%rate, trim(group%name) // ' rate')
@@ -558,7 +565,7 @@ contains
 
     end subroutine group_test
 
-  end subroutine test_source_groups
+  end subroutine test_source_network_groups
 
 !------------------------------------------------------------------------
 
@@ -570,13 +577,13 @@ contains
     end select
   end subroutine source_control_list_node_data_destroy
 
-  subroutine source_group_list_node_data_destroy(node)
+  subroutine source_network_group_list_node_data_destroy(node)
     type(list_node_type), pointer, intent(in out) :: node
-    select type (source_group => node%data)
-    class is (source_group_type)
-       call source_group%destroy()
+    select type (source_network_group => node%data)
+    class is (source_network_group_type)
+       call source_network_group%destroy()
     end select
-  end subroutine source_group_list_node_data_destroy
+  end subroutine source_network_group_list_node_data_destroy
 
   subroutine source_list_node_data_destroy(node)
     type(list_node_type), pointer, intent(in out) :: node
