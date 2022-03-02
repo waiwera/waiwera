@@ -51,7 +51,7 @@ module source_network_module
    contains
      private
      procedure, public :: assign => source_network_node_assign
-     procedure, public :: zero_separated => source_network_node_zero_separated
+     procedure, public :: zero_separated_flows => source_network_node_zero_separated_flows
      procedure, public :: separate => source_network_node_separate
      procedure, public :: set_rate => source_network_node_set_rate
      procedure, public :: destroy => source_network_node_destroy
@@ -82,8 +82,9 @@ contains
 
 !------------------------------------------------------------------------
 
-    subroutine source_network_node_zero_separated(self)
-      !! Sets separated water and steam quantities to zero.
+
+    subroutine source_network_node_zero_separated_flows(self)
+      !! Zeroes separated water and steam flows.
 
       class(source_network_node_type), intent(in out) :: self
 
@@ -93,7 +94,7 @@ contains
       self%steam_enthalpy = 0._dp
       call self%separator%zero()
 
-    end subroutine source_network_node_zero_separated
+    end subroutine source_network_node_zero_separated_flows
 
 !------------------------------------------------------------------------
 
