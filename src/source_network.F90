@@ -51,6 +51,7 @@ module source_network_module
    contains
      private
      procedure, public :: assign => source_network_node_assign
+     procedure, public :: default_separated_flows => source_network_node_default_separated_flows
      procedure, public :: zero_separated_flows => source_network_node_zero_separated_flows
      procedure, public :: separate => source_network_node_separate
      procedure, public :: set_rate => source_network_node_set_rate
@@ -82,6 +83,19 @@ contains
 
 !------------------------------------------------------------------------
 
+!------------------------------------------------------------------------
+
+    subroutine source_network_node_default_separated_flows(self)
+      !! Gets default separated water and steam flows when the node
+      !! does not have its own separator.
+
+      class(source_network_node_type), intent(in out) :: self
+
+      call self%zero_separated_flows()
+
+    end subroutine source_network_node_default_separated_flows
+
+!------------------------------------------------------------------------
 
     subroutine source_network_node_zero_separated_flows(self)
       !! Zeroes separated water and steam flows.
