@@ -491,7 +491,7 @@ contains
             source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
             deallocate(phase_flow_fractions)
 
-            call source%separator%separate(source%rate, source%enthalpy)
+            call source%separate()
 
          else
             call source%separator%zero()
@@ -617,7 +617,7 @@ contains
          write(srcstr, '(a, i2)') 'source ', source_index + 1
          call test%assert(expected_rates(source_index), source%rate, &
               trim(srcstr) // ' rate')
-         call test%assert(expected_steam_rates(source_index), source%separator%steam_rate, &
+         call test%assert(expected_steam_rates(source_index), source%steam_rate, &
               trim(srcstr) // ' steam rate')
          if (source_index == 12) s12 = s
       end select

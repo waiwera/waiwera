@@ -30,13 +30,11 @@ module separator_module
 
   PetscReal, parameter, public :: default_separator_pressure = 0.55e6_dp
 
-  PetscInt, parameter, public :: num_separator_variables = 5
+  PetscInt, parameter, public :: num_separator_variables = 1
   PetscInt, parameter, public :: max_separator_variable_name_length = 24
   character(max_separator_variable_name_length), parameter, public :: &
        separator_variable_names(num_separator_variables) = [ &
-       "steam_fraction      ", "water_rate          ", &
-       "water_enthalpy      ", "steam_rate          ", &
-       "steam_enthalpy      "]
+       "steam_fraction      "]
 
   type :: separator_stage_type
      !! Separator stage.
@@ -59,10 +57,6 @@ module separator_module
      !! Separator in source network.
      private
      PetscReal, pointer, public :: steam_fraction !! Steam fraction
-     PetscReal, pointer, public :: water_rate !! Output separated water mass flow rate
-     PetscReal, pointer, public :: water_enthalpy !! Output separated water enthalpy
-     PetscReal, pointer, public :: steam_rate !! Output separated steam mass flow rate
-     PetscReal, pointer, public :: steam_enthalpy !! Output separated steam enthalpy
      PetscBool, public :: on !! Whether separator is active
      type(separator_stage_type), allocatable :: stage(:) !! Separator stages
      PetscInt, public :: num_stages !! Number of separator stages
@@ -180,22 +174,23 @@ contains
     PetscInt, intent(in) :: offset  !! source array offset
 
     self%steam_fraction => data(offset)
-    self%water_rate => data(offset + 1)
-    self%water_enthalpy => data(offset + 2)
-    self%steam_rate => data(offset + 3)
-    self%steam_enthalpy => data(offset + 4)
 
   end subroutine separator_assign
 
 !------------------------------------------------------------------------
 
-  subroutine separator_separate(self, rate, enthalpy)
+  subroutine separator_separate(self, rate, enthalpy, water_rate, &
+       water_enthalpy, steam_rate, steam_enthalpy)
     !! Calculates steam fraction and separated water and steam
     !! properties, from given input mass flow rate and enthalpy.
 
     class(separator_type), intent(in out) :: self
     PetscReal, intent(in) :: rate !! Input mass flow rate
     PetscReal, intent(in) :: enthalpy !! Input enthalpy
+    PetscReal, intent(out) :: water_rate !! Output water mass flow rate
+    PetscReal, intent(out) :: water_enthalpy !! Output water enthalpy
+    PetscReal, intent(out) :: steam_rate !! Output steam mass flow rate
+    PetscReal, intent(out) :: steam_enthalpy !! Output steam enthalpy
     ! Locals:
     PetscInt :: i
     PetscReal :: total_steam_mass_rate, total_steam_energy_rate
@@ -218,16 +213,16 @@ contains
        end associate
     end do
 
-    self%water_rate = q
-    self%water_enthalpy = h
-    self%steam_rate = total_steam_mass_rate
+    water_rate = q
+    water_enthalpy = h
+    steam_rate = total_steam_mass_rate
     if (abs(total_steam_mass_rate) > tol) then
-       self%steam_enthalpy = total_steam_energy_rate / total_steam_mass_rate
+       steam_enthalpy = total_steam_energy_rate / total_steam_mass_rate
     else
-       self%steam_enthalpy = 0._dp
+       steam_enthalpy = 0._dp
     end if
     if (abs(rate) > tol) then
-       self%steam_fraction = self%steam_rate / rate
+       self%steam_fraction = steam_rate / rate
     else
        self%steam_fraction = 0._dp
     end if
@@ -242,10 +237,6 @@ contains
     class(separator_type), intent(in out) :: self
 
     self%steam_fraction = 0._dp
-    self%water_rate = 0._dp
-    self%water_enthalpy = 0._dp
-    self%steam_rate = 0._dp
-    self%steam_enthalpy = 0._dp
     self%num_stages = 0
 
   end subroutine separator_zero
@@ -258,10 +249,6 @@ contains
     class(separator_type), intent(in out) :: self
 
     self%steam_fraction => null()
-    self%water_rate => null()
-    self%water_enthalpy => null()
-    self%steam_rate => null()
-    self%steam_enthalpy => null()
     deallocate(self%stage)
 
   end subroutine separator_destroy

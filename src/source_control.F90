@@ -990,7 +990,7 @@ contains
          source_offset = global_section_offset(source_section, &
               s, source_range_start)
          call source%assign(source_data, source_offset)
-         rate = source%separator%water_rate
+         rate = source%water_rate
       end select
 
     end subroutine water_limiter_rate_iterator
@@ -1029,7 +1029,7 @@ contains
          source_offset = global_section_offset(source_section, &
               s, source_range_start)
          call source%assign(source_data, source_offset)
-         rate = source%separator%steam_rate
+         rate = source%steam_rate
       end select
 
     end subroutine steam_limiter_rate_iterator

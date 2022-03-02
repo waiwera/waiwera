@@ -1568,11 +1568,10 @@ contains
             phase_flow_fractions = source%fluid%phase_flow_fractions()
             source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
             deallocate(phase_flow_fractions)
-
-            call source%separator%separate(source%rate, source%enthalpy)
+            call source%separate()
 
          else
-            call source%separator%zero()
+            call source%zero_separated()
          end if
 
       end select

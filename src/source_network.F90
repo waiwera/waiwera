@@ -28,11 +28,13 @@ module source_network_module
   private
 
   PetscInt, parameter, public :: max_source_network_node_name_length = 32
-  PetscInt, parameter, public :: num_source_network_node_variables = 2
+  PetscInt, parameter, public :: num_source_network_node_variables = 6
   PetscInt, parameter, public :: max_source_network_variable_name_length = 24
   character(max_source_network_variable_name_length), parameter, public :: &
        source_network_variable_names(num_source_network_node_variables) = [ &
-       "rate                ", "enthalpy            "]
+       "rate                ", "enthalpy            ", &
+       "water_rate          ", "water_enthalpy      ", &
+       "steam_rate          ", "steam_enthalpy      " ]
 
   type, public :: source_network_node_type
      !! Type for node in source network, e.g. source or source group.
@@ -40,11 +42,17 @@ module source_network_module
      character(max_source_network_node_name_length), public :: name !! Name of source network node
      PetscReal, pointer, public :: rate !! Flow rate
      PetscReal, pointer, public :: enthalpy !! Enthalpy of fluid
+     PetscReal, pointer, public :: water_rate !! Separated water mass flow rate
+     PetscReal, pointer, public :: water_enthalpy !! Separated water enthalpy
+     PetscReal, pointer, public :: steam_rate !! Separated steam mass flow rate
+     PetscReal, pointer, public :: steam_enthalpy !! Separated steam enthalpy
      type(separator_type), public :: separator !! Separator
      PetscBool, public :: heat !! Whether flow through node is heat-only (not mass)
    contains
      private
      procedure, public :: assign => source_network_node_assign
+     procedure, public :: zero_separated => source_network_node_zero_separated
+     procedure, public :: separate => source_network_node_separate
      procedure, public :: set_rate => source_network_node_set_rate
      procedure, public :: destroy => source_network_node_destroy
   end type source_network_node_type
@@ -63,10 +71,42 @@ contains
 
     self%rate => data(offset)
     self%enthalpy => data(offset + 1)
+    self%water_rate => data(offset + 2)
+    self%water_enthalpy => data(offset + 3)
+    self%steam_rate => data(offset + 4)
+    self%steam_enthalpy => data(offset + 5)
 
-    call self%separator%assign(data, offset + 2)
+    call self%separator%assign(data, offset + 6)
 
   end subroutine source_network_node_assign
+
+!------------------------------------------------------------------------
+
+    subroutine source_network_node_zero_separated(self)
+      !! Sets separated water and steam quantities to zero.
+
+      class(source_network_node_type), intent(in out) :: self
+
+      self%water_rate = 0._dp
+      self%water_enthalpy = 0._dp
+      self%steam_rate = 0._dp
+      self%steam_enthalpy = 0._dp
+      call self%separator%zero()
+
+    end subroutine source_network_node_zero_separated
+
+!------------------------------------------------------------------------
+
+    subroutine source_network_node_separate(self)
+    !! Calculates separated water and steam flow rates and enthalpies.
+
+    class(source_network_node_type), intent(in out) :: self
+
+    call self%separator%separate(self%rate, self%enthalpy, &
+         self%water_rate, self%water_enthalpy, &
+         self%steam_rate, self%steam_enthalpy)
+
+  end subroutine source_network_node_separate
 
 !------------------------------------------------------------------------
 
@@ -81,9 +121,9 @@ contains
     ! If have separator and producing mass:
     if ((self%separator%on) .and. (self%rate <= 0._dp) &
          .and. (.not. self%heat)) then
-       call self%separator%separate(self%rate, self%enthalpy)
+       call self%separate()
     else
-       call self%separator%zero()
+       call self%zero_separated()
     end if
 
   end subroutine source_network_node_set_rate
@@ -97,6 +137,10 @@ contains
 
     self%rate => null()
     self%enthalpy => null()
+    self%water_rate => null()
+    self%water_enthalpy => null()
+    self%steam_rate => null()
+    self%steam_enthalpy => null()
 
   end subroutine source_network_node_destroy
 
