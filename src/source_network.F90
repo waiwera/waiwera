@@ -89,12 +89,15 @@ contains
 
       class(source_network_node_type), intent(in out) :: self
 
-      ! If have separator and producing mass:
-      if ((self%separator%on) .and. (self%rate <= 0._dp) &
-           .and. (.not. self%heat)) then
-         call self%separate()
+      if ((self%rate <= 0._dp) .and. (.not. self%heat)) then
+         ! producing mass:
+         if (self%separator%on) then
+            call self%separate()
+         else
+            call self%default_separated_flows()
+         end if
       else
-         call self%default_separated_flows()
+         call self%zero_separated_flows()
       end if
 
     end subroutine source_network_node_get_separated_flows
