@@ -113,7 +113,8 @@ contains
 !------------------------------------------------------------------------
 
     subroutine source_network_node_separate(self)
-    !! Calculates separated water and steam flow rates and enthalpies.
+    !! Uses the node's separator to calculate separated water and
+    !! steam flows.
 
     class(source_network_node_type), intent(in out) :: self
 
