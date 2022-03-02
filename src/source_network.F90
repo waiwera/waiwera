@@ -133,14 +133,7 @@ contains
     PetscReal, intent(in) :: rate !! Flow rate
 
     self%rate = rate
-
-    ! If have separator and producing mass:
-    if ((self%separator%on) .and. (self%rate <= 0._dp) &
-         .and. (.not. self%heat)) then
-       call self%separate()
-    else
-       call self%zero_separated()
-    end if
+    call self%get_separated_flows()
 
   end subroutine source_network_node_set_rate
 
