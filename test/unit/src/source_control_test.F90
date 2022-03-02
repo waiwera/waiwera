@@ -483,19 +483,13 @@ contains
               s, source_range_start)
          call source%assign(source_array, source_offset)
 
-         if ((source%rate <= 0._dp) .and. (.not. source%heat)) then
+         call source%assign_fluid_local(local_fluid_array, local_fluid_section)
+         allocate(phase_flow_fractions(source%fluid%num_phases))
+         phase_flow_fractions = source%fluid%phase_flow_fractions()
+         source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
+         deallocate(phase_flow_fractions)
 
-            call source%assign_fluid_local(local_fluid_array, local_fluid_section)
-            allocate(phase_flow_fractions(source%fluid%num_phases))
-            phase_flow_fractions = source%fluid%phase_flow_fractions()
-            source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
-            deallocate(phase_flow_fractions)
-
-            call source%separate()
-
-         else
-            call source%separator%zero()
-         end if
+         call source%get_separated_flows()
 
       end select
 
