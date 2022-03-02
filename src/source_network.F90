@@ -51,6 +51,7 @@ module source_network_module
    contains
      private
      procedure, public :: assign => source_network_node_assign
+     procedure, public :: get_separated_flows => source_network_node_get_separated_flows
      procedure, public :: default_separated_flows => source_network_node_default_separated_flows
      procedure, public :: zero_separated_flows => source_network_node_zero_separated_flows
      procedure, public :: separate => source_network_node_separate
@@ -82,6 +83,21 @@ contains
   end subroutine source_network_node_assign
 
 !------------------------------------------------------------------------
+
+    subroutine source_network_node_get_separated_flows(self)
+      !! Gets separated water and steam flows.
+
+      class(source_network_node_type), intent(in out) :: self
+
+      ! If have separator and producing mass:
+      if ((self%separator%on) .and. (self%rate <= 0._dp) &
+           .and. (.not. self%heat)) then
+         call self%separate()
+      else
+         call self%default_separated_flows()
+      end if
+
+    end subroutine source_network_node_get_separated_flows
 
 !------------------------------------------------------------------------
 
