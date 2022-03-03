@@ -68,6 +68,8 @@ module source_network_group_module
      procedure, public :: init_data => source_network_group_init_data
      procedure, public :: sum => source_network_group_sum
      procedure, public :: default_separated_flows => source_network_group_default_separated_flows
+     procedure, public :: add_flows => source_network_group_add_flows
+     procedure, public :: add_separated_flows => source_network_group_add_separated_flows
      procedure, public :: destroy => source_network_group_destroy
   end type source_network_group_type
 
@@ -177,9 +179,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_group_sum(self, source_data, source_section, &
-       source_range_start, source_network_group_data, source_network_group_section, &
-       source_network_group_range_start)
+  subroutine source_network_group_sum(self)
     !! Computes total flow rate, enthalpy etc. in a source group. The
     !! results are stored only on the root rank of the group
     !! communicator.
@@ -187,12 +187,6 @@ contains
     use dm_utils_module, only: global_section_offset
 
     class(source_network_group_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in out) :: source_section
-    PetscInt, intent(in) :: source_range_start
-    PetscReal, pointer, contiguous, intent(in) :: source_network_group_data(:)
-    PetscSection, intent(in out) :: source_network_group_section
-    PetscInt, intent(in) :: source_network_group_range_start
     ! Locals:
     PetscReal :: local_q, local_qh
     PetscReal :: total_q, total_qh
@@ -224,25 +218,11 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: offset
 
       stopped = PETSC_FALSE
       select type (s => node%data)
-      type is (source_type)
-         offset = global_section_offset(source_section, &
-              s%local_source_index, source_range_start)
-         call s%assign(source_data, offset)
-         local_q = local_q + s%rate
-         local_qh = local_qh + s%rate * s%enthalpy
-      type is (source_network_group_type)
-         if (s%is_root) then
-            offset = global_section_offset(source_network_group_section, &
-                 s%local_group_index, source_network_group_range_start)
-            call s%assign(source_network_group_data, offset)
-            local_q = local_q + s%rate
-            local_qh = local_qh + s%rate * s%enthalpy
-         end if
+      class is (source_network_node_type)
+         call s%add_flows(local_q, local_qh)
       end select
 
     end subroutine group_sum_iterator
@@ -301,29 +281,12 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: offset
 
       stopped = PETSC_FALSE
       select type (s => node%data)
-      type is (source_type)
-         offset = global_section_offset(source_section, &
-              s%local_source_index, source_range_start)
-         call s%assign(source_data, offset)
-         local_water_q = local_water_q + s%water_rate
-         local_water_qh = local_water_qh + s%water_rate * s%water_enthalpy
-         local_steam_q = local_steam_q + s%steam_rate
-         local_steam_qh = local_steam_qh + s%steam_rate * s%steam_enthalpy
-      type is (source_network_group_type)
-         if (s%is_root) then
-            offset = global_section_offset(source_network_group_section, &
-                 s%local_group_index, source_network_group_range_start)
-            call s%assign(source_network_group_data, offset)
-            local_water_q = local_water_q + s%water_rate
-            local_water_qh = local_water_qh + s%water_rate * s%water_enthalpy
-            local_steam_q = local_steam_q + s%steam_rate
-            local_steam_qh = local_steam_qh + s%steam_rate * s%steam_enthalpy
-         end if
+      class is (source_network_node_type)
+         call s%add_separated_flows(local_water_q, local_water_qh, &
+              local_steam_q, local_steam_qh)
       end select
 
     end subroutine group_sum_separated_iterator
@@ -332,7 +295,44 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_group_destroy(self)
+  subroutine source_network_group_add_flows(self, mass_flow, energy_flow)
+    !! Adds mass and energy flows from the group to the specified
+    !! totals. Only flows from the root process of the group are added.
+
+    class(source_network_group_type), intent(in out) :: self
+    PetscReal, intent(in out) :: mass_flow !! Total mass flow rate
+    PetscReal, intent(in out) :: energy_flow !! Total energy flow rate
+
+    if (self%is_root) then
+       call self%source_network_node_type%add_flows(mass_flow, energy_flow)
+    end if
+
+  end subroutine source_network_group_add_flows
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_group_add_separated_flows(self, water_mass_flow, &
+       water_energy_flow, steam_mass_flow, steam_energy_flow)
+    !! Adds mass and energy flows for separated water and steam from
+    !! the group to the specified totals. Only flows from the root
+    !! process of the group are added.
+
+    class(source_network_group_type), intent(in out) :: self
+    PetscReal, intent(in out) :: water_mass_flow !! Total water mass flow rate
+    PetscReal, intent(in out) :: water_energy_flow !! Total water energy flow rate
+    PetscReal, intent(in out) :: steam_mass_flow !! Total steam mass flow rate
+    PetscReal, intent(in out) :: steam_energy_flow !! Total steam energy flow rate
+
+    if (self%is_root) then
+       call self%source_network_node_type%add_separated_flows(water_mass_flow, &
+       water_energy_flow, steam_mass_flow, steam_energy_flow)
+    end if
+
+  end subroutine source_network_group_add_separated_flows
+
+!------------------------------------------------------------------------
+
+    subroutine source_network_group_destroy(self)
     !! Destroys a source network group.
 
     class(source_network_group_type), intent(in out) :: self

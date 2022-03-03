@@ -56,6 +56,8 @@ module source_network_module
      procedure, public :: zero_separated_flows => source_network_node_zero_separated_flows
      procedure, public :: separate => source_network_node_separate
      procedure, public :: set_rate => source_network_node_set_rate
+     procedure, public :: add_flows => source_network_node_add_flows
+     procedure, public :: add_separated_flows => source_network_node_add_separated_flows
      procedure, public :: destroy => source_network_node_destroy
   end type source_network_node_type
 
@@ -155,6 +157,40 @@ contains
     call self%get_separated_flows()
 
   end subroutine source_network_node_set_rate
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_add_flows(self, mass_flow, energy_flow)
+    !! Adds mass and energy flows from the node to the specified totals.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscReal, intent(in out) :: mass_flow !! Total mass flow rate
+    PetscReal, intent(in out) :: energy_flow !! Total energy flow rate
+
+    mass_flow = mass_flow + self%rate
+    energy_flow = energy_flow + self%rate * self%enthalpy
+
+  end subroutine source_network_node_add_flows
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_add_separated_flows(self, water_mass_flow, &
+       water_energy_flow, steam_mass_flow, steam_energy_flow)
+    !! Adds mass and energy flows for separated water and steam from
+    !! the node to the specified totals.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscReal, intent(in out) :: water_mass_flow !! Total water mass flow rate
+    PetscReal, intent(in out) :: water_energy_flow !! Total water energy flow rate
+    PetscReal, intent(in out) :: steam_mass_flow !! Total steam mass flow rate
+    PetscReal, intent(in out) :: steam_energy_flow !! Total steam energy flow rate
+
+    water_mass_flow = water_mass_flow + self%water_rate
+    water_energy_flow = water_energy_flow + self%water_rate * self%water_enthalpy
+    steam_mass_flow = steam_mass_flow + self%steam_rate
+    steam_energy_flow = steam_energy_flow + self%steam_rate * self%steam_enthalpy
+
+  end subroutine source_network_node_add_separated_flows
 
 !------------------------------------------------------------------------
 
