@@ -1652,6 +1652,7 @@ contains
          call group%sum(source_data, source_section, self%source_range_start, &
               source_network_group_data, source_network_group_section, &
               self%source_network_group_range_start)
+         call group%get_separated_flows()
       end select
 
     end subroutine source_network_group_iterator
