@@ -67,6 +67,7 @@ module source_network_group_module
      procedure, public :: assign => source_network_group_assign
      procedure, public :: init_data => source_network_group_init_data
      procedure, public :: sum => source_network_group_sum
+     procedure, public :: default_separated_flows => source_network_group_default_separated_flows
      procedure, public :: destroy => source_network_group_destroy
   end type source_network_group_type
 
@@ -247,6 +248,87 @@ contains
     end subroutine group_sum_iterator
 
   end subroutine source_network_group_sum
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_group_default_separated_flows(self)
+      !! Gets default separated water and steam flows when the group
+      !! does not have its own separator. These are calculated by
+      !! summing the separated flows from the inputs.
+
+    class(source_network_group_type), intent(in out) :: self
+
+    ! Locals:
+    PetscReal :: local_water_q, local_water_qh
+    PetscReal :: total_water_q, total_water_qh
+    PetscReal :: local_steam_q, local_steam_qh
+    PetscReal :: total_steam_q, total_steam_qh
+    PetscErrorCode :: ierr
+    PetscReal, parameter :: rate_tol = 1.e-9_dp
+
+    local_water_q = 0._dp
+    local_water_qh = 0._dp
+    local_steam_q = 0._dp
+    local_steam_qh = 0._dp
+
+    call self%nodes%traverse(group_sum_separated_iterator)
+
+    call MPI_reduce(local_water_q, total_water_q, 1, &
+         MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+    call MPI_reduce(local_water_qh, total_water_qh, 1, &
+         MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+    call MPI_reduce(local_steam_q, total_steam_q, 1, &
+         MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+    call MPI_reduce(local_steam_qh, total_steam_qh, 1, &
+         MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+
+    if (self%is_root) then
+       if (abs(total_water_q) > rate_tol) then
+          self%water_enthalpy = total_water_qh / total_water_q
+       else
+          self%water_enthalpy = 0._dp
+       end if
+       if (abs(total_steam_q) > rate_tol) then
+          self%steam_enthalpy = total_steam_qh / total_steam_q
+       else
+          self%steam_enthalpy = 0._dp
+       end if
+    end if
+
+  contains
+
+    subroutine group_sum_separated_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: offset
+
+      stopped = PETSC_FALSE
+      select type (s => node%data)
+      type is (source_type)
+         offset = global_section_offset(source_section, &
+              s%local_source_index, source_range_start)
+         call s%assign(source_data, offset)
+         local_water_q = local_water_q + s%water_rate
+         local_water_qh = local_water_qh + s%water_rate * s%water_enthalpy
+         local_steam_q = local_steam_q + s%steam_rate
+         local_steam_qh = local_steam_qh + s%steam_rate * s%steam_enthalpy
+      type is (source_network_group_type)
+         if (s%is_root) then
+            offset = global_section_offset(source_network_group_section, &
+                 s%local_group_index, source_network_group_range_start)
+            call s%assign(source_network_group_data, offset)
+            local_water_q = local_water_q + s%water_rate
+            local_water_qh = local_water_qh + s%water_rate * s%water_enthalpy
+            local_steam_q = local_steam_q + s%steam_rate
+            local_steam_qh = local_steam_qh + s%steam_rate * s%steam_enthalpy
+         end if
+      end select
+
+    end subroutine group_sum_separated_iterator
+
+  end subroutine source_network_group_default_separated_flows
 
 !------------------------------------------------------------------------
 
