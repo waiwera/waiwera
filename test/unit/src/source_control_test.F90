@@ -172,8 +172,7 @@ contains
       stopped = PETSC_FALSE
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval, source_array, &
-              source_section, source_range_start, fluid_array, &
+         call source_control%update(t, interval, fluid_array, &
               fluid_section, eos, size(tracers))
       end select
     end subroutine source_control_iterator
@@ -500,8 +499,7 @@ contains
       PetscBool, intent(out) :: stopped
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval, source_array, &
-              source_section, source_range_start, local_fluid_array, &
+         call source_control%update(t, interval, local_fluid_array, &
               local_fluid_section, eos, size(tracer_names))
       end select
       stopped = PETSC_FALSE

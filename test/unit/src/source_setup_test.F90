@@ -535,8 +535,7 @@ contains
               g, group_range_start)
             call group%assign(group_array, group_offset)
          end if
-         call group%sum(source_array, source_section, source_range_start, &
-              group_array, group_section, group_range_start)
+         call group%sum()
          if (group%is_root) then
             select case (group%name)
             case ("group1")

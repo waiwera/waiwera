@@ -1731,13 +1731,11 @@ contains
                pressure_table_coordinate, threshold, single_source)
 
           if (calculate_reference_pressure) then
-             call deliv%set_reference_pressure_initial(source_data, &
-                  source_section, source_range_start, fluid_data, &
+             call deliv%set_reference_pressure_initial(fluid_data, &
                   fluid_section, fluid_range_start, eos)
           end if
           if (calculate_PI_from_rate) then
              call deliv%calculate_PI_from_rate(start_time, initial_rate, &
-                  source_data, source_section, source_range_start, &
                   fluid_data, fluid_section, fluid_range_start, eos, &
                   deliv%productivity%val(1, 1))
           end if
@@ -1891,8 +1889,7 @@ contains
               averaging_type, reference_pressure_array, single_source)
 
          if (calculate_reference_pressure) then
-            call recharge%set_reference_pressure_initial(source_data, &
-                 source_section, source_range_start, fluid_data, &
+            call recharge%set_reference_pressure_initial(fluid_data, &
                  fluid_section, fluid_range_start, eos)
          end if
 

@@ -195,30 +195,22 @@ module source_control_module
      end subroutine source_control_destroy_procedure
 
      subroutine source_control_update_procedure(self, t, interval, &
-          source_data, source_section, source_range_start, &
           local_fluid_data, local_fluid_section, eos, num_tracers)
        use petscis
        !! Updates sources at the specified time.
        import :: source_control_type, eos_type
        class(source_control_type), intent(in out) :: self
        PetscReal, intent(in) :: t, interval(2)
-       PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-       PetscSection, intent(in) :: source_section
-       PetscInt, intent(in) :: source_range_start
        PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
        PetscSection, intent(in) :: local_fluid_section
        class(eos_type), intent(in) :: eos
        PetscInt, intent(in) :: num_tracers
      end subroutine source_control_update_procedure
 
-     PetscReal function source_control_limiter_get_rate_procedure(self, &
-          source_data, source_section, source_range_start, eos)
+     PetscReal function source_control_limiter_get_rate_procedure(self, eos)
        use petscis
        import :: source_control_limiter_type, eos_type
        class(source_control_limiter_type), intent(in out) :: self
-       PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-       PetscSection, intent(in) :: source_section
-       PetscInt, intent(in) :: source_range_start
        class(eos_type), intent(in) :: eos
      end function source_control_limiter_get_rate_procedure
 
@@ -262,17 +254,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_rate_table_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update flow rate for source_control_rate_table_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_rate_table_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -289,16 +275,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, s, &
-              source_range_start)
-         call source%assign(source_data, source_offset)
          call source%set_rate(rate)
       end select
 
@@ -311,17 +291,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_enthalpy_table_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update injection enthalpy for source_control_enthalpy_table_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_enthalpy_table_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -338,16 +312,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, s, &
-              source_range_start)
-         call source%assign(source_data, source_offset)
          source%injection_enthalpy = enthalpy
       end select
 
@@ -360,17 +328,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_rate_factor_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update flow rate for source_control_rate_factor_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_rate_factor_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -387,16 +349,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, s, &
-              source_range_start)
-         call source%assign(source_data, source_offset)
          call source%set_rate(source%rate * factor)
       end select
 
@@ -409,17 +365,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_tracer_table_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update tracer injection rate for source_control_tracer_table_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_tracer_table_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -436,16 +386,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, s, &
-              source_range_start)
-         call source%assign(source_data, source_offset)
          source%tracer_injection_rate(self%tracer_index) = &
               tracer_injection_rate
       end select
@@ -459,7 +403,6 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_set_reference_pressure_initial(self, &
-       source_data, source_section, source_range_start, &
        global_fluid_data, global_fluid_section, fluid_range_start, eos)
     !! Sets reference pressure for pressure reference control to be
     !! the initial fluid pressure in the source cell.
@@ -467,9 +410,6 @@ contains
     use dm_utils_module, only: global_section_offset
 
     class(source_control_pressure_reference_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
     PetscSection, intent(in) :: global_fluid_section
     PetscInt, intent(in) :: fluid_range_start
@@ -484,15 +424,11 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset, c, fluid_offset
+      PetscInt :: c, fluid_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, s, &
-              source_range_start)
-         call source%assign(source_data, source_offset)
          c = source%local_cell_index
          fluid_offset = global_section_offset(global_fluid_section, c, &
               fluid_range_start)
@@ -547,17 +483,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update flow rate for source_control_deliverability_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -572,16 +502,12 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset
       PetscReal :: productivity, qd
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
+
          call source%assign_fluid_local(local_fluid_data, local_fluid_section)
          
          if (self%threshold <= 0._dp) then
@@ -594,13 +520,11 @@ contains
                   call source%set_rate(qd)
                else ! don't use qd, but update PI
                   call self%calculate_PI_from_rate(t, source%rate, &
-                       source_data, source_section, source_range_start, &
                        local_fluid_data, local_fluid_section, -1, &
                        eos, self%threshold_productivity)
                end if
             else
                call self%calculate_PI_from_rate(t, source%rate, &
-                    source_data, source_section, source_range_start, &
                     local_fluid_data, local_fluid_section, -1, &
                     eos, self%threshold_productivity)
             end if
@@ -656,9 +580,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_deliverability_calculate_PI_from_rate(&
-       self, time, rate, source_data, source_section, source_range_start, &
-       fluid_data, fluid_section, fluid_range_start, eos, &
-       productivity)
+       self, time, rate, fluid_data, fluid_section, fluid_range_start, &
+       eos, productivity)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate.
 
@@ -667,9 +590,6 @@ contains
     class(source_control_deliverability_type), intent(in out) :: self
     PetscReal, intent(in) :: time
     PetscReal, intent(in) :: rate
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start !! Specify -1 for local data rather than global
@@ -685,7 +605,7 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset, c, fluid_offset
+      PetscInt :: c, fluid_offset
       PetscReal, allocatable :: phase_mobilities(:)
       PetscReal :: reference_pressure, pressure_difference, factor
       PetscReal, parameter :: tol = 1.e-9_dp
@@ -693,10 +613,6 @@ contains
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
 
          c = source%local_cell_index
          if (fluid_range_start >= 0) then ! global
@@ -765,17 +681,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_recharge_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update flow rate for source_control_recharge_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_recharge_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -790,25 +700,17 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset
       PetscReal :: reference_pressure, pressure_difference
       PetscReal :: recharge_coefficient
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
          call source%assign_fluid_local(local_fluid_data, local_fluid_section)
-
          reference_pressure = self%reference_pressure%average(interval, 1)
          pressure_difference = source%fluid%pressure - reference_pressure
          recharge_coefficient = self%coefficient%average(interval, 1)
          call source%set_rate(-recharge_coefficient * pressure_difference)
-
       end select
 
     end subroutine recharge_iterator
@@ -844,23 +746,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function source_control_limiter_rate_scale(self, &
-       source_data, source_section, source_range_start, eos) &
+  PetscReal function source_control_limiter_rate_scale(self, eos) &
        result(scale)
     !! Returns factor by which flow should be scaled to avoid
     !! exceededing limit.
 
     class(source_control_limiter_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     class(eos_type), intent(in) :: eos
     ! Locals:
     PetscReal :: rate, abs_rate
     PetscReal, parameter :: small = 1.e-6_dp
 
-    rate = self%get_rate(source_data, source_section, &
-         source_range_start, eos)
+    rate = self%get_rate(eos)
     abs_rate = abs(rate)
 
     if ((abs_rate > self%limit) .and. (abs_rate > small)) then
@@ -874,17 +771,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_limiter_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update flow rate for source_control_limiter_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_limiter_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -892,8 +783,7 @@ contains
     ! Locals:
     PetscReal :: scale
 
-    scale = self%rate_scale(source_data, source_section, &
-         source_range_start, eos)
+    scale = self%rate_scale(eos)
     call self%sources%traverse(limiter_iterator)
 
   contains
@@ -902,16 +792,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
          call source%set_rate(source%rate * scale)
       end select
 
@@ -921,16 +805,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function source_control_total_limiter_get_rate(self, &
-       source_data, source_section, source_range_start, eos) result (rate)
+  PetscReal function source_control_total_limiter_get_rate(self, eos) &
+       result (rate)
     !! Gets total rate to limit from input source.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_total_limiter_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     class(eos_type), intent(in) :: eos
 
     call self%sources%traverse(total_limiter_rate_iterator)
@@ -941,16 +820,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
          rate = source%rate
       end select
 
@@ -960,16 +833,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function source_control_water_limiter_get_rate(self, &
-       source_data, source_section, source_range_start, eos) result (rate)
+  PetscReal function source_control_water_limiter_get_rate(self, eos) &
+       result (rate)
     !! Gets separated water rate to limit from input source.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_water_limiter_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     class(eos_type), intent(in) :: eos
 
     call self%sources%traverse(water_limiter_rate_iterator)
@@ -980,16 +848,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
          rate = source%water_rate
       end select
 
@@ -999,16 +861,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function source_control_steam_limiter_get_rate(self, &
-       source_data, source_section, source_range_start, eos) result (rate)
+  PetscReal function source_control_steam_limiter_get_rate(self, eos) &
+       result (rate)
     !! Gets separated steam rate to limit from input source.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_steam_limiter_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     class(eos_type), intent(in) :: eos
 
     call self%sources%traverse(steam_limiter_rate_iterator)
@@ -1019,16 +876,10 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
          rate = source%steam_rate
       end select
 
@@ -1066,17 +917,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_control_direction_update(self, t, interval, &
-       source_data, source_section, source_range_start, &
        local_fluid_data, local_fluid_section, eos, num_tracers)
     !! Update flow rate for source_control_direction_type.
 
-    use dm_utils_module, only: global_section_offset
-
     class(source_control_direction_type), intent(in out) :: self
     PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: source_data(:)
-    PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
     class(eos_type), intent(in) :: eos
@@ -1091,17 +936,11 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset
       PetscBool :: flowing
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, source_range_start)
-         call source%assign(source_data, source_offset)
-
          select case (self%direction)
          case (SRC_DIRECTION_PRODUCTION)
             flowing = (source%rate < 0._dp)
@@ -1111,7 +950,6 @@ contains
             flowing = PETSC_TRUE
          end select
          if (.not. flowing) call source%set_rate(0._dp)
-
       end select
 
     end subroutine direction_iterator

@@ -1519,6 +1519,9 @@ contains
     call VecGetArrayF90(self%source_network_group, source_network_group_data, &
          ierr); CHKERRQ(ierr)
 
+    call self%sources%traverse(source_assign_iterator)
+    call self%source_network_groups%traverse(source_network_group_assign_iterator)
+
     call self%separated_sources%traverse(source_separator_iterator)
     call self%source_controls%traverse(source_control_iterator)
     call self%sources%traverse(source_iterator)
@@ -1543,23 +1546,62 @@ contains
 
 !........................................................................
 
+    subroutine source_assign_iterator(node, stopped)
+      !! Assigns data pointers for all sources.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, self%source_range_start)
+         call source%assign(source_data, source_offset)
+      end select
+    end subroutine source_assign_iterator
+
+!........................................................................
+
+    subroutine source_network_group_assign_iterator(node, stopped)
+      !! Assigns data pointers for all source network groups.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: g, source_network_group_offset
+
+      stopped = PETSC_FALSE
+      select type (group => node%data)
+      type is (source_network_group_type)
+         if (group%is_root) then
+            g = group%local_group_index
+            source_network_group_offset = global_section_offset( &
+                 source_network_group_section, g, &
+                 self%source_network_group_range_start)
+            call group%assign(source_network_group_data, &
+                 source_network_group_offset)
+         end if
+      end select
+
+    end subroutine source_network_group_assign_iterator
+
+!........................................................................
+
     subroutine source_separator_iterator(node, stopped)
       !! Updates enthalpy and separated outputs from separators.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, source_offset
       PetscReal, allocatable :: phase_flow_fractions(:)
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, self%source_range_start)
-         call source%assign(source_data, source_offset)
 
          call source%assign_fluid_local(fluid_array, fluid_section)
          allocate(phase_flow_fractions(source%fluid%num_phases))
@@ -1584,8 +1626,7 @@ contains
       stopped = PETSC_FALSE
       select type (source_control => node%data)
       class is (source_control_type)
-         call source_control%update(t, interval, source_data, &
-              source_section, self%source_range_start, fluid_array, &
+         call source_control%update(t, interval, fluid_array, &
               fluid_section, self%eos, size(self%tracers))
       end select
 
@@ -1637,21 +1678,11 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: g, source_network_group_offset
 
       stopped = PETSC_FALSE
       select type (group => node%data)
       type is (source_network_group_type)
-         if (group%is_root) then
-            g = group%local_group_index
-            source_network_group_offset = global_section_offset(source_network_group_section, &
-                 g, self%source_network_group_range_start)
-            call group%assign(source_network_group_data, source_network_group_offset)
-         end if
-         call group%sum(source_data, source_section, self%source_range_start, &
-              source_network_group_data, source_network_group_section, &
-              self%source_network_group_range_start)
+         call group%sum()
          call group%get_separated_flows()
       end select
 
