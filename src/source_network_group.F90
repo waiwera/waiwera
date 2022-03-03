@@ -263,6 +263,8 @@ contains
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
 
     if (self%is_root) then
+       self%water_rate = total_water_q
+       self%steam_rate = total_steam_q
        if (abs(total_water_q) > rate_tol) then
           self%water_enthalpy = total_water_qh / total_water_q
        else
