@@ -237,7 +237,6 @@ contains
     class(separator_type), intent(in out) :: self
 
     self%steam_fraction = 0._dp
-    self%num_stages = 0
 
   end subroutine separator_zero
 
