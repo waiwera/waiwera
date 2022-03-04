@@ -91,8 +91,7 @@ contains
 
       class(source_network_node_type), intent(in out) :: self
 
-      if ((self%rate <= 0._dp) .and. (.not. self%heat)) then
-         ! producing mass:
+      if (self%rate < 0._dp) then
          if (self%separator%on) then
             call self%separate()
          else
