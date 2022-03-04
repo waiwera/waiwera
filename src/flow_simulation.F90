@@ -1683,7 +1683,6 @@ contains
       select type (group => node%data)
       type is (source_network_group_type)
          call group%sum()
-         call group%get_separated_flows()
       end select
 
     end subroutine source_network_group_iterator
