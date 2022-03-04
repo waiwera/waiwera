@@ -66,10 +66,10 @@ module source_network_group_module
      procedure, public :: init_comm => source_network_group_init_comm
      procedure, public :: assign => source_network_group_assign
      procedure, public :: init_data => source_network_group_init_data
+     procedure, public :: set_rate => source_network_group_set_rate
      procedure, public :: sum => source_network_group_sum
      procedure, public :: default_separated_flows => source_network_group_default_separated_flows
-     procedure, public :: add_flows => source_network_group_add_flows
-     procedure, public :: add_separated_flows => source_network_group_add_separated_flows
+     procedure, public :: get_separated_flows => source_network_group_get_separated_flows
      procedure, public :: destroy => source_network_group_destroy
   end type source_network_group_type
 
@@ -179,6 +179,22 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine source_network_group_set_rate(self, rate)
+    !! Sets source network group flow rate to specified value, on the
+    !! root process of the group.
+
+    class(source_network_group_type), intent(in out) :: self
+    PetscReal, intent(in) :: rate !! Flow rate
+
+    if (self%is_root) then
+       self%rate = rate
+    end if
+    call self%get_separated_flows()
+
+  end subroutine source_network_group_set_rate
+
+!------------------------------------------------------------------------
+
   subroutine source_network_group_sum(self)
     !! Computes total flow rate, enthalpy etc. in a source group. The
     !! results are stored only on the root rank of the group
@@ -209,8 +225,8 @@ contains
        else
           self%enthalpy = 0._dp
        end if
-       call self%set_rate(total_q)
     end if
+    call self%set_rate(total_q)
 
   contains
 
@@ -297,40 +313,35 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_group_add_flows(self, mass_flow, energy_flow)
-    !! Adds mass and energy flows from the group to the specified
-    !! totals. Only flows from the root process of the group are added.
+  subroutine source_network_group_get_separated_flows(self)
+      !! Gets separated water and steam flows on the root process of
+      !! the group.
 
     class(source_network_group_type), intent(in out) :: self
-    PetscReal, intent(in out) :: mass_flow !! Total mass flow rate
-    PetscReal, intent(in out) :: energy_flow !! Total energy flow rate
+    ! Locals:
+    PetscBool :: use_default
+    PetscErrorCode :: ierr
+
+    use_default = PETSC_FALSE
 
     if (self%is_root) then
-       call self%source_network_node_type%add_flows(mass_flow, energy_flow)
+       if (self%rate < 0._dp) then
+          if (self%separator%on) then
+             call self%separate()
+          else
+             use_default = PETSC_TRUE
+          end if
+       else
+          call self%zero_separated_flows()
+       end if
     end if
 
-  end subroutine source_network_group_add_flows
-
-!------------------------------------------------------------------------
-
-  subroutine source_network_group_add_separated_flows(self, water_mass_flow, &
-       water_energy_flow, steam_mass_flow, steam_energy_flow)
-    !! Adds mass and energy flows for separated water and steam from
-    !! the group to the specified totals. Only flows from the root
-    !! process of the group are added.
-
-    class(source_network_group_type), intent(in out) :: self
-    PetscReal, intent(in out) :: water_mass_flow !! Total water mass flow rate
-    PetscReal, intent(in out) :: water_energy_flow !! Total water energy flow rate
-    PetscReal, intent(in out) :: steam_mass_flow !! Total steam mass flow rate
-    PetscReal, intent(in out) :: steam_energy_flow !! Total steam energy flow rate
-
-    if (self%is_root) then
-       call self%source_network_node_type%add_separated_flows(water_mass_flow, &
-       water_energy_flow, steam_mass_flow, steam_energy_flow)
+    call MPI_bcast(use_default, 1, MPI_LOGICAL, 0, self%comm, ierr)
+    if (use_default) then
+       call self%default_separated_flows()
     end if
 
-  end subroutine source_network_group_add_separated_flows
+  end subroutine source_network_group_get_separated_flows
 
 !------------------------------------------------------------------------
 
