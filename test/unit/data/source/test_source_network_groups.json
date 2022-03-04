@@ -10,7 +10,8 @@
     "network": {
         "group": [
             {"name": "group1", "in": ["s1", "s2", "s4"]},
-            {"name": "group3", "in": ["s1", "s2", "group2"]},
+            {"name": "group3", "in": ["s1", "s2", "group2"],
+             "separator": {"pressure": 0.45e6}},
             {"name": "group2", "in": ["s4", "s3"]}
         ]
     }

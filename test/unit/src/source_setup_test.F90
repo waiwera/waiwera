@@ -451,7 +451,7 @@ contains
     call VecGetArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
 
-    call sources%traverse(set_source_enthalpy_iterator)
+    call sources%traverse(set_sources_iterator)
     call source_network_groups%traverse(group_test_iterator)
 
     call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
@@ -488,7 +488,7 @@ contains
 
   contains
 
-    subroutine set_source_enthalpy_iterator(node, stopped)
+    subroutine set_sources_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
@@ -505,16 +505,32 @@ contains
          select case (source%name)
          case ("s1")
             source%enthalpy = 500.e3_dp
+            source%water_rate = -5.0_dp
+            source%water_enthalpy = 500.0e3_dp
+            source%steam_rate = 0.0_dp
+            source%steam_enthalpy = 0.0_dp
          case ("s2")
             source%enthalpy = 800.e3_dp
+            source%water_rate = -3.0_dp
+            source%water_enthalpy = 800.0e3_dp
+            source%steam_rate = 0.0_dp
+            source%steam_enthalpy = 0.0_dp
          case ("s3")
             source%enthalpy = 1200.e3_dp
+            source%water_rate = -1.1_dp
+            source%water_enthalpy = 640.0e3_dp
+            source%steam_rate = -0.4_dp
+            source%steam_enthalpy = 2750.0e3_dp
          case ("s4")
             source%enthalpy = 1750.e3_dp
+            source%water_rate = -0.95_dp
+            source%water_enthalpy = 600.0e3_dp
+            source%steam_rate = -1.05_dp
+            source%steam_enthalpy = 2740.0e3_dp
          end select
       end select
 
-    end subroutine set_source_enthalpy_iterator
+    end subroutine set_sources_iterator
 
 !........................................................................
 
@@ -539,11 +555,17 @@ contains
          if (group%is_root) then
             select case (group%name)
             case ("group1")
-               call group_test(group, -10._dp, 840.e3_dp)
+               call group_test(group, PETSC_FALSE, -10._dp, 840.e3_dp, &
+                    -8.95_dp, 611.173184358e3_dp, &
+                    -1.05_dp, 2740.0e3_dp)
             case ("group2")
-               call group_test(group, -3.5_dp, 1514.28571429e3_dp)
+               call group_test(group, PETSC_FALSE, -3.5_dp, 1514.28571429e3_dp, &
+                    -2.05_dp, 621.463414634e3_dp, &
+                    -1.45_dp, 2742.75862069e3_dp)
             case ("group3")
-               call group_test(group, -11.5_dp, 886.956521739e3_dp)
+               call group_test(group, PETSC_TRUE, -11.5_dp, 886.956521739e3_dp, &
+                    -10.069486546180777_dp, 623.224313361319e3_dp, &
+                    -1.4305134538192241_dp, 2743.386404983706e3_dp)
             end select
             g = g + 1
          end if
@@ -554,13 +576,24 @@ contains
 
 !........................................................................
 
-    subroutine group_test(group, rate, enthalpy)
+    subroutine group_test(group, separator_on, &
+         rate, enthalpy, water_rate, water_enthalpy, &
+         steam_rate, steam_enthalpy)
 
       type(source_network_group_type), intent(in) :: group
+      PetscBool, intent(in) :: separator_on
       PetscReal, intent(in) :: rate, enthalpy
+      PetscReal, intent(in) :: water_rate, water_enthalpy
+      PetscReal, intent(in) :: steam_rate, steam_enthalpy
 
+      call test%assert(separator_on, group%separator%on, &
+           trim(group%name) // ' separator on')
       call test%assert(rate, group%rate, trim(group%name) // ' rate')
       call test%assert(enthalpy, group%enthalpy, trim(group%name) // ' enthalpy')
+      call test%assert(water_rate, group%water_rate, trim(group%name) // ' water rate')
+      call test%assert(water_enthalpy, group%water_enthalpy, trim(group%name) // ' water enthalpy')
+      call test%assert(steam_rate, group%steam_rate, trim(group%name) // ' steam rate')
+      call test%assert(steam_enthalpy, group%steam_enthalpy, trim(group%name) // ' steam enthalpy')
 
     end subroutine group_test
 
