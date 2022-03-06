@@ -420,8 +420,8 @@ contains
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscInt, parameter :: expected_num_sources = 4
-    PetscInt, parameter :: expected_num_groups = 3
+    PetscInt, parameter :: expected_num_sources = 7
+    PetscInt, parameter :: expected_num_groups = 4
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_groups.json")
