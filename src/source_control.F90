@@ -22,6 +22,7 @@ module source_control_module
 
   use petsc
   use kinds_module
+  use control_module
   use eos_module
   use thermodynamics_module
   use list_module
@@ -67,12 +68,12 @@ module source_control_module
      procedure, public :: destroy => source_control_table_destroy
   end type source_control_table_type
 
-  type, public, extends(source_control_table_type) :: source_control_rate_table_type
+  type, public, extends(table_object_control_type) :: rate_table_source_control_type
      !! Controls source rate via a table of values vs. time.
    contains
      private
-     procedure, public :: update => source_control_rate_table_update
-  end type source_control_rate_table_type
+     procedure, public :: iterator => rate_table_source_control_iterator
+  end type rate_table_source_control_type
 
   type, public, extends(source_control_table_type) :: source_control_enthalpy_table_type
      !! Controls source injection enthalpy via a table of values vs. time.
@@ -253,38 +254,19 @@ contains
 ! Rate table source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_rate_table_update(self, t, interval, &
-       local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update flow rate for source_control_rate_table_type.
+  subroutine rate_table_source_control_iterator(self, node, stopped)
 
-    class(source_control_rate_table_type), intent(in out) :: self
-    PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: num_tracers
-    ! Locals:
-    PetscReal :: rate
+    class(rate_table_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
 
-    rate = self%table%average(interval, 1)
-    call self%sources%traverse(rate_iterator)
+    stopped = PETSC_FALSE
+    select type(source => node%data)
+    type is (source_type)
+       call source%set_rate(self%value(1))
+    end select
 
-  contains
-
-    subroutine rate_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         call source%set_rate(rate)
-      end select
-
-    end subroutine rate_iterator
-
-  end subroutine source_control_rate_table_update
+  end subroutine rate_table_source_control_iterator
 
 !------------------------------------------------------------------------
 ! Enthalpy table source control:

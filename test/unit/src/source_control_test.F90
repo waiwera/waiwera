@@ -8,6 +8,7 @@ module source_control_test
   use kinds_module
   use zofu
   use source_module
+  use control_module
   use source_control_module
   use source_network_group_module
   use source_setup_module
@@ -174,6 +175,8 @@ contains
       class is (source_control_type)
          call source_control%update(t, interval, fluid_array, &
               fluid_section, eos, size(tracers))
+      class is (table_object_control_type)
+         call source_control%update(interval)
       end select
     end subroutine source_control_iterator
 
@@ -501,6 +504,8 @@ contains
       class is (source_control_type)
          call source_control%update(t, interval, local_fluid_array, &
               local_fluid_section, eos, size(tracer_names))
+      class is (table_object_control_type)
+         call source_control%update(interval)
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_update_iterator
