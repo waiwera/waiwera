@@ -16,6 +16,7 @@ zofu  = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
 waiwera_sources = [
   'src/capillary_pressure.F90',
   'src/cell.F90',
+  'src/control.F90',
   'src/dag.F90',
   'src/dictionary.F90',
   'src/dm_utils.F90',
