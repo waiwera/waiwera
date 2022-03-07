@@ -1370,7 +1370,7 @@ contains
       PetscInt :: variable_type, rank
       type(fson_value), pointer :: tracers_json, tracer_json
       PetscInt :: num_tracers_specified, i, tracer_type, tracer_index
-      type(source_control_tracer_table_type), pointer :: control
+      type(tracer_table_source_control_type), pointer :: control
       PetscReal, allocatable :: data_array(:,:)
       character(max_tracer_name_length) :: name
 
@@ -1387,8 +1387,8 @@ contains
                   if (spec_sources%count > 0) then
                      do i = 1, size(tracer_names)
                         allocate(control)
-                        call control%init(data_array, interpolation_type, &
-                             averaging_type, spec_sources%copy())
+                        call control%init(spec_sources%copy(), data_array, &
+                             interpolation_type, averaging_type)
                         control%tracer_index = i
                         call source_controls%append(control)
                      end do
@@ -1414,8 +1414,8 @@ contains
                         tracer_index = str_array_index(name, tracer_names)
                         if (tracer_index > 0) then
                            allocate(control)
-                           call control%init(data_array, interpolation_type, &
-                                averaging_type, spec_sources%copy())
+                           call control%init(spec_sources%copy(), data_array, &
+                                interpolation_type, averaging_type)
                            control%tracer_index = tracer_index
                            call source_controls%append(control)
                         else

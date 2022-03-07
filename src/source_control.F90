@@ -89,15 +89,15 @@ module source_control_module
      procedure, public :: iterator => rate_factor_source_control_iterator
   end type rate_factor_source_control_type
 
-  type, public, extends(source_control_table_type) :: source_control_tracer_table_type
+  type, public, extends(table_object_control_type) :: tracer_table_source_control_type
      !! Controls source tracer injection rate via a table of values
      !! vs. time. Each control applies to only one tracer.
      private
      PetscInt, public :: tracer_index !! Index of tracer
    contains
      private
-     procedure, public :: update => source_control_tracer_table_update
-  end type source_control_tracer_table_type
+     procedure, public :: iterator => tracer_table_source_control_iterator
+  end type tracer_table_source_control_type
 
   type, public, abstract, extends(source_control_type) :: source_control_pressure_reference_type
      !! Controls a source by comparing fluid pressure with a reference
@@ -316,39 +316,23 @@ contains
 ! Tracer table source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_tracer_table_update(self, t, interval, &
-       local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update tracer injection rate for source_control_tracer_table_type.
+  subroutine tracer_table_source_control_iterator(self, node, stopped)
+    !! Update tracer injection rate.
 
-    class(source_control_tracer_table_type), intent(in out) :: self
-    PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: num_tracers
-    ! Locals:
-    PetscReal :: tracer_injection_rate
+    class(tracer_table_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
 
-    tracer_injection_rate = self%table%average(interval, 1)
-    call self%sources%traverse(tracer_iterator)
-
-  contains
-
-    subroutine tracer_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
+    stopped = PETSC_FALSE
+    select type(source => node%data)
+    type is (source_type)
+       associate(tracer_injection_rate => self%value(1))
          source%tracer_injection_rate(self%tracer_index) = &
               tracer_injection_rate
-      end select
+       end associate
+    end select
 
-    end subroutine tracer_iterator
-
-  end subroutine source_control_tracer_table_update
+  end subroutine tracer_table_source_control_iterator
 
 !------------------------------------------------------------------------
 ! Pressure reference source control:
