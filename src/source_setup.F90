@@ -1327,7 +1327,7 @@ contains
 
       PetscInt :: variable_type
       type(fson_value), pointer :: table
-      type(source_control_enthalpy_table_type), pointer :: control
+      type(enthalpy_table_source_control_type), pointer :: control
       PetscReal, allocatable :: data_array(:,:)
 
       if (fson_has_mpi(source_json, "enthalpy")) then
@@ -1345,8 +1345,8 @@ contains
       if (allocated(data_array)) then
          if (spec_sources%count > 0) then
             allocate(control)
-            call control%init(data_array, interpolation_type, &
-                 averaging_type, spec_sources%copy())
+            call control%init(spec_sources%copy(), data_array, &
+                 interpolation_type, averaging_type)
             call source_controls%append(control)
          end if
          deallocate(data_array)
