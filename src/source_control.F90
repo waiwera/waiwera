@@ -82,12 +82,12 @@ module source_control_module
      procedure, public :: iterator => enthalpy_table_source_control_iterator
   end type enthalpy_table_source_control_type
 
-  type, public, extends(source_control_table_type) :: source_control_rate_factor_type
+  type, public, extends(table_object_control_type) :: rate_factor_source_control_type
      !! Multiplies source rate by a factor from a table of values vs. time.
    contains
      private
-     procedure, public :: update => source_control_rate_factor_update
-  end type source_control_rate_factor_type
+     procedure, public :: iterator => rate_factor_source_control_iterator
+  end type rate_factor_source_control_type
 
   type, public, extends(source_control_table_type) :: source_control_tracer_table_type
      !! Controls source tracer injection rate via a table of values
@@ -291,38 +291,22 @@ contains
 ! Rate factor source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_rate_factor_update(self, t, interval, &
-       local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update flow rate for source_control_rate_factor_type.
+  subroutine rate_factor_source_control_iterator(self, node, stopped)
+    !! Update source rate using rate factor.
 
-    class(source_control_rate_factor_type), intent(in out) :: self
-    PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: num_tracers
-    ! Locals:
-    PetscReal :: factor
+    class(rate_factor_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
 
-    factor = self%table%average(interval, 1)
-    call self%sources%traverse(rate_factor_iterator)
-
-  contains
-
-    subroutine rate_factor_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
+    stopped = PETSC_FALSE
+    select type(source => node%data)
+    type is (source_type)
+       associate(factor => self%value(1))
          call source%set_rate(source%rate * factor)
-      end select
+       end associate
+    end select
 
-    end subroutine rate_factor_iterator
-
-  end subroutine source_control_rate_factor_update
+  end subroutine rate_factor_source_control_iterator
 
 !------------------------------------------------------------------------
 ! Tracer table source control:

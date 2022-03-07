@@ -1458,7 +1458,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    type(source_control_rate_factor_type), pointer :: factor_control
+    type(rate_factor_source_control_type), pointer :: factor_control
     PetscInt :: variable_type
     PetscReal, allocatable :: factor_data_array(:,:)
     type(fson_value), pointer :: table
@@ -1501,8 +1501,8 @@ contains
 
     if (allocated(factor_data_array) .and. (spec_sources%count > 0)) then
        allocate(factor_control)
-       call factor_control%init(factor_data_array, effective_interpolation_type, &
-            effective_averaging_type, spec_sources%copy())
+       call factor_control%init(spec_sources%copy(), factor_data_array, &
+            effective_interpolation_type, effective_averaging_type)
        call source_controls%append(factor_control)
     end if
 
