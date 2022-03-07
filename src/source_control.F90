@@ -263,7 +263,9 @@ contains
     stopped = PETSC_FALSE
     select type(source => node%data)
     type is (source_type)
-       call source%set_rate(self%value(1))
+       associate(rate => self%value(1))
+         call source%set_rate(rate)
+       end associate
     end select
 
   end subroutine rate_table_source_control_iterator
@@ -282,7 +284,9 @@ contains
     stopped = PETSC_FALSE
     select type(source => node%data)
     type is (source_type)
-       source%injection_enthalpy = self%value(1)
+       associate(enthalpy => self%value(1))
+         source%injection_enthalpy = enthalpy
+       end associate
     end select
 
   end subroutine enthalpy_table_source_control_iterator
