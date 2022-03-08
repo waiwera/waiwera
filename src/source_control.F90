@@ -57,17 +57,6 @@ module source_control_module
      procedure(source_control_update_procedure), public, deferred :: update
   end type source_control_type
 
-  type, abstract, extends(source_control_type) :: source_control_table_type
-     !! Controls a source parameter (e.g. rate or enthalpy) via a
-     !! table of values vs. time.
-     private
-     type(interpolation_table_type), public :: table !! Table of values vs. time
-   contains
-     private
-     procedure, public :: init => source_control_table_init
-     procedure, public :: destroy => source_control_table_destroy
-  end type source_control_table_type
-
   type, public, extends(table_object_control_type) :: rate_table_source_control_type
      !! Controls source rate via a table of values vs. time.
    contains
@@ -202,37 +191,6 @@ module source_control_module
   end interface
 
 contains
-
-!------------------------------------------------------------------------
-! Table source control:
-!------------------------------------------------------------------------
-
-  subroutine source_control_table_init(self, data, interpolation_type, &
-       averaging_type, sources)
-    !! Initialises source_control_table object.
-
-    class(source_control_table_type), intent(in out) :: self
-    PetscReal, intent(in) :: data(:,:)
-    PetscInt, intent(in) :: interpolation_type
-    PetscInt, intent(in) :: averaging_type
-    type(list_type), intent(in) :: sources
-
-    call self%table%init(data, interpolation_type, averaging_type)
-    self%sources = sources
-
-  end subroutine source_control_table_init
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_table_destroy(self)
-    !! Destroys source_control_table_type object.
-
-    class(source_control_table_type), intent(in out) :: self
-
-    call self%table%destroy()
-    call self%sources%destroy()
-
-  end subroutine source_control_table_destroy
 
 !------------------------------------------------------------------------
 ! Rate table source control:
