@@ -82,12 +82,12 @@ module source_control_module
      procedure, public :: iterator => enthalpy_table_source_control_iterator
   end type enthalpy_table_source_control_type
 
-  type, public, extends(table_object_control_type) :: rate_factor_source_control_type
+  type, public, extends(table_object_control_type) :: rate_factor_table_source_control_type
      !! Multiplies source rate by a factor from a table of values vs. time.
    contains
      private
-     procedure, public :: iterator => rate_factor_source_control_iterator
-  end type rate_factor_source_control_type
+     procedure, public :: iterator => rate_factor_table_source_control_iterator
+  end type rate_factor_table_source_control_type
 
   type, public, extends(table_object_control_type) :: tracer_table_source_control_type
      !! Controls source tracer injection rate via a table of values
@@ -295,10 +295,10 @@ contains
 ! Rate factor source control:
 !------------------------------------------------------------------------
 
-  subroutine rate_factor_source_control_iterator(self, node, stopped)
+  subroutine rate_factor_table_source_control_iterator(self, node, stopped)
     !! Update source rate using rate factor.
 
-    class(rate_factor_source_control_type), intent(in out) :: self
+    class(rate_factor_table_source_control_type), intent(in out) :: self
     type(list_node_type), pointer, intent(in out) :: node
     PetscBool, intent(out) :: stopped
 
@@ -310,7 +310,7 @@ contains
        end associate
     end select
 
-  end subroutine rate_factor_source_control_iterator
+  end subroutine rate_factor_table_source_control_iterator
 
 !------------------------------------------------------------------------
 ! Tracer table source control:

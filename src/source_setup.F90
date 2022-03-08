@@ -1458,7 +1458,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    type(rate_factor_source_control_type), pointer :: factor_control
+    type(rate_factor_table_source_control_type), pointer :: factor_control
     PetscInt :: variable_type
     PetscReal, allocatable :: factor_data_array(:,:)
     type(fson_value), pointer :: table
