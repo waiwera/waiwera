@@ -1630,6 +1630,8 @@ contains
       class is (source_control_type)
          call source_control%update(t, interval, fluid_array, &
               fluid_section, self%eos, size(self%tracers))
+      class is (integer_object_control_type)
+         call source_control%update()
       class is (table_object_control_type)
          call source_control%update(interval)
       end select

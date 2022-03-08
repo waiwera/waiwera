@@ -149,17 +149,13 @@ module source_control_module
      procedure, public :: update => source_control_recharge_update
   end type source_control_recharge_type
 
-  type, public, extends(source_control_type) :: source_control_direction_type
+  type, public, extends(integer_object_control_type) :: direction_source_control_type
      !! Allows source to flow only in a specified direction
      !! (production or injection).
-     private
-     PetscInt, public :: direction !! Flow direction
    contains
      private
-     procedure, public :: init => source_control_direction_init
-     procedure, public :: destroy => source_control_direction_destroy
-     procedure, public :: update => source_control_direction_update
-  end type source_control_direction_type
+     procedure, public :: iterator => direction_source_control_iterator
+  end type direction_source_control_type
 
   abstract interface
 
@@ -680,57 +676,19 @@ contains
 ! Direction source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_direction_init(self, direction, sources)
-    !! Initialises source_control_direction object.
+  subroutine direction_source_control_iterator(self, node, stopped)
 
-    class(source_control_direction_type), intent(in out) :: self
-    PetscInt, intent(in) :: direction
-    type(list_type), intent(in) :: sources
+    class(direction_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
+    ! Locals:
+    PetscBool :: flowing
 
-    self%direction = direction
-    self%sources = sources
-
-  end subroutine source_control_direction_init
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_direction_destroy(self)
-    !! Destroys source_control_direction_type object.
-
-    class(source_control_direction_type), intent(in out) :: self
-
-    call self%sources%destroy()
-
-  end subroutine source_control_direction_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_direction_update(self, t, interval, &
-       local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update flow rate for source_control_direction_type.
-
-    class(source_control_direction_type), intent(in out) :: self
-    PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: num_tracers
-
-    call self%sources%traverse(direction_iterator)
-
-  contains
-
-    subroutine direction_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscBool :: flowing
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         select case (self%direction)
+    stopped = PETSC_FALSE
+    select type(source => node%data)
+    type is (source_type)
+       associate(direction => self%value)
+         select case (direction)
          case (SRC_DIRECTION_PRODUCTION)
             flowing = (source%rate < 0._dp)
          case (SRC_DIRECTION_INJECTION)
@@ -739,11 +697,10 @@ contains
             flowing = PETSC_TRUE
          end select
          if (.not. flowing) call source%set_rate(0._dp)
-      end select
+       end associate
+    end select
 
-    end subroutine direction_iterator
-
-  end subroutine source_control_direction_update
+  end subroutine direction_source_control_iterator
 
 !------------------------------------------------------------------------
 

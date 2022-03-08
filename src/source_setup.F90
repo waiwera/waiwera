@@ -2022,7 +2022,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: direction
-    type(source_control_direction_type), pointer :: direction_control
+    type(direction_source_control_type), pointer :: direction_control
     PetscInt, parameter :: max_direction_str_length = 16
     character(max_direction_str_length) :: direction_str
 
@@ -2048,7 +2048,7 @@ contains
        if ((direction /= SRC_DIRECTION_BOTH) .and. &
             spec_sources%count > 0) then
          allocate(direction_control)
-         call direction_control%init(direction, spec_sources%copy())
+         call direction_control%init(spec_sources%copy(), direction)
          call source_controls%append(direction_control)
        end if
 
