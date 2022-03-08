@@ -37,6 +37,18 @@ module control_module
      procedure(object_control_destroy_procedure), deferred, public :: destroy
   end type object_control_type
 
+  type, public, extends(object_control_type) :: integer_object_control_type
+     !! Controls object parameters based on the value of a single
+     !! integer control parameter.
+     private
+     PetscInt, public :: value !! Integer control parameter
+   contains
+     procedure, public :: init => integer_object_control_init
+     procedure, public :: update => integer_object_control_update
+     procedure, public :: iterator => integer_object_control_iterator
+     procedure, public :: destroy => integer_object_control_destroy
+  end type integer_object_control_type
+
   type, public, extends(object_control_type) :: table_object_control_type
      !! Controls object parameters using an interpolation table of
      !! time-dependent values.
@@ -72,7 +84,71 @@ module control_module
 contains
 
 !------------------------------------------------------------------------
-! Objcet table control routines
+! Integer table control routines
+!------------------------------------------------------------------------
+
+  subroutine integer_object_control_init(self, objects, value)
+    !! Initialises integer_object_control object.
+
+    class(integer_object_control_type), intent(in out) :: self
+    type(list_type), intent(in) :: objects
+    PetscInt, intent(in) :: value
+
+    self%objects = objects
+    self%value = value
+
+  end subroutine integer_object_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine integer_object_control_iterator(self, node, stopped)
+    !! Update iterator for integer object control list. Derived types
+    !! will use this routine to update their objects using self%value.
+
+    class(integer_object_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
+
+    stopped = PETSC_FALSE
+
+  end subroutine integer_object_control_iterator
+
+!------------------------------------------------------------------------
+
+  subroutine integer_object_control_update(self)
+    !! Updates integer object control object properties using
+    !! self%value.
+
+    class(integer_object_control_type), intent(in out) :: self
+
+    call self%objects%traverse(iterator)
+
+  contains
+
+    subroutine iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      call self%iterator(node, stopped)
+
+    end subroutine iterator
+
+  end subroutine integer_object_control_update
+
+!------------------------------------------------------------------------
+
+  subroutine integer_object_control_destroy(self)
+    !! Destroys an integer object control.
+
+    class(integer_object_control_type), intent(in out) :: self
+
+    call self%objects%destroy()
+
+  end subroutine integer_object_control_destroy
+
+!------------------------------------------------------------------------
+! Object table control routines
 !------------------------------------------------------------------------
 
   subroutine table_object_control_init(self, objects, data, interpolation_type, &
