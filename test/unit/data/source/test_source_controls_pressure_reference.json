@@ -18,7 +18,10 @@
          "deliverability": {
              "productivity": 1.0e-12,
              "pressure": 2e5},
-         "limiter": {"type": "steam", "separator_pressure": 10e5, "limit": 5}
+         "separator": {"pressure": 10e5},
+         "limiter": {"type": "steam",
+                     "limit": [[0, 4], [20, 5], [150, 6]],
+                     "interpolation": "step"}
         },
         {"name": "source 4", "cell": 3,
          "rate": -11,

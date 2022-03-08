@@ -99,6 +99,32 @@ module source_control_module
      procedure, public :: iterator => tracer_table_source_control_iterator
   end type tracer_table_source_control_type
 
+  type, public, extends(table_object_control_type) :: limiter_table_source_control_type
+     !! Limits total flow through a source. Derived types limit
+     !! separated water or steam flow rather than total flow.
+   contains
+     private
+     procedure :: get_rate => limiter_table_source_control_get_rate
+     procedure :: rate_scale => limiter_table_source_control_rate_scale
+     procedure, public :: iterator => limiter_table_source_control_iterator
+  end type limiter_table_source_control_type
+
+  type, public, extends(limiter_table_source_control_type) :: &
+       water_limiter_table_source_control_type
+     !! Limits separated water flow (e.g. from a separator) through a source.
+   contains
+     private
+     procedure :: get_rate => water_limiter_table_source_control_get_rate
+  end type water_limiter_table_source_control_type
+
+  type, public, extends(limiter_table_source_control_type) :: &
+       steam_limiter_table_source_control_type
+     !! Limits separated steam flow (e.g. from a separator) through a source.
+   contains
+     private
+     procedure :: get_rate => steam_limiter_table_source_control_get_rate
+  end type steam_limiter_table_source_control_type
+
   type, public, abstract, extends(source_control_type) :: source_control_pressure_reference_type
      !! Controls a source by comparing fluid pressure with a reference
      !! pressure (e.g. deliverability or recharge).
@@ -133,41 +159,6 @@ module source_control_module
      procedure, public :: destroy => source_control_recharge_destroy
      procedure, public :: update => source_control_recharge_update
   end type source_control_recharge_type
-
-  type, abstract, public, extends(source_control_type) :: source_control_limiter_type
-     !! Limits total flow, or separated steam or water flow (from a
-     !! separator) through a source.
-     private
-     PetscReal, public :: limit !! Flow limit
-   contains
-     private
-     procedure :: rate_scale => source_control_limiter_rate_scale
-     procedure, public :: init => source_control_limiter_init
-     procedure, public :: destroy => source_control_limiter_destroy
-     procedure, public :: update => source_control_limiter_update
-     procedure(source_control_limiter_get_rate_procedure), public, deferred :: get_rate
-  end type source_control_limiter_type
-
-  type, public, extends(source_control_limiter_type) :: source_control_total_limiter_type
-     !! Limiter based on total flow in source.
-   contains
-     private
-     procedure, public :: get_rate => source_control_total_limiter_get_rate
-  end type source_control_total_limiter_type
-
-  type, public, extends(source_control_limiter_type) :: source_control_water_limiter_type
-     !! Limiter based on separated water flow in source.
-   contains
-     private
-     procedure, public :: get_rate => source_control_water_limiter_get_rate
-  end type source_control_water_limiter_type
-
-  type, public, extends(source_control_limiter_type) :: source_control_steam_limiter_type
-     !! Limiter based on separated steam flow in source.
-   contains
-     private
-     procedure, public :: get_rate => source_control_steam_limiter_get_rate
-  end type source_control_steam_limiter_type
 
   type, public, extends(source_control_type) :: source_control_direction_type
      !! Allows source to flow only in a specified direction
@@ -207,13 +198,6 @@ module source_control_module
        class(eos_type), intent(in) :: eos
        PetscInt, intent(in) :: num_tracers
      end subroutine source_control_update_procedure
-
-     PetscReal function source_control_limiter_get_rate_procedure(self, eos)
-       use petscis
-       import :: source_control_limiter_type, eos_type
-       class(source_control_limiter_type), intent(in out) :: self
-       class(eos_type), intent(in) :: eos
-     end function source_control_limiter_get_rate_procedure
 
   end interface
 
@@ -333,6 +317,87 @@ contains
     end select
 
   end subroutine tracer_table_source_control_iterator
+
+!------------------------------------------------------------------------
+! Limiter table source controls:
+!------------------------------------------------------------------------
+
+  PetscReal function limiter_table_source_control_get_rate(self, source) &
+       result(rate)
+    !! Get total flow rate from source.
+    class(limiter_table_source_control_type), intent(in out) :: self
+    class(source_type), intent(in) :: source
+
+    rate = source%rate
+
+  end function limiter_table_source_control_get_rate
+
+!------------------------------------------------------------------------
+
+  PetscReal function water_limiter_table_source_control_get_rate(self, source) &
+       result(rate)
+    !! Get separated water rate from source.
+    class(water_limiter_table_source_control_type), intent(in out) :: self
+    class(source_type), intent(in) :: source
+
+    rate = source%water_rate
+
+  end function water_limiter_table_source_control_get_rate
+
+!------------------------------------------------------------------------
+
+  PetscReal function steam_limiter_table_source_control_get_rate(self, source) &
+       result(rate)
+    !! Get separated steam rate from source.
+    class(steam_limiter_table_source_control_type), intent(in out) :: self
+    class(source_type), intent(in) :: source
+
+    rate = source%steam_rate
+
+  end function steam_limiter_table_source_control_get_rate
+
+!------------------------------------------------------------------------
+
+  PetscReal function limiter_table_source_control_rate_scale(self, rate, &
+       limit) result(scale)
+
+    class(limiter_table_source_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: rate, limit
+    ! Locals:
+    PetscReal :: abs_rate
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    abs_rate = abs(rate)
+    if ((abs_rate > limit) .and. (abs_rate > small)) then
+       scale = limit / abs_rate
+    else
+       scale = 1._dp
+    end if
+
+  end function limiter_table_source_control_rate_scale
+
+!------------------------------------------------------------------------
+
+  subroutine limiter_table_source_control_iterator(self, node, stopped)
+    !! Update flow so limit is not exceeded.
+
+    class(limiter_table_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
+    ! Locals:
+    PetscReal :: rate, scale
+
+    stopped = PETSC_FALSE
+    select type(source => node%data)
+    type is (source_type)
+       associate(limit => self%value(1))
+         rate = self%get_rate(source)
+         scale = self%rate_scale(rate, limit)
+         call source%set_rate(source%rate * scale)
+       end associate
+    end select
+
+  end subroutine limiter_table_source_control_iterator
 
 !------------------------------------------------------------------------
 ! Pressure reference source control:
@@ -652,176 +717,6 @@ contains
     end subroutine recharge_iterator
 
   end subroutine source_control_recharge_update
-
-!------------------------------------------------------------------------
-! Limiter source controls:
-!------------------------------------------------------------------------
-
-  subroutine source_control_limiter_init(self, limit, sources)
-    !! Initialises source_control_limiter object.
-
-    class(source_control_limiter_type), intent(in out) :: self
-    PetscReal, intent(in) :: limit
-    type(list_type), intent(in) :: sources
-
-    self%limit = limit
-    self%sources = sources
-
-  end subroutine source_control_limiter_init
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_limiter_destroy(self)
-    !! Destroys source_control_limiter_type object.
-
-    class(source_control_limiter_type), intent(in out) :: self
-
-    call self%sources%destroy()
-
-  end subroutine source_control_limiter_destroy
-
-!------------------------------------------------------------------------
-
-  PetscReal function source_control_limiter_rate_scale(self, eos) &
-       result(scale)
-    !! Returns factor by which flow should be scaled to avoid
-    !! exceededing limit.
-
-    class(source_control_limiter_type), intent(in out) :: self
-    class(eos_type), intent(in) :: eos
-    ! Locals:
-    PetscReal :: rate, abs_rate
-    PetscReal, parameter :: small = 1.e-6_dp
-
-    rate = self%get_rate(eos)
-    abs_rate = abs(rate)
-
-    if ((abs_rate > self%limit) .and. (abs_rate > small)) then
-       scale = self%limit / abs_rate
-    else
-       scale = 1._dp
-    end if
-
-  end function source_control_limiter_rate_scale
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_limiter_update(self, t, interval, &
-       local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update flow rate for source_control_limiter_type.
-
-    class(source_control_limiter_type), intent(in out) :: self
-    PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: num_tracers
-    ! Locals:
-    PetscReal :: scale
-
-    scale = self%rate_scale(eos)
-    call self%sources%traverse(limiter_iterator)
-
-  contains
-
-    subroutine limiter_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         call source%set_rate(source%rate * scale)
-      end select
-
-    end subroutine limiter_iterator
-
-  end subroutine source_control_limiter_update
-
-!------------------------------------------------------------------------
-
-  PetscReal function source_control_total_limiter_get_rate(self, eos) &
-       result (rate)
-    !! Gets total rate to limit from input source.
-
-    class(source_control_total_limiter_type), intent(in out) :: self
-    class(eos_type), intent(in) :: eos
-
-    call self%sources%traverse(total_limiter_rate_iterator)
-
-  contains
-
-    subroutine total_limiter_rate_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         rate = source%rate
-      end select
-
-    end subroutine total_limiter_rate_iterator
-
-  end function source_control_total_limiter_get_rate
-
-!------------------------------------------------------------------------
-
-  PetscReal function source_control_water_limiter_get_rate(self, eos) &
-       result (rate)
-    !! Gets separated water rate to limit from input source.
-
-    class(source_control_water_limiter_type), intent(in out) :: self
-    class(eos_type), intent(in) :: eos
-
-    call self%sources%traverse(water_limiter_rate_iterator)
-
-  contains
-
-    subroutine water_limiter_rate_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         rate = source%water_rate
-      end select
-
-    end subroutine water_limiter_rate_iterator
-
-  end function source_control_water_limiter_get_rate
-
-!------------------------------------------------------------------------
-
-  PetscReal function source_control_steam_limiter_get_rate(self, eos) &
-       result (rate)
-    !! Gets separated steam rate to limit from input source.
-
-    class(source_control_steam_limiter_type), intent(in out) :: self
-    class(eos_type), intent(in) :: eos
-
-    call self%sources%traverse(steam_limiter_rate_iterator)
-
-  contains
-
-    subroutine steam_limiter_rate_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         rate = source%steam_rate
-      end select
-
-    end subroutine steam_limiter_rate_iterator
-
-  end function source_control_steam_limiter_get_rate
 
 !------------------------------------------------------------------------
 ! Direction source control:

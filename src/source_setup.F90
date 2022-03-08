@@ -1239,7 +1239,8 @@ contains
           if (err == 0) then
 
              call setup_limiter_source_controls(source_json, srcstr, thermo, &
-                  spec_sources, source_controls, logfile)
+                  interpolation_type, averaging_type, spec_sources, &
+                  source_controls, logfile)
 
              call setup_direction_source_control(source_json, srcstr, thermo, &
                   spec_sources, source_controls, logfile)
@@ -1904,22 +1905,32 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_limiter_source_controls(source_json, srcstr, &
-       thermo, spec_sources, source_controls, logfile)
+       thermo, interpolation_type, averaging_type, spec_sources, &
+       source_controls, logfile)
     !! Set up limiter source control for each cell source.
 
     use utils_module, only: str_to_lower, str_array_index
+    use interpolation_module, only: interpolation_type_from_str, &
+         averaging_type_from_str, max_interpolation_str_length, &
+         max_averaging_str_length
 
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
+    PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: spec_sources
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: limiter_json
     character(8) :: limiter_type_str
-    PetscReal :: limit
-    class(source_control_limiter_type), pointer :: limiter
+    PetscReal :: const_limit
+    PetscInt :: variable_type
+    PetscInt :: effective_interpolation_type, effective_averaging_type
+    character(max_interpolation_str_length) :: interpolation_str
+    character(max_averaging_str_length) :: averaging_str
+    PetscReal, allocatable :: limit_data_array(:,:)
+    class(limiter_table_source_control_type), pointer :: limiter
 
     if (fson_has_mpi(source_json, "limiter")) then
 
@@ -1930,8 +1941,34 @@ contains
             limiter_type_str, logfile, srcstr)
        limiter_type_str = str_to_lower(limiter_type_str)
 
-       call fson_get_mpi(limiter_json, "limit", &
-            default_source_control_limiter_limit, limit, logfile, srcstr)
+       if (fson_has_mpi(limiter_json, "limit")) then
+          variable_type = fson_type_mpi(limiter_json, "limit")
+          select case (variable_type)
+          case (TYPE_REAL, TYPE_INTEGER)
+             call fson_get_mpi(limiter_json, "limit", &
+                  default_source_control_limiter_limit, val = const_limit)
+             allocate(limit_data_array(1, 2))
+             limit_data_array(1, :) = [0._dp, const_limit]
+          case (TYPE_ARRAY)
+             call fson_get_mpi(limiter_json, "limit", val = limit_data_array)
+          end select
+       else
+          allocate(limit_data_array(1, 2))
+          limit_data_array(1, :) = [0._dp, const_limit]
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+               [trim(srcstr) // "limiter.limit"], real_values = [const_limit])
+       end if
+
+       effective_interpolation_type = interpolation_type
+       effective_averaging_type = averaging_type
+       if (fson_has_mpi(limiter_json, "interpolation")) then
+          call fson_get_mpi(limiter_json, "interpolation", val = interpolation_str)
+          effective_interpolation_type = interpolation_type_from_str(interpolation_str)
+       end if
+       if (fson_has_mpi(limiter_json, "averaging")) then
+          call fson_get_mpi(limiter_json, "averaging", val = averaging_str)
+          effective_averaging_type = averaging_type_from_str(averaging_str)
+       end if
 
        call spec_sources%traverse(limiter_iterator)
 
@@ -1952,16 +1989,15 @@ contains
          call single_source%init(owner = PETSC_FALSE)
          call single_source%append(source)
           select case (limiter_type_str)
-          case ("total")
-             allocate(source_control_total_limiter_type :: limiter)
           case ("water")
-             allocate(source_control_water_limiter_type :: limiter)
+             allocate(water_limiter_table_source_control_type :: limiter)
           case ("steam")
-             allocate(source_control_steam_limiter_type :: limiter)
+             allocate(steam_limiter_table_source_control_type :: limiter)
           case default
-             allocate(source_control_total_limiter_type :: limiter)
+             allocate(limiter_table_source_control_type :: limiter)
           end select
-          call limiter%init(limit, single_source)
+          call limiter%init(single_source, limit_data_array, &
+               effective_interpolation_type, effective_averaging_type)
           call source_controls%append(limiter)
        end select
 

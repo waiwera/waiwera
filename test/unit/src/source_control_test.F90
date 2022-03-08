@@ -588,11 +588,13 @@ contains
             end select
          end select
 
-      type is (source_control_total_limiter_type)
-         call test%assert(10._dp, source_control%limit, "total limiter limit")
+      type is (limiter_table_source_control_type)
+         call test%assert(10._dp, source_control%table%average(interval, 1), &
+              "total limiter limit")
 
-      type is (source_control_steam_limiter_type)
-         call test%assert(5._dp, source_control%limit, "steam limiter limit")
+      type is (steam_limiter_table_source_control_type)
+         call test%assert(5._dp, source_control%table%average(interval, 1), &
+              "steam limiter limit")
 
       end select
       stopped = PETSC_FALSE

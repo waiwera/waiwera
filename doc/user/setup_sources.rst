@@ -542,27 +542,37 @@ Limiter
 
 In some situations it is necessary to limit the flow rate of a source, so that it cannot exceed a prescribed maximum value -- for example, when a well has a prescribed maximum flow rate to comply with regulations. In the simplest case the limit applies to the total flow, but in other situations the source output may be passed through a separator, and the limit is set on either separated steam or water.
 
-A limiter may be added to a source in the Waiwera JSON input file by specifying the **"limiter"** value in that source. This value is an object, which has a **"type"** string value specifying whether the limit is set on total flow, separated water flow or steam flow. The flow rate limit is set via the **"limit"** value. Note that this value is positive and applies to the absolute value of the flow rate.
+A limiter may be added to a source in the Waiwera JSON input file by specifying the **"limiter"** value in that source. This value is an object, which has a **"type"** string value specifying whether the limit is set on total flow, separated water flow or steam flow.
+
+The flow rate limit is set via the **"limit"** value. Note that this value is positive and applies to the absolute value of the flow rate. It can be either a single constant limit or a rank-2 array representing an interpolation table of limit values vs. time.
+
+If a time-dependent limit is specified, it is possible to specify the interpolation and averaging type for the interpolation table via the **"interpolation"** and **"averaging"** values respectively (see :ref:`interpolation_tables`). Note that the limit value for each simulation time step will be taken from the average value of the specified limit table over the time step.
 
 .. note::
    **JSON object**: limiter source control
 
    **JSON path**: source[`index`]["limiter"]
 
-   +---------------------+------------+------------+------------------+
-   |**name**             |**type**    |**default** |**value**         |
-   +---------------------+------------+------------+------------------+
-   |"type"               |string      |"total"     |limiter type      |
-   |                     |            |            |("total" | "water"|
-   |                     |            |            || "steam")        |
-   |                     |            |            |                  |
-   +---------------------+------------+------------+------------------+
-   |"limit"              |number      |1 kg/s      |flow rate limit   |
-   |                     |            |            |(kg/s)            |
-   +---------------------+------------+------------+------------------+
-   |"separator_pressure" |number      |0.55 MPa    |separator pressure|
-   |                     |            |            |(Pa)              |
-   +---------------------+------------+------------+------------------+
+   +---------------------+------------+------------+-------------------------+
+   |**name**             |**type**    |**default** |**value**                |
+   +---------------------+------------+------------+-------------------------+
+   |"type"               |string      |"total"     |limiter type             |
+   |                     |            |            |("total" | "water"       |
+   |                     |            |            || "steam")               |
+   |                     |            |            |                         |
+   +---------------------+------------+------------+-------------------------+
+   |"limit"              |number |    |1 kg/s      |flow rate limit          |
+   |                     |array       |            |(kg/s)                   |
+   +---------------------+------------+------------+-------------------------+
+   |"interpolation"      |string      |"linear"    |interpolation method for |
+   |                     |            |            |limit table              |
+   +---------------------+------------+------------+-------------------------+
+   |"averaging"          |string      |"integrate" |averaging method for     |
+   |                     |            |            |limit table              |
+   +---------------------+------------+------------+-------------------------+
+   |"separator_pressure" |number      |0.55 MPa    |separator pressure       |
+   |                     |            |            |(Pa)                     |
+   +---------------------+------------+------------+-------------------------+
 
 When the "type" value is "water" or "steam", a separator (see :ref:`source_separators`) is used to compute the flow rates of separated steam and water. The separator pressure may be specified in the limiter specification (for backwards compatibility), although this is now deprecated: it should be specified  via the **"separator.pressure"** value for the source instead.
 
@@ -585,6 +595,18 @@ Here is the same source but with a limit of 3.5 kg/s on the steam flow, and a se
       "deliverability": {"pressure": 2e5, "productivity": 1e-12},
       "separator": {"pressure": 50e5},
       "limiter": {"limit": 3.5, "type": "steam"}}
+   ]}
+
+Here the above source is modified with a time-dependent steam limit, reducing stepwise from 3.5 kg/s at time zero to 2.5 kg/s after 1e6 seconds:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 100,
+      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+      "separator": {"pressure": 50e5},
+      "limiter": {"limit": [[0, 3.5], [1e6, 2.5]],
+                  "interpolation": "step", "type": "steam"}}
    ]}
 
 .. index:: source controls; direction
