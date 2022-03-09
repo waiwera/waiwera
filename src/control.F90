@@ -30,10 +30,9 @@ module control_module
   type, public, abstract :: object_control_type
      !! Type for controlling how object parameters vary with time.
      private
-     type(list_type), public :: objects
+     type(list_type), public :: objects !! List of objects to control
    contains
      private
-     procedure(object_control_iterator_procedure), deferred, public :: iterator
      procedure(object_control_destroy_procedure), deferred, public :: destroy
   end type object_control_type
 
@@ -65,13 +64,6 @@ module control_module
 
   abstract interface
 
-     subroutine object_control_iterator_procedure(self, node, stopped)
-       !! Wrapper for objects update iterator
-       import :: object_control_type, list_node_type
-       class(object_control_type), intent(in out) :: self
-       type(list_node_type), pointer, intent(in out) :: node
-       PetscBool, intent(out) :: stopped
-     end subroutine object_control_iterator_procedure
 
      subroutine object_control_destroy_procedure(self)
        !! Object control destroy procedure
