@@ -1084,12 +1084,12 @@ contains
     subroutine source_control_list_node_data_destroy(node)
       ! Destroys source control in each list node.
 
-      use source_control_module, only: source_control_type
+      use control_module, only: object_control_type
 
       type(list_node_type), pointer, intent(in out) :: node
 
       select type (source_control => node%data)
-      class is (source_control_type)
+      class is (object_control_type)
          call source_control%destroy()
       end select
     end subroutine source_control_list_node_data_destroy
@@ -1627,9 +1627,6 @@ contains
 
       stopped = PETSC_FALSE
       select type (source_control => node%data)
-      class is (source_control_type)
-         call source_control%update(t, interval, fluid_array, &
-              fluid_section, self%eos, size(self%tracers))
       class is (integer_object_control_type)
          call source_control%update()
       class is (table_object_control_type)

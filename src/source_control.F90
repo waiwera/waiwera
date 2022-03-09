@@ -47,16 +47,6 @@ module source_control_module
   PetscInt, parameter, public :: default_source_pressure_table_coordinate = &
        SRC_PRESSURE_TABLE_COORD_TIME
 
-  type, public, abstract :: source_control_type
-     !! Abstract type for source control, controlling source
-     !! parameters over time, for one or more sources.
-     private
-     type(list_type), public :: sources
-   contains
-     procedure(source_control_destroy_procedure), public, deferred :: destroy
-     procedure(source_control_update_procedure), public, deferred :: update
-  end type source_control_type
-
   type, public, extends(table_object_control_type) :: rate_table_source_control_type
      !! Controls source rate via a table of values vs. time.
    contains
@@ -147,25 +137,17 @@ module source_control_module
      procedure, public :: destroy => deliverability_source_control_destroy
   end type
 
-  type, public, abstract, extends(source_control_type) :: source_control_pressure_reference_type
-     !! Controls a source by comparing fluid pressure with a reference
-     !! pressure (e.g. deliverability or recharge).
-     private
-     type(interpolation_table_type), public :: reference_pressure !! Reference pressure vs. time
-   contains
-     procedure, public :: set_reference_pressure_initial => &
-          source_control_set_reference_pressure_initial
-  end type source_control_pressure_reference_type
-
-  type, public, extends(source_control_pressure_reference_type) :: source_control_recharge_type
+  type, public, extends(pressure_reference_source_control_type) :: &
+       recharge_source_control_type
      !! Controls a source simulating recharge through a model boundary.
      private
      type(interpolation_table_type), public :: coefficient !! Recharge coefficient vs. time
    contains
-     procedure, public :: init => source_control_recharge_init
-     procedure, public :: destroy => source_control_recharge_destroy
-     procedure, public :: update => source_control_recharge_update
-  end type source_control_recharge_type
+     private
+     procedure, public :: init => recharge_source_control_init
+     procedure, public :: iterator => recharge_source_control_iterator
+     procedure, public :: destroy => recharge_source_control_destroy
+  end type
 
   type, public, extends(integer_object_control_type) :: direction_source_control_type
      !! Allows source to flow only in a specified direction
@@ -174,35 +156,6 @@ module source_control_module
      private
      procedure, public :: iterator => direction_source_control_iterator
   end type direction_source_control_type
-
-  abstract interface
-
-     subroutine source_control_init_procedure(self)
-       !! Initialises a source control object.
-       import :: source_control_type
-       class(source_control_type), intent(in out) :: self
-     end subroutine source_control_init_procedure
-
-     subroutine source_control_destroy_procedure(self)
-       !! Destroys a source control object.
-       import :: source_control_type
-       class(source_control_type), intent(in out) :: self
-     end subroutine source_control_destroy_procedure
-
-     subroutine source_control_update_procedure(self, t, interval, &
-          local_fluid_data, local_fluid_section, eos, num_tracers)
-       use petscis
-       !! Updates sources at the specified time.
-       import :: source_control_type, eos_type
-       class(source_control_type), intent(in out) :: self
-       PetscReal, intent(in) :: t, interval(2)
-       PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-       PetscSection, intent(in) :: local_fluid_section
-       class(eos_type), intent(in) :: eos
-       PetscInt, intent(in) :: num_tracers
-     end subroutine source_control_update_procedure
-
-  end interface
 
 contains
 
@@ -466,6 +419,8 @@ contains
 
     call self%objects%destroy()
     call self%reference_pressure%destroy()
+    self%local_fluid_data => null()
+    self%local_fluid_section => null()
 
   end subroutine pressure_reference_source_control_destroy
 
@@ -654,125 +609,69 @@ contains
 
     call self%pressure_reference_source_control_type%destroy()
     call self%productivity%destroy()
-    self%local_fluid_data => null()
-    self%local_fluid_section => null()
 
   end subroutine deliverability_source_control_destroy
   
 !------------------------------------------------------------------------
-
-  subroutine source_control_set_reference_pressure_initial(self, &
-       global_fluid_data, global_fluid_section, fluid_range_start, eos)
-    !! Sets reference pressure for pressure reference control to be
-    !! the initial fluid pressure in the source cell.
-
-    use dm_utils_module, only: global_section_offset
-
-    class(source_control_pressure_reference_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
-    PetscSection, intent(in) :: global_fluid_section
-    PetscInt, intent(in) :: fluid_range_start
-    class(eos_type), intent(in) :: eos
-
-    call self%sources%traverse(ref_pressure_iterator)
-
-  contains
-
-    subroutine ref_pressure_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: c, fluid_offset
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         c = source%local_cell_index
-         fluid_offset = global_section_offset(global_fluid_section, c, &
-              fluid_range_start)
-         call source%fluid%assign(global_fluid_data, fluid_offset)
-         self%reference_pressure%val(1, 1) = source%fluid%pressure
-      end select
-
-    end subroutine ref_pressure_iterator
-
-  end subroutine source_control_set_reference_pressure_initial
-
-!------------------------------------------------------------------------
 ! Recharge source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_recharge_init(self, recharge_data, &
-       interpolation_type, averaging_type, reference_pressure_data, &
-       sources)
-    !! Initialises source_control_recharge object.
+  subroutine recharge_source_control_init(self, objects, recharge_data, &
+       interpolation_type, averaging_type, reference_pressure_data)
+    !! Initialises recharge source control.
 
-    class(source_control_recharge_type), intent(in out) :: self
+    class(recharge_source_control_type), intent(in out) :: self
+    type(list_type), intent(in) :: objects
     PetscReal, intent(in) :: recharge_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
-    type(list_type), intent(in) :: sources
 
+    self%objects = objects
     call self%coefficient%init(recharge_data, &
          interpolation_type, averaging_type)
     call self%reference_pressure%init(reference_pressure_data, &
          interpolation_type, averaging_type)
-    self%sources = sources
 
-  end subroutine source_control_recharge_init
+  end subroutine recharge_source_control_init
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_recharge_destroy(self)
-    !! Destroys source_control_recharge object.
+  subroutine recharge_source_control_iterator(self, node, stopped)
+    !! Updates source flow rates for recharge source control.
 
-    class(source_control_recharge_type), intent(in out) :: self
+    class(recharge_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
+    ! Locals:
+    PetscReal :: reference_pressure, pressure_difference
+    PetscReal :: recharge_coefficient
 
+    stopped = PETSC_FALSE
+
+    select type(source => node%data)
+    type is (source_type)
+
+       call source%assign_fluid_local(self%local_fluid_data, self%local_fluid_section)
+       reference_pressure = self%reference_pressure%average(self%interval, 1)
+       pressure_difference = source%fluid%pressure - reference_pressure
+       recharge_coefficient = self%coefficient%average(self%interval, 1)
+       call source%set_rate(-recharge_coefficient * pressure_difference)
+
+    end select
+
+  end subroutine recharge_source_control_iterator
+
+!------------------------------------------------------------------------
+
+  subroutine recharge_source_control_destroy(self)
+    !! Destroys recharge source control.
+
+    class(recharge_source_control_type), intent(in out) :: self
+
+    call self%pressure_reference_source_control_type%destroy()
     call self%coefficient%destroy()
-    call self%reference_pressure%destroy()
-    call self%sources%destroy()
 
-  end subroutine source_control_recharge_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_recharge_update(self, t, interval, &
-       local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update flow rate for source_control_recharge_type.
-
-    class(source_control_recharge_type), intent(in out) :: self
-    PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: num_tracers
-
-    call self%sources%traverse(recharge_iterator)
-
-  contains
-
-    subroutine recharge_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal :: reference_pressure, pressure_difference
-      PetscReal :: recharge_coefficient
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         call source%assign_fluid_local(local_fluid_data, local_fluid_section)
-         reference_pressure = self%reference_pressure%average(interval, 1)
-         pressure_difference = source%fluid%pressure - reference_pressure
-         recharge_coefficient = self%coefficient%average(interval, 1)
-         call source%set_rate(-recharge_coefficient * pressure_difference)
-      end select
-
-    end subroutine recharge_iterator
-
-  end subroutine source_control_recharge_update
+  end subroutine recharge_source_control_destroy
 
 !------------------------------------------------------------------------
 ! Direction source control:

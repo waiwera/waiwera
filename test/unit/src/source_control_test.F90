@@ -172,9 +172,6 @@ contains
       PetscBool, intent(out) :: stopped
       stopped = PETSC_FALSE
       select type (source_control => node%data)
-      class is (source_control_type)
-         call source_control%update(t, interval, fluid_array, &
-              fluid_section, eos, size(tracers))
       class is (integer_object_control_type)
          call source_control%update()
       class is (table_object_control_type)
@@ -231,7 +228,7 @@ contains
     subroutine source_control_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
       select type (source_control => node%data)
-      class is (source_control_type)
+      class is (object_control_type)
          call source_control%destroy()
       end select
     end subroutine source_control_list_node_data_destroy
@@ -506,9 +503,6 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       select type (source_control => node%data)
-      class is (source_control_type)
-         call source_control%update(t, interval, local_fluid_array, &
-              local_fluid_section, eos, size(tracer_names))
       class is (integer_object_control_type)
          call source_control%update()
       class is (table_object_control_type)
@@ -576,8 +570,8 @@ contains
             end select
          end select
 
-      type is (source_control_recharge_type)
-         select type (source => source_control%sources%head%data)
+      type is (recharge_source_control_type)
+         select type (source => source_control%objects%head%data)
          type is (source_type)
             s = source%local_source_index
             source_offset = global_section_offset(source_section, s, source_range_start)
@@ -656,7 +650,7 @@ contains
      subroutine source_control_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
       select type (source_control => node%data)
-      class is (source_control_type)
+      class is (object_control_type)
          call source_control%destroy()
       end select
     end subroutine source_control_list_node_data_destroy

@@ -9,7 +9,7 @@ module source_setup_test
   use zofu
   use source_module, only: source_type
   use source_setup_module
-  use source_control_module, only: source_control_type
+  use control_module, only: object_control_type
   use source_network_group_module, only: source_network_group_type
   use eos_wge_module
   use list_module
@@ -604,7 +604,7 @@ contains
   subroutine source_control_list_node_data_destroy(node)
     type(list_node_type), pointer, intent(in out) :: node
     select type (source_control => node%data)
-    class is (source_control_type)
+    class is (object_control_type)
        call source_control%destroy()
     end select
   end subroutine source_control_list_node_data_destroy

@@ -1839,7 +1839,7 @@ contains
     ! Locals:
     type(fson_value), pointer :: recharge_json
     PetscReal, allocatable :: reference_pressure_array(:,:)
-    type(source_control_recharge_type), pointer :: recharge
+    type(recharge_source_control_type), pointer :: recharge
     PetscBool :: calculate_reference_pressure
     PetscReal, allocatable :: recharge_array(:,:)
     PetscInt :: pressure_table_coordinate
@@ -1886,12 +1886,12 @@ contains
          call single_source%append(source)
 
          allocate(recharge)
-         call recharge%init(recharge_array, interpolation_type, &
-              averaging_type, reference_pressure_array, single_source)
+         call recharge%init(single_source, recharge_array, interpolation_type, &
+              averaging_type, reference_pressure_array)
 
          if (calculate_reference_pressure) then
             call recharge%set_reference_pressure_initial(fluid_data, &
-                 fluid_section, fluid_range_start, eos)
+                 fluid_section, fluid_range_start)
          end if
 
          call source_controls%append(recharge)
