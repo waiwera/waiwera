@@ -56,6 +56,7 @@ module source_network_module
      procedure, public :: zero_separated_flows => source_network_node_zero_separated_flows
      procedure, public :: separate => source_network_node_separate
      procedure, public :: set_rate => source_network_node_set_rate
+     procedure, public :: scale_rate => source_network_node_scale_rate
      procedure, public :: add_flows => source_network_node_add_flows
      procedure, public :: add_separated_flows => source_network_node_add_separated_flows
      procedure, public :: destroy => source_network_node_destroy
@@ -156,6 +157,18 @@ contains
     call self%get_separated_flows()
 
   end subroutine source_network_node_set_rate
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_scale_rate(self, scale)
+    !! Scales network node flow rate by specified scale factor.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscReal, intent(in) :: scale !! Flow rate scale factor
+
+    call self%set_rate(self%rate * scale)
+
+  end subroutine source_network_node_scale_rate
 
 !------------------------------------------------------------------------
 

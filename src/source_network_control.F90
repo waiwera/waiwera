@@ -135,7 +135,7 @@ contains
        associate(limit => self%value(1))
          rate = self%get_rate(network_node)
          scale = self%get_scale(rate, limit)
-         call network_node%set_rate(network_node%rate * scale)
+         call network_node%scale_rate(scale)
        end associate
     end select
 
