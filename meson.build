@@ -57,6 +57,7 @@ waiwera_sources = [
   'src/separator.F90',
   'src/source_network.F90',
   'src/source_control.F90',
+  'src/source_network_control.F90',
   'src/source_network_group.F90',
   'src/source.F90',
   'src/source_setup.F90',

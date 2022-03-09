@@ -32,10 +32,6 @@ module source_control_module
   implicit none
   private
 
-  PetscInt, parameter, public :: max_limiter_type_length = 5
-  character(max_limiter_type_length), parameter, public :: &
-       default_source_control_limiter_type_str = "total"
-    PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
   PetscReal, parameter, public :: default_deliverability_productivity = 1.e-11_dp
   PetscReal, parameter, public :: default_deliverability_reference_pressure = 1.e5_dp
   PetscReal, parameter, public :: default_recharge_coefficient = 1.e-2_dp
@@ -78,31 +74,6 @@ module source_control_module
      procedure, public :: iterator => tracer_table_source_control_iterator
   end type tracer_table_source_control_type
 
-  type, public, extends(table_object_control_type) :: limiter_table_source_control_type
-     !! Limits total flow through a source. Derived types limit
-     !! separated water or steam flow rather than total flow.
-   contains
-     private
-     procedure :: get_rate => limiter_table_source_control_get_rate
-     procedure :: rate_scale => limiter_table_source_control_rate_scale
-     procedure, public :: iterator => limiter_table_source_control_iterator
-  end type limiter_table_source_control_type
-
-  type, public, extends(limiter_table_source_control_type) :: &
-       water_limiter_table_source_control_type
-     !! Limits separated water flow (e.g. from a separator) through a source.
-   contains
-     private
-     procedure :: get_rate => water_limiter_table_source_control_get_rate
-  end type water_limiter_table_source_control_type
-
-  type, public, extends(limiter_table_source_control_type) :: &
-       steam_limiter_table_source_control_type
-     !! Limits separated steam flow (e.g. from a separator) through a source.
-   contains
-     private
-     procedure :: get_rate => steam_limiter_table_source_control_get_rate
-  end type steam_limiter_table_source_control_type
 
   type, public, extends(object_control_type) :: pressure_reference_source_control_type
      private
@@ -242,87 +213,6 @@ contains
     end select
 
   end subroutine tracer_table_source_control_iterator
-
-!------------------------------------------------------------------------
-! Limiter table source controls:
-!------------------------------------------------------------------------
-
-  PetscReal function limiter_table_source_control_get_rate(self, source) &
-       result(rate)
-    !! Get total flow rate from source.
-    class(limiter_table_source_control_type), intent(in out) :: self
-    class(source_type), intent(in) :: source
-
-    rate = source%rate
-
-  end function limiter_table_source_control_get_rate
-
-!------------------------------------------------------------------------
-
-  PetscReal function water_limiter_table_source_control_get_rate(self, source) &
-       result(rate)
-    !! Get separated water rate from source.
-    class(water_limiter_table_source_control_type), intent(in out) :: self
-    class(source_type), intent(in) :: source
-
-    rate = source%water_rate
-
-  end function water_limiter_table_source_control_get_rate
-
-!------------------------------------------------------------------------
-
-  PetscReal function steam_limiter_table_source_control_get_rate(self, source) &
-       result(rate)
-    !! Get separated steam rate from source.
-    class(steam_limiter_table_source_control_type), intent(in out) :: self
-    class(source_type), intent(in) :: source
-
-    rate = source%steam_rate
-
-  end function steam_limiter_table_source_control_get_rate
-
-!------------------------------------------------------------------------
-
-  PetscReal function limiter_table_source_control_rate_scale(self, rate, &
-       limit) result(scale)
-
-    class(limiter_table_source_control_type), intent(in out) :: self
-    PetscReal, intent(in) :: rate, limit
-    ! Locals:
-    PetscReal :: abs_rate
-    PetscReal, parameter :: small = 1.e-6_dp
-
-    abs_rate = abs(rate)
-    if ((abs_rate > limit) .and. (abs_rate > small)) then
-       scale = limit / abs_rate
-    else
-       scale = 1._dp
-    end if
-
-  end function limiter_table_source_control_rate_scale
-
-!------------------------------------------------------------------------
-
-  subroutine limiter_table_source_control_iterator(self, node, stopped)
-    !! Update flow so limit is not exceeded.
-
-    class(limiter_table_source_control_type), intent(in out) :: self
-    type(list_node_type), pointer, intent(in out) :: node
-    PetscBool, intent(out) :: stopped
-    ! Locals:
-    PetscReal :: rate, scale
-
-    stopped = PETSC_FALSE
-    select type(source => node%data)
-    type is (source_type)
-       associate(limit => self%value(1))
-         rate = self%get_rate(source)
-         scale = self%rate_scale(rate, limit)
-         call source%set_rate(source%rate * scale)
-       end associate
-    end select
-
-  end subroutine limiter_table_source_control_iterator
 
 !------------------------------------------------------------------------
 ! Pressure reference source control:

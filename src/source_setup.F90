@@ -31,10 +31,11 @@ module source_setup_module
   use eos_module
   use thermodynamics_module, only: thermodynamics_type
   use source_module
+  use source_network_module
+  use source_network_control_module
+  use source_network_group_module
   use source_control_module
   use separator_module
-  use source_network_group_module
-  use source_network_module
 
   implicit none
   private
@@ -1930,7 +1931,7 @@ contains
     character(max_interpolation_str_length) :: interpolation_str
     character(max_averaging_str_length) :: averaging_str
     PetscReal, allocatable :: limit_data_array(:,:)
-    class(limiter_table_source_control_type), pointer :: limiter
+    class(limiter_table_source_network_control_type), pointer :: limiter
 
     if (fson_has_mpi(source_json, "limiter")) then
 
@@ -1990,11 +1991,11 @@ contains
          call single_source%append(source)
           select case (limiter_type_str)
           case ("water")
-             allocate(water_limiter_table_source_control_type :: limiter)
+             allocate(water_limiter_table_source_network_control_type :: limiter)
           case ("steam")
-             allocate(steam_limiter_table_source_control_type :: limiter)
+             allocate(steam_limiter_table_source_network_control_type :: limiter)
           case default
-             allocate(limiter_table_source_control_type :: limiter)
+             allocate(limiter_table_source_network_control_type :: limiter)
           end select
           call limiter%init(single_source, limit_data_array, &
                effective_interpolation_type, effective_averaging_type)

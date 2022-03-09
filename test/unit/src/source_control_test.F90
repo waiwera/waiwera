@@ -10,6 +10,7 @@ module source_control_test
   use source_module
   use control_module
   use source_control_module
+  use source_network_control_module
   use source_network_group_module
   use source_setup_module
 
@@ -592,11 +593,11 @@ contains
             end select
          end select
 
-      type is (limiter_table_source_control_type)
+      type is (limiter_table_source_network_control_type)
          call test%assert(10._dp, source_control%table%average(interval, 1), &
               "total limiter limit")
 
-      type is (steam_limiter_table_source_control_type)
+      type is (steam_limiter_table_source_network_control_type)
          call test%assert(5._dp, source_control%table%average(interval, 1), &
               "steam limiter limit")
 
