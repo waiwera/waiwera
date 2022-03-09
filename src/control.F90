@@ -62,8 +62,29 @@ module control_module
      procedure, public :: destroy => table_object_control_destroy
   end type table_object_control_type
 
-  abstract interface
+  type, public, abstract :: vector_control_type
+     !! Type for controlling how selected vector values vary with
+     !! time.
+     private
+     PetscInt, allocatable, public :: indices(:) !! Array indices (block indices for block vector)
+   contains
+     private
+     procedure(vector_control_destroy_procedure), deferred, public :: destroy
+  end type vector_control_type
 
+  type, public, extends(vector_control_type) :: table_vector_control_type
+     !! Controls vector values using an interpolation table of
+     !! time-dependent values.
+     private
+     type(interpolation_table_type), public :: table !! Table of values vs. time
+   contains
+     private
+     procedure, public :: init => table_vector_control_init
+     procedure, public :: update => table_vector_control_update
+     procedure, public :: destroy => table_vector_control_destroy
+  end type table_vector_control_type
+
+  abstract interface
 
      subroutine object_control_destroy_procedure(self)
        !! Object control destroy procedure
@@ -71,12 +92,18 @@ module control_module
        class(object_control_type), intent(in out) :: self
      end subroutine object_control_destroy_procedure
 
+     subroutine vector_control_destroy_procedure(self)
+       !! Vector control destroy procedure
+       import :: vector_control_type
+       class(vector_control_type), intent(in out) :: self
+     end subroutine vector_control_destroy_procedure
+
   end interface
 
 contains
 
 !------------------------------------------------------------------------
-! Integer table control routines
+! Integer object control routines
 !------------------------------------------------------------------------
 
   subroutine integer_object_control_init(self, objects, value)
@@ -140,7 +167,7 @@ contains
   end subroutine integer_object_control_destroy
 
 !------------------------------------------------------------------------
-! Object table control routines
+! Table object control routines
 !------------------------------------------------------------------------
 
   subroutine table_object_control_init(self, objects, data, interpolation_type, &
@@ -206,10 +233,56 @@ contains
     class(table_object_control_type), intent(in out) :: self
 
     call self%objects%destroy()
+    if (allocated(self%value)) deallocate(self%value)
     call self%table%destroy()
-    deallocate(self%value)
 
   end subroutine table_object_control_destroy
+
+!------------------------------------------------------------------------
+! Table vector control routines
+!------------------------------------------------------------------------
+
+  subroutine table_vector_control_init(self, data, indices, &
+       interpolation_type)
+    !! Initialises table_object_control object.
+
+    class(table_vector_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: data(:,:) !! Data for interpolation table
+    PetscInt, intent(in) :: indices(:) !! Vector indices
+    PetscInt, intent(in) :: interpolation_type !! Interpolation type for data
+
+    call self%table%init(data, interpolation_type)
+    self%indices = indices
+
+  end subroutine table_vector_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine table_vector_control_update(self, time, &
+       vector_array, section, range_start)
+    !! Updates vector values by interpolating table at the specified
+    !! time. Derived types override this routine to update the vector
+    !! values.
+
+    class(table_vector_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: time !! Time of update
+    PetscReal, pointer, contiguous, intent(in) :: vector_array(:) !! Array on vector
+    PetscSection, intent(in) :: section !! Global section for vector
+    PetscInt, intent(in) :: range_start !! Range start for vector
+
+  end subroutine table_vector_control_update
+
+!------------------------------------------------------------------------
+
+  subroutine table_vector_control_destroy(self)
+    !! Destroys a table vector control.
+
+    class(table_vector_control_type), intent(in out) :: self
+
+    if (allocated(self%indices)) deallocate(self%indices)
+    call self%table%destroy()
+
+  end subroutine table_vector_control_destroy
 
 !------------------------------------------------------------------------
 

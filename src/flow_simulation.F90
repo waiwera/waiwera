@@ -1130,12 +1130,12 @@ contains
     subroutine rock_control_list_node_data_destroy(node)
       ! Destroys rock control in each list node.
 
-      use rock_control_module, only: rock_control_type
+      use control_module, only: table_vector_control_type
 
       type(list_node_type), pointer, intent(in out) :: node
 
       select type (rock_control => node%data)
-      class is (rock_control_type)
+      class is (table_vector_control_type)
          call rock_control%destroy()
       end select
     end subroutine rock_control_list_node_data_destroy
@@ -2255,7 +2255,7 @@ contains
     !! controls.
 
     use dm_utils_module, only: global_vec_section
-    use rock_control_module, only: rock_control_type
+    use control_module, only: table_vector_control_type
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
@@ -2280,7 +2280,7 @@ contains
 
       stopped = PETSC_FALSE
       select type (rock_control => node%data)
-      class is (rock_control_type)
+      class is (table_vector_control_type)
          call rock_control%update(t, rock_data, &
               rock_section, self%rock_range_start)
       end select

@@ -390,7 +390,7 @@ contains
       PetscReal, intent(in) :: start_time
       ! Locals:
       PetscReal, allocatable :: permeability_table(:,:)
-      type(rock_control_permeability_table_type), pointer :: control
+      type(permeability_table_rock_control_type), pointer :: control
       character(max_interpolation_str_length) :: interpolation_str
       PetscInt :: i, interpolation_type
       IS :: cell_IS
@@ -415,7 +415,7 @@ contains
          call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
          allocate(control)
-         call control%init(permeability_table, interpolation_type, rock_cell)
+         call control%init(permeability_table, rock_cell, interpolation_type)
          deallocate(rock_cell, ghost_cell)
          call rock_controls%append(control)
          call control%update(start_time, rock_array, section, range_start)
@@ -436,7 +436,7 @@ contains
       PetscReal, intent(in) :: start_time
       ! Locals:
       PetscReal, allocatable :: porosity_table(:,:)
-      type(rock_control_porosity_table_type), pointer :: control
+      type(porosity_table_rock_control_type), pointer :: control
       character(max_interpolation_str_length) :: interpolation_str
       PetscInt :: i, interpolation_type
       IS :: cell_IS
@@ -461,7 +461,7 @@ contains
          call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
          call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
          allocate(control)
-         call control%init(porosity_table, interpolation_type, rock_cell)
+         call control%init(porosity_table, rock_cell, interpolation_type)
          deallocate(rock_cell, ghost_cell)
          call rock_controls%append(control)
          call control%update(start_time, rock_array, section, range_start)

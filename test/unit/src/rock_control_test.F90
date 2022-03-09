@@ -8,6 +8,7 @@ module rock_control_test
   use kinds_module
   use zofu
   use rock_module
+  use control_module
   use rock_control_module
   use rock_setup_module
 
@@ -144,7 +145,7 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       select type (rock_control => node%data)
-      class is (rock_control_type)
+      class is (table_vector_control_type)
          call rock_control%update(t, rock_array, rock_section, rock_range_start)
       end select
       stopped = PETSC_FALSE
@@ -153,7 +154,7 @@ contains
      subroutine rock_control_list_node_data_destroy(node)
       type(list_node_type), pointer, intent(in out) :: node
       select type (rock_control => node%data)
-      class is (rock_control_type)
+      class is (table_vector_control_type)
          call rock_control%destroy()
       end select
     end subroutine rock_control_list_node_data_destroy
