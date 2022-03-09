@@ -1680,7 +1680,7 @@ contains
     ! Locals:
     type(fson_value), pointer :: deliv_json
     PetscReal, allocatable :: reference_pressure_array(:,:)
-    type(source_control_deliverability_type), pointer :: deliv
+    type(deliverability_source_control_type), pointer :: deliv
     PetscBool :: calculate_reference_pressure
     PetscBool :: calculate_PI_from_rate
     PetscReal :: initial_rate, threshold
@@ -1727,17 +1727,17 @@ contains
          call single_source%append(source)
 
          allocate(deliv)
-          call deliv%init(productivity_array, interpolation_type, &
-               averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, threshold, single_source)
+         call deliv%init(single_source, productivity_array, &
+              interpolation_type, averaging_type, reference_pressure_array, &
+               pressure_table_coordinate, threshold)
 
           if (calculate_reference_pressure) then
              call deliv%set_reference_pressure_initial(fluid_data, &
-                  fluid_section, fluid_range_start, eos)
+                  fluid_section, fluid_range_start)
           end if
           if (calculate_PI_from_rate) then
              call deliv%calculate_PI_from_rate(start_time, initial_rate, &
-                  fluid_data, fluid_section, fluid_range_start, eos, &
+                  fluid_data, fluid_section, fluid_range_start, &
                   deliv%productivity%val(1, 1))
           end if
           if (deliv%threshold > 0._dp) then

@@ -179,6 +179,9 @@ contains
          call source_control%update()
       class is (table_object_control_type)
          call source_control%update(interval)
+      class is (pressure_reference_source_control_type)
+         call source_control%update(t, interval, local_fluid_array, &
+              local_fluid_section)
       end select
     end subroutine source_control_iterator
 
@@ -510,6 +513,9 @@ contains
          call source_control%update()
       class is (table_object_control_type)
          call source_control%update(interval)
+      class is (pressure_reference_source_control_type)
+         call source_control%update(t, interval, local_fluid_array, &
+              local_fluid_section)
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_update_iterator
@@ -521,8 +527,8 @@ contains
 
       select type (source_control => node%data)
 
-      type is (source_control_deliverability_type)
-         select type (source => source_control%sources%head%data)
+      type is (deliverability_source_control_type)
+         select type (source => source_control%objects%head%data)
          type is (source_type)
             s = source%local_source_index
             source_offset = global_section_offset(source_section, s, &

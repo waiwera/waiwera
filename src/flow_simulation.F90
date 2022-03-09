@@ -1386,7 +1386,7 @@ contains
     use face_module, only: face_type
     use source_module, only: source_type
     use control_module
-    use source_control_module, only: source_control_type
+    use source_control_module
     use source_network_group_module, only: source_network_group_type
     use profiling_module, only: cell_inflows_event, sources_event
 
@@ -1634,6 +1634,9 @@ contains
          call source_control%update()
       class is (table_object_control_type)
          call source_control%update(interval)
+      class is (pressure_reference_source_control_type)
+         call source_control%update(t, interval, fluid_array, &
+              fluid_section)
       end select
 
     end subroutine source_control_iterator

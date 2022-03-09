@@ -114,6 +114,39 @@ module source_control_module
      procedure :: get_rate => steam_limiter_table_source_control_get_rate
   end type steam_limiter_table_source_control_type
 
+  type, public, extends(object_control_type) :: pressure_reference_source_control_type
+     private
+     type(interpolation_table_type), public :: reference_pressure !! Reference pressure vs. time
+     PetscReal :: time !! Time
+     PetscReal :: interval(2) !! Time interval
+     PetscReal, pointer, contiguous :: local_fluid_data(:)
+     PetscSection, pointer :: local_fluid_section
+   contains
+     procedure, public :: set_reference_pressure_initial => &
+          pressure_reference_source_control_set_initial
+     procedure, public :: iterator => pressure_reference_source_control_iterator
+     procedure, public :: update => pressure_reference_source_control_update
+     procedure, public :: destroy => pressure_reference_source_control_destroy
+  end type pressure_reference_source_control_type
+
+  type, public, extends(pressure_reference_source_control_type) :: &
+       deliverability_source_control_type
+     !! Controls a source on deliverability.
+     private
+     PetscInt, public :: pressure_table_coordinate !! Coordinate variable of pressure table
+     type(interpolation_table_type), public :: productivity !! Productivity index vs. time
+     PetscReal, public :: threshold !! Pressure threshold below which deliverability is switched on (< 0 for always on)
+     PetscReal, public :: threshold_productivity !! Productivity index computed from flow rate and used when pressure drops below threshold
+   contains
+     private
+     procedure :: flow_rate => deliverability_source_control_flow_rate
+     procedure, public :: calculate_PI_from_rate => &
+          deliverability_source_control_calculate_PI_from_rate
+     procedure, public :: init => deliverability_source_control_init
+     procedure, public :: iterator => deliverability_source_control_iterator
+     procedure, public :: destroy => deliverability_source_control_destroy
+  end type
+
   type, public, abstract, extends(source_control_type) :: source_control_pressure_reference_type
      !! Controls a source by comparing fluid pressure with a reference
      !! pressure (e.g. deliverability or recharge).
@@ -123,21 +156,6 @@ module source_control_module
      procedure, public :: set_reference_pressure_initial => &
           source_control_set_reference_pressure_initial
   end type source_control_pressure_reference_type
-
-  type, public, extends(source_control_pressure_reference_type) :: source_control_deliverability_type
-     !! Controls a source on deliverability.
-     private
-     PetscInt, public :: pressure_table_coordinate !! Coordinate variable of pressure table
-     type(interpolation_table_type), public :: productivity !! Productivity index vs. time
-     PetscReal, public :: threshold !! Pressure threshold below which deliverability is switched on (< 0 for always on)
-     PetscReal, public :: threshold_productivity !! Productivity index computed from flow rate and used when pressure drops below threshold
-   contains
-     procedure, public :: init => source_control_deliverability_init
-     procedure, public :: destroy => source_control_deliverability_destroy
-     procedure, public :: update => source_control_deliverability_update
-     procedure, public :: calculate_PI_from_rate => &
-          source_control_deliverability_calculate_PI_from_rate
-  end type source_control_deliverability_type
 
   type, public, extends(source_control_pressure_reference_type) :: source_control_recharge_type
      !! Controls a source simulating recharge through a model boundary.
@@ -357,20 +375,19 @@ contains
 ! Pressure reference source control:
 !------------------------------------------------------------------------
 
-  subroutine source_control_set_reference_pressure_initial(self, &
-       global_fluid_data, global_fluid_section, fluid_range_start, eos)
+  subroutine pressure_reference_source_control_set_initial(self, &
+       global_fluid_data, global_fluid_section, fluid_range_start)
     !! Sets reference pressure for pressure reference control to be
     !! the initial fluid pressure in the source cell.
 
     use dm_utils_module, only: global_section_offset
 
-    class(source_control_pressure_reference_type), intent(in out) :: self
+    class(pressure_reference_source_control_type), intent(in out) :: self
     PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
     PetscSection, intent(in) :: global_fluid_section
     PetscInt, intent(in) :: fluid_range_start
-    class(eos_type), intent(in) :: eos
 
-    call self%sources%traverse(ref_pressure_iterator)
+    call self%objects%traverse(ref_pressure_iterator)
 
   contains
 
@@ -393,165 +410,154 @@ contains
 
     end subroutine ref_pressure_iterator
 
-  end subroutine source_control_set_reference_pressure_initial
+  end subroutine pressure_reference_source_control_set_initial
 
 !------------------------------------------------------------------------
-! Deliverability source control:
+
+  subroutine pressure_reference_source_control_iterator(self, node, stopped)
+    !! Update iterator for pressure reference source control. Derived
+    !! types override this routine to update their sources.
+
+    class(pressure_reference_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
+
+    stopped = PETSC_FALSE
+
+  end subroutine pressure_reference_source_control_iterator
+
 !------------------------------------------------------------------------
 
-  subroutine source_control_deliverability_init(self, productivity_data, &
-       interpolation_type, averaging_type, reference_pressure_data, &
-       pressure_table_coordinate, threshold, sources)
-    !! Initialises source_control_deliverability object.
+  subroutine pressure_reference_source_control_update(self, time, interval, &
+       local_fluid_data, local_fluid_section)
+    !! Updates source flow rates for pressure reference source controls.
 
-    class(source_control_deliverability_type), intent(in out) :: self
+    class(pressure_reference_source_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: time !! Time
+    PetscReal, intent(in) :: interval(2) !! Time interval
+    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:) !! Fluid data array
+    PetscSection, target, intent(in) :: local_fluid_section !! Fluid section
+
+    self%time = time
+    self%interval = interval
+    self%local_fluid_data => local_fluid_data
+    self%local_fluid_section => local_fluid_section
+    call self%objects%traverse(iterator)
+
+  contains
+
+    subroutine iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      call self%iterator(node, stopped)
+
+    end subroutine iterator
+
+  end subroutine pressure_reference_source_control_update
+
+!------------------------------------------------------------------------
+
+  subroutine pressure_reference_source_control_destroy(self)
+    !! Destroys pressure reference source control.
+
+    class(pressure_reference_source_control_type), intent(in out) :: self
+
+    call self%objects%destroy()
+    call self%reference_pressure%destroy()
+
+  end subroutine pressure_reference_source_control_destroy
+
+!------------------------------------------------------------------------
+! Deliverability source control  
+!------------------------------------------------------------------------
+
+  subroutine deliverability_source_control_init(self, objects, &
+       productivity_data, interpolation_type, averaging_type, &
+       reference_pressure_data, pressure_table_coordinate, threshold)
+    !! Initialises deliverability source_control.
+
+    class(deliverability_source_control_type), intent(in out) :: self
+    type(list_type), intent(in) :: objects
     PetscReal, intent(in) :: productivity_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: pressure_table_coordinate
     PetscReal, intent(in) :: threshold
-    type(list_type), intent(in) :: sources
 
+    self%objects = objects
     call self%productivity%init(productivity_data, &
          interpolation_type, averaging_type)
     call self%reference_pressure%init(reference_pressure_data, &
          interpolation_type, averaging_type)
     self%pressure_table_coordinate = pressure_table_coordinate
     self%threshold = threshold
-    self%sources = sources
 
-  end subroutine source_control_deliverability_init
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_deliverability_destroy(self)
-    !! Destroys source_control_deliverability object.
-
-    class(source_control_deliverability_type), intent(in out) :: self
-
-    call self%productivity%destroy()
-    call self%reference_pressure%destroy()
-    call self%sources%destroy()
-
-  end subroutine source_control_deliverability_destroy
+  end subroutine deliverability_source_control_init
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_deliverability_update(self, t, interval, &
-       local_fluid_data, local_fluid_section, eos, num_tracers)
-    !! Update flow rate for source_control_deliverability_type.
+  PetscReal function deliverability_source_control_flow_rate(self, source, &
+       productivity) result(flow_rate)
+    !! Computes source flow rate using the deliverability relation and
+    !! the specified productivity index.
 
-    class(source_control_deliverability_type), intent(in out) :: self
-    PetscReal, intent(in) :: t, interval(2)
-    PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
-    PetscSection, intent(in) :: local_fluid_section
-    class(eos_type), intent(in) :: eos
-    PetscInt, intent(in) :: num_tracers
+    class(deliverability_source_control_type), intent(in out) :: self
+    type(source_type), intent(in)  :: source !! Source
+    PetscReal, intent(in) :: productivity !! Productivity index
+    ! Locals:
+    PetscInt :: p, phases
+    PetscReal :: h, reference_pressure, pressure_difference
+    PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
 
-    call self%sources%traverse(deliverability_iterator)
+    allocate(phase_mobilities(source%fluid%num_phases))
+    allocate(phase_flow_fractions(source%fluid%num_phases))
+    phase_mobilities = source%fluid%phase_mobilities()
+    phase_flow_fractions = phase_mobilities / sum(phase_mobilities)
 
-  contains
+    select case (self%pressure_table_coordinate)
+    case (SRC_PRESSURE_TABLE_COORD_TIME)
+       reference_pressure = self%reference_pressure%average(self%interval, 1)
+    case (SRC_PRESSURE_TABLE_COORD_ENTHALPY)
+       h = source%fluid%specific_enthalpy(phase_flow_fractions)
+       reference_pressure = self%reference_pressure%interpolate(h, 1)
+    end select
 
-    subroutine deliverability_iterator(node, stopped)
+    pressure_difference = source%fluid%pressure - reference_pressure
+    flow_rate = 0._dp
 
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal :: productivity, qd
+    phases = nint(source%fluid%phase_composition)
+    do p = 1, source%fluid%num_phases
+       if (btest(phases, p - 1)) then
+          flow_rate = flow_rate - productivity * &
+               phase_mobilities(p) * pressure_difference
+       end if
+    end do
 
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
+    deallocate(phase_mobilities, phase_flow_fractions)
 
-         call source%assign_fluid_local(local_fluid_data, local_fluid_section)
-         
-         if (self%threshold <= 0._dp) then
-            productivity = self%productivity%average(interval, 1)
-            call source%set_rate(flow_rate(source, productivity))
-         else
-            if (source%fluid%pressure < self%threshold) then
-               qd = flow_rate(source, self%threshold_productivity)
-               if (qd > source%rate) then
-                  call source%set_rate(qd)
-               else ! don't use qd, but update PI
-                  call self%calculate_PI_from_rate(t, source%rate, &
-                       local_fluid_data, local_fluid_section, -1, &
-                       eos, self%threshold_productivity)
-               end if
-            else
-               call self%calculate_PI_from_rate(t, source%rate, &
-                    local_fluid_data, local_fluid_section, -1, &
-                    eos, self%threshold_productivity)
-            end if
-         end if
-
-      end select
-
-    end subroutine deliverability_iterator
-
-!........................................................................
-
-    PetscReal function flow_rate(source, productivity)
-      !! Computes flow rate using deliverability relation and the
-      !! specified productivity index.
-
-      type(source_type), intent(in)  :: source
-      PetscReal, intent(in) :: productivity
-      ! Locals:
-      PetscInt :: p, phases
-      PetscReal :: h, reference_pressure, pressure_difference
-      PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
-
-      allocate(phase_mobilities(source%fluid%num_phases))
-      allocate(phase_flow_fractions(source%fluid%num_phases))
-      phase_mobilities = source%fluid%phase_mobilities()
-      phase_flow_fractions = phase_mobilities / sum(phase_mobilities)
-
-      select case (self%pressure_table_coordinate)
-      case (SRC_PRESSURE_TABLE_COORD_TIME)
-         reference_pressure = self%reference_pressure%average(interval, 1)
-      case (SRC_PRESSURE_TABLE_COORD_ENTHALPY)
-         h = source%fluid%specific_enthalpy(phase_flow_fractions)
-         reference_pressure = self%reference_pressure%interpolate(h, 1)
-      end select
-
-      pressure_difference = source%fluid%pressure - reference_pressure
-      flow_rate = 0._dp
-
-      phases = nint(source%fluid%phase_composition)
-      do p = 1, source%fluid%num_phases
-         if (btest(phases, p - 1)) then
-            flow_rate = flow_rate - productivity * &
-                 phase_mobilities(p) * pressure_difference
-         end if
-      end do
-
-      deallocate(phase_mobilities, phase_flow_fractions)
-
-    end function flow_rate
-
-  end subroutine source_control_deliverability_update
+  end function deliverability_source_control_flow_rate
 
 !------------------------------------------------------------------------
 
-  subroutine source_control_deliverability_calculate_PI_from_rate(&
+  subroutine deliverability_source_control_calculate_PI_from_rate(&
        self, time, rate, fluid_data, fluid_section, fluid_range_start, &
-       eos, productivity)
+       productivity)
     !! Calculates productivity index for deliverability control, from
     !! specified initial flow rate.
 
     use dm_utils_module, only: global_section_offset, section_offset
 
-    class(source_control_deliverability_type), intent(in out) :: self
+    class(deliverability_source_control_type), intent(in out) :: self
     PetscReal, intent(in) :: time
     PetscReal, intent(in) :: rate
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start !! Specify -1 for local data rather than global
-    class(eos_type), intent(in) :: eos
     PetscReal, intent(out) :: productivity
 
-    call self%sources%traverse(PI_iterator)
+    call self%objects%traverse(PI_iterator)
 
   contains
 
@@ -595,7 +601,103 @@ contains
 
     end subroutine PI_iterator
 
-  end subroutine source_control_deliverability_calculate_PI_from_rate
+  end subroutine deliverability_source_control_calculate_PI_from_rate
+
+!------------------------------------------------------------------------
+
+  subroutine deliverability_source_control_iterator(self, node, stopped)
+    !! Updates source flow rates for deliverability source control.
+
+    class(deliverability_source_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
+
+    ! Locals:
+    PetscReal :: productivity, qd
+
+    stopped = PETSC_FALSE
+    select type(source => node%data)
+    type is (source_type)
+
+       call source%assign_fluid_local(self%local_fluid_data, &
+            self%local_fluid_section)
+
+       if (self%threshold <= 0._dp) then
+          productivity = self%productivity%average(self%interval, 1)
+          call source%set_rate(self%flow_rate(source, productivity))
+       else
+          if (source%fluid%pressure < self%threshold) then
+             qd = self%flow_rate(source, self%threshold_productivity)
+             if (qd > source%rate) then
+                call source%set_rate(qd)
+             else ! don't use qd, but update PI
+                call self%calculate_PI_from_rate(self%time, source%rate, &
+                     self%local_fluid_data, self%local_fluid_section, -1, &
+                     self%threshold_productivity)
+             end if
+          else
+             call self%calculate_PI_from_rate(self%time, source%rate, &
+                  self%local_fluid_data, self%local_fluid_section, -1, &
+                  self%threshold_productivity)
+          end if
+       end if
+
+    end select
+
+  end subroutine deliverability_source_control_iterator
+
+!------------------------------------------------------------------------
+
+  subroutine deliverability_source_control_destroy(self)
+    !! Destroys deliverability source control.
+    class(deliverability_source_control_type), intent(in out) :: self
+
+    call self%pressure_reference_source_control_type%destroy()
+    call self%productivity%destroy()
+    self%local_fluid_data => null()
+    self%local_fluid_section => null()
+
+  end subroutine deliverability_source_control_destroy
+  
+!------------------------------------------------------------------------
+
+  subroutine source_control_set_reference_pressure_initial(self, &
+       global_fluid_data, global_fluid_section, fluid_range_start, eos)
+    !! Sets reference pressure for pressure reference control to be
+    !! the initial fluid pressure in the source cell.
+
+    use dm_utils_module, only: global_section_offset
+
+    class(source_control_pressure_reference_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: global_fluid_data(:)
+    PetscSection, intent(in) :: global_fluid_section
+    PetscInt, intent(in) :: fluid_range_start
+    class(eos_type), intent(in) :: eos
+
+    call self%sources%traverse(ref_pressure_iterator)
+
+  contains
+
+    subroutine ref_pressure_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: c, fluid_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         c = source%local_cell_index
+         fluid_offset = global_section_offset(global_fluid_section, c, &
+              fluid_range_start)
+         call source%fluid%assign(global_fluid_data, fluid_offset)
+         self%reference_pressure%val(1, 1) = source%fluid%pressure
+      end select
+
+    end subroutine ref_pressure_iterator
+
+  end subroutine source_control_set_reference_pressure_initial
 
 !------------------------------------------------------------------------
 ! Recharge source control:
