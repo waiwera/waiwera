@@ -50,7 +50,8 @@ contains
        fluid_vector, fluid_range_start, source_vector, source_range_start, &
        source_network_group_vector, source_network_group_range_start, &
        sources, num_sources, num_source_network_groups, source_controls, source_index, &
-       source_network_group_index, separated_sources, source_network_groups, logfile, err)
+       source_network_group_index, separated_sources, source_network_groups, &
+       source_network_controls, logfile, err)
     !! Sets up sinks / sources, source controls and source groups.
 
     use dm_utils_module
@@ -80,6 +81,7 @@ contains
     IS, intent(in out) :: source_network_group_index !! IS defining natural-to-global source network group ordering
     type(list_type), intent(out) :: separated_sources !! List of sources with separators
     type(list_type), intent(in out) :: source_network_groups !! List of source network groups
+    type(list_type), intent(in out) :: source_network_controls !! List of source network controls
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
@@ -128,6 +130,7 @@ contains
        call separated_sources%init(owner = PETSC_FALSE)
        call source_controls%init(owner = PETSC_TRUE)
        call source_network_groups%init(owner = PETSC_TRUE)
+       call source_network_controls%init(owner = PETSC_TRUE)
 
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
@@ -158,14 +161,15 @@ contains
           if (fson_has_mpi(json, "network.group")) then
              call fson_get_mpi(json, "network.group", groups_json)
              num_source_network_groups = fson_value_count_mpi(groups_json, ".")
-             call setup_source_network_group_index_dict(groups_json, num_source_network_groups, &
-                  source_network_group_index_dict)
+             call setup_source_network_group_index_dict(groups_json, &
+                  num_source_network_groups, source_network_group_index_dict)
              call setup_group_dag(groups_json, num_source_network_groups, &
                   group_dag, group_specs_array)
              call group_dag%sort(group_order, err)
              if (err == 0) then
-                call init_source_network_groups(num_source_network_groups, source_network_groups, &
-                     num_local_root_groups, err)
+                call init_source_network_groups(num_source_network_groups, &
+                     source_network_groups, source_network_controls, &
+                     num_local_root_groups, logfile, err)
              end if
           end if
           
@@ -758,14 +762,16 @@ contains
 !........................................................................
 
     subroutine init_source_network_groups(num_groups, source_network_groups, &
-         num_local_root_groups, err)
-      !! Initialise source network groups and return number of local
-      !! root groups. An error is returned if any unrecognised group
-      !! input nodes are specified.
+         source_network_controls, num_local_root_groups, logfile, err)
+      !! Initialise source network groups and controls and return
+      !! number of local root groups. An error is returned if any
+      !! unrecognised group input nodes are specified.
 
       PetscInt, intent(in) :: num_groups
       type(list_type), intent(in out) :: source_network_groups
+      type(list_type), intent(in out) :: source_network_controls
       PetscInt, intent(out) :: num_local_root_groups
+      type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
       ! Locals:
       PetscInt :: ig, i, g, group_index
@@ -792,6 +798,8 @@ contains
 
          allocate(group)
          call group%init(name)
+         call setup_inline_source_group_controls(group_json, group, &
+              source_network_controls, logfile)
 
          do i = 1, size(node_names)
             associate(node_name => node_names(i))
@@ -1910,11 +1918,6 @@ contains
        source_controls, logfile)
     !! Set up limiter source control for each cell source.
 
-    use utils_module, only: str_to_lower, str_array_index
-    use interpolation_module, only: interpolation_type_from_str, &
-         averaging_type_from_str, max_interpolation_str_length, &
-         max_averaging_str_length
-
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
@@ -1923,53 +1926,16 @@ contains
     type(list_type), intent(in out) :: source_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    type(fson_value), pointer :: limiter_json
-    character(8) :: limiter_type_str
-    PetscReal :: const_limit
-    PetscInt :: variable_type
     PetscInt :: effective_interpolation_type, effective_averaging_type
-    character(max_interpolation_str_length) :: interpolation_str
-    character(max_averaging_str_length) :: averaging_str
+    character(8) :: limiter_type_str
     PetscReal, allocatable :: limit_data_array(:,:)
-    class(limiter_table_source_network_control_type), pointer :: limiter
 
     if (fson_has_mpi(source_json, "limiter")) then
 
-       call fson_get_mpi(source_json, "limiter", limiter_json)
-
-       call fson_get_mpi(limiter_json, "type", &
-            default_source_control_limiter_type_str, &
-            limiter_type_str, logfile, srcstr)
-       limiter_type_str = str_to_lower(limiter_type_str)
-
-       if (fson_has_mpi(limiter_json, "limit")) then
-          variable_type = fson_type_mpi(limiter_json, "limit")
-          select case (variable_type)
-          case (TYPE_REAL, TYPE_INTEGER)
-             call fson_get_mpi(limiter_json, "limit", &
-                  default_source_control_limiter_limit, val = const_limit)
-             allocate(limit_data_array(1, 2))
-             limit_data_array(1, :) = [0._dp, const_limit]
-          case (TYPE_ARRAY)
-             call fson_get_mpi(limiter_json, "limit", val = limit_data_array)
-          end select
-       else
-          allocate(limit_data_array(1, 2))
-          limit_data_array(1, :) = [0._dp, const_limit]
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               [trim(srcstr) // "limiter.limit"], real_values = [const_limit])
-       end if
-
-       effective_interpolation_type = interpolation_type
-       effective_averaging_type = averaging_type
-       if (fson_has_mpi(limiter_json, "interpolation")) then
-          call fson_get_mpi(limiter_json, "interpolation", val = interpolation_str)
-          effective_interpolation_type = interpolation_type_from_str(interpolation_str)
-       end if
-       if (fson_has_mpi(limiter_json, "averaging")) then
-          call fson_get_mpi(limiter_json, "averaging", val = averaging_str)
-          effective_averaging_type = averaging_type_from_str(averaging_str)
-       end if
+       call read_limiter_control_parameters(source_json, srcstr, &
+            interpolation_type, averaging_type, limiter_type_str, &
+            limit_data_array, effective_interpolation_type, &
+            effective_averaging_type, logfile)
 
        call spec_sources%traverse(limiter_iterator)
 
@@ -1981,30 +1947,116 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      type(list_type) :: single_source
 
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         call single_source%init(owner = PETSC_FALSE)
-         call single_source%append(source)
-          select case (limiter_type_str)
-          case ("water")
-             allocate(water_limiter_table_source_network_control_type :: limiter)
-          case ("steam")
-             allocate(steam_limiter_table_source_network_control_type :: limiter)
-          case default
-             allocate(limiter_table_source_network_control_type :: limiter)
-          end select
-          call limiter%init(single_source, limit_data_array, &
-               effective_interpolation_type, effective_averaging_type)
-          call source_controls%append(limiter)
-       end select
+         call add_limiter(source, limiter_type_str, limit_data_array, &
+              effective_interpolation_type, effective_averaging_type, &
+              source_controls)
+      end select
 
     end subroutine limiter_iterator
 
   end subroutine setup_limiter_source_controls
+
+!------------------------------------------------------------------------
+
+  subroutine read_limiter_control_parameters(source_json, name, &
+            interpolation_type, averaging_type, limiter_type_str, &
+            limit_data_array, effective_interpolation_type, &
+            effective_averaging_type, logfile)
+    !! Reads limiter control parameters from JSON input.
+
+    use utils_module, only: str_to_lower
+    use interpolation_module, only: interpolation_type_from_str, &
+         averaging_type_from_str, max_interpolation_str_length, &
+         max_averaging_str_length
+
+    type(fson_value), pointer, intent(in) :: source_json
+    character(len=*) :: name
+    PetscInt, intent(in) :: interpolation_type, averaging_type
+    character(8), intent(out) :: limiter_type_str
+    PetscReal, allocatable, intent(out) :: limit_data_array(:,:)
+    PetscInt, intent(out) :: effective_interpolation_type, effective_averaging_type
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    type(fson_value), pointer :: limiter_json
+    character(max_interpolation_str_length) :: interpolation_str
+    character(max_averaging_str_length) :: averaging_str
+    PetscReal :: const_limit
+    PetscInt :: variable_type
+
+    call fson_get_mpi(source_json, "limiter", limiter_json)
+
+    call fson_get_mpi(limiter_json, "type", &
+         default_source_control_limiter_type_str, &
+         limiter_type_str, logfile, name)
+    limiter_type_str = str_to_lower(limiter_type_str)
+
+    if (fson_has_mpi(limiter_json, "limit")) then
+       variable_type = fson_type_mpi(limiter_json, "limit")
+       select case (variable_type)
+       case (TYPE_REAL, TYPE_INTEGER)
+          call fson_get_mpi(limiter_json, "limit", &
+               default_source_control_limiter_limit, val = const_limit)
+          allocate(limit_data_array(1, 2))
+          limit_data_array(1, :) = [0._dp, const_limit]
+       case (TYPE_ARRAY)
+          call fson_get_mpi(limiter_json, "limit", val = limit_data_array)
+       end select
+    else
+       allocate(limit_data_array(1, 2))
+       limit_data_array(1, :) = [0._dp, const_limit]
+       call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+            [trim(name) // "limiter.limit"], real_values = [const_limit])
+    end if
+
+    effective_interpolation_type = interpolation_type
+    effective_averaging_type = averaging_type
+    if (fson_has_mpi(limiter_json, "interpolation")) then
+       call fson_get_mpi(limiter_json, "interpolation", val = interpolation_str)
+       effective_interpolation_type = interpolation_type_from_str(interpolation_str)
+    end if
+    if (fson_has_mpi(limiter_json, "averaging")) then
+       call fson_get_mpi(limiter_json, "averaging", val = averaging_str)
+       effective_averaging_type = averaging_type_from_str(averaging_str)
+    end if
+
+  end subroutine read_limiter_control_parameters
+
+!------------------------------------------------------------------------
+
+  subroutine add_limiter(network_node, limiter_type_str, limit_data_array, &
+            effective_interpolation_type, effective_averaging_type, &
+            controls)
+    !! Creates a limiter control with the specified parameters and
+    !! adds it to the specified list of controls.
+
+    class(source_network_node_type), intent(in) :: network_node
+    character(*), intent(in) :: limiter_type_str
+    PetscReal, intent(in) :: limit_data_array(:,:)
+    PetscInt, intent(out) :: effective_interpolation_type, effective_averaging_type
+    type(list_type), intent(in out) :: controls
+    ! Locals:
+    type(list_type) :: single_node
+    class(limiter_table_source_network_control_type), pointer :: limiter
+
+    call single_node%init(owner = PETSC_FALSE)
+    call single_node%append(network_node)
+    select case (limiter_type_str)
+    case ("water")
+       allocate(water_limiter_table_source_network_control_type :: limiter)
+    case ("steam")
+       allocate(steam_limiter_table_source_network_control_type :: limiter)
+    case default
+       allocate(limiter_table_source_network_control_type :: limiter)
+    end select
+    call limiter%init(single_node, limit_data_array, &
+         effective_interpolation_type, effective_averaging_type)
+    call controls%append(limiter)
+
+  end subroutine add_limiter
 
 !------------------------------------------------------------------------
 
@@ -2056,6 +2108,75 @@ contains
     end if
 
   end subroutine setup_direction_source_control
+
+!------------------------------------------------------------------------
+
+  subroutine setup_inline_source_group_controls(group_json, group, &
+       source_network_controls, logfile)
+    !! Sets up any 'inline' source group controls for the source group
+    !! specification, i.e. controls defined implicitly in the
+    !! specification, and adds them to the source_network_controls
+    !! list.
+
+    use interpolation_module, only: interpolation_type_from_str, &
+         averaging_type_from_str, max_interpolation_str_length, &
+         max_averaging_str_length, default_interpolation_str, &
+         default_averaging_str
+
+    type(fson_value), pointer, intent(in) :: group_json
+    type(source_network_group_type), intent(in) :: group
+    type(list_type), intent(in out) :: source_network_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscInt :: interpolation_type, averaging_type
+    character(max_interpolation_str_length) :: interpolation_str
+    character(max_averaging_str_length) :: averaging_str
+
+    call fson_get_mpi(group_json, "interpolation", &
+         default_interpolation_str, interpolation_str)
+    interpolation_type = interpolation_type_from_str(interpolation_str)
+
+    call fson_get_mpi(group_json, "averaging", &
+         default_averaging_str, averaging_str)
+    averaging_type = averaging_type_from_str(averaging_str)
+
+    call setup_group_limiter_source_controls(group_json, group, &
+         interpolation_type, averaging_type, source_network_controls, &
+         logfile)
+
+  end subroutine setup_inline_source_group_controls
+
+!------------------------------------------------------------------------
+
+  subroutine setup_group_limiter_source_controls(group_json, group, &
+       interpolation_type, averaging_type, source_network_controls, &
+       logfile)
+    !! Set up limiter control on source group.
+
+    type(fson_value), pointer, intent(in) :: group_json
+    type(source_network_group_type), intent(in) :: group
+    PetscInt, intent(in) :: interpolation_type, averaging_type
+    type(list_type), intent(in out) :: source_network_controls
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    character(8) :: limiter_type_str
+    PetscReal, allocatable :: limit_data_array(:,:)
+    PetscInt :: effective_interpolation_type, effective_averaging_type
+
+    if (fson_has_mpi(group_json, "limiter")) then
+
+       call read_limiter_control_parameters(group_json, group%name, &
+            interpolation_type, averaging_type, limiter_type_str, &
+            limit_data_array, effective_interpolation_type, &
+            effective_averaging_type, logfile)
+
+       call add_limiter(group, limiter_type_str, limit_data_array, &
+            effective_interpolation_type, effective_averaging_type, &
+            source_network_controls)
+
+    end if
+
+  end subroutine setup_group_limiter_source_controls
 
 !------------------------------------------------------------------------
 

@@ -81,7 +81,8 @@ contains
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section
     PetscInt :: fluid_range_start, source_range_start, group_range_start
-    type(list_type) :: sources, source_controls, source_network_groups, separated_sources
+    type(list_type) :: sources, source_controls, source_network_groups, &
+         separated_sources, source_network_controls
     PetscInt :: total_num_sources, total_num_source_network_groups, num_zone_sources, n_all, i
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
@@ -111,7 +112,8 @@ contains
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
          sources, total_num_sources, total_num_source_network_groups, source_controls, &
-         source_is, source_network_group_is, separated_sources, source_network_groups, err = err)
+         source_is, source_network_group_is, separated_sources, source_network_groups, &
+         source_network_controls, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
@@ -168,6 +170,7 @@ contains
     call source_controls%destroy(source_control_list_node_data_destroy)
     call separated_sources%destroy()
     call source_network_groups%destroy(source_network_group_list_node_data_destroy)
+    call source_network_controls%destroy(source_control_list_node_data_destroy)
     call sources%destroy(source_list_node_data_destroy)
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
@@ -328,7 +331,8 @@ contains
     Vec :: fluid_vector, source_vector, source_network_group_vector
     PetscInt :: total_num_sources, total_num_source_network_groups
     PetscInt :: fluid_range_start, source_range_start, group_range_start
-    type(list_type) :: sources, source_controls, source_network_groups, separated_sources
+    type(list_type) :: sources, source_controls, source_network_groups, &
+         source_network_controls, separated_sources
     IS :: source_index, source_network_group_index
     PetscInt, pointer, contiguous :: source_index_array(:)
     PetscMPIInt :: rank
@@ -353,7 +357,7 @@ contains
          source_range_start, source_network_group_vector, group_range_start, &
          sources, total_num_sources, total_num_source_network_groups, source_controls, &
          source_index, source_network_group_index, separated_sources, source_network_groups, &
-         err = err)
+         source_network_controls, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
@@ -375,6 +379,7 @@ contains
     call separated_sources%destroy()
     call source_network_groups%destroy(source_network_group_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)
+    call source_network_controls%destroy(source_control_list_node_data_destroy)
     call sources%destroy(source_list_node_data_destroy)
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
@@ -413,7 +418,8 @@ contains
     PetscInt :: fluid_range_start, source_range_start, group_range_start
     PetscReal, pointer, contiguous :: source_array(:), group_array(:)
     PetscSection :: source_section, group_section
-    type(list_type) :: sources, source_controls, source_network_groups, separated_sources
+    type(list_type) :: sources, source_controls, source_network_groups, &
+         separated_sources, source_network_controls
     IS :: source_index, source_network_group_index
     PetscInt, pointer, contiguous :: source_network_group_index_array(:)
     PetscMPIInt :: rank
@@ -438,7 +444,8 @@ contains
          thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
          source_range_start, group_vector, group_range_start, &
          sources, total_num_sources, total_num_source_network_groups, source_controls, &
-         source_index, source_network_group_index, separated_sources, source_network_groups, err = err)
+         source_index, source_network_group_index, separated_sources, source_network_groups, &
+         source_network_controls, err = err)
     call test%assert(0, err, "error")
 
     if (rank == 0) then
@@ -478,6 +485,7 @@ contains
     call separated_sources%destroy()
     call source_network_groups%destroy(source_network_group_list_node_data_destroy)
     call source_controls%destroy(source_control_list_node_data_destroy)
+    call source_network_controls%destroy(source_control_list_node_data_destroy)
     call sources%destroy(source_list_node_data_destroy)
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
