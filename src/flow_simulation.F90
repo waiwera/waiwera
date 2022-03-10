@@ -66,6 +66,7 @@ module flow_simulation_module
      IS, public :: source_network_group_index !! Index set defining natural to global source network group ordering
      type(list_type), public :: source_controls !! Source/sink controls
      type(list_type), public :: source_network_groups !! Source network groups
+     type(list_type), public :: source_network_controls !! Source network controls
      type(list_type), public :: rock_controls !! Rock property controls
      type(list_type) :: separated_sources !! Sources with separators
      class(thermodynamics_type), allocatable, public :: thermo !! Fluid thermodynamic formulation
@@ -986,7 +987,8 @@ contains
                            self%sources, self%num_sources, self%num_source_network_groups, &
                            self%source_controls, self%source_index, &
                            self%source_network_group_index, self%separated_sources, &
-                           self%source_network_groups, self%logfile, err)
+                           self%source_network_groups, self%source_network_controls, &
+                           self%logfile, err)
                       if (err == 0) then
                          call self%setup_output_fields(json)
                          call self%output_face_cell_indices()
@@ -1047,12 +1049,14 @@ contains
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
     call ISDestroy(self%source_network_group_index, ierr); CHKERRQ(ierr)
     call self%separated_sources%destroy()
-    call self%source_controls%destroy(source_control_list_node_data_destroy, &
+    call self%source_controls%destroy(object_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%source_network_groups%destroy( &
          source_network_group_list_node_data_destroy, reverse = PETSC_TRUE)
+    call self%source_network_controls%destroy( &
+         object_control_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%sources%destroy(source_list_node_data_destroy)
-    call self%rock_controls%destroy(rock_control_list_node_data_destroy, &
+    call self%rock_controls%destroy(object_control_list_node_data_destroy, &
          reverse = PETSC_TRUE)
     call self%mesh%destroy()
     call self%thermo%destroy()
@@ -1081,21 +1085,6 @@ contains
 
 !........................................................................
 
-    subroutine source_control_list_node_data_destroy(node)
-      ! Destroys source control in each list node.
-
-      use control_module, only: object_control_type
-
-      type(list_node_type), pointer, intent(in out) :: node
-
-      select type (source_control => node%data)
-      class is (object_control_type)
-         call source_control%destroy()
-      end select
-    end subroutine source_control_list_node_data_destroy
-
-!........................................................................
-
     subroutine source_network_group_list_node_data_destroy(node)
       ! Destroys source group in each list node.
 
@@ -1107,7 +1096,24 @@ contains
       class is (source_network_group_type)
          call source_network_group%destroy()
       end select
+
     end subroutine source_network_group_list_node_data_destroy
+
+!........................................................................
+
+    subroutine object_control_list_node_data_destroy(node)
+      ! Destroys object control in each list node.
+
+      use control_module, only: object_control_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+
+      select type (control => node%data)
+      class is (object_control_type)
+         call control%destroy()
+      end select
+
+    end subroutine object_control_list_node_data_destroy
 
 !........................................................................
 
@@ -1124,21 +1130,6 @@ contains
       end select
 
     end subroutine source_list_node_data_destroy
-
-!........................................................................
-
-    subroutine rock_control_list_node_data_destroy(node)
-      ! Destroys rock control in each list node.
-
-      use control_module, only: table_vector_control_type
-
-      type(list_node_type), pointer, intent(in out) :: node
-
-      select type (rock_control => node%data)
-      class is (table_vector_control_type)
-         call rock_control%destroy()
-      end select
-    end subroutine rock_control_list_node_data_destroy
 
   end subroutine flow_simulation_destroy
 
