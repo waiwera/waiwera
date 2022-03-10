@@ -553,14 +553,14 @@ contains
       select type(group => node%data)
       type is (source_network_group_type)
 
-         if (group%is_root) then
+         if (group%rank == 0) then
             g = group%local_group_index
             group_offset = global_section_offset(group_section, &
               g, group_range_start)
             call group%assign(group_array, group_offset)
          end if
          call group%sum()
-         if (group%is_root) then
+         if (group%rank == 0) then
             select case (group%name)
             case ("group1")
                call group_test(group, PETSC_FALSE, -10._dp, 840.e3_dp, &

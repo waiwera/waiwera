@@ -57,7 +57,7 @@ module source_network_group_module
      private
      type(list_type), public :: nodes !! List of nodes in group
      MPI_Comm :: comm !! MPI communicator for group
-     PetscBool, public :: is_root !! Whether group is on root rank of its communicator
+     PetscInt, public :: rank !! Rank of group in its own communicator
      PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
      PetscReal, pointer, public :: group_index !! Index of source group in input
    contains
@@ -110,10 +110,9 @@ contains
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
 
     if (self%comm /= MPI_COMM_NULL) then
-       call MPI_COMM_RANK(self%comm, group_rank, ierr)
-       self%is_root = (group_rank == 0)
+       call MPI_COMM_RANK(self%comm, self%rank, ierr)
     else
-       self%is_root = PETSC_FALSE
+       self%rank = -1
     end if
 
   contains
@@ -131,7 +130,7 @@ contains
          colour = 1
          stopped = PETSC_TRUE
       type is (source_network_group_type)
-         if (n%is_root) then
+         if (n%rank == 0) then
             colour = 1
             stopped = PETSC_TRUE
          end if
@@ -189,7 +188,7 @@ contains
     class(source_network_group_type), intent(in out) :: self
     PetscReal, intent(in) :: rate !! Flow rate
 
-    if (self%is_root) then
+    if (self%rank == 0) then
        self%rate = rate
     end if
     call self%get_separated_flows()
@@ -251,7 +250,7 @@ contains
     call MPI_reduce(local_qh, total_qh, 1, &
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
 
-    if (self%is_root) then
+    if (self%rank == 0) then
        if (abs(total_q) > rate_tol) then
           self%enthalpy = total_qh / total_q
        else
@@ -310,7 +309,7 @@ contains
     call MPI_reduce(local_steam_qh, total_steam_qh, 1, &
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
 
-    if (self%is_root) then
+    if (self%rank == 0) then
        self%water_rate = total_water_q
        self%steam_rate = total_steam_q
        if (abs(total_water_q) > rate_tol) then
@@ -356,7 +355,7 @@ contains
 
     use_default = PETSC_FALSE
 
-    if (self%is_root) then
+    if (self%rank == 0) then
        if (self%rate < 0._dp) then
           if (self%separator%on) then
              call self%separate()
@@ -385,7 +384,7 @@ contains
     PetscReal, intent(in out) :: mass_flow !! Total mass flow rate
     PetscReal, intent(in out) :: energy_flow !! Total energy flow rate
 
-    if (self%is_root) then
+    if (self%rank == 0) then
        call self%source_network_node_type%add_flows(mass_flow, energy_flow)
     end if
 
@@ -405,7 +404,7 @@ contains
     PetscReal, intent(in out) :: steam_mass_flow !! Total steam mass flow rate
     PetscReal, intent(in out) :: steam_energy_flow !! Total steam energy flow rate
 
-    if (self%is_root) then
+    if (self%rank == 0) then
        call self%source_network_node_type%add_separated_flows(water_mass_flow, &
        water_energy_flow, steam_mass_flow, steam_energy_flow)
     end if
