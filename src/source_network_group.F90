@@ -67,6 +67,7 @@ module source_network_group_module
      procedure, public :: assign => source_network_group_assign
      procedure, public :: init_data => source_network_group_init_data
      procedure, public :: set_rate => source_network_group_set_rate
+     procedure, public :: scale_rate => source_network_group_scale_rate
      procedure, public :: sum => source_network_group_sum
      procedure, public :: default_separated_flows => source_network_group_default_separated_flows
      procedure, public :: get_separated_flows => source_network_group_get_separated_flows
@@ -194,6 +195,35 @@ contains
     call self%get_separated_flows()
 
   end subroutine source_network_group_set_rate
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_group_scale_rate(self, scale)
+    !! Scales source network group flow rate by specified scale
+    !! factor, by scaling flows in group nodes.
+
+    class(source_network_group_type), intent(in out) :: self
+    PetscReal, intent(in) :: scale !! Flow rate scale factor
+
+    call self%nodes%traverse(group_scale_iterator)
+    call self%sum()
+
+  contains
+
+    subroutine group_scale_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (s => node%data)
+      class is (source_network_node_type)
+         call s%scale_rate(scale)
+      end select
+
+    end subroutine group_scale_iterator
+
+  end subroutine source_network_group_scale_rate
 
 !------------------------------------------------------------------------
 
