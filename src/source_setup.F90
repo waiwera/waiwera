@@ -1927,13 +1927,13 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: effective_interpolation_type, effective_averaging_type
-    character(8) :: limiter_type_str
+    PetscInt :: flow_type
     PetscReal, allocatable :: limit_data_array(:,:)
 
     if (fson_has_mpi(source_json, "limiter")) then
 
        call read_limiter_control_parameters(source_json, srcstr, &
-            interpolation_type, averaging_type, limiter_type_str, &
+            interpolation_type, averaging_type, flow_type, &
             limit_data_array, effective_interpolation_type, &
             effective_averaging_type, logfile)
 
@@ -1951,7 +1951,7 @@ contains
       stopped = PETSC_FALSE
       select type(source => node%data)
       type is (source_type)
-         call add_limiter(source, limiter_type_str, limit_data_array, &
+         call add_limiter(source, flow_type, limit_data_array, &
               effective_interpolation_type, effective_averaging_type, &
               source_controls)
       end select
@@ -1963,12 +1963,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine read_limiter_control_parameters(source_json, name, &
-            interpolation_type, averaging_type, limiter_type_str, &
+            interpolation_type, averaging_type, flow_type, &
             limit_data_array, effective_interpolation_type, &
             effective_averaging_type, logfile)
     !! Reads limiter control parameters from JSON input.
 
-    use utils_module, only: str_to_lower
     use interpolation_module, only: interpolation_type_from_str, &
          averaging_type_from_str, max_interpolation_str_length, &
          max_averaging_str_length
@@ -1976,12 +1975,13 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: name
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    character(8), intent(out) :: limiter_type_str
+    PetscInt, intent(out) :: flow_type
     PetscReal, allocatable, intent(out) :: limit_data_array(:,:)
     PetscInt, intent(out) :: effective_interpolation_type, effective_averaging_type
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(fson_value), pointer :: limiter_json
+    character(max_limiter_type_length) :: limiter_type_str
     character(max_interpolation_str_length) :: interpolation_str
     character(max_averaging_str_length) :: averaging_str
     PetscReal :: const_limit
@@ -1992,7 +1992,7 @@ contains
     call fson_get_mpi(limiter_json, "type", &
          default_source_control_limiter_type_str, &
          limiter_type_str, logfile, name)
-    limiter_type_str = str_to_lower(limiter_type_str)
+    flow_type = separated_flow_type_from_str(limiter_type_str)
 
     if (fson_has_mpi(limiter_json, "limit")) then
        variable_type = fson_type_mpi(limiter_json, "limit")
@@ -2027,33 +2027,27 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine add_limiter(network_node, limiter_type_str, limit_data_array, &
+  subroutine add_limiter(network_node, flow_type, limit_data_array, &
             effective_interpolation_type, effective_averaging_type, &
             controls)
     !! Creates a limiter control with the specified parameters and
     !! adds it to the specified list of controls.
 
     class(source_network_node_type), intent(in) :: network_node
-    character(*), intent(in) :: limiter_type_str
+    PetscInt, intent(in) :: flow_type
     PetscReal, intent(in) :: limit_data_array(:,:)
     PetscInt, intent(out) :: effective_interpolation_type, effective_averaging_type
     type(list_type), intent(in out) :: controls
     ! Locals:
     type(list_type) :: single_node
-    class(limiter_table_source_network_control_type), pointer :: limiter
+    type(limiter_table_source_network_control_type), pointer :: limiter
 
     call single_node%init(owner = PETSC_FALSE)
     call single_node%append(network_node)
-    select case (limiter_type_str)
-    case ("water")
-       allocate(water_limiter_table_source_network_control_type :: limiter)
-    case ("steam")
-       allocate(steam_limiter_table_source_network_control_type :: limiter)
-    case default
-       allocate(limiter_table_source_network_control_type :: limiter)
-    end select
+    allocate(limiter)
     call limiter%init(single_node, limit_data_array, &
          effective_interpolation_type, effective_averaging_type)
+    limiter%flow_type = flow_type
     call controls%append(limiter)
 
   end subroutine add_limiter
@@ -2159,18 +2153,18 @@ contains
     type(list_type), intent(in out) :: source_network_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    character(8) :: limiter_type_str
+    PetscInt :: flow_type
     PetscReal, allocatable :: limit_data_array(:,:)
     PetscInt :: effective_interpolation_type, effective_averaging_type
 
     if (fson_has_mpi(group_json, "limiter")) then
 
        call read_limiter_control_parameters(group_json, group%name, &
-            interpolation_type, averaging_type, limiter_type_str, &
+            interpolation_type, averaging_type, flow_type, &
             limit_data_array, effective_interpolation_type, &
             effective_averaging_type, logfile)
 
-       call add_limiter(group, limiter_type_str, limit_data_array, &
+       call add_limiter(group, flow_type, limit_data_array, &
             effective_interpolation_type, effective_averaging_type, &
             source_network_controls)
 
