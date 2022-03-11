@@ -1,0 +1,14 @@
+{
+    "title": "Test source network limiter",
+    "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo"},
+    "source": [
+        {"name": "s1", "cell": 0, "rate": -4},
+        {"name": "s2", "cell": 11, "rate": -6}
+    ],
+    "network": {
+        "group": [
+            {"name": "group1", "in": ["s1", "s2"],
+             "limiter": {"type": "total", "limit": 8.0}}
+        ]
+    }
+}
