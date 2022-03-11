@@ -271,6 +271,8 @@ contains
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          global_to_local_vec_section, restore_dm_local_vec, section_offset
     use interpolation_module, only: INTERP_STEP, INTERP_AVERAGING_ENDPOINT
+    use separator_module, only: SEPARATED_FLOW_TYPE_TOTAL, &
+         SEPARATED_FLOW_TYPE_STEAM
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -601,13 +603,14 @@ contains
          end select
 
       type is (limiter_table_source_network_control_type)
-         call test%assert(10._dp, source_control%table%average(interval, 1), &
-              "total limiter limit")
-
-      type is (steam_limiter_table_source_network_control_type)
-         call test%assert(5._dp, source_control%table%average(interval, 1), &
-              "steam limiter limit")
-
+         select case (source_control%flow_type)
+            case (SEPARATED_FLOW_TYPE_TOTAL)
+               call test%assert(10._dp, source_control%table%average(interval, 1), &
+                    "total limiter limit")
+            case (SEPARATED_FLOW_TYPE_STEAM)
+               call test%assert(5._dp, source_control%table%average(interval, 1), &
+                    "steam limiter limit")
+            end select
       end select
       stopped = PETSC_FALSE
 
