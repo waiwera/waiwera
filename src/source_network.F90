@@ -57,6 +57,9 @@ module source_network_module
      procedure, public :: separate => source_network_node_separate
      procedure, public :: set_rate => source_network_node_set_rate
      procedure, public :: scale_rate => source_network_node_scale_rate
+     procedure, public :: get_rate_by_type => source_network_node_get_rate_by_type
+     procedure, public :: limit_rate => source_network_node_limit_rate
+     procedure, public :: get_limit_scale => source_network_node_get_limit_scale
      procedure, public :: add_flows => source_network_node_add_flows
      procedure, public :: add_separated_flows => source_network_node_add_separated_flows
      procedure, public :: destroy => source_network_node_destroy
@@ -64,6 +67,8 @@ module source_network_module
 
 contains
 
+!------------------------------------------------------------------------
+! Source network node
 !------------------------------------------------------------------------
 
   subroutine source_network_node_assign(self, data, offset)
@@ -169,6 +174,77 @@ contains
     call self%set_rate(self%rate * scale)
 
   end subroutine source_network_node_scale_rate
+
+!------------------------------------------------------------------------
+
+  PetscReal function source_network_node_get_rate_by_type(self, flow_type) &
+       result(rate)
+    !! Gets rate corresponding to the specified flow type (total,
+    !! water or steam).
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscInt, intent(in) :: flow_type
+
+    select case (flow_type)
+    case (SEPARATED_FLOW_TYPE_WATER)
+       rate = self%water_rate
+    case (SEPARATED_FLOW_TYPE_STEAM)
+       rate = self%steam_rate
+    case default
+       rate = self%rate
+    end select
+
+  end function source_network_node_get_rate_by_type
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_get_limit_scale(self, rate, limit, &
+       over, scale)
+    !! If rate is over limit, over returns true and scale returns the
+    !! scale factor required to reduce the rate to the
+    !! limit. Otherwise, over returns false (and scale returns 1).
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscReal, intent(in) :: rate !! Rate to limit
+    PetscReal, intent(in) :: limit !! Rate limit
+    PetscBool, intent(out) :: over !! Whether rate is over limit
+    PetscReal, intent(out) :: scale !! Scale factor to reduce rate to limit
+    ! Locals:
+    PetscReal :: abs_rate
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    over = PETSC_FALSE
+    scale = 1._dp
+    abs_rate = abs(rate)
+    if (abs_rate > limit) then
+       over = PETSC_TRUE
+       if (abs_rate > small) then
+          scale = limit / abs_rate
+       end if
+    end if
+
+  end subroutine source_network_node_get_limit_scale
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_limit_rate(self, flow_type, limit)
+    !! Limits network node flow rate (total, water or steam as
+    !! specified by flow_type) to specified limit.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscInt, intent(in) :: flow_type !! Flow type
+    PetscReal, intent(in) :: limit !! Flow rate limit
+    ! Locals:
+    PetscReal :: rate, scale
+    PetscBool :: over
+
+    rate = self%get_rate_by_type(flow_type)
+    call self%get_limit_scale(rate, limit, over, scale)
+    if (over) then
+       call self%scale_rate(scale)
+    end if
+
+  end subroutine source_network_node_limit_rate
 
 !------------------------------------------------------------------------
 
