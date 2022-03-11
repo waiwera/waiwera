@@ -68,6 +68,7 @@ module source_network_group_module
      procedure, public :: init_data => source_network_group_init_data
      procedure, public :: set_rate => source_network_group_set_rate
      procedure, public :: scale_rate => source_network_group_scale_rate
+     procedure, public :: limit_rate => source_network_group_limit_rate
      procedure, public :: sum => source_network_group_sum
      procedure, public :: default_separated_flows => source_network_group_default_separated_flows
      procedure, public :: get_separated_flows => source_network_group_get_separated_flows
@@ -223,6 +224,32 @@ contains
     end subroutine group_scale_iterator
 
   end subroutine source_network_group_scale_rate
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_group_limit_rate(self, flow_type, limit)
+    !! Limits source network group flow rate (total, water or steam as
+    !! specified by flow_type) to specified limit.
+
+    class(source_network_group_type), intent(in out) :: self
+    PetscInt, intent(in) :: flow_type !! Flow type
+    PetscReal, intent(in) :: limit !! Flow rate limit
+    ! Locals:
+    PetscReal :: rate, scale
+    PetscBool :: over
+    PetscErrorCode :: ierr
+
+    if (self%rank == 0) then
+       rate = self%get_rate_by_type(flow_type)
+       call self%get_limit_scale(rate, limit, over, scale)
+    end if
+    call MPI_bcast(over, 1, MPI_LOGICAL, 0, self%comm, ierr)
+    call MPI_bcast(scale, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    if (over) then
+       call self%scale_rate(scale)
+    end if
+
+  end subroutine source_network_group_limit_rate
 
 !------------------------------------------------------------------------
 
