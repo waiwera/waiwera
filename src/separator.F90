@@ -28,6 +28,9 @@ module separator_module
   implicit none
   private
 
+  PetscInt, parameter, public :: SEPARATED_FLOW_TYPE_TOTAL = 1, &
+       SEPARATED_FLOW_TYPE_WATER = 2, SEPARATED_FLOW_TYPE_STEAM = 3
+
   PetscReal, parameter, public :: default_separator_pressure = 0.55e6_dp
 
   PetscInt, parameter, public :: num_separator_variables = 1
@@ -69,7 +72,34 @@ module separator_module
      procedure, public :: destroy => separator_destroy
   end type separator_type
 
+  public :: separated_flow_type_from_str
+
 contains
+
+!------------------------------------------------------------------------
+
+  PetscInt function separated_flow_type_from_str(type_str) &
+       result(flow_type)
+    !! Returns separated flow type from string (total, water or steam), or -1
+    !! if the input string is unrecognised.
+
+    use utils_module, only: str_to_lower
+
+    character(*), intent(in) :: type_str
+    ! Locals:
+    character(:), allocatable :: type_str_lower
+
+    type_str_lower = str_to_lower(type_str)
+    select case (type_str_lower)
+    case ("water")
+       flow_type = SEPARATED_FLOW_TYPE_WATER
+    case ("steam")
+       flow_type = SEPARATED_FLOW_TYPE_STEAM
+    case default
+       flow_type = SEPARATED_FLOW_TYPE_TOTAL
+    end select
+
+  end function separated_flow_type_from_str
 
 !------------------------------------------------------------------------
 ! separator_stage_type routines
