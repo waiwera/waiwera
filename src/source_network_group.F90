@@ -101,7 +101,7 @@ contains
 
     class(source_network_group_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: colour, group_rank
+    PetscInt :: colour
     PetscErrorCode :: ierr
 
     colour = MPI_UNDEFINED
