@@ -204,7 +204,10 @@ contains
 
     class(source_network_group_type), intent(in out) :: self
     PetscReal, intent(in) :: scale !! Flow rate scale factor
+    ! Locals:
+    PetscErrorCode :: ierr
 
+    call MPI_bcast(scale, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
     call self%nodes%traverse(group_scale_iterator)
     call self%sum()
 
@@ -244,7 +247,6 @@ contains
        call self%get_limit_scale(rate, limit, over, scale)
     end if
     call MPI_bcast(over, 1, MPI_LOGICAL, 0, self%comm, ierr)
-    call MPI_bcast(scale, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
     if (over) then
        call self%scale_rate(scale)
     end if
