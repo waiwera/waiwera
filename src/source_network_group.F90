@@ -198,7 +198,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_group_scale_rate(self, scale)
+  recursive subroutine source_network_group_scale_rate(self, scale)
     !! Scales source network group flow rate by specified scale
     !! factor, by scaling flows in group nodes.
 
@@ -210,7 +210,7 @@ contains
 
   contains
 
-    subroutine group_scale_iterator(node, stopped)
+    recursive subroutine group_scale_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
