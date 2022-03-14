@@ -288,8 +288,6 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: g, group_offset
 
       stopped = PETSC_FALSE
       select type(group => node%data)
