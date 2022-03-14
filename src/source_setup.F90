@@ -808,7 +808,7 @@ contains
                  if (associated(source_dict_node)) then
                     select type (node => source_dict_node%data)
                     type is (source_type)
-                       call group%nodes%append(node)
+                       call group%in%append(node)
                     end select
                  end if
               else
@@ -816,7 +816,7 @@ contains
                  if (associated(source_network_group_dict_node)) then
                     select type (dep_group => source_network_group_dict_node%data)
                     type is (source_network_group_type)
-                       call group%nodes%append(dep_group)
+                       call group%in%append(dep_group)
                     end select
                  else
                     if (present(logfile)) then
