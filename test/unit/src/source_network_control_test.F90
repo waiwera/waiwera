@@ -85,8 +85,8 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 2
-    PetscInt, parameter :: expected_num_groups = 1
+    PetscInt, parameter :: expected_num_sources = 6
+    PetscInt, parameter :: expected_num_groups = 4
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_limiter.json")
@@ -172,6 +172,30 @@ contains
             source%water_enthalpy = 600.0e3_dp
             source%steam_rate = 0.0_dp
             source%steam_enthalpy = 0.0_dp
+         case ("s3")
+            source%enthalpy = 500.e3_dp
+            source%water_rate = -3.0_dp
+            source%water_enthalpy = 500.0e3_dp
+            source%steam_rate = 0.0_dp
+            source%steam_enthalpy = 0.0_dp
+         case ("s4")
+            source%enthalpy = 800.e3_dp
+            source%water_rate = -7.0_dp
+            source%water_enthalpy = 600.0e3_dp
+            source%steam_rate = 0.0_dp
+            source%steam_enthalpy = 0.0_dp
+         case ("s5")
+            source%enthalpy = 500.e3_dp
+            source%water_rate = -5.0_dp
+            source%water_enthalpy = 500.0e3_dp
+            source%steam_rate = 0.0_dp
+            source%steam_enthalpy = 0.0_dp
+         case ("s6")
+            source%enthalpy = 800.e3_dp
+            source%water_rate = -8.0_dp
+            source%water_enthalpy = 600.0e3_dp
+            source%steam_rate = 0.0_dp
+            source%steam_enthalpy = 0.0_dp
          end select
       end select
 
@@ -245,6 +269,14 @@ contains
             call test%assert(-3.2_dp, source%rate, "s1 rate")
          case ("s2")
             call test%assert(-4.8_dp, source%rate, "s2 rate")
+         case ("s3")
+            call test%assert(-1.5_dp, source%rate, "s3 rate")
+         case ("s4")
+            call test%assert(-3.5_dp, source%rate, "s4 rate")
+         case ("s5")
+            call test%assert(-2.5_dp, source%rate, "s5 rate")
+         case ("s6")
+            call test%assert(-4.0_dp, source%rate, "s6 rate")
          end select
       end select
 
@@ -266,6 +298,12 @@ contains
             select case (group%name)
             case ("group1")
                call test%assert(-8.0_dp, group%rate, "group1 rate")
+            case ("group2a")
+               call test%assert(-5.0_dp, group%rate, "group2a rate")
+            case ("group2b")
+               call test%assert(-6.5_dp, group%rate, "group2b rate")
+            case ("group2")
+               call test%assert(-11.5_dp, group%rate, "group2 rate")
             end select
          end if
       end select

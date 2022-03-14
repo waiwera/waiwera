@@ -3,12 +3,20 @@
     "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo"},
     "source": [
         {"name": "s1", "cell": 0, "rate": -4},
-        {"name": "s2", "cell": 11, "rate": -6}
+        {"name": "s2", "cell": 11, "rate": -6},
+        {"name": "s3", "cell": 1, "rate": -3},
+        {"name": "s4", "cell": 10, "rate": -7},
+        {"name": "s5", "cell": 2, "rate": -5},
+        {"name": "s6", "cell": 9, "rate": -8}
     ],
     "network": {
         "group": [
             {"name": "group1", "in": ["s1", "s2"],
-             "limiter": {"type": "total", "limit": 8.0}}
+             "limiter": {"type": "total", "limit": 8.0}},
+            {"name": "group2a", "in": ["s4", "s3"]},
+            {"name": "group2b", "in": ["s5", "s6"]},
+            {"name": "group2", "in": ["group2a", "group2b"],
+             "limiter": {"type": "total", "limit": 11.5}}
         ]
     }
 }
