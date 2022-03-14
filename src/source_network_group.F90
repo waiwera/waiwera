@@ -55,7 +55,7 @@ module source_network_group_module
      !! Type for group of source network nodes, e.g. multi-feed well
      !! or group of makeup wells.
      private
-     type(list_type), public :: nodes !! List of nodes in group
+     type(list_type), public :: in !! List of input nodes in group
      MPI_Comm :: comm !! MPI communicator for group
      PetscInt, public :: rank !! Rank of group in its own communicator
      PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
@@ -90,7 +90,7 @@ contains
     character(*), intent(in) :: name !! Group name
 
     self%name = name
-    call self%nodes%init(owner = PETSC_FALSE)
+    call self%in%init(owner = PETSC_FALSE)
 
   end subroutine source_network_group_init
 
@@ -98,7 +98,7 @@ contains
 
   subroutine source_network_group_init_comm(self)
     !! Initialises MPI communicator for the group. It is assumed that
-    !! the nodes list has already been populated.
+    !! the input nodes list has already been populated.
 
     class(source_network_group_type), intent(in out) :: self
     ! Locals:
@@ -106,7 +106,7 @@ contains
     PetscErrorCode :: ierr
 
     colour = MPI_UNDEFINED
-    call self%nodes%traverse(group_comm_iterator)
+    call self%in%traverse(group_comm_iterator)
 
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
 
@@ -200,7 +200,7 @@ contains
 
   recursive subroutine source_network_group_scale_rate(self, scale)
     !! Scales source network group flow rate by specified scale
-    !! factor, by scaling flows in group nodes.
+    !! factor, by scaling flows in group input nodes.
 
     class(source_network_group_type), intent(in out) :: self
     PetscReal, intent(in) :: scale !! Flow rate scale factor
@@ -208,7 +208,7 @@ contains
     PetscErrorCode :: ierr
 
     call MPI_bcast(scale, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-    call self%nodes%traverse(group_scale_iterator)
+    call self%in%traverse(group_scale_iterator)
     call self%sum()
 
   contains
@@ -272,7 +272,7 @@ contains
     local_q = 0._dp
     local_qh = 0._dp
 
-    call self%nodes%traverse(group_sum_iterator)
+    call self%in%traverse(group_sum_iterator)
 
     call MPI_reduce(local_q, total_q, 1, &
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
@@ -327,7 +327,7 @@ contains
     local_steam_q = 0._dp
     local_steam_qh = 0._dp
 
-    call self%nodes%traverse(group_sum_separated_iterator)
+    call self%in%traverse(group_sum_separated_iterator)
 
     call MPI_reduce(local_water_q, total_water_q, 1, &
          MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
@@ -449,7 +449,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    call self%nodes%destroy()
+    call self%in%destroy()
     call MPI_comm_free(self%comm, ierr)
     call self%source_network_node_type%destroy()
 
