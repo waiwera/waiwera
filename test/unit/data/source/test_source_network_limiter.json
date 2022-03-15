@@ -4,10 +4,10 @@
     "source": [
         {"name": "s1", "cell": 0, "rate": -4},
         {"name": "s2", "cell": 11, "rate": -6},
-        {"name": "s3", "cell": 1, "rate": -3},
-        {"name": "s4", "cell": 10, "rate": -7},
-        {"name": "s5", "cell": 2, "rate": -5},
-        {"name": "s6", "cell": 9, "rate": -8}
+        {"name": "s3", "cell": 3, "rate": -3},
+        {"name": "s4", "cell": 8, "rate": -7},
+        {"name": "s5", "cell": 5, "rate": -5},
+        {"name": "s6", "cell": 6, "rate": -8}
     ],
     "network": {
         "group": [
