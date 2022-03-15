@@ -1516,9 +1516,11 @@ contains
     call self%source_network_groups%traverse(source_network_group_assign_iterator)
 
     call self%separated_sources%traverse(source_separator_iterator)
-    call self%source_controls%traverse(source_control_iterator)
-    call self%sources%traverse(source_iterator)
+    call self%source_controls%traverse(control_iterator)
     call self%source_network_groups%traverse(source_network_group_iterator)
+    call self%source_network_controls%traverse(control_iterator)
+
+    call self%sources%traverse(source_iterator)
 
     call VecRestoreArrayF90(self%source_network_group, source_network_group_data, &
          ierr); CHKERRQ(ierr)
@@ -1610,24 +1612,24 @@ contains
 
 !........................................................................
 
-    subroutine source_control_iterator(node, stopped)
-      !! Applies source controls.
+    subroutine control_iterator(node, stopped)
+      !! Applies source network node controls.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
 
       stopped = PETSC_FALSE
-      select type (source_control => node%data)
+      select type (control => node%data)
       class is (integer_object_control_type)
-         call source_control%update()
+         call control%update()
       class is (table_object_control_type)
-         call source_control%update(interval)
+         call control%update(interval)
       class is (pressure_reference_source_control_type)
-         call source_control%update(t, interval, fluid_array, &
+         call control%update(t, interval, fluid_array, &
               fluid_section)
       end select
 
-    end subroutine source_control_iterator
+    end subroutine control_iterator
 
 !........................................................................
 
