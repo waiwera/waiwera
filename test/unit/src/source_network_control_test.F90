@@ -85,8 +85,8 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 6
-    PetscInt, parameter :: expected_num_groups = 4
+    PetscInt, parameter :: expected_num_sources = 8
+    PetscInt, parameter :: expected_num_groups = 5
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_limiter.json")
@@ -119,6 +119,7 @@ contains
 
     call sources%traverse(source_setup_iterator)
     call source_network_groups%traverse(group_assign_iterator)
+    call separated_sources%traverse(source_separator_iterator)
     call source_network_groups%traverse(group_sum_iterator)
     call source_network_controls%traverse(network_control_iterator)
     call sources%traverse(source_test_iterator)
@@ -145,6 +146,20 @@ contains
 
   contains
 
+    subroutine setup_source(source, h, qw, hw, qs, hs)
+      type(source_type), intent(in out) :: source
+      PetscReal, intent(in) :: h, qw, hw, qs, hs
+
+      source%enthalpy = h
+      source%water_rate = qw
+      source%water_enthalpy = hw
+      source%steam_rate = qs
+      source%steam_enthalpy = hs
+
+    end subroutine setup_source
+
+!........................................................................
+
     subroutine source_setup_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
@@ -161,41 +176,27 @@ contains
          call source%assign(source_array, source_offset)
          select case (source%name)
          case ("s1")
-            source%enthalpy = 500.e3_dp
-            source%water_rate = -4.0_dp
-            source%water_enthalpy = 500.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
+            call setup_source(source, 500.e3_dp, -4.0_dp, 500.0e3_dp, &
+                 0.0_dp, 0.0_dp)
          case ("s2")
-            source%enthalpy = 800.e3_dp
-            source%water_rate = -6.0_dp
-            source%water_enthalpy = 600.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
+            call setup_source(source, 800.e3_dp, -6.0_dp, 600.0e3_dp, &
+                 0.0_dp, 0.0_dp)
          case ("s3")
-            source%enthalpy = 500.e3_dp
-            source%water_rate = -3.0_dp
-            source%water_enthalpy = 500.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
+            call setup_source(source, 500.e3_dp, -3.0_dp, 500.0e3_dp, &
+                 0.0_dp, 0.0_dp)
          case ("s4")
-            source%enthalpy = 800.e3_dp
-            source%water_rate = -7.0_dp
-            source%water_enthalpy = 600.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
+            call setup_source(source, 800.e3_dp, -7.0_dp, 600.0e3_dp, &
+                 0.0_dp, 0.0_dp)
          case ("s5")
-            source%enthalpy = 500.e3_dp
-            source%water_rate = -5.0_dp
-            source%water_enthalpy = 500.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
+            call setup_source(source, 500.e3_dp, -5.0_dp, 500.0e3_dp, &
+                 0.0_dp, 0.0_dp)
          case ("s6")
-            source%enthalpy = 800.e3_dp
-            source%water_rate = -8.0_dp
-            source%water_enthalpy = 600.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
+            call setup_source(source, 800.e3_dp, -8.0_dp, 600.0e3_dp, &
+                 0.0_dp, 0.0_dp)
+         case ("s7")
+            call setup_source(source, 1200.e3_dp, 0._dp, 0._dp, 0._dp, 0._dp)
+         case ("s8")
+            call setup_source(source, 1750.e3_dp, 0._dp, 0._dp, 0._dp, 0._dp)
          end select
       end select
 
@@ -223,6 +224,21 @@ contains
       end select
 
     end subroutine group_assign_iterator
+
+!........................................................................
+
+    subroutine source_separator_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         call source%get_separated_flows()
+      end select
+
+    end subroutine source_separator_iterator
 
 !........................................................................
 
@@ -256,6 +272,21 @@ contains
 
 !........................................................................
 
+    subroutine flow_test(node, rate, water_rate, steam_rate)
+
+      class(source_network_node_type), intent(in) :: node
+      PetscReal, intent(in) :: rate, water_rate, steam_rate
+
+      call test%assert(rate, node%rate, trim(node%name) // " rate")
+      call test%assert(water_rate, node%water_rate, &
+           trim(node%name) // " water rate")
+      call test%assert(steam_rate, node%steam_rate, &
+           trim(node%name) //" steam rate")
+
+    end subroutine flow_test
+
+!........................................................................
+
     subroutine source_test_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
@@ -266,17 +297,23 @@ contains
       type is (source_type)
          select case (source%name)
          case ("s1")
-            call test%assert(-3.2_dp, source%rate, "s1 rate")
+            call flow_test(source, -3.2_dp, 0.0_dp, 0.0_dp)
          case ("s2")
-            call test%assert(-4.8_dp, source%rate, "s2 rate")
+            call flow_test(source, -4.8_dp, 0.0_dp, 0.0_dp)
          case ("s3")
-            call test%assert(-1.5_dp, source%rate, "s3 rate")
+            call flow_test(source, -1.5_dp, 0.0_dp, 0.0_dp)
          case ("s4")
-            call test%assert(-3.5_dp, source%rate, "s4 rate")
+            call flow_test(source, -3.5_dp, 0.0_dp, 0.0_dp)
          case ("s5")
-            call test%assert(-2.5_dp, source%rate, "s5 rate")
+            call flow_test(source, -2.5_dp, 0.0_dp, 0.0_dp)
          case ("s6")
-            call test%assert(-4.0_dp, source%rate, "s6 rate")
+            call flow_test(source, -4.0_dp, 0.0_dp, 0.0_dp)
+         case ("s7")
+            call flow_test(source, -1.2556341098337822_dp, &
+                 -0.922167171793673_dp, -0.333466938040109_dp)
+         case ("s8")
+            call flow_test(source, -1.6741788131117095_dp, &
+                 -0.8076457511518187_dp, -0.8665330619598908_dp)
          end select
       end select
 
@@ -295,13 +332,16 @@ contains
          if (group%rank == 0) then
             select case (group%name)
             case ("group1")
-               call test%assert(-8.0_dp, group%rate, "group1 rate")
+               call flow_test(group, -8.0_dp, 0.0_dp, 0.0_dp)
             case ("group2a")
-               call test%assert(-5.0_dp, group%rate, "group2a rate")
+               call flow_test(group, -5.0_dp, 0.0_dp, 0.0_dp)
             case ("group2b")
-               call test%assert(-6.5_dp, group%rate, "group2b rate")
+               call flow_test(group, -6.5_dp, 0.0_dp, 0.0_dp)
             case ("group2")
-               call test%assert(-11.5_dp, group%rate, "group2 rate")
+               call flow_test(group, -11.5_dp, 0.0_dp, 0.0_dp)
+            case ("group3")
+               call flow_test(group, -2.9298129229454917_dp, &
+                    -1.7298129229454917_dp, -1.2_dp)
             end select
          end if
       end select
