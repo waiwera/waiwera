@@ -254,6 +254,7 @@ contains
     call MPI_bcast(over, 1, MPI_LOGICAL, rank, PETSC_COMM_WORLD, ierr)
     if (over) then
        call self%scale_rate(scale)
+       call self%sum_out()
     end if
 
   end subroutine source_network_group_limit_rate
