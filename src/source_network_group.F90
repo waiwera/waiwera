@@ -71,6 +71,7 @@ module source_network_group_module
      procedure, public :: scale_rate => source_network_group_scale_rate
      procedure, public :: limit_rate => source_network_group_limit_rate
      procedure, public :: sum => source_network_group_sum
+     procedure, public :: sum_out => source_network_group_sum_out
      procedure, public :: default_separated_flows => source_network_group_default_separated_flows
      procedure, public :: get_separated_flows => source_network_group_get_separated_flows
      procedure, public :: add_separated_flows => source_network_group_add_separated_flows
@@ -308,6 +309,24 @@ contains
     end subroutine group_sum_iterator
 
   end subroutine source_network_group_sum
+
+!------------------------------------------------------------------------
+
+  recursive subroutine source_network_group_sum_out(self)
+    !! Re-computes downstream flow rate, enthalpy etc. in output
+    !! network group (if there is one).
+
+    class(source_network_group_type), intent(in out) :: self
+
+    if (associated(self%out)) then
+       select type (group => self%out)
+       class is (source_network_group_type)
+         call group%sum()
+         call group%sum_out()
+       end select
+    end if
+
+  end subroutine source_network_group_sum_out
 
 !------------------------------------------------------------------------
 
