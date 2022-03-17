@@ -9,7 +9,10 @@
         {"name": "s5", "cell": 5, "rate": -5},
         {"name": "s6", "cell": 6, "rate": -8},
         {"name": "s7", "cell": 4, "rate": -1.5, "separator": {"pressure": 0.5e6}},
-        {"name": "s8", "cell": 7, "rate": -2, "separator": {"pressure": 0.6e6}}
+        {"name": "s8", "cell": 7, "rate": -2, "separator": {"pressure": 0.6e6}},
+        {"name": "s9", "cell": 0, "rate": -3},
+        {"name": "s10", "cell": 11, "rate": -4},
+        {"name": "s11", "cell": 4, "rate": -5}
     ],
     "network": {
         "group": [
@@ -20,7 +23,10 @@
             {"name": "group2", "in": ["group2a", "group2b"],
              "limiter": {"type": "total", "limit": 11.5}},
             {"name": "group3", "in": ["s7", "s8"],
-             "limiter": {"type": "steam", "limit": 1.2}}
+             "limiter": {"type": "steam", "limit": 1.2}},
+            {"name": "group4a", "in": ["s9", "s10"],
+             "limiter": {"limit": 2.8}},
+            {"name": "group4", "in": ["group4a", "s11"]}
         ]
     }
 }

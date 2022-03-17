@@ -85,8 +85,8 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 8
-    PetscInt, parameter :: expected_num_groups = 5
+    PetscInt, parameter :: expected_num_sources = 11
+    PetscInt, parameter :: expected_num_groups = 7
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_limiter.json")
@@ -146,20 +146,6 @@ contains
 
   contains
 
-    subroutine setup_source(source, h, qw, hw, qs, hs)
-      type(source_type), intent(in out) :: source
-      PetscReal, intent(in) :: h, qw, hw, qs, hs
-
-      source%enthalpy = h
-      source%water_rate = qw
-      source%water_enthalpy = hw
-      source%steam_rate = qs
-      source%steam_enthalpy = hs
-
-    end subroutine setup_source
-
-!........................................................................
-
     subroutine source_setup_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
@@ -176,27 +162,27 @@ contains
          call source%assign(source_array, source_offset)
          select case (source%name)
          case ("s1")
-            call setup_source(source, 500.e3_dp, -4.0_dp, 500.0e3_dp, &
-                 0.0_dp, 0.0_dp)
+            source%enthalpy = 500.e3_dp
          case ("s2")
-            call setup_source(source, 800.e3_dp, -6.0_dp, 600.0e3_dp, &
-                 0.0_dp, 0.0_dp)
+            source%enthalpy = 800.e3_dp
          case ("s3")
-            call setup_source(source, 500.e3_dp, -3.0_dp, 500.0e3_dp, &
-                 0.0_dp, 0.0_dp)
+            source%enthalpy = 500.e3_dp
          case ("s4")
-            call setup_source(source, 800.e3_dp, -7.0_dp, 600.0e3_dp, &
-                 0.0_dp, 0.0_dp)
+            source%enthalpy = 800.e3_dp
          case ("s5")
-            call setup_source(source, 500.e3_dp, -5.0_dp, 500.0e3_dp, &
-                 0.0_dp, 0.0_dp)
+            source%enthalpy = 500.e3_dp
          case ("s6")
-            call setup_source(source, 800.e3_dp, -8.0_dp, 600.0e3_dp, &
-                 0.0_dp, 0.0_dp)
+            source%enthalpy = 800.e3_dp
          case ("s7")
-            call setup_source(source, 1200.e3_dp, 0._dp, 0._dp, 0._dp, 0._dp)
+            source%enthalpy = 1200.e3_dp
          case ("s8")
-            call setup_source(source, 1750.e3_dp, 0._dp, 0._dp, 0._dp, 0._dp)
+            source%enthalpy = 1750.e3_dp
+         case ("s9")
+            source%enthalpy = 500.e3_dp
+         case ("s10")
+            source%enthalpy = 600.e3_dp
+         case ("s11")
+            source%enthalpy = 450.e3_dp
          end select
       end select
 
@@ -314,6 +300,12 @@ contains
          case ("s8")
             call flow_test(source, -1.6741788131117095_dp, &
                  -0.8076457511518187_dp, -0.8665330619598908_dp)
+         case ("s9")
+            call flow_test(source, -1.2_dp, 0.0_dp, 0.0_dp)
+         case ("s10")
+            call flow_test(source, -1.6_dp, 0.0_dp, 0.0_dp)
+         case ("s11")
+            call flow_test(source, -5.0_dp, 0.0_dp, 0.0_dp)
          end select
       end select
 
@@ -342,6 +334,10 @@ contains
             case ("group3")
                call flow_test(group, -2.9298129229454917_dp, &
                     -1.7298129229454917_dp, -1.2_dp)
+            case ("group4a")
+               call flow_test(group, -2.8_dp, 0.0_dp, 0.0_dp)
+            case ("group4")
+               call flow_test(group, -7.8_dp, 0.0_dp, 0.0_dp)
             end select
          end if
       end select
