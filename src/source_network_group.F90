@@ -56,6 +56,7 @@ module source_network_group_module
      !! or group of makeup wells.
      private
      type(list_type), public :: in !! List of input nodes in group
+     class(source_network_node_type), pointer, public :: out !! Output node for group (if any)
      MPI_Comm :: comm !! MPI communicator for group
      PetscInt, public :: rank !! Rank of group in its own communicator
      PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
@@ -91,6 +92,7 @@ contains
 
     self%name = name
     call self%in%init(owner = PETSC_FALSE)
+    self%out => null()
 
   end subroutine source_network_group_init
 
@@ -452,6 +454,7 @@ contains
     PetscErrorCode :: ierr
 
     call self%in%destroy()
+    if (associated(self%out)) self%out => null()
     call MPI_comm_free(self%comm, ierr)
     call self%source_network_node_type%destroy()
 

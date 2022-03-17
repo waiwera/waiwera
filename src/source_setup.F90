@@ -816,12 +816,23 @@ contains
                  if (associated(source_network_group_dict_node)) then
                     select type (dep_group => source_network_group_dict_node%data)
                     type is (source_network_group_type)
-                       call group%in%append(dep_group)
+                       if (associated(dep_group%out)) then
+                          if (present(logfile)) then
+                             call logfile%write(LOG_LEVEL_ERR, "input", &
+                                  "group " // trim(dep_group%name) // &
+                                  " is in more than one other group.")
+                          end if
+                          err = 1
+                          exit
+                       else
+                          dep_group%out => group
+                          call group%in%append(dep_group)
+                       end if
                     end select
                  else
                     if (present(logfile)) then
                        call logfile%write(LOG_LEVEL_ERR, "input", &
-                            "unrecognised_group_input: " // trim(node_name))
+                            "unrecognised group input: " // trim(node_name))
                     end if
                     err = 1
                     exit
