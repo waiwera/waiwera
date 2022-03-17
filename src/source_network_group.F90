@@ -240,13 +240,15 @@ contains
     ! Locals:
     PetscReal :: rate, scale
     PetscBool :: over
+    PetscMPIInt :: rank
     PetscErrorCode :: ierr
 
     if (self%rank == 0) then
        rate = self%get_rate_by_type(flow_type)
        call self%get_limit_scale(rate, limit, over, scale)
     end if
-    call MPI_bcast(over, 1, MPI_LOGICAL, 0, self%comm, ierr)
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_bcast(over, 1, MPI_LOGICAL, rank, PETSC_COMM_WORLD, ierr)
     if (over) then
        call self%scale_rate(scale)
     end if
