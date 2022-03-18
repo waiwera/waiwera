@@ -32,8 +32,7 @@ module source_network_control_module
     PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
 
   type, public, extends(table_object_control_type) :: limiter_table_source_network_control_type
-     !! Limits total flow through a source network node. Derived types limit
-     !! separated water or steam flow rather than total flow.
+     !! Limits flow (total, separated water or steam) through a source network node.
      private
      PetscInt, public :: flow_type !! Type of flow being limited - total, water or steam
    contains
