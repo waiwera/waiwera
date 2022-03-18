@@ -85,8 +85,8 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 11
-    PetscInt, parameter :: expected_num_groups = 7
+    PetscInt, parameter :: expected_num_sources = 14
+    PetscInt, parameter :: expected_num_groups = 9
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_limiter.json")
@@ -183,6 +183,12 @@ contains
             source%enthalpy = 600.e3_dp
          case ("s11")
             source%enthalpy = 450.e3_dp
+         case ("s12")
+            source%enthalpy = 500.e3_dp
+         case ("s13")
+            source%enthalpy = 600.e3_dp
+         case ("s14")
+            source%enthalpy = 475.e3_dp
          end select
       end select
 
@@ -306,6 +312,12 @@ contains
             call flow_test(source, -1.6_dp, 0.0_dp, 0.0_dp)
          case ("s11")
             call flow_test(source, -5.0_dp, 0.0_dp, 0.0_dp)
+         case ("s12")
+            call flow_test(source, -0.3_dp, 0.0_dp, 0.0_dp)
+         case ("s13")
+            call flow_test(source, -0.6_dp, 0.0_dp, 0.0_dp)
+         case ("s14")
+            call flow_test(source, -3.6_dp, 0.0_dp, 0.0_dp)
          end select
       end select
 
@@ -338,6 +350,10 @@ contains
                call flow_test(group, -2.8_dp, 0.0_dp, 0.0_dp)
             case ("group4")
                call flow_test(group, -7.8_dp, 0.0_dp, 0.0_dp)
+            case ("group5a")
+               call flow_test(group, -0.9_dp, 0.0_dp, 0.0_dp)
+            case ("group5")
+               call flow_test(group, -4.5_dp, 0.0_dp, 0.0_dp)
             end select
          end if
       end select
