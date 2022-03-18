@@ -15,7 +15,9 @@
         {"name": "s11", "cell": 4, "rate": -5},
         {"name": "s12", "cell": 0, "rate": -1},
         {"name": "s13", "cell": 11, "rate": -2},
-        {"name": "s14", "cell": 5, "rate": -4}
+        {"name": "s14", "cell": 5, "rate": -4},
+        {"name": "s15", "cell": 3, "rate": -4},
+        {"name": "s16", "cell": 8, "rate": -6}
     ],
     "network": {
         "group": [
@@ -33,7 +35,10 @@
             {"name": "group5", "in": ["s14", "group5a"],
              "limiter": {"limit": 4.5}},
             {"name": "group5a", "in": ["s12", "s13"],
-             "limiter": {"limit": 1}}
+             "limiter": {"limit": 1}},
+            {"name": "group6", "in": ["s15", "s16"],
+             "separator": {"pressure": [0.5e6, 1.6e6]},
+             "limiter": {"type": "water", "limit": 4}}
         ]
     }
 }
