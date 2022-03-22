@@ -48,7 +48,6 @@ module control_module
      procedure, public :: destroy => integer_object_control_destroy
   end type integer_object_control_type
 
-  type, public, extends(object_control_type) :: table_object_control_type
   type, public, abstract, extends(object_control_type) :: &
        interval_update_object_control_type
      !! Controls with an update method depending only on a time
@@ -58,6 +57,7 @@ module control_module
           public :: update
   end type
 
+  type, public, extends(interval_update_object_control_type) :: table_object_control_type
      !! Controls object parameters using an interpolation table of
      !! time-dependent values.
      private
