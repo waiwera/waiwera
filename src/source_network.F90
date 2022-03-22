@@ -60,6 +60,7 @@ module source_network_module
      procedure, public :: get_rate_by_type => source_network_node_get_rate_by_type
      procedure, public :: limit_rate => source_network_node_limit_rate
      procedure, public :: get_limit_scale => source_network_node_get_limit_scale
+     procedure, public :: get_minimum_limit_scale => source_network_node_get_minimum_limit_scale
      procedure, public :: add_flows => source_network_node_add_flows
      procedure, public :: add_separated_flows => source_network_node_add_separated_flows
      procedure, public :: destroy => source_network_node_destroy
@@ -200,26 +201,24 @@ contains
 
   subroutine source_network_node_get_limit_scale(self, rate, limit, &
        over, scale)
-    !! If rate is over limit, over returns true and scale returns the
-    !! scale factor required to reduce the rate to the
-    !! limit. Otherwise, over returns false (and scale returns 1).
+    !! If rate is over limit, over returns true and scale is reduced
+    !! (if necessary) to the value required to reduce the rate to the
+    !! limit. Otherwise, over and scale are unchanged.
 
     class(source_network_node_type), intent(in out) :: self
     PetscReal, intent(in) :: rate !! Rate to limit
     PetscReal, intent(in) :: limit !! Rate limit
-    PetscBool, intent(out) :: over !! Whether rate is over limit
-    PetscReal, intent(out) :: scale !! Scale factor to reduce rate to limit
+    PetscBool, intent(in out) :: over !! Whether rate is over limit
+    PetscReal, intent(in out) :: scale !! Scale factor to reduce rate to limit
     ! Locals:
     PetscReal :: abs_rate
     PetscReal, parameter :: small = 1.e-6_dp
 
-    over = PETSC_FALSE
-    scale = 1._dp
     abs_rate = abs(rate)
     if (abs_rate > limit) then
        over = PETSC_TRUE
        if (abs_rate > small) then
-          scale = limit / abs_rate
+          scale = min(scale, limit / abs_rate)
        end if
     end if
 
@@ -227,19 +226,43 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_node_limit_rate(self, flow_type, limit)
-    !! Limits network node flow rate (total, water or steam as
-    !! specified by flow_type) to specified limit.
+  subroutine source_network_node_get_minimum_limit_scale(self, &
+       flow_type, limit, over, scale)
+    !! If any rates are over limit, over returns true and scale is the
+    !! minimum value required to reduce all rates below limit.
 
     class(source_network_node_type), intent(in out) :: self
-    PetscInt, intent(in) :: flow_type !! Flow type
-    PetscReal, intent(in) :: limit !! Flow rate limit
+    PetscInt, intent(in) :: flow_type(:) !! Flow types
+    PetscReal, intent(in) :: limit(:) !! Flow rate limits
+    PetscBool, intent(out) :: over !! Whether any rate is over limit
+    PetscReal, intent(out) :: scale !! Scale factor to reduce all rates to limits
     ! Locals:
-    PetscReal :: rate, scale
+    PetscInt :: i
+    PetscReal :: rate
+
+    over = PETSC_FALSE
+    scale = 1._dp
+    do i = 1, size(limit)
+       rate = self%get_rate_by_type(flow_type(i))
+       call self%get_limit_scale(rate, limit(i), over, scale)
+    end do
+
+  end subroutine source_network_node_get_minimum_limit_scale
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_limit_rate(self, flow_type, limit)
+    !! Limits network node flow rates (total, water or steam as
+    !! specified by flow_type) to specified limits.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscInt, intent(in) :: flow_type(:) !! Flow types
+    PetscReal, intent(in) :: limit(:) !! Flow rate limits
+    ! Locals:
+    PetscReal :: scale
     PetscBool :: over
 
-    rate = self%get_rate_by_type(flow_type)
-    call self%get_limit_scale(rate, limit, over, scale)
+    call self%get_minimum_limit_scale(flow_type, limit, over, scale)
     if (over) then
        call self%scale_rate(scale)
     end if
