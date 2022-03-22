@@ -49,6 +49,15 @@ module control_module
   end type integer_object_control_type
 
   type, public, extends(object_control_type) :: table_object_control_type
+  type, public, abstract, extends(object_control_type) :: &
+       interval_update_object_control_type
+     !! Controls with an update method depending only on a time
+     !! interval.
+   contains
+     procedure(interval_update_object_control_update_procedure), deferred, &
+          public :: update
+  end type
+
      !! Controls object parameters using an interpolation table of
      !! time-dependent values.
      private
@@ -91,6 +100,13 @@ module control_module
        import :: object_control_type
        class(object_control_type), intent(in out) :: self
      end subroutine object_control_destroy_procedure
+
+     subroutine interval_update_object_control_update_procedure(self, interval)
+       !! Update procedure based on a time interval
+       import :: interval_update_object_control_type
+       class(interval_update_object_control_type), intent(in out) :: self
+       PetscReal, intent(in) :: interval(2)
+     end subroutine interval_update_object_control_update_procedure
 
      subroutine vector_control_destroy_procedure(self)
        !! Vector control destroy procedure
