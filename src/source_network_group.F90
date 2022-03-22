@@ -59,6 +59,7 @@ module source_network_group_module
      class(source_network_node_type), pointer, public :: out !! Output node for group (if any)
      MPI_Comm :: comm !! MPI communicator for group
      PetscMPIInt, public :: rank !! Rank of group in its own communicator
+     PetscMPIInt :: root_world_rank !! Rank in world communicator of group root rank
      PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
      PetscReal, pointer, public :: group_index !! Index of source group in input
    contains
@@ -100,24 +101,34 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_network_group_init_comm(self)
-    !! Initialises MPI communicator for the group. It is assumed that
-    !! the input nodes list has already been populated.
+    !! Initialises MPI communicator, rank and root world rank for the
+    !! group. It is assumed that the input nodes list has already been
+    !! populated.
 
     class(source_network_group_type), intent(in out) :: self
     ! Locals:
     PetscInt :: colour
+    PetscMPIInt :: rank, root_world_rank
     PetscErrorCode :: ierr
 
     colour = MPI_UNDEFINED
     call self%in%traverse(group_comm_iterator)
 
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
 
+    root_world_rank = -1
     if (self%comm /= MPI_COMM_NULL) then
-       call MPI_COMM_RANK(self%comm, self%rank, ierr)
+       call MPI_comm_rank(self%comm, self%rank, ierr)
+       if (self%rank == 0) then
+          root_world_rank = rank
+       end if
     else
        self%rank = -1
     end if
+
+    call MPI_allreduce(root_world_rank, self%root_world_rank, 1, &
+         MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
 
   contains
 
