@@ -58,7 +58,7 @@ module source_network_group_module
      type(list_type), public :: in !! List of input nodes in group
      class(source_network_node_type), pointer, public :: out !! Output node for group (if any)
      MPI_Comm :: comm !! MPI communicator for group
-     PetscInt, public :: rank !! Rank of group in its own communicator
+     PetscMPIInt, public :: rank !! Rank of group in its own communicator
      PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
      PetscReal, pointer, public :: group_index !! Index of source group in input
    contains
