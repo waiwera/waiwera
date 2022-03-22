@@ -1217,7 +1217,7 @@ contains
     else
        field_dof = -1
     end if
-    call MPI_Allreduce(field_dof, dof, 1, MPI_INT, MPI_MAX, &
+    call MPI_allreduce(field_dof, dof, 1, MPI_INTEGER, MPI_MAX, &
          PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
 
   end function dm_global_cell_field_dof
