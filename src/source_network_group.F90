@@ -245,20 +245,19 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_network_group_limit_rate(self, flow_type, limit)
-    !! Limits source network group flow rate (total, water or steam as
-    !! specified by flow_type) to specified limit.
+    !! Limits source network group flow rates (total, water or steam
+    !! as specified by flow_type) to specified limits.
 
     class(source_network_group_type), intent(in out) :: self
-    PetscInt, intent(in) :: flow_type !! Flow type
-    PetscReal, intent(in) :: limit !! Flow rate limit
+    PetscInt, intent(in) :: flow_type(:) !! Flow types
+    PetscReal, intent(in) :: limit(:) !! Flow rate limits
     ! Locals:
-    PetscReal :: rate, scale
+    PetscReal :: scale
     PetscBool :: over
     PetscErrorCode :: ierr
 
     if (self%rank == 0) then
-       rate = self%get_rate_by_type(flow_type)
-       call self%get_limit_scale(rate, limit, over, scale)
+       call self%get_minimum_limit_scale(flow_type, limit, over, scale)
     end if
     call MPI_bcast(over, 1, MPI_LOGICAL, self%root_world_rank, &
          PETSC_COMM_WORLD, ierr)
