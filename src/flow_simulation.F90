@@ -1622,7 +1622,7 @@ contains
       select type (control => node%data)
       class is (integer_object_control_type)
          call control%update()
-      class is (table_object_control_type)
+      class is (interval_update_object_control_type)
          call control%update(interval)
       class is (pressure_reference_source_control_type)
          call control%update(t, interval, fluid_array, &

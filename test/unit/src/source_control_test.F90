@@ -178,7 +178,7 @@ contains
       select type (source_control => node%data)
       class is (integer_object_control_type)
          call source_control%update()
-      class is (table_object_control_type)
+      class is (interval_update_object_control_type)
          call source_control%update(interval)
       class is (pressure_reference_source_control_type)
          call source_control%update(t, interval, local_fluid_array, &
@@ -515,7 +515,7 @@ contains
       select type (source_control => node%data)
       class is (integer_object_control_type)
          call source_control%update()
-      class is (table_object_control_type)
+      class is (interval_update_object_control_type)
          call source_control%update(interval)
       class is (pressure_reference_source_control_type)
          call source_control%update(t, interval, local_fluid_array, &

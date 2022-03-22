@@ -8,6 +8,7 @@ module source_network_control_test
   use kinds_module
   use zofu
   use source_module
+  use control_module
   use source_control_module
   use source_network_group_module
   use source_network_control_module
@@ -260,7 +261,7 @@ contains
 
       stopped = PETSC_FALSE
       select type(control => node%data)
-      class is (table_object_control_type)
+      class is (interval_update_object_control_type)
          call control%update(interval)
       end select
 
