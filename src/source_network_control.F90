@@ -31,10 +31,11 @@ module source_network_control_module
        default_source_control_limiter_type_str = "total"
     PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
 
-  type, public, extends(table_object_control_type) :: limiter_table_source_network_control_type
-     !! Limits flow (total, separated water or steam) through a source network node.
+    type, public, extends(multi_table_object_control_type) :: &
+         limiter_table_source_network_control_type
+     !! Limits flows (total, separated water or steam) through a source network node.
      private
-     PetscInt, public :: flow_type !! Type of flow being limited - total, water or steam
+     PetscInt, allocatable, public :: flow_type(:) !! Types of flow being limited - total, water or steam
    contains
      private
      procedure, public :: iterator => limiter_table_source_network_control_iterator
@@ -48,7 +49,7 @@ contains
 
   subroutine limiter_table_source_network_control_iterator(self, node, &
        stopped)
-    !! Update flow so limit is not exceeded.
+    !! Update flow so limits are not exceeded.
 
     class(limiter_table_source_network_control_type), intent(in out) :: self
     type(list_node_type), pointer, intent(in out) :: node !! List node
@@ -57,7 +58,7 @@ contains
     stopped = PETSC_FALSE
     select type(network_node => node%data)
     class is (source_network_node_type)
-       associate(limit => self%value(1))
+       associate(limit => self%value)
          call network_node%limit_rate(self%flow_type, limit)
        end associate
     end select
