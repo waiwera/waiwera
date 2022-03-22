@@ -71,6 +71,22 @@ module control_module
      procedure, public :: destroy => table_object_control_destroy
   end type table_object_control_type
 
+  type, public, extends(interval_update_object_control_type) :: multi_table_object_control_type
+     !! Controls object parameters using an array of interpolation tables of
+     !! time-dependent values.
+     private
+     PetscInt, public :: num_tables !! Number of interpolation tables
+     type(interpolation_table_type), allocatable, public :: table(:) !! Tables of values vs. time
+     PetscReal, allocatable, public :: value(:) !! Interpolated scalar values for each table
+   contains
+     private
+     procedure, public :: init => multi_table_object_control_init
+     procedure, public :: init_table => multi_table_object_control_init_table
+     procedure, public :: update => multi_table_object_control_update
+     procedure, public :: iterator => multi_table_object_control_iterator
+     procedure, public :: destroy => multi_table_object_control_destroy
+  end type multi_table_object_control_type
+
   type, public, abstract :: vector_control_type
      !! Type for controlling how selected vector values vary with
      !! time.
@@ -213,7 +229,7 @@ contains
     PetscBool, intent(out) :: stopped
 
     stopped = PETSC_FALSE
-    
+
   end subroutine table_object_control_iterator
 
 !------------------------------------------------------------------------
@@ -238,7 +254,7 @@ contains
       call self%iterator(node, stopped)
 
     end subroutine iterator
-    
+
   end subroutine table_object_control_update
 
 !------------------------------------------------------------------------
@@ -253,6 +269,104 @@ contains
     call self%table%destroy()
 
   end subroutine table_object_control_destroy
+
+!------------------------------------------------------------------------
+! Mutil-table object control routines
+!------------------------------------------------------------------------
+
+  subroutine multi_table_object_control_init(self, objects, num_tables)
+
+    !! Initialises table_object_control object.
+
+    class(multi_table_object_control_type), intent(in out) :: self
+    type(list_type), intent(in) :: objects !! Objects to control
+    PetscInt, intent(in) :: num_tables !! Number of interpolation tables
+
+    self%objects = objects
+    self%num_tables = num_tables
+    allocate(self%table(num_tables), self%value(num_tables))
+
+  end subroutine multi_table_object_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine multi_table_object_control_init_table(self, index, data, &
+       interpolation_type, averaging_type)
+    !! Initialises interpolation table with specified index.
+
+    class(multi_table_object_control_type), intent(in out) :: self
+    PetscInt, intent(in) :: index !! Index of table
+    PetscReal, intent(in) :: data(:,:) !! Interpolation data for table
+    PetscInt, intent(in) :: interpolation_type !! Table interpolation type
+    PetscInt, intent(in) :: averaging_type !! Table averaging type
+
+    call self%table(index)%init(data, interpolation_type, averaging_type)
+
+  end subroutine multi_table_object_control_init_table
+
+!------------------------------------------------------------------------
+
+  subroutine multi_table_object_control_iterator(self, node, stopped)
+    !! Update iterator for multi-table object control list. Derived
+    !! types will use this routine to update their objects using
+    !! self%value.
+
+    class(multi_table_object_control_type), intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node
+    PetscBool, intent(out) :: stopped
+
+    stopped = PETSC_FALSE
+
+  end subroutine multi_table_object_control_iterator
+
+!------------------------------------------------------------------------
+
+  subroutine multi_table_object_control_update(self, interval)
+    !! Updates multi-table object control object properties using
+    !! average of tables over the specified time interval.
+
+    class(multi_table_object_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: interval(2)
+    ! Locals:
+    PetscInt :: i
+
+    do i = 1, self%num_tables
+       self%value(i) = self%table(i)%average(interval, 1)
+    end do
+    call self%objects%traverse(iterator)
+
+  contains
+
+    subroutine iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      call self%iterator(node, stopped)
+
+    end subroutine iterator
+
+  end subroutine multi_table_object_control_update
+
+!------------------------------------------------------------------------
+
+  subroutine multi_table_object_control_destroy(self)
+    !! Destroys a multi-table object control.
+
+    class(multi_table_object_control_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: i
+
+    call self%objects%destroy()
+    if (allocated(self%value)) deallocate(self%value)
+    if (allocated(self%table)) then
+       do i = 1, self%num_tables
+          call self%table(i)%destroy()
+       end do
+       deallocate(self%table)
+    end if
+
+  end subroutine multi_table_object_control_destroy
 
 !------------------------------------------------------------------------
 ! Table vector control routines
