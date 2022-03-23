@@ -38,7 +38,7 @@
              "limiter": {"total": 1}},
             {"name": "group6", "in": ["s15", "s16"],
              "separator": {"pressure": [0.5e6, 1.6e6]},
-             "limiter": {"water": 4}}
+             "limiter": {"water": 4, "steam": 3, "total": 7}}
         ]
     }
 }

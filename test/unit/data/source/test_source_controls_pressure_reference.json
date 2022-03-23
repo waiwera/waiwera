@@ -125,6 +125,13 @@
         },
         {"name": "source 16", "cell": 4,
          "rate": -10,
-         "separator": {"pressure": [1.5e6, 0.5e6]}}
+         "separator": {"pressure": [1.5e6, 0.5e6]}},
+        {"name": "source 17", "cell": 5,
+         "deliverability": {
+             "productivity": 1.0e-12,
+             "pressure": 2e5},
+         "separator": {"pressure": 10e5},
+         "limiter": {"total": 10, "steam": 5}
+        }
     ]
 }
