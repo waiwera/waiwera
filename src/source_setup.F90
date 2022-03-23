@@ -820,7 +820,7 @@ contains
                           if (present(logfile)) then
                              call logfile%write(LOG_LEVEL_ERR, "input", &
                                   "group " // trim(dep_group%name) // &
-                                  " is in more than one other group.")
+                                  " outputs to more than one group.")
                           end if
                           err = 1
                           exit
