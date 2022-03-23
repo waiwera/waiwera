@@ -540,16 +540,90 @@ For example, the source below has a recharge control with reference pressure set
 Limiter
 -------
 
-In some situations it is necessary to limit the flow rate of a source, so that it cannot exceed a prescribed maximum value -- for example, when a well has a prescribed maximum flow rate to comply with regulations. In the simplest case the limit applies to the total flow, but in other situations the source output may be passed through a separator, and the limit is set on either separated steam or water.
+In some situations it is necessary to limit the flow rate of a source, so that it cannot exceed a prescribed maximum value -- for example, when a well has a prescribed maximum flow rate to comply with regulations. In the simplest case the limit applies to the total flow, but in other situations the source output may be passed through a separator, and the limit is set on either separated steam or water. It is also possible for a limiter to limit multiple different flow types at once, with different limits set for total flow and/or separated water and steam flows.
 
-A limiter may be added to a source in the Waiwera JSON input file by specifying the **"limiter"** value in that source. This value is an object, which has a **"type"** string value specifying whether the limit is set on total flow, separated water flow or steam flow.
+A limiter may be added to a source in the Waiwera JSON input file by specifying the **"limiter"** value in that source. This value is an object, which contains values corresponding to the flow types being limited (e.g. "total" or "steam"). These values are positive and apply to the absolute value of the flow rate. They can be either single constant limits or a rank-2 arrays representing an interpolation table of limit values vs. time.
 
-The flow rate limit is set via the **"limit"** value. Note that this value is positive and applies to the absolute value of the flow rate. It can be either a single constant limit or a rank-2 array representing an interpolation table of limit values vs. time.
+When "water" or "steam" limit values are specified, a separator (see :ref:`source_separators`) is used to compute the flow rates of separated steam and water. The separator pressure can be specified  via the **"separator.pressure"** value for the source.
 
-If a time-dependent limit is specified, it is possible to specify the interpolation and averaging type for the interpolation table via the **"interpolation"** and **"averaging"** values respectively (see :ref:`interpolation_tables`). Note that the limit value for each simulation time step will be taken from the average value of the specified limit table over the time step.
+If time-dependent limits are specified, it is possible to specify the interpolation and averaging type for the interpolation tables via the **"interpolation"** and **"averaging"** values respectively (see :ref:`interpolation_tables`). Note that the limit value for each simulation time step will be taken from the average value of the specified limit table over the time step.
 
 .. note::
    **JSON object**: limiter source control
+
+   **JSON path**: source[`index`]["limiter"]
+
+   +---------------------+------------+------------+-------------------------+
+   |**name**             |**type**    |**default** |**value**                |
+   +---------------------+------------+------------+-------------------------+
+   |"total"              |number |    |no limit    |total flow rate limit    |
+   |                     |array       |            |(kg/s)                   |
+   +---------------------+------------+------------+-------------------------+
+   |"water"              |number |    |no limit    |separated water flow rate|
+   |                     |array       |            |limit (kg/s)             |
+   +---------------------+------------+------------+-------------------------+
+   |"steam"              |number |    |no limit    |separated steam flow rate|
+   |                     |array       |            |limit (kg/s)             |
+   +---------------------+------------+------------+-------------------------+
+   |"interpolation"      |string      |"linear"    |interpolation method for |
+   |                     |            |            |limit tables             |
+   +---------------------+------------+------------+-------------------------+
+   |"averaging"          |string      |"integrate" |averaging method for     |
+   |                     |            |            |limit tables             |
+   +---------------------+------------+------------+-------------------------+
+
+The example below specifies a source on deliverability, with a simple limit of 5.1 kg/s on the total flow rate. (Because it is the total flow being limited, a separator is not needed.) 
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 100,
+      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+      "limiter": {"total": 5.1}}
+   ]}
+
+Here is the same source but with a limit of 3.5 kg/s on the steam flow, and a separator is defined with separator pressure set at 50 bar:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 100,
+      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+      "separator": {"pressure": 50e5},
+      "limiter": {"steam": 3.5}}
+   ]}
+
+Here the above source is modified with a time-dependent steam limit, reducing stepwise from 3.5 kg/s at time zero to 2.5 kg/s after 1e6 seconds:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 100,
+      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+      "separator": {"pressure": 50e5},
+      "limiter": {"steam": [[0, 3.5], [1e6, 2.5]],
+                  "interpolation": "step"}}
+   ]}
+
+Here is the same source but with constant limits applied to both total flow and steam flow:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 100,
+      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
+      "separator": {"pressure": 50e5},
+      "limiter": {"total": 5.1, "steam": 3.5}}
+   ]}
+
+Limiters can also be specified using an alternative (older) syntax, in which a **"type"** string value is used to specify the limit type ("total", "water" or "steam"). The flow rate limit is then set via a **"limit"** value. This value can again be specified as a constant number limit or an array of limit values vs. time.
+
+Note that this older syntax is less flexible and cannot be used to specify multiple limits. It is retained for backwards compatibility.
+
+With this alternative syntax, when the "type" value is "water" or "steam" the separator pressure may be specified within the limiter specification (again for backwards compatibility), although this is now deprecated: it should usually be specified  via the **"separator.pressure"** value for the source instead.
+
+.. note::
+   **JSON object**: limiter source control (alternative syntax)
 
    **JSON path**: source[`index`]["limiter"]
 
@@ -573,41 +647,6 @@ If a time-dependent limit is specified, it is possible to specify the interpolat
    |"separator_pressure" |number      |0.55 MPa    |separator pressure       |
    |                     |            |            |(Pa)                     |
    +---------------------+------------+------------+-------------------------+
-
-When the "type" value is "water" or "steam", a separator (see :ref:`source_separators`) is used to compute the flow rates of separated steam and water. The separator pressure may be specified in the limiter specification (for backwards compatibility), although this is now deprecated: it should be specified  via the **"separator.pressure"** value for the source instead.
-
-The example below specifies a source on deliverability, with a simple limit of 5.1 kg/s on the total flow rate. (Because it is the total flow being limited, a separator is not needed.) 
-
-.. code-block:: json
-
-   {"source": [
-     {"cell": 100,
-      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
-      "limiter": {"limit": 5.1}}
-   ]}
-
-Here is the same source but with a limit of 3.5 kg/s on the steam flow, and a separator is defined with separator  pressure set at 50 bar:
-
-.. code-block:: json
-
-   {"source": [
-     {"cell": 100,
-      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
-      "separator": {"pressure": 50e5},
-      "limiter": {"limit": 3.5, "type": "steam"}}
-   ]}
-
-Here the above source is modified with a time-dependent steam limit, reducing stepwise from 3.5 kg/s at time zero to 2.5 kg/s after 1e6 seconds:
-
-.. code-block:: json
-
-   {"source": [
-     {"cell": 100,
-      "deliverability": {"pressure": 2e5, "productivity": 1e-12},
-      "separator": {"pressure": 50e5},
-      "limiter": {"limit": [[0, 3.5], [1e6, 2.5]],
-                  "interpolation": "step", "type": "steam"}}
-   ]}
 
 .. index:: source controls; direction
 .. _direction:
