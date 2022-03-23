@@ -26,7 +26,7 @@
             {"name": "group2a", "in": ["s4", "s3"]},
             {"name": "group2b", "in": ["s5", "s6"]},
             {"name": "group2", "in": ["group2a", "group2b"],
-             "limiter": {"type": "total", "limit": 11.5}},
+             "limiter": {"total": 11.5}},
             {"name": "group3", "in": ["s7", "s8"],
              "limiter": {"type": "steam", "limit": 1.2}},
             {"name": "group4a", "in": ["s9", "s10"],
@@ -35,10 +35,10 @@
             {"name": "group5", "in": ["s14", "group5a"],
              "limiter": {"limit": 4.5}},
             {"name": "group5a", "in": ["s12", "s13"],
-             "limiter": {"limit": 1}},
+             "limiter": {"total": 1}},
             {"name": "group6", "in": ["s15", "s16"],
              "separator": {"pressure": [0.5e6, 1.6e6]},
-             "limiter": {"type": "water", "limit": 4}}
+             "limiter": {"water": 4}}
         ]
     }
 }
