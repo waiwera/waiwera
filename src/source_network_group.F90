@@ -95,6 +95,7 @@ contains
     self%name = name
     call self%in%init(owner = PETSC_FALSE)
     self%out => null()
+    self%out_input_index = -1
 
   end subroutine source_network_group_init
 

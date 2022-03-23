@@ -48,6 +48,7 @@ module source_network_module
      PetscReal, pointer, public :: steam_enthalpy !! Separated steam enthalpy
      type(separator_type), public :: separator !! Separator
      PetscBool, public :: heat !! Whether flow through node is heat-only (not mass)
+     PetscInt, public :: out_input_index !! Index of node in group it outputs to (or -1)
    contains
      private
      procedure, public :: assign => source_network_node_assign

@@ -806,9 +806,10 @@ contains
               if (source_dict_all%has(node_name)) then
                  source_dict_node => source_dict%get(node_name)
                  if (associated(source_dict_node)) then
-                    select type (node => source_dict_node%data)
+                    select type (source => source_dict_node%data)
                     type is (source_type)
-                       call group%in%append(node)
+                       source%out_input_index = i
+                       call group%in%append(source)
                     end select
                  end if
               else
@@ -826,6 +827,7 @@ contains
                           exit
                        else
                           dep_group%out => group
+                          dep_group%out_input_index = i
                           call group%in%append(dep_group)
                        end if
                     end select
