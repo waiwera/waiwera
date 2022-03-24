@@ -69,20 +69,28 @@ contains
 
 !------------------------------------------------------------------------
 
-  function get_mpi_int_gather_array() result(array)
+  function get_mpi_int_gather_array(comm) result(array)
     !! Returns integer array for use in MPI gather call. This is of
     !! size equal to the number of processes on the root rank, and
     !! size 1 on other ranks (needs to be allocated even though it is
-    !! not actually used.)
+    !! not actually used.) If comm is not specified, the world
+    !! communicator is assumed.
 
+    MPI_Comm, intent(in), optional :: comm !! Communicator used for gathering
     PetscInt, allocatable :: array(:)
     ! Locals:
+    MPI_Comm :: gather_comm
     PetscMPIInt :: rank, num_procs
     PetscInt :: size
     PetscErrorCode :: ierr
 
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+    if (present(comm)) then
+       gather_comm = comm
+    else
+       gather_comm = PETSC_COMM_WORLD
+    end if
+    call MPI_COMM_RANK(gather_comm, rank, ierr)
+    call MPI_COMM_SIZE(gather_comm, num_procs, ierr)
 
     if (rank == 0) then
        size = num_procs
