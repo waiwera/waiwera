@@ -426,7 +426,7 @@ contains
     PetscErrorCode :: err, ierr
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    PetscInt, parameter :: expected_num_sources = 7
+    PetscInt, parameter :: expected_num_sources = 9
     PetscInt, parameter :: expected_num_groups = 4
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -513,16 +513,8 @@ contains
          select case (source%name)
          case ("s1")
             source%enthalpy = 500.e3_dp
-            source%water_rate = -5.0_dp
-            source%water_enthalpy = 500.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
          case ("s2")
             source%enthalpy = 800.e3_dp
-            source%water_rate = -3.0_dp
-            source%water_enthalpy = 800.0e3_dp
-            source%steam_rate = 0.0_dp
-            source%steam_enthalpy = 0.0_dp
          case ("s3")
             source%enthalpy = 1200.e3_dp
             source%water_rate = -1.1_dp
@@ -535,6 +527,14 @@ contains
             source%water_enthalpy = 600.0e3_dp
             source%steam_rate = -1.05_dp
             source%steam_enthalpy = 2740.0e3_dp
+         case ("s5")
+            source%enthalpy = 500.e3_dp
+         case ("s6")
+            source%enthalpy = 800.e3_dp
+         case ("s7")
+            source%enthalpy = 550.e3_dp
+         case ("s8")
+            source%enthalpy = 650.e3_dp
          end select
       end select
 
@@ -563,17 +563,16 @@ contains
          if (group%rank == 0) then
             select case (group%name)
             case ("group1")
-               call group_test(group, PETSC_FALSE, -10._dp, 840.e3_dp, &
-                    -8.95_dp, 611.173184358e3_dp, &
-                    -1.05_dp, 2740.0e3_dp)
+               call group_test(group, PETSC_FALSE, -8._dp, 612.5e3_dp, &
+                    0._dp, 0._dp, 0._dp, 0._dp)
             case ("group2")
                call group_test(group, PETSC_FALSE, -3.5_dp, 1514.28571429e3_dp, &
                     -2.05_dp, 621.463414634e3_dp, &
                     -1.45_dp, 2742.75862069e3_dp)
             case ("group3")
-               call group_test(group, PETSC_TRUE, -11.5_dp, 886.956521739e3_dp, &
-                    -10.069486546180777_dp, 623.224313361319e3_dp, &
-                    -1.4305134538192241_dp, 2743.386404983706e3_dp)
+               call group_test(group, PETSC_TRUE, -10.5_dp, 952.380952381e3_dp, &
+                    -8.869867698623954_dp, 623.224313361319e3_dp, &
+                    -1.6301323013760447_dp, 2743.3864049837054e3_dp)
             end select
             g = g + 1
          end if

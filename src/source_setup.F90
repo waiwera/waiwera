@@ -780,10 +780,11 @@ contains
       character(max_source_network_node_name_length), allocatable :: node_names(:)
       type(source_network_group_type), pointer :: group
       type(list_node_type), pointer :: source_dict_node, source_network_group_dict_node
-      type(dictionary_type) :: source_network_group_dict
+      type(dictionary_type) :: source_network_group_dict, group_source_dict
 
       err = 0
       num_local_root_groups = 0
+      call group_source_dict%init(PETSC_FALSE)
       call source_network_group_dict%init(PETSC_FALSE)
 
       do ig = 0, num_groups - 1
@@ -804,13 +805,24 @@ contains
          do i = 1, size(node_names)
             associate(node_name => node_names(i))
               if (source_dict_all%has(node_name)) then
-                 source_dict_node => source_dict%get(node_name)
-                 if (associated(source_dict_node)) then
-                    select type (source => source_dict_node%data)
-                    type is (source_type)
-                       source%out_input_index = i
-                       call group%in%append(source)
-                    end select
+                 if (group_source_dict%has(node_name)) then
+                    if (present(logfile)) then
+                       call logfile%write(LOG_LEVEL_ERR, "input", &
+                            "source " // trim(node_name) // &
+                            " outputs to more than one group.")
+                    end if
+                    err = 1
+                    exit
+                 else
+                    source_dict_node => source_dict%get(node_name)
+                    if (associated(source_dict_node)) then
+                       select type (source => source_dict_node%data)
+                       type is (source_type)
+                          source%out_input_index = i
+                          call group%in%append(source)
+                       end select
+                    end if
+                    call group_source_dict%add(node_name)
                  end if
               else
                  source_network_group_dict_node => source_network_group_dict%get(node_name)
@@ -862,9 +874,12 @@ contains
 
          end if
 
+         deallocate(node_names)
+
       end do
 
       call source_network_group_dict%destroy()
+      call group_source_dict%destroy()
 
     end subroutine init_source_network_groups
 

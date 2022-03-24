@@ -8,14 +8,16 @@
         {"cell": 3, "rate": 0.1},
         {"name": "s4", "cell": 11, "rate": -2},
         {"name": "s5", "cell": 8, "rate": -3},
-        {"name": "s6", "cell": 9, "rate": -4}
+        {"name": "s6", "cell": 9, "rate": -4},
+        {"name": "s7", "cell": 6, "rate": -2},
+        {"name": "s8", "cell": 1, "rate": -3.5}
     ],
     "network": {
         "group": [
-            {"name": "group1", "in": ["s1", "s2", "s4"]},
-            {"name": "group3", "in": ["s1", "s2", "group2"],
+            {"name": "group1", "in": ["s1", "s2"]},
+            {"name": "group3", "in": ["s5", "s6", "group2"],
              "separator": {"pressure": 0.45e6}},
-            {"in": ["s6", "s5"], "separator": {"pressure": [1.5e6, 0.5e6]}},
+            {"in": ["s7", "s8"], "separator": {"pressure": [1.5e6, 0.5e6]}},
             {"name": "group2", "in": ["s4", "s3"]}
         ]
     }
