@@ -69,7 +69,6 @@ module source_network_group_module
      procedure, public :: assign => source_network_group_assign
      procedure, public :: init_data => source_network_group_init_data
      procedure, public :: set_rate => source_network_group_set_rate
-     procedure, public :: scale_rate => source_network_group_scale_rate
      procedure, public :: limit_rate => source_network_group_limit_rate
      procedure, public :: sum => source_network_group_sum
      procedure, public :: sum_out => source_network_group_sum_out
@@ -80,8 +79,34 @@ module source_network_group_module
      procedure, public :: destroy => source_network_group_destroy
   end type source_network_group_type
 
+  type, public, extends(source_network_group_type) :: &
+       uniform_scaling_source_network_group_type
+     !! Type for source network group in which inputs are scaled
+     !! uniformly by a constant factor.
+   contains
+     procedure, public :: scale_rate => uniform_scaling_source_network_group_scale_rate
+  end type uniform_scaling_source_network_group_type
+
+  type, public, extends(source_network_group_type) :: &
+       progressive_scaling_source_network_group_type
+     !! Type for source network group in which inputs are scaled
+     !! progressively, starting from the last input in the group and
+     !! proceeding back to the first.
+     private
+     PetscInt :: local_gather_count !! How many local inputs are included in gather operations
+     PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
+     PetscInt, allocatable :: gather_displacements(:) !! Process displacements for gather operations
+     PetscInt, allocatable :: gather_order(:) !! Sort order for gather operations
+   contains
+     procedure, public :: init_comm => progressive_scaling_source_network_group_init_comm
+     procedure, public :: scale_rate => progressive_scaling_source_network_group_scale_rate
+     procedure, public :: destroy => progressive_scaling_source_network_group_destroy
+  end type progressive_scaling_source_network_group_type
+
 contains
 
+!------------------------------------------------------------------------
+!  Source network group
 !------------------------------------------------------------------------
 
   subroutine source_network_group_init(self, name)
@@ -93,6 +118,7 @@ contains
     character(*), intent(in) :: name !! Group name
 
     self%name = name
+
     call self%in%init(owner = PETSC_FALSE)
     self%out => null()
     self%out_input_index = -1
@@ -109,27 +135,13 @@ contains
     class(source_network_group_type), intent(in out) :: self
     ! Locals:
     PetscInt :: colour
-    PetscMPIInt :: rank, root_world_rank
     PetscErrorCode :: ierr
 
     colour = MPI_UNDEFINED
     call self%in%traverse(group_comm_iterator)
-
-    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
 
-    root_world_rank = -1
-    if (self%comm /= MPI_COMM_NULL) then
-       call MPI_comm_rank(self%comm, self%rank, ierr)
-       if (self%rank == 0) then
-          root_world_rank = rank
-       end if
-    else
-       self%rank = -1
-    end if
-
-    call MPI_allreduce(root_world_rank, self%root_world_rank, 1, &
-         MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
+    call get_root_world_rank()
 
   contains
 
@@ -145,7 +157,7 @@ contains
       type is (source_type)
          colour = 1
          stopped = PETSC_TRUE
-      type is (source_network_group_type)
+      class is (source_network_group_type)
          if (n%rank >= 0) then
             colour = 1
             stopped = PETSC_TRUE
@@ -153,6 +165,31 @@ contains
       end select
 
     end subroutine group_comm_iterator
+
+!........................................................................
+
+    subroutine get_root_world_rank()
+      !! Finds root world rank, i.e. rank in world communicator of
+      !! root rank of the group.
+
+      ! Locals:
+      PetscMPIInt :: rank, root_world_rank
+
+      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+      root_world_rank = -1
+      if (self%comm /= MPI_COMM_NULL) then
+         call MPI_comm_rank(self%comm, self%rank, ierr)
+         if (self%rank == 0) then
+            root_world_rank = rank
+         end if
+      else
+         self%rank = -1
+      end if
+
+      call MPI_allreduce(root_world_rank, self%root_world_rank, 1, &
+           MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
+
+    end subroutine get_root_world_rank
 
   end subroutine source_network_group_init_comm
 
@@ -210,38 +247,6 @@ contains
     call self%get_separated_flows()
 
   end subroutine source_network_group_set_rate
-
-!------------------------------------------------------------------------
-
-  recursive subroutine source_network_group_scale_rate(self, scale)
-    !! Scales source network group flow rate by specified scale
-    !! factor, by scaling flows in group input nodes.
-
-    class(source_network_group_type), intent(in out) :: self
-    PetscReal, intent(in) :: scale !! Flow rate scale factor
-    ! Locals:
-    PetscErrorCode :: ierr
-
-    call MPI_bcast(scale, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-    call self%in%traverse(group_scale_iterator)
-    call self%sum()
-
-  contains
-
-    recursive subroutine group_scale_iterator(node, stopped)
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type (s => node%data)
-      class is (source_network_node_type)
-         call s%scale_rate(scale)
-      end select
-
-    end subroutine group_scale_iterator
-
-  end subroutine source_network_group_scale_rate
 
 !------------------------------------------------------------------------
 
@@ -486,10 +491,190 @@ contains
     call self%in%destroy()
     if (associated(self%out)) self%out => null()
     call MPI_comm_free(self%comm, ierr)
+
     call self%source_network_node_type%destroy()
 
   end subroutine source_network_group_destroy
     
+!------------------------------------------------------------------------
+! Uniform scaling source network group
+!------------------------------------------------------------------------
+
+  recursive subroutine uniform_scaling_source_network_group_scale_rate(self, scale)
+    !! Scales source network group flow rate by specified scale
+    !! factor, by scaling flows in group input nodes uniformly, all by
+    !! the same scale factor.
+
+    class(uniform_scaling_source_network_group_type), intent(in out) :: self
+    PetscReal, intent(in) :: scale !! Flow rate scale factor
+    ! Locals:
+    PetscErrorCode :: ierr
+
+    call MPI_bcast(scale, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    call self%in%traverse(group_scale_iterator)
+    call self%sum()
+
+  contains
+
+    recursive subroutine group_scale_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (s => node%data)
+      class is (source_network_node_type)
+         call s%scale_rate(scale)
+      end select
+
+    end subroutine group_scale_iterator
+
+  end subroutine uniform_scaling_source_network_group_scale_rate
+
+!------------------------------------------------------------------------
+! Progressive scaling source network group
+!------------------------------------------------------------------------
+
+  subroutine progressive_scaling_source_network_group_init_comm(self)
+    !! Initialises MPI communicator, rank and root world rank for the
+    !! group, as well as parameters related to gathering data from the
+    !! relevant input nodes.
+
+    class(progressive_scaling_source_network_group_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: i
+    PetscInt, allocatable :: local_index(:)
+
+    call self%source_network_group_type%init_comm()
+    call get_gather_parameters()
+
+  contains
+
+    subroutine get_gather_parameters()
+      !! Finds counts, displacements and sort order (to match the
+      !! order of the self%in list) for data gathered over the group
+      !! communicator.
+
+      use mpi_utils_module, only: get_mpi_int_gather_array
+      use utils_module, only: array_cumulative_sum
+
+      ! Locals:
+      PetscMPIInt :: comm_size
+      PetscInt :: count_all
+      PetscInt, allocatable :: indices_all(:)
+      PetscErrorCode :: ierr
+
+      self%local_gather_count = 0
+
+      if (self%rank >= 0) then
+
+         call self%in%traverse(local_gather_count_iterator)
+
+         call MPI_comm_size(self%comm, comm_size, ierr)
+
+         self%gather_counts = get_mpi_int_gather_array(self%comm)
+         self%gather_displacements = get_mpi_int_gather_array(self%comm)
+         call MPI_gather(self%local_gather_count, 1, MPI_INTEGER, &
+              self%gather_counts, 1, MPI_INTEGER, 0, self%comm, ierr)
+         if (self%rank == 0) then
+            self%gather_displacements = [[0], &
+                 array_cumulative_sum(self%gather_counts(1: comm_size - 1))]
+            count_all = sum(self%gather_counts)
+         else
+            count_all = 1
+         end if
+
+         allocate(local_index(self%local_gather_count))
+         local_index = -1
+         i = 1
+         call self%in%traverse(input_index_iterator)
+
+         allocate(self%gather_order(count_all), indices_all(count_all))
+         call MPI_gatherv(local_index, self%local_gather_count, MPI_INTEGER, &
+              indices_all, self%gather_counts, self%gather_displacements, &
+              MPI_INTEGER, 0, self%comm, ierr)
+
+         if (self%rank == 0) then
+            self%gather_order = [(i, i = 0, count_all - 1)]
+            call PetscSortIntWithPermutation(count_all, indices_all, &
+                 self%gather_order, ierr); CHKERRQ(ierr)
+            self%gather_order = self%gather_order + 1
+         end if
+
+         deallocate(indices_all)
+
+      end if
+
+    end subroutine get_gather_parameters
+
+!........................................................................
+
+    subroutine local_gather_count_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (network_node => node%data)
+      class is (source_type)
+         self%local_gather_count = self%local_gather_count + 1
+      class is (source_network_group_type)
+         if (network_node%rank == 0) then
+            self%local_gather_count = self%local_gather_count + 1
+         end if
+      end select
+
+    end subroutine local_gather_count_iterator
+
+!........................................................................
+
+    subroutine input_index_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (network_node => node%data)
+      class is (source_network_node_type)
+         if (network_node%out_input_index >= 0) then
+            local_index(i) = network_node%out_input_index
+            i = i + 1
+         end if
+      end select
+
+    end subroutine input_index_iterator
+
+  end subroutine progressive_scaling_source_network_group_init_comm
+
+!------------------------------------------------------------------------
+
+  recursive subroutine progressive_scaling_source_network_group_scale_rate(self, scale)
+    !! Scales source network group flow rate by specified scale
+    !! factor, by scaling flows in group input nodes progressively.
+
+    class(progressive_scaling_source_network_group_type), intent(in out) :: self
+    PetscReal, intent(in) :: scale !! Flow rate scale factor
+
+    ! TODO
+    call self%sum()
+
+  end subroutine progressive_scaling_source_network_group_scale_rate
+
+!------------------------------------------------------------------------
+
+  subroutine progressive_scaling_source_network_group_destroy(self)
+    !! Destroys a progressive scaling source network group.
+
+    class(progressive_scaling_source_network_group_type), intent(in out) :: self
+
+    if (allocated(self%gather_order)) deallocate(self%gather_order)
+    if (allocated(self%gather_counts)) deallocate(self%gather_counts)
+    if (allocated(self%gather_displacements)) deallocate(self%gather_displacements)
+
+    call self%source_network_group_type%destroy()
+
+  end subroutine progressive_scaling_source_network_group_destroy
+
 !------------------------------------------------------------------------
 
 end module source_network_group_module

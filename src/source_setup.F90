@@ -746,7 +746,7 @@ contains
 
       stopped = PETSC_FALSE
       select type(group => node%data)
-      type is (source_network_group_type)
+      class is (source_network_group_type)
          if (group%rank == 0) then
             g = group%local_group_index
             source_network_group_offset = global_section_offset( &
@@ -767,6 +767,8 @@ contains
       !! number of local root groups. An error is returned if any
       !! unrecognised group input nodes are specified.
 
+      use utils_module, only: str_to_lower
+
       PetscInt, intent(in) :: num_groups
       type(list_type), intent(in out) :: source_network_groups
       type(list_type), intent(in out) :: source_network_controls
@@ -778,9 +780,13 @@ contains
       type(fson_value), pointer :: group_json
       character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
-      type(source_network_group_type), pointer :: group
+      class(source_network_group_type), pointer :: group
       type(list_node_type), pointer :: source_dict_node, source_network_group_dict_node
       type(dictionary_type) :: source_network_group_dict, group_source_dict
+      character(len=64) :: grpstr
+      character(len=12) :: igstr
+      character(len=16) :: scaling_type
+      character(len=8), parameter :: default_group_scaling_type = "uniform"
 
       err = 0
       num_local_root_groups = 0
@@ -791,13 +797,24 @@ contains
 
          group_index = group_order(ig) + 1
          group_json => group_specs_array(group_index)%ptr
+         write(igstr, '(i0)') group_index - 1
+         grpstr = 'network.group[' // trim(igstr) // '].'
 
          call fson_get_mpi(group_json, "name", "", name)
          call fson_get_mpi(group_json, "in", &
               string_length = max_source_network_node_name_length, &
               val = node_names)
+         call fson_get_mpi(group_json, "scaling", default_group_scaling_type, &
+              scaling_type, logfile, trim(grpstr) // "scaling")
+         scaling_type = str_to_lower(scaling_type)
 
-         allocate(group)
+         select case (scaling_type)
+         case ("progressive")
+            allocate(progressive_scaling_source_network_group_type :: group)
+         case default
+            allocate(uniform_scaling_source_network_group_type :: group)
+         end select
+
          call group%init(name)
          call setup_inline_source_group_controls(group_json, group, &
               source_network_controls, logfile)
@@ -828,7 +845,7 @@ contains
                  source_network_group_dict_node => source_network_group_dict%get(node_name)
                  if (associated(source_network_group_dict_node)) then
                     select type (dep_group => source_network_group_dict_node%data)
-                    type is (source_network_group_type)
+                    class is (source_network_group_type)
                        if (associated(dep_group%out)) then
                           if (present(logfile)) then
                              call logfile%write(LOG_LEVEL_ERR, "input", &
@@ -839,7 +856,7 @@ contains
                           exit
                        else
                           dep_group%out => group
-                          dep_group%out_input_index = i
+                          if (dep_group%rank == 0) dep_group%out_input_index = i
                           call group%in%append(dep_group)
                        end if
                     end select
@@ -899,7 +916,7 @@ contains
 
       stopped = PETSC_FALSE
       select type (group => node%data)
-      type is (source_network_group_type)
+      class is (source_network_group_type)
          group_index = group_order(sorted_group_index)
          write(istr, '(i0)') group_index
          grpstr = 'network.group[' // trim(istr) // '].'
@@ -2195,7 +2212,7 @@ contains
          default_averaging_str
 
     type(fson_value), pointer, intent(in) :: group_json
-    type(source_network_group_type), intent(in) :: group
+    class(source_network_group_type), intent(in) :: group
     type(list_type), intent(in out) :: source_network_controls
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
@@ -2225,7 +2242,7 @@ contains
     !! Set up limiter control on source group.
 
     type(fson_value), pointer, intent(in) :: group_json
-    type(source_network_group_type), intent(in) :: group
+    class(source_network_group_type), intent(in) :: group
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: source_network_controls
     type(logfile_type), intent(in out), optional :: logfile

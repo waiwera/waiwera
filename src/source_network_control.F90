@@ -56,7 +56,7 @@ contains
     PetscBool, intent(out) :: stopped
 
     stopped = PETSC_FALSE
-    select type(network_node => node%data)
+    select type (network_node => node%data)
     class is (source_network_node_type)
        associate(limit => self%value)
          call network_node%limit_rate(self%flow_type, limit)

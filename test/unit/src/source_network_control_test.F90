@@ -210,8 +210,7 @@ contains
 
       stopped = PETSC_FALSE
       select type(group => node%data)
-      type is (source_network_group_type)
-
+      class is (source_network_group_type)
          if (group%rank == 0) then
             g = group%local_group_index
             group_offset = global_section_offset(group_section, &
@@ -245,8 +244,8 @@ contains
       PetscBool, intent(out) :: stopped
 
       stopped = PETSC_FALSE
-      select type(group => node%data)
-      type is (source_network_group_type)
+      select type (group => node%data)
+      class is (source_network_group_type)
          call group%sum()
       end select
 
@@ -341,7 +340,7 @@ contains
 
       stopped = PETSC_FALSE
       select type(group => node%data)
-      type is (source_network_group_type)
+      class is (source_network_group_type)
          if (group%rank == 0) then
             select case (group%name)
             case ("group1")
