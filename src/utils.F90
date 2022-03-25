@@ -57,8 +57,9 @@ module utils_module
        array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
-       array_is_permutation, invert_indices
-  
+       array_is_permutation, invert_indices, &
+       array_progressive_scale
+
 contains
 
 !------------------------------------------------------------------------
@@ -558,6 +559,60 @@ contains
     deallocate(global_indices)
 
   end function invert_indices
+
+!------------------------------------------------------------------------
+
+  function array_progressive_scale(a, total, reverse) result(s)
+    !! Returns array of scale factors required to scale real array a
+    !! progressively so that it sums to the specified total: each
+    !! element of a is scaled in order until the required total is
+    !! reached. If reverse is true, the elements of a are scaled in
+    !! reverse order (starting from the end).
+
+    PetscReal, intent(in) :: a(:) !! Quantities to scale
+    PetscReal, intent(in) :: total !! Target total of a array
+    PetscBool, intent(in), optional :: reverse !! Whether to scale in reverse order
+    PetscReal :: s(size(a)) !! Output scale factors for a
+    ! Locals:
+    PetscBool :: do_reverse
+    PetscInt :: i, i1, i2, step
+    PetscReal :: suma
+
+    if (present(reverse)) then
+       do_reverse = reverse
+    else
+       do_reverse = PETSC_FALSE
+    end if
+
+    associate(n => size(a))
+
+      if (do_reverse) then
+         i1 = n
+         i2 = 1
+         step = -1
+      else
+         i1 = 1
+         i2 = n
+         step = 1
+      end if
+
+      s = 1._dp
+      suma = sum(a)
+      if (suma > total) then
+         do i = i1, i2, step
+            if (suma - a(i) <= total) then
+               s(i) = 1._dp - (suma - total) / a(i)
+               exit
+            else
+               s(i) = 0._dp
+               suma = suma - a(i)
+            end if
+         end do
+      end if
+
+    end associate
+
+  end function array_progressive_scale
 
 !------------------------------------------------------------------------
 
