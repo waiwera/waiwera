@@ -672,7 +672,7 @@ contains
 
     if (self%rank == 0) then
        target_rate = scale * self%rate
-       s = array_progressive_scale(q, target_rate, PETSC_TRUE)
+       s = array_progressive_scale(q, target_rate, self%gather_order)
     end if
 
     ! TODO:
