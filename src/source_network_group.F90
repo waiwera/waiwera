@@ -97,7 +97,7 @@ module source_network_group_module
      PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
      PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
      PetscInt, allocatable :: gather_displacements(:) !! Process displacements for gather operations
-     PetscInt, allocatable :: gather_order(:) !! Sort order for gather operations
+     PetscInt, allocatable :: gather_order(:) !! Reversed sort order for gather operations
    contains
      procedure, public :: init_comm => progressive_scaling_source_network_group_init_comm
      procedure, public :: scale_rate => progressive_scaling_source_network_group_scale_rate
@@ -599,7 +599,8 @@ contains
             self%gather_order = [(i, i = 0, self%gather_count - 1)]
             call PetscSortIntWithPermutation(self%gather_count, indices_all, &
                  self%gather_order, ierr); CHKERRQ(ierr)
-            self%gather_order = self%gather_order + 1
+            ! Reverse and convert from 0-based to 1-based:
+            self%gather_order = self%gather_order(self%gather_count:1:-1) + 1
          end if
 
          deallocate(indices_all)
