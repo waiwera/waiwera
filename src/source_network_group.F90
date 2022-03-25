@@ -616,10 +616,8 @@ contains
 
       stopped = PETSC_FALSE
       select type (network_node => node%data)
-      class is (source_type)
-         self%local_gather_count = self%local_gather_count + 1
-      class is (source_network_group_type)
-         if (network_node%rank == 0) then
+      class is (source_network_node_type)
+         if (network_node%out_input_index >= 0) then
             self%local_gather_count = self%local_gather_count + 1
          end if
       end select
