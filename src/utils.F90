@@ -562,50 +562,41 @@ contains
 
 !------------------------------------------------------------------------
 
-  function array_progressive_scale(a, total, reverse) result(s)
+  function array_progressive_scale(a, total, order) result(s)
     !! Returns array of scale factors required to scale real array a
     !! progressively so that it sums to the specified total: each
     !! element of a is scaled in order until the required total is
-    !! reached. If reverse is true, the elements of a are scaled in
-    !! reverse order (starting from the end).
+    !! reached. The optional order array specifies a permutation so
+    !! that the scaling can be carried out in any order.
 
     PetscReal, intent(in) :: a(:) !! Quantities to scale
     PetscReal, intent(in) :: total !! Target total of a array
-    PetscBool, intent(in), optional :: reverse !! Whether to scale in reverse order
+    PetscInt, intent(in), optional :: order(:) !! Permutation for scaling order
     PetscReal :: s(size(a)) !! Output scale factors for a
     ! Locals:
-    PetscBool :: do_reverse
-    PetscInt :: i, i1, i2, step
+    PetscInt :: scale_order(size(a))
+    PetscInt :: i, j
     PetscReal :: suma
-
-    if (present(reverse)) then
-       do_reverse = reverse
-    else
-       do_reverse = PETSC_FALSE
-    end if
 
     associate(n => size(a))
 
-      if (do_reverse) then
-         i1 = n
-         i2 = 1
-         step = -1
+      if (present(order)) then
+         scale_order = order
       else
-         i1 = 1
-         i2 = n
-         step = 1
+         scale_order = [(i, i = 1, n)]
       end if
 
       s = 1._dp
       suma = sum(a)
       if (suma > total) then
-         do i = i1, i2, step
-            if (suma - a(i) <= total) then
-               s(i) = 1._dp - (suma - total) / a(i)
+         do i = 1, n
+            j = scale_order(i)
+            if (suma - a(j) <= total) then
+               s(j) = 1._dp - (suma - total) / a(j)
                exit
             else
-               s(i) = 0._dp
-               suma = suma - a(i)
+               s(j) = 0._dp
+               suma = suma - a(j)
             end if
          end do
       end if

@@ -569,19 +569,19 @@ contains
             array_progressive_scale([1._dp, 2._dp, 3._dp], 0._dp), 'case 6')
        call test%assert([1._dp, 1._dp, 1._dp], &
             array_progressive_scale([1._dp, 2._dp, 3._dp], 10._dp, &
-            PETSC_TRUE), 'case 7')
+            [3, 2, 1]), 'case 7')
        call test%assert([1._dp, 1._dp, 0.5_dp], &
             array_progressive_scale([1._dp, 2._dp, 3._dp], 4.5_dp, &
-            PETSC_TRUE), 'case 8')
-       call test%assert([1._dp, 0.25_dp, 0._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 1.5_dp, &
-            PETSC_TRUE), 'case 9')
+            [3, 2, 1]), 'case 8')
+       call test%assert([1._dp, 0._dp, 0.5_dp], &
+            array_progressive_scale([1._dp, 2._dp, 3._dp], 2.5_dp, &
+            [2, 3, 1]), 'case 9')
        call test%assert([0.1_dp, 0._dp, 0._dp], &
             array_progressive_scale([1._dp, 2._dp, 3._dp], 0.1_dp, &
-            PETSC_TRUE), 'case 10')
+            [2, 3, 1]), 'case 10')
        call test%assert([0._dp, 0._dp, 0._dp], &
             array_progressive_scale([1._dp, 2._dp, 3._dp], 0._dp, &
-            PETSC_TRUE), 'case 11')
+            [3, 1, 2]), 'case 11')
 
     end if
 
