@@ -647,15 +647,56 @@ contains
 
 !------------------------------------------------------------------------
 
-  recursive subroutine progressive_scaling_source_network_group_scale_rate(self, scale)
+  recursive subroutine progressive_scaling_source_network_group_scale_rate(self, &
+       scale)
     !! Scales source network group flow rate by specified scale
     !! factor, by scaling flows in group input nodes progressively.
 
+    use utils_module, only: array_progressive_scale
+
     class(progressive_scaling_source_network_group_type), intent(in out) :: self
     PetscReal, intent(in) :: scale !! Flow rate scale factor
+    ! Locals:
+    PetscInt :: i
+    PetscReal :: local_q(self%local_gather_count), q(self%gather_count)
+    PetscReal :: local_s(self%local_gather_count), s(self%gather_count)
+    PetscReal :: target_rate
+    PetscErrorCode :: ierr
 
-    ! TODO
+    i = 1
+    call self%in%traverse(get_local_rate_iterator)
+    call MPI_gatherv(local_q, self%local_gather_count, &
+         MPI_DOUBLE_PRECISION, q, self%gather_counts, &
+         self%gather_displacements, MPI_INTEGER, 0, self%comm, ierr)
+
+    if (self%rank == 0) then
+       target_rate = scale * self%rate
+       s = array_progressive_scale(q, target_rate, PETSC_TRUE)
+    end if
+
+    ! TODO:
+    ! scatterv s to local_s
+    ! call self%in%traverse() to scale inputs
+
     call self%sum()
+
+  contains
+
+    subroutine get_local_rate_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (network_node => node%data)
+      class is (source_network_node_type)
+         if (network_node%out_input_index >= 0) then
+            local_q(i) = network_node%rate
+            i = i + 1
+         end if
+      end select
+
+    end subroutine get_local_rate_iterator
 
   end subroutine progressive_scaling_source_network_group_scale_rate
 
