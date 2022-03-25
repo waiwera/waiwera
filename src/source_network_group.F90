@@ -95,6 +95,7 @@ module source_network_group_module
      private
      PetscInt :: local_gather_count !! How many local inputs are included in gather operations
      PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
+     PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
      PetscInt, allocatable :: gather_displacements(:) !! Process displacements for gather operations
      PetscInt, allocatable :: gather_order(:) !! Sort order for gather operations
    contains
@@ -560,7 +561,6 @@ contains
 
       ! Locals:
       PetscMPIInt :: comm_size
-      PetscInt :: count_all
       PetscInt, allocatable :: indices_all(:)
       PetscErrorCode :: ierr
 
@@ -579,9 +579,9 @@ contains
          if (self%rank == 0) then
             self%gather_displacements = [[0], &
                  array_cumulative_sum(self%gather_counts(1: comm_size - 1))]
-            count_all = sum(self%gather_counts)
+            self%gather_count = sum(self%gather_counts)
          else
-            count_all = 1
+            self%gather_count = 1
          end if
 
          allocate(local_index(self%local_gather_count))
@@ -589,14 +589,15 @@ contains
          i = 1
          call self%in%traverse(input_index_iterator)
 
-         allocate(self%gather_order(count_all), indices_all(count_all))
+         allocate(self%gather_order(self%gather_count), &
+              indices_all(self%gather_count))
          call MPI_gatherv(local_index, self%local_gather_count, MPI_INTEGER, &
               indices_all, self%gather_counts, self%gather_displacements, &
               MPI_INTEGER, 0, self%comm, ierr)
 
          if (self%rank == 0) then
-            self%gather_order = [(i, i = 0, count_all - 1)]
-            call PetscSortIntWithPermutation(count_all, indices_all, &
+            self%gather_order = [(i, i = 0, self%gather_count - 1)]
+            call PetscSortIntWithPermutation(self%gather_count, indices_all, &
                  self%gather_order, ierr); CHKERRQ(ierr)
             self%gather_order = self%gather_order + 1
          end if
