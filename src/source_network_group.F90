@@ -692,7 +692,7 @@ contains
       select type (network_node => node%data)
       class is (source_network_node_type)
          if (network_node%out_input_index >= 0) then
-            local_q(i) = network_node%rate
+            local_q(i) = abs(network_node%rate)
             i = i + 1
          end if
       end select
