@@ -576,7 +576,7 @@ contains
     ! Locals:
     PetscInt :: scale_order(size(a))
     PetscInt :: i, j
-    PetscReal :: suma
+    PetscReal :: sum_a, next_sum_a
 
     associate(n => size(a))
 
@@ -586,20 +586,19 @@ contains
          scale_order = [(i, i = 1, n)]
       end if
 
-      s = 1._dp
-      suma = sum(a)
-      if (suma > total) then
-         do i = 1, n
-            j = scale_order(i)
-            if (suma - a(j) <= total) then
-               s(j) = 1._dp - (suma - total) / a(j)
-               exit
-            else
-               s(j) = 0._dp
-               suma = suma - a(j)
-            end if
-         end do
-      end if
+      s = 0._dp
+      sum_a = 0._dp
+      do i = 1, n
+         j = scale_order(i)
+         next_sum_a = sum_a + a(j)
+         if (next_sum_a > total) then
+            s(j) = (total - sum_a) / a(j)
+            exit
+         else
+            s(j) = 1._dp
+            sum_a = next_sum_a
+         end if
+      end do
 
     end associate
 
