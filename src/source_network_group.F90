@@ -97,7 +97,7 @@ module source_network_group_module
      PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
      PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
      PetscInt, allocatable :: gather_displacements(:) !! Process displacements for gather operations
-     PetscInt, allocatable :: gather_order(:) !! Reversed sort order for gather operations
+     PetscInt, allocatable :: gather_index(:) !! Sort index for gather operations
    contains
      procedure, public :: init_comm => progressive_scaling_source_network_group_init_comm
      procedure, public :: scale_rate => progressive_scaling_source_network_group_scale_rate
@@ -552,7 +552,7 @@ contains
   contains
 
     subroutine get_gather_parameters()
-      !! Finds counts, displacements and sort order (to match the
+      !! Finds counts, displacements and  order (to match the
       !! order of the self%in list) for data gathered over the group
       !! communicator.
 
@@ -589,17 +589,17 @@ contains
          i = 1
          call self%in%traverse(input_index_iterator)
 
-         allocate(self%gather_order(self%gather_count), &
+         allocate(self%gather_index(self%gather_count), &
               indices_all(self%gather_count))
          call MPI_gatherv(local_index, self%local_gather_count, MPI_INTEGER, &
               indices_all, self%gather_counts, self%gather_displacements, &
               MPI_INTEGER, 0, self%comm, ierr)
 
          if (self%rank == 0) then
-            self%gather_order = [(i, i = 0, self%gather_count - 1)]
+            self%gather_index = [(i, i = 0, self%gather_count - 1)]
             call PetscSortIntWithPermutation(self%gather_count, indices_all, &
-                 self%gather_order, ierr); CHKERRQ(ierr)
-            self%gather_order = self%gather_order + 1
+                 self%gather_index, ierr); CHKERRQ(ierr)
+            self%gather_index = self%gather_index + 1
          end if
 
          deallocate(indices_all)
@@ -671,7 +671,7 @@ contains
 
     if (self%rank == 0) then
        target_rate = scale * self%rate
-       s = array_progressive_scale(q, target_rate, self%gather_order)
+       s = array_progressive_scale(q, target_rate, self%gather_index)
     end if
 
     ! TODO:
@@ -707,7 +707,7 @@ contains
 
     class(progressive_scaling_source_network_group_type), intent(in out) :: self
 
-    if (allocated(self%gather_order)) deallocate(self%gather_order)
+    if (allocated(self%gather_index)) deallocate(self%gather_index)
     if (allocated(self%gather_counts)) deallocate(self%gather_counts)
     if (allocated(self%gather_displacements)) deallocate(self%gather_displacements)
 
