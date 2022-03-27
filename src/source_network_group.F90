@@ -674,9 +674,11 @@ contains
        s = array_progressive_scale(q, target_rate, self%gather_index)
     end if
 
-    ! TODO:
-    ! scatterv s to local_s
-    ! call self%in%traverse() to scale inputs
+    call MPI_scatterv(s, self%gather_counts, self%gather_displacements, &
+         MPI_DOUBLE_PRECISION, local_s, self%local_gather_count, &
+         MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    i = 1
+    call self%in%traverse(local_scale_iterator)
 
     call self%sum()
 
@@ -697,6 +699,24 @@ contains
       end select
 
     end subroutine get_local_rate_iterator
+
+!........................................................................
+
+    subroutine local_scale_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (network_node => node%data)
+      class is (source_network_node_type)
+         if (network_node%out_input_index >= 0) then
+            call network_node%scale_rate(local_s(i))
+            i = i + 1
+         end if
+      end select
+
+    end subroutine local_scale_iterator
 
   end subroutine progressive_scaling_source_network_group_scale_rate
 
