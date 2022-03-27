@@ -523,9 +523,9 @@ contains
       PetscBool, intent(out) :: stopped
 
       stopped = PETSC_FALSE
-      select type (s => node%data)
+      select type (network_node => node%data)
       class is (source_network_node_type)
-         call s%scale_rate(scale)
+         call network_node%scale_rate(scale)
       end select
 
     end subroutine group_scale_iterator
