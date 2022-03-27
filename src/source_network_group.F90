@@ -599,8 +599,7 @@ contains
             self%gather_order = [(i, i = 0, self%gather_count - 1)]
             call PetscSortIntWithPermutation(self%gather_count, indices_all, &
                  self%gather_order, ierr); CHKERRQ(ierr)
-            ! Reverse and convert from 0-based to 1-based:
-            self%gather_order = self%gather_order(self%gather_count:1:-1) + 1
+            self%gather_order = self%gather_order + 1
          end if
 
          deallocate(indices_all)
