@@ -839,7 +839,8 @@
                                           "items": {"type": "number", "minimum": 0}}]}
                                  }, "additionalProperties": false}]},
                             "in": {"type": "array", "items": {"type": "string"}},
-                            "limiter": {"type": "object",
+                            "limiter": {"oneOf": [
+                                {"type": "object",
                                         "properties": {
                                             "type": {"type": "string",
                                                      "enum": ["total", "Total",
@@ -859,8 +860,42 @@
                                                           "enum": ["endpoint", "Endpoint",
                                                                    "integrate", "Integrate"]}
                                         }, "additionalProperties": false
-                                       }
-                        }
+                                },
+                                {"type": "object",
+                                 "properties": {
+                                     "total": {"oneOf": [
+                                         {"type": "number"},
+                                         {"type": "array",
+                                          "items": {"type": "array",
+                                                    "items": {"type": "number",
+                                                              "minItems": 2, "maxItems": 2}},
+                                          "minItems": 2, "maxItems": 2}]},
+                                     "water": {"oneOf": [
+                                         {"type": "number"},
+                                         {"type": "array",
+                                          "items": {"type": "array",
+                                                    "items": {"type": "number",
+                                                              "minItems": 2, "maxItems": 2}},
+                                          "minItems": 2, "maxItems": 2}]},
+                                     "steam": {"oneOf": [
+                                         {"type": "number"},
+                                         {"type": "array",
+                                          "items": {"type": "array",
+                                                    "items": {"type": "number",
+                                                              "minItems": 2, "maxItems": 2}},
+                                          "minItems": 2, "maxItems": 2}]},
+                                     "interpolation": {"type": "string",
+                                                       "enum": ["linear", "Linear",
+                                                                "step", "Step"]},
+                                     "averaging": {"type": "string",
+                                                   "enum": ["endpoint", "Endpoint",
+                                                            "integrate", "Integrate"]}
+                                 }, "additionalProperties": false}
+                            ]},
+                            "scaling": {"type": "string",
+                                        "enum": ["uniform", "Uniform",
+                                                 "progressive", "Progressive"]}
+                        }, "additionalProperties": false
                     }
                 }
             }, "additionalProperties": false
