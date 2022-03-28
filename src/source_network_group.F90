@@ -663,22 +663,27 @@ contains
     PetscReal :: target_rate
     PetscErrorCode :: ierr
 
-    i = 1
-    call self%in%traverse(get_local_rate_iterator)
-    call MPI_gatherv(local_q, self%local_gather_count, &
-         MPI_DOUBLE_PRECISION, q, self%gather_counts, &
-         self%gather_displacements, MPI_INTEGER, 0, self%comm, ierr)
+    if (self%rank >= 0) then
 
-    if (self%rank == 0) then
-       target_rate = scale * self%rate
-       s = array_progressive_scale(q, target_rate, self%gather_index)
+       i = 1
+       call self%in%traverse(get_local_rate_iterator)
+       call MPI_gatherv(local_q, self%local_gather_count, &
+            MPI_DOUBLE_PRECISION, q, self%gather_counts, &
+            self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
+            self%comm, ierr)
+
+       if (self%rank == 0) then
+          target_rate = scale * abs(self%rate)
+          s = array_progressive_scale(q, target_rate, self%gather_index)
+       end if
+
+       call MPI_scatterv(s, self%gather_counts, self%gather_displacements, &
+            MPI_DOUBLE_PRECISION, local_s, self%local_gather_count, &
+            MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+       i = 1
+       call self%in%traverse(local_scale_iterator)
+
     end if
-
-    call MPI_scatterv(s, self%gather_counts, self%gather_displacements, &
-         MPI_DOUBLE_PRECISION, local_s, self%local_gather_count, &
-         MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-    i = 1
-    call self%in%traverse(local_scale_iterator)
 
     call self%sum()
 
