@@ -508,6 +508,10 @@ contains
             if (num_cells == 1) then
                call source_dict%add(name, spec_sources%head%data)
             end if
+         else if (num_cells_all == 0) then
+            call logfile%write(LOG_LEVEL_WARN, 'input', 'source', &
+                 str_key = trim(srcstr), &
+                 str_value = "no cells found")
          end if
 
          call spec_sources%destroy()
