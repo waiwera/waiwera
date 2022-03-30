@@ -21,7 +21,7 @@ module utils_test
        test_array_pair_sum, test_array_cumulative_sum, &
        test_array_exclusive_products, test_array_sorted, &
        test_array_indices_in_int_array, test_is_permutation, &
-       test_array_progressive_scale
+       test_array_progressive_limit
 
 contains
 
@@ -544,8 +544,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_array_progressive_scale(test)
-    ! Test array progressive scale
+  subroutine test_array_progressive_limit(test)
+    ! Test array progressive limit
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -555,37 +555,37 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call test%assert([1._dp, 1._dp, 1._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 10._dp), 'case 1')
-       call test%assert([1._dp, 1._dp, 0.5_dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 4.5_dp), 'case 2')
+       call test%assert([1._dp, 2._dp, 3._dp], &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 10._dp), 'case 1')
+       call test%assert([1._dp, 2._dp, 1.5_dp], &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 4.5_dp), 'case 2')
+       call test%assert([1._dp, 2._dp, 0._dp], &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 3._dp), 'case 3')
        call test%assert([1._dp, 1._dp, 0._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 3._dp), 'case 3')
-       call test%assert([1._dp, 0.5_dp, 0._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 2._dp), 'case 4')
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 2._dp), 'case 4')
        call test%assert([0.25_dp, 0._dp, 0._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 0.25_dp), 'case 5')
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 0.25_dp), 'case 5')
        call test%assert([0._dp, 0._dp, 0._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 0._dp), 'case 6')
-       call test%assert([1._dp, 1._dp, 1._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 10._dp, &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 0._dp), 'case 6')
+       call test%assert([1._dp, 2._dp, 3._dp], &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 10._dp, &
             [3, 2, 1]), 'case 7')
-       call test%assert([0.5_dp, 1._dp, 1._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 5.5_dp, &
+       call test%assert([0.5_dp, 2._dp, 3._dp], &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 5.5_dp, &
             [3, 2, 1]), 'case 8')
-       call test%assert([0._dp, 1._dp, 1._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 5._dp, &
+       call test%assert([0._dp, 2._dp, 3._dp], &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 5._dp, &
             [2, 3, 1]), 'case 9')
-       call test%assert([0._dp, 0.1_dp, 0._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 0.2_dp, &
+       call test%assert([0._dp, 0.2_dp, 0._dp], &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 0.2_dp, &
             [2, 3, 1]), 'case 10')
        call test%assert([0._dp, 0._dp, 0._dp], &
-            array_progressive_scale([1._dp, 2._dp, 3._dp], 0._dp, &
+            array_progressive_limit([1._dp, 2._dp, 3._dp], 0._dp, &
             [3, 1, 2]), 'case 11')
 
     end if
 
-  end subroutine test_array_progressive_scale
+  end subroutine test_array_progressive_limit
 
 !------------------------------------------------------------------------
 

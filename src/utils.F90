@@ -58,7 +58,7 @@ module utils_module
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
        array_is_permutation, invert_indices, &
-       array_progressive_scale
+       array_progressive_limit
 
 contains
 
@@ -562,47 +562,47 @@ contains
 
 !------------------------------------------------------------------------
 
-  function array_progressive_scale(a, total, order) result(s)
-    !! Returns array of scale factors required to scale real array a
+  function array_progressive_limit(a, total, order) result(limit)
+    !! Returns array of limits required to apply to real array a
     !! progressively so that it sums to the specified total: each
-    !! element of a is scaled in order until the required total is
+    !! element of a is limited in order until the required total is
     !! reached. The optional order array specifies a permutation so
-    !! that the scaling can be carried out in any order.
+    !! that the limiting can be carried out in any order.
 
-    PetscReal, intent(in) :: a(:) !! Quantities to scale
+    PetscReal, intent(in) :: a(:) !! Quantities to limit
     PetscReal, intent(in) :: total !! Target total of a array
-    PetscInt, intent(in), optional :: order(:) !! Permutation for scaling order
-    PetscReal :: s(size(a)) !! Output scale factors for a
+    PetscInt, intent(in), optional :: order(:) !! Permutation for limiting order
+    PetscReal :: limit(size(a)) !! Output limits for a
     ! Locals:
-    PetscInt :: scale_order(size(a))
+    PetscInt :: limit_order(size(a))
     PetscInt :: i, j
     PetscReal :: sum_a, next_sum_a
 
     associate(n => size(a))
 
       if (present(order)) then
-         scale_order = order
+         limit_order = order
       else
-         scale_order = [(i, i = 1, n)]
+         limit_order = [(i, i = 1, n)]
       end if
 
-      s = 0._dp
+      limit = 0._dp
       sum_a = 0._dp
       do i = 1, n
-         j = scale_order(i)
+         j = limit_order(i)
          next_sum_a = sum_a + a(j)
          if (next_sum_a > total) then
-            s(j) = (total - sum_a) / a(j)
+            limit(j) = total - sum_a
             exit
          else
-            s(j) = 1._dp
+            limit(j) = a(j)
             sum_a = next_sum_a
          end if
       end do
 
     end associate
 
-  end function array_progressive_scale
+  end function array_progressive_limit
 
 !------------------------------------------------------------------------
 
