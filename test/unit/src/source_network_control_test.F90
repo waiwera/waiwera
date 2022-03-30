@@ -86,8 +86,8 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 16
-    PetscInt, parameter :: expected_num_groups = 10
+    PetscInt, parameter :: expected_num_sources = 22
+    PetscInt, parameter :: expected_num_groups = 13
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_limiter.json")
@@ -113,21 +113,25 @@ contains
        call test%assert(expected_num_groups, total_num_source_network_groups, "number of groups")
     end if
 
-    call global_vec_section(source_vector, source_section)
-    call global_vec_section(group_vector, group_section)
-    call VecGetArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
-    call VecGetArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
+    if (err == 0) then
 
-    call sources%traverse(source_setup_iterator)
-    call source_network_groups%traverse(group_assign_iterator)
-    call separated_sources%traverse(source_separator_iterator)
-    call source_network_groups%traverse(group_sum_iterator)
-    call source_network_controls%traverse(network_control_iterator)
-    call sources%traverse(source_test_iterator)
-    call source_network_groups%traverse(group_test_iterator)
+       call global_vec_section(source_vector, source_section)
+       call global_vec_section(group_vector, group_section)
+       call VecGetArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+       call VecGetArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
 
-    call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+       call sources%traverse(source_setup_iterator)
+       call source_network_groups%traverse(group_assign_iterator)
+       call separated_sources%traverse(source_separator_iterator)
+       call source_network_groups%traverse(group_sum_iterator)
+       call source_network_controls%traverse(network_control_iterator)
+       call sources%traverse(source_test_iterator)
+       call source_network_groups%traverse(group_test_iterator)
+
+       call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
+       call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+
+    end if
 
     call ISDestroy(source_index, ierr); CHKERRQ(ierr)
     call ISDestroy(source_network_group_index, ierr); CHKERRQ(ierr)
@@ -194,6 +198,18 @@ contains
             source%enthalpy = 1200.e3_dp
          case ("s16")
             source%enthalpy = 1750.e3_dp
+         case ("s17")
+            source%enthalpy = 500.e3_dp
+         case ("s18")
+            source%enthalpy = 800.e3_dp
+         case ("s19")
+            source%enthalpy = 1500.e3_dp
+         case ("s20")
+            source%enthalpy = 1800.e3_dp
+         case ("s21")
+            source%enthalpy = 1600.e3_dp
+         case ("s22")
+            source%enthalpy = 1400.e3_dp
          end select
       end select
 
@@ -326,6 +342,19 @@ contains
             call flow_test(source, -2.768782992805067_dp, 0.0_dp, 0.0_dp)
          case ("s16")
             call flow_test(source, -4.153174489207601_dp, 0.0_dp, 0.0_dp)
+         case ("s17")
+            call flow_test(source, -6._dp, 0.0_dp, 0.0_dp)
+         case ("s18")
+            call flow_test(source, -1._dp, 0.0_dp, 0.0_dp)
+         case ("s19")
+            call flow_test(source, -4.0_dp, -2.3684129664887807_dp, &
+                 -1.631587033511219_dp)
+         case ("s20")
+            call flow_test(source, -3.007165178154069_dp, 0._dp, 0._dp)
+         case ("s21")
+            call flow_test(source, -3.6085982137848824_dp, 0._dp, 0._dp)
+         case ("s22")
+            call flow_test(source, 0._dp, 0._dp, 0._dp)
          end select
       end select
 
@@ -365,6 +394,14 @@ contains
             case ("group6")
                call flow_test(group, -6.921957482012667_dp, -4.0_dp, &
                     -2.921957482012667_dp)
+            case ("group7")
+               call flow_test(group, -7.0_dp, 0.0_dp, 0.0_dp)
+            case ("group8a")
+               call flow_test(group, -6.615763391938951_dp, &
+                    -3.2473504254501706_dp, -3.3684129664887807_dp)
+            case ("group8")
+               call flow_test(group, -10.615763391938952_dp, &
+                    -5.615763391938952_dp, -5.0_dp)
             end select
          end if
       end select
