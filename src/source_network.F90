@@ -60,6 +60,7 @@ module source_network_module
      procedure, public :: scale_rate => source_network_node_scale_rate
      procedure, public :: get_rate_by_type => source_network_node_get_rate_by_type
      procedure, public :: limit_rate => source_network_node_limit_rate
+     procedure, public :: limit_inputs => source_network_node_limit_inputs
      procedure, public :: is_over => source_network_node_is_over
      procedure, public :: get_limit_scale => source_network_node_get_limit_scale
      procedure, public :: get_minimum_limit_scale => source_network_node_get_minimum_limit_scale
@@ -295,6 +296,20 @@ contains
     end if
 
   end subroutine source_network_node_limit_rate
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_limit_inputs(self, flow_type, limit)
+    !! Limits network node input flow rates (total, water or steam as
+    !! specified by flow_type) to specified limits.
+
+    class(source_network_node_type), intent(in out) :: self
+    PetscInt, intent(in) :: flow_type(:) !! Flow types
+    PetscReal, intent(in) :: limit(:) !! Flow rate limits
+
+    call self%limit_rate(flow_type, limit)
+
+  end subroutine source_network_node_limit_inputs
 
 !------------------------------------------------------------------------
 
