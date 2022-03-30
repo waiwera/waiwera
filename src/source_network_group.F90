@@ -100,7 +100,8 @@ module source_network_group_module
      PetscInt, allocatable :: gather_index(:) !! Sort index for gather operations
    contains
      procedure, public :: init_comm => progressive_scaling_source_network_group_init_comm
-     procedure, public :: scale_rate => progressive_scaling_source_network_group_scale_rate
+     procedure, public :: limit_rate => progressive_scaling_source_network_group_limit_rate
+     procedure, public :: limit_inputs => progressive_scaling_source_network_group_limit_inputs
      procedure, public :: destroy => progressive_scaling_source_network_group_destroy
   end type progressive_scaling_source_network_group_type
 
@@ -647,43 +648,72 @@ contains
 
 !------------------------------------------------------------------------
 
-  recursive subroutine progressive_scaling_source_network_group_scale_rate(self, &
-       scale)
-    !! Scales source network group flow rate by specified scale
-    !! factor, by scaling flows in group input nodes progressively.
-
-    use utils_module, only: array_progressive_scale
+  subroutine progressive_scaling_source_network_group_limit_rate(self, &
+       flow_type, limit)
+    !! Limits progressive scaling source network group flow rates
+    !! (total, water or steam as specified by flow_type) to specified
+    !! limits.
 
     class(progressive_scaling_source_network_group_type), intent(in out) :: self
-    PetscReal, intent(in) :: scale !! Flow rate scale factor
+    PetscInt, intent(in) :: flow_type(:) !! Flow types
+    PetscReal, intent(in) :: limit(:) !! Flow rate limits
     ! Locals:
-    PetscInt :: i
-    PetscReal :: local_q(self%local_gather_count), q(self%gather_count)
-    PetscReal :: local_s(self%local_gather_count), s(self%gather_count)
-    PetscReal :: target_rate
+    PetscBool :: over
     PetscErrorCode :: ierr
 
-    if (self%rank >= 0) then
+    if (self%rank == 0) then
+       over = self%is_over(flow_type, limit)
+    end if
+    call MPI_bcast(over, 1, MPI_LOGICAL, self%root_world_rank, &
+         PETSC_COMM_WORLD, ierr)
+    if (over) then
+       call self%limit_inputs(flow_type, limit)
+       call self%sum_out()
+    end if
 
+  end subroutine progressive_scaling_source_network_group_limit_rate
+
+!------------------------------------------------------------------------
+
+  recursive subroutine progressive_scaling_source_network_group_limit_inputs(self, &
+       flow_type, limit)
+    !! Limits source network group input flow rates to specified limits, by
+    !! scaling flows in group input nodes progressively.
+
+    use utils_module, only: array_progressive_limit
+
+    class(progressive_scaling_source_network_group_type), intent(in out) :: self
+    PetscInt, intent(in) :: flow_type(:) !! Flow types
+    PetscReal, intent(in) :: limit(:) !! Flow rate limits
+    ! Locals:
+    PetscInt :: il, i, ft
+    PetscReal :: local_q(self%local_gather_count), q(self%gather_count)
+    PetscReal :: local_node_limit(self%local_gather_count, size(limit))
+    PetscReal :: node_limit(self%gather_count, size(limit))
+    PetscErrorCode :: ierr
+
+    do il = 1, size(limit)
+       ft = flow_type(il)
        i = 1
        call self%in%traverse(get_local_rate_iterator)
-       call MPI_gatherv(local_q, self%local_gather_count, &
-            MPI_DOUBLE_PRECISION, q, self%gather_counts, &
-            self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
-            self%comm, ierr)
-
-       if (self%rank == 0) then
-          target_rate = scale * abs(self%rate)
-          s = array_progressive_scale(q, target_rate, self%gather_index)
+       if (self%rank >= 0) then
+          call MPI_gatherv(local_q, self%local_gather_count, &
+               MPI_DOUBLE_PRECISION, q, self%gather_counts, &
+               self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
+               self%comm, ierr)
+          if (self%rank == 0) then
+             node_limit(:, il) = array_progressive_limit(q, &
+                  limit(il), self%gather_index)
+          end if
+          call MPI_scatterv(node_limit(:, il), self%gather_counts, &
+               self%gather_displacements, MPI_DOUBLE_PRECISION, &
+               local_node_limit(:, il), self%local_gather_count, &
+               MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
        end if
+    end do
 
-       call MPI_scatterv(s, self%gather_counts, self%gather_displacements, &
-            MPI_DOUBLE_PRECISION, local_s, self%local_gather_count, &
-            MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-       i = 1
-       call self%in%traverse(local_scale_iterator)
-
-    end if
+    i = 1
+    call self%in%traverse(local_limit_iterator)
 
     call self%sum()
 
@@ -698,7 +728,7 @@ contains
       select type (network_node => node%data)
       class is (source_network_node_type)
          if (network_node%out_input_index >= 0) then
-            local_q(i) = abs(network_node%rate)
+            local_q(i) = abs(network_node%get_rate_by_type(ft))
             i = i + 1
          end if
       end select
@@ -707,23 +737,29 @@ contains
 
 !........................................................................
 
-    subroutine local_scale_iterator(node, stopped)
+    recursive subroutine local_limit_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal :: effective_local_node_limit(size(limit))
 
       stopped = PETSC_FALSE
       select type (network_node => node%data)
       class is (source_network_node_type)
          if (network_node%out_input_index >= 0) then
-            call network_node%scale_rate(local_s(i))
+            effective_local_node_limit = local_node_limit(i, :)
             i = i + 1
+         else
+            effective_local_node_limit = 0._dp ! not used
          end if
+         call network_node%limit_inputs(flow_type, &
+              effective_local_node_limit)
       end select
 
-    end subroutine local_scale_iterator
+    end subroutine local_limit_iterator
 
-  end subroutine progressive_scaling_source_network_group_scale_rate
+  end subroutine progressive_scaling_source_network_group_limit_inputs
 
 !------------------------------------------------------------------------
 
