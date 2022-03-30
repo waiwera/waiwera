@@ -81,7 +81,7 @@ module source_network_group_module
   type, public, extends(source_network_group_type) :: &
        uniform_scaling_source_network_group_type
      !! Type for source network group in which inputs are scaled
-     !! uniformly by a constant factor.
+     !! uniformly by a constant factor to meet specified total limits.
    contains
      procedure, public :: limit_rate => uniform_scaling_source_network_group_limit_rate
      procedure, public :: scale_rate => uniform_scaling_source_network_group_scale_rate
@@ -90,8 +90,8 @@ module source_network_group_module
   type, public, extends(source_network_group_type) :: &
        progressive_scaling_source_network_group_type
      !! Type for source network group in which inputs are scaled
-     !! progressively, starting from the last input in the group and
-     !! proceeding back to the first.
+     !! progressively, starting from the first input in the group and
+     !! proceeding to the last until specified total limits are met.
      private
      PetscInt :: local_gather_count !! How many local inputs are included in gather operations
      PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
