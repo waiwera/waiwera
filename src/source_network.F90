@@ -185,7 +185,7 @@ contains
     !! Gets rate corresponding to the specified flow type (total,
     !! water or steam).
 
-    class(source_network_node_type), intent(in out) :: self
+    class(source_network_node_type), intent(in) :: self
     PetscInt, intent(in) :: flow_type
 
     select case (flow_type)
