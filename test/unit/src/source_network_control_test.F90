@@ -204,11 +204,11 @@ contains
             source%enthalpy = 800.e3_dp
          case ("s19")
             source%enthalpy = 1500.e3_dp
-         case ("s20")
+         case ("s20a")
             source%enthalpy = 1800.e3_dp
-         case ("s21")
+         case ("s20b")
             source%enthalpy = 1600.e3_dp
-         case ("s22")
+         case ("s21")
             source%enthalpy = 1400.e3_dp
          end select
       end select
@@ -349,11 +349,11 @@ contains
          case ("s19")
             call flow_test(source, -4.0_dp, -2.3684129664887807_dp, &
                  -1.631587033511219_dp)
-         case ("s20")
+         case ("s20a")
             call flow_test(source, -3.007165178154069_dp, 0._dp, 0._dp)
-         case ("s21")
+         case ("s20b")
             call flow_test(source, -3.6085982137848824_dp, 0._dp, 0._dp)
-         case ("s22")
+         case ("s21")
             call flow_test(source, 0._dp, 0._dp, 0._dp)
          end select
       end select
@@ -396,7 +396,7 @@ contains
                     -2.921957482012667_dp)
             case ("group7")
                call flow_test(group, -7.0_dp, 0.0_dp, 0.0_dp)
-            case ("group8a")
+            case ("w20")
                call flow_test(group, -6.615763391938951_dp, &
                     -3.2473504254501706_dp, -3.3684129664887807_dp)
             case ("group8")
