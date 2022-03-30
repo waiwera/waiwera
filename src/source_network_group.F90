@@ -69,7 +69,6 @@ module source_network_group_module
      procedure, public :: assign => source_network_group_assign
      procedure, public :: init_data => source_network_group_init_data
      procedure, public :: set_rate => source_network_group_set_rate
-     procedure, public :: limit_rate => source_network_group_limit_rate
      procedure, public :: sum => source_network_group_sum
      procedure, public :: sum_out => source_network_group_sum_out
      procedure, public :: default_separated_flows => source_network_group_default_separated_flows
@@ -84,6 +83,7 @@ module source_network_group_module
      !! Type for source network group in which inputs are scaled
      !! uniformly by a constant factor.
    contains
+     procedure, public :: limit_rate => uniform_scaling_source_network_group_limit_rate
      procedure, public :: scale_rate => uniform_scaling_source_network_group_scale_rate
   end type uniform_scaling_source_network_group_type
 
@@ -248,32 +248,6 @@ contains
     call self%get_separated_flows()
 
   end subroutine source_network_group_set_rate
-
-!------------------------------------------------------------------------
-
-  subroutine source_network_group_limit_rate(self, flow_type, limit)
-    !! Limits source network group flow rates (total, water or steam
-    !! as specified by flow_type) to specified limits.
-
-    class(source_network_group_type), intent(in out) :: self
-    PetscInt, intent(in) :: flow_type(:) !! Flow types
-    PetscReal, intent(in) :: limit(:) !! Flow rate limits
-    ! Locals:
-    PetscReal :: scale
-    PetscBool :: over
-    PetscErrorCode :: ierr
-
-    if (self%rank == 0) then
-       call self%get_minimum_limit_scale(flow_type, limit, over, scale)
-    end if
-    call MPI_bcast(over, 1, MPI_LOGICAL, self%root_world_rank, &
-         PETSC_COMM_WORLD, ierr)
-    if (over) then
-       call self%scale_rate(scale)
-       call self%sum_out()
-    end if
-
-  end subroutine source_network_group_limit_rate
 
 !------------------------------------------------------------------------
 
@@ -499,6 +473,32 @@ contains
     
 !------------------------------------------------------------------------
 ! Uniform scaling source network group
+!------------------------------------------------------------------------
+
+  subroutine uniform_scaling_source_network_group_limit_rate(self, flow_type, limit)
+    !! Limits uniform scaling source network group flow rates (total,
+    !! water or steam as specified by flow_type) to specified limits.
+
+    class(uniform_scaling_source_network_group_type), intent(in out) :: self
+    PetscInt, intent(in) :: flow_type(:) !! Flow types
+    PetscReal, intent(in) :: limit(:) !! Flow rate limits
+    ! Locals:
+    PetscReal :: scale
+    PetscBool :: over
+    PetscErrorCode :: ierr
+
+    if (self%rank == 0) then
+       call self%get_minimum_limit_scale(flow_type, limit, over, scale)
+    end if
+    call MPI_bcast(over, 1, MPI_LOGICAL, self%root_world_rank, &
+         PETSC_COMM_WORLD, ierr)
+    if (over) then
+       call self%scale_rate(scale)
+       call self%sum_out()
+    end if
+
+  end subroutine uniform_scaling_source_network_group_limit_rate
+
 !------------------------------------------------------------------------
 
   recursive subroutine uniform_scaling_source_network_group_scale_rate(self, scale)
