@@ -139,9 +139,9 @@ contains
             [0._dp, 0._dp, -5000._dp], 3)
 
        call source_flow_test("no flow 1", 0._dp, 100.e3_dp, 1, 0, &
-            [0._dp, 0._dp, 0._dp], 1)
+            [0._dp, 0._dp, 0._dp], 0)
        call source_flow_test("no flow all", 0._dp, 100.e3_dp, 0, 0, &
-            [0._dp, 0._dp, 0._dp], 1)
+            [0._dp, 0._dp, 0._dp], 0)
 
     end if
 

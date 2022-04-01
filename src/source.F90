@@ -393,7 +393,7 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:)
     PetscSection, intent(in) :: local_fluid_section
 
-    if (self%rate >= 0._dp) then
+    if (self%rate > 0._dp) then
        call self%update_component_injection()
        call self%update_injection_mass_flow()
     else
