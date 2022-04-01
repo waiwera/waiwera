@@ -1,0 +1,256 @@
+{
+  "boundaries": [
+    {
+      "faces": {
+        "cells": [
+          0
+        ], 
+        "normal": [
+          0, 
+          0, 
+          1
+        ]
+      }, 
+      "primary": [
+        100000.022155, 
+        20.0000000004
+      ], 
+      "region": 1
+    }
+  ], 
+  "eos": {
+    "name": "we"
+  }, 
+  "gravity": 9.8, 
+  "initial": {
+    "primary": [
+      [
+        418421.794263, 
+        0.748914612656
+      ], 
+      [
+        926566.237137, 
+        0.392776873717
+      ], 
+      [
+        1496454.6866, 
+        0.198283777803
+      ], 
+      [
+        2140433.66718, 
+        0.0927568575451
+      ], 
+      [
+        2860202.51725, 
+        0.0285431279644
+      ], 
+      [
+        3659468.77386, 
+        240.045127936
+      ], 
+      [
+        4547792.05466, 
+        240.059757257
+      ], 
+      [
+        5530780.52796, 
+        240.038000546
+      ], 
+      [
+        6608805.08289, 
+        240.011761012
+      ], 
+      [
+        7782244.99253, 
+        239.98057039
+      ], 
+      [
+        9098562.22329, 
+        239.9424012
+      ]
+    ], 
+    "region": [
+      4, 
+      4, 
+      4, 
+      4, 
+      4, 
+      1, 
+      1, 
+      1, 
+      1, 
+      1, 
+      1
+    ]
+  }, 
+  "mesh": {
+    "filename": "gmakeup.exo"
+  }, 
+  "network": {
+    "group": [
+      {
+        "in": [
+          "prd 1", 
+          "prd 2", 
+          "prd 3"
+        ], 
+        "limiter": {
+          "steam": 3
+        }, 
+        "name": "tmk 1", 
+        "scaling": "progressive"
+      }
+    ]
+  }, 
+  "output": {
+    "fields": {
+      "network_group": [
+        "rate", 
+        "enthalpy", 
+        "steam_rate"
+      ], 
+      "source": [
+        "natural_cell_index", 
+        "rate", 
+        "enthalpy", 
+        "steam_rate"
+      ]
+    }, 
+    "filename": "makeup.h5", 
+    "final": true, 
+    "frequency": 1, 
+    "initial": true
+  }, 
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0, 
+      "saturation_limits": [
+        0, 
+        0
+      ], 
+      "type": "linear"
+    }, 
+    "relative_permeability": {
+      "liquid": [
+        0, 
+        1
+      ], 
+      "type": "linear", 
+      "vapour": [
+        0, 
+        1
+      ]
+    }, 
+    "types": [
+      {
+        "cells": [
+          0, 
+          1, 
+          2, 
+          3, 
+          4, 
+          5, 
+          6, 
+          7, 
+          8, 
+          9, 
+          10
+        ], 
+        "density": 2600, 
+        "dry_conductivity": 1.5, 
+        "name": "dfalt", 
+        "permeability": [
+          1e-13, 
+          1e-13, 
+          1e-13
+        ], 
+        "porosity": 0.1, 
+        "specific_heat": 900, 
+        "wet_conductivity": 1.5
+      }
+    ]
+  }, 
+  "source": [
+    {
+      "cell": 10, 
+      "component": 1, 
+      "enthalpy": 1037600.46717, 
+      "name": "gen 1", 
+      "rate": 10
+    }, 
+    {
+      "cell": 3, 
+      "deliverability": {
+        "pressure": 1000000, 
+        "productivity": 5e-12
+      }, 
+      "direction": "production", 
+      "name": "prd 1", 
+      "separator": {
+        "pressure": 550000
+      }
+    }, 
+    {
+      "cell": 4, 
+      "deliverability": {
+        "pressure": 1000000, 
+        "productivity": 5e-12
+      }, 
+      "direction": "production", 
+      "name": "prd 2", 
+      "separator": {
+        "pressure": 600000
+      }
+    }, 
+    {
+      "cell": 5, 
+      "deliverability": {
+        "pressure": 1000000, 
+        "productivity": 5e-12
+      }, 
+      "direction": "production", 
+      "name": "prd 3", 
+      "separator": {
+        "pressure": [
+          1450000, 
+          550000
+        ]
+      }
+    }
+  ], 
+  "thermodynamics": "ifc67", 
+  "time": {
+    "start": 0, 
+    "step": {
+      "adapt": {
+        "amplification": 2, 
+        "maximum": 8, 
+        "method": "iteration", 
+        "minimum": 6, 
+        "on": true, 
+        "reduction": 0.25
+      }, 
+      "maximum": {
+        "number": 100, 
+        "size": 604800
+      }, 
+      "method": "beuler", 
+      "size": 43200, 
+      "solver": {
+        "nonlinear": {
+          "maximum": {
+            "iterations": 8
+          }, 
+          "tolerance": {
+            "function": {
+              "absolute": null, 
+              "relative": 1e-05
+            }
+          }
+        }
+      }
+    }, 
+    "stop": 31536000
+  }, 
+  "title": "1-D column problem with makeup wells: steady state"
+}

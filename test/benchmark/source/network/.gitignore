@@ -1,0 +1,6 @@
+run/*
+!run/gmakeup.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc
