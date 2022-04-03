@@ -1332,12 +1332,8 @@ contains
     PetscErrorCode, intent(out) :: err
 
     call setup_rate_table_control()
-    if (err == 0) then
-       call setup_enthalpy_table_control()
-       if (err == 0) then
-          call setup_tracer_table_controls()
-       end if
-    end if
+    call setup_enthalpy_table_control()
+    call setup_tracer_table_controls()
 
   contains
 
@@ -1371,12 +1367,6 @@ contains
          end if
          deallocate(data_array)
       end if
-      
-      if (err > 0) then
-         call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-              real_array_key = trim(srcstr) // "rate", &
-              real_array_value = data_array(:, 1))
-      end if
 
     end subroutine setup_rate_table_control
 
@@ -1409,12 +1399,6 @@ contains
             call source_controls%append(control)
          end if
          deallocate(data_array)
-      end if
-
-      if (err > 0) then
-         call logfile%write(LOG_LEVEL_ERR, "input", "unsorted_array", &
-              real_array_key = trim(srcstr) // "enthalpy", &
-              real_array_value = data_array(:, 1))
       end if
 
     end subroutine setup_enthalpy_table_control
