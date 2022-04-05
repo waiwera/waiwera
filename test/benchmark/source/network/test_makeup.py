@@ -57,8 +57,7 @@ model_dir = './run'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
 geo = mulgrid(t2geo_filename)
 
-run_name = 'run'
-run_index = 0
+run_names = ['uniform', 'progressive']
 
 test_fields = ['Pressure', 'Temperature', 'Vapour saturation']
 plot_fields = test_fields
@@ -70,17 +69,19 @@ field_unit = {'Pressure': 'bar', 'Temperature': '$^{\circ}$C', 'Vapour saturatio
 
 makeup_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 makeup_test.description = """1-D column problem, production run with makeup wells and total steam limit, starting from steady-state solution.
+Both uniform and progressive scaling cases are run.
 """
 
-base_path = os.path.realpath(model_dir)
-run_base_name = model_name
-run_filename = run_base_name + '.json'
-model_run = WaiweraModelRun(run_name, run_filename,
-                            fieldname_map = WAIWERA_FIELDMAP,
-                            simulator = simulator,
-                            basePath = base_path)
-model_run.jobParams['nproc'] = args.np
-makeup_test.mSuite.addRun(model_run, run_name)
+for run_index, run_name in enumerate(run_names):
+    base_path = os.path.realpath(model_dir)
+    run_base_name = model_name + '_' + run_name
+    run_filename = run_base_name + '.json'
+    model_run = WaiweraModelRun(run_name, run_filename,
+                                fieldname_map = WAIWERA_FIELDMAP,
+                                simulator = simulator,
+                                basePath = base_path)
+    model_run.jobParams['nproc'] = args.np
+    makeup_test.mSuite.addRun(model_run, run_name)
 
 obs_cell_elev = -350.
 obs_position = np.array([50., 50., obs_cell_elev])
@@ -92,94 +93,67 @@ map_out_atm = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
 makeup_test.setupEmptyTestCompsList()
 AUTOUGH2_result = {}
 
-run_base_name = model_name
-results_filename = os.path.join(model_dir, run_base_name + ".listing")
-run_filename = run_base_name + '.json'
-inp = json.load(open(os.path.join(base_path, run_filename)))
-lst = t2listing(results_filename)
-lst.last()
-
-AUTOUGH2_result = T2ModelResult("AUTOUGH2", results_filename,
-                                          geo_filename = t2geo_filename,
-                                          fieldname_map = AUTOUGH2_FIELDMAP,
-                                          ordering_map = map_out_atm)
-
-makeup_test.addTestComp(run_index, "AUTOUGH2",
-                  FieldWithinTolTC(fieldsToTest = test_fields,
-                                   defFieldTol = 0.01,
-                                   expected = AUTOUGH2_result,
-                                   testOutputIndex = -1))
-
-makeup_test.addTestComp(run_index, "AUTOUGH2 history",
-                      HistoryWithinTolTC(fieldsToTest = test_fields,
-                                         defFieldTol = 0.015,
-                                         expected = AUTOUGH2_result,
-                                         testCellIndex = obs_cell_index))
-
-for source_index in source_indices:
-    makeup_test.addTestComp(run_index, "AUTOUGH2 source",
-                            HistoryWithinTolTC(fieldsToTest = test_source_fields,
-                                               defFieldTol = 0.02,
-                                               expected = AUTOUGH2_result,
-                                               testSourceIndex = source_index))
+for run_index, run_name in enumerate(run_names):
+    run_base_name = model_name + '_' + run_name
+    results_filename = os.path.join(model_dir, run_base_name + ".listing")
+    run_filename = run_base_name + '.json'
+    inp = json.load(open(os.path.join(base_path, run_filename)))
+    lst = t2listing(results_filename)
+    lst.last()
+    AUTOUGH2_result[run_name] = T2ModelResult("AUTOUGH2", results_filename,
+                                    geo_filename = t2geo_filename,
+                                    fieldname_map = AUTOUGH2_FIELDMAP,
+                                    ordering_map = map_out_atm)
+    makeup_test.addTestComp(run_index, "AUTOUGH2",
+                            FieldWithinTolTC(fieldsToTest = test_fields,
+                                             defFieldTol = 0.01,
+                                             expected = AUTOUGH2_result[run_name],
+                                             testOutputIndex = -1))
+    makeup_test.addTestComp(run_index, "AUTOUGH2 history",
+                            HistoryWithinTolTC(fieldsToTest = test_fields,
+                                               defFieldTol = 0.015,
+                                               expected = AUTOUGH2_result[run_name],
+                                               testCellIndex = obs_cell_index))
+    for source_index in source_indices:
+        makeup_test.addTestComp(run_index, "AUTOUGH2 source",
+                                HistoryWithinTolTC(fieldsToTest = test_source_fields,
+                                                   defFieldTol = 0.02,
+                                                   expected = AUTOUGH2_result[run_name],
+                                                   testSourceIndex = source_index))
 
 jrunner = SimpleJobRunner(mpi = mpi)
 testResult, mResults = makeup_test.runTest(jrunner, createReports = True)
 
 day = 24. * 60. * 60.
 
-for field_name in test_source_fields:
-    for source_index in source_indices:
-        scale = field_scale[field_name]
-        unit = field_unit[field_name]
-        t, var = makeup_test.mSuite.resultsList[run_index].\
-                 getFieldHistoryAtSource(field_name, source_index)
-        plt.plot(t / day, var / scale, '-', label = 'Waiwera', zorder = 3)
+for run_index, run_name in enumerate(run_names):
+    for field_name in test_source_fields:
+        for source_index in source_indices:
+            scale = field_scale[field_name]
+            unit = field_unit[field_name]
+            t, var = makeup_test.mSuite.resultsList[run_index].\
+                     getFieldHistoryAtSource(field_name, source_index)
+            plt.plot(t / day, var / scale, '-', label = 'Waiwera', zorder = 3)
 
-        t, var = AUTOUGH2_result.getFieldHistoryAtSource(field_name, source_index)
-        plt.plot(t[::2] / day, var[::2] / scale, 's', label = 'AUTOUGH2', zorder = 2)
+            t, var = AUTOUGH2_result[run_name].getFieldHistoryAtSource(field_name, source_index)
+            plt.plot(t[::2] / day, var[::2] / scale, 's', label = 'AUTOUGH2', zorder = 2)
 
-        plt.xlabel('time (days)')
-        plt.ylabel(field_name + ' (' + unit + ')')
-        plt.legend(loc = 'best')
-        plt.title(' '.join((field_name, 'history at production well ' + str(source_index))))
-        img_filename_base = '_'.join((model_name, 'history', field_name, str(source_index)))
-        img_filename_base = img_filename_base.replace(' ', '_')
-        img_filename = os.path.join(makeup_test.mSuite.runs[run_index].basePath,
-                                    makeup_test.mSuite.outputPathBase,
-                                    img_filename_base)
-        plt.tight_layout(pad = 3.)
-        plt.savefig(img_filename + '.png', dpi = 300)
-        plt.savefig(img_filename + '.pdf')
-        plt.clf()
-        makeup_test.mSuite.analysisImages.append(img_filename + '.png')
-
-z = [lay.centre for lay in geo.layerlist[geo.num_atmosphere_blocks:]]
-n = len(z)
-
-for field_name in plot_fields:
-    scale = field_scale[field_name]
-    unit = field_unit[field_name]
-    result = makeup_test.mSuite.resultsList[run_index]
-    var = result.getFieldAtOutputIndex(field_name, -1) / scale
-    title = run_name
-    plt.plot(var[:n], z, '-', label = 'Waiwera')
-    var = AUTOUGH2_result.getFieldAtOutputIndex(field_name, -1) / scale
-    plt.plot(var[:n], z, 's', label = 'AUTOUGH2')
-    plt.xlabel(field_name + ' (' + unit + ')')
-    plt.ylabel('z (m)')
-    plt.title(' '. join(['Final', field_name.lower(), 'profile']))
-    img_filename_base = '_'.join((model_name, field_name))
-    img_filename_base = img_filename_base.replace(' ', '_')
-    img_filename = os.path.join(makeup_test.mSuite.runs[0].basePath,
-                                makeup_test.mSuite.outputPathBase,
-                                img_filename_base)
-    plt.legend(loc = 'best')
-    plt.tight_layout(pad = 3.)
-    plt.savefig(img_filename + '.png', dpi = 300)
-    plt.savefig(img_filename + '.pdf')
-    plt.clf()
-    makeup_test.mSuite.analysisImages.append(img_filename + '.png')
+            plt.xlabel('time (days)')
+            plt.ylabel(field_name + ' (' + unit + ')')
+            plt.legend(loc = 'best')
+            plt.title(' '.join((field_name, 'history at production well ' + str(source_index),
+                                '(' + run_name + ' scaling)')))
+            img_filename_base = '_'.join((model_name, run_name, 'history',
+                                          field_name, str(source_index)))
+            img_filename_base = img_filename_base.replace(' ', '_')
+            img_filename = os.path.join(makeup_test.mSuite.runs[run_index].basePath,
+                                        makeup_test.mSuite.outputPathBase,
+                                        img_filename_base)
+            plt.tight_layout(pad = 3.)
+            plt.savefig(img_filename + '.png', dpi = 300)
+            plt.savefig(img_filename + '.pdf')
+            plt.clf()
+            makeup_test.mSuite.analysisImages.append(img_filename + '.png')
 
 # generate report:
 

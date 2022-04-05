@@ -116,7 +116,7 @@
         "steam_rate"
       ]
     }, 
-    "filename": "makeup.h5", 
+    "filename": "makeup_progressive.h5", 
     "final": true, 
     "frequency": 1, 
     "initial": true
@@ -252,5 +252,5 @@
     }, 
     "stop": 31536000
   }, 
-  "title": "1-D column problem with makeup wells and total steam limit: steady state"
+  "title": "1-D column problem with makeup wells and total steam limit: progressive scaling"
 }

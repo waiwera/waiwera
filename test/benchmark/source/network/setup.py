@@ -74,9 +74,8 @@ inc = dat.grid.incons([P0, T0])
 inc.write(model_name + '_ss.incon')
 dat.run(simulator = AUTOUGH2, silent = True)
 inc = t2incon(model_name + '_ss.save')
-inc.write(model_name + '.incon')
 
-# transient run:
+# transient runs:
 ndt = 100
 day = 24. * 60. * 60.
 dat.parameter.update(
@@ -104,7 +103,6 @@ for wellname in production_wellnames:
     dat.add_generator(prd)
 
 jsondata = dat.json(geo, mesh_filename, incons = inc)
-jsondata['output']['filename'] = model_name + '.h5'
 jsondata['output']['fields'] = {'source': ['natural_cell_index',
                                            'rate', 'enthalpy',
                                            'steam_rate'],
@@ -116,21 +114,27 @@ for gen in dat.generatorlist:
     if gen.type == 'DELG': gen.type = 'DMAK'
 total_steam = 3.
 make_name = 'tmk 1'
-tmak = t2generator(name = make_name, block = geo.block_name_list[0],
-                   ex = total_steam, hg = -2, type = 'TMAK')
-dat.add_generator(tmak)
 for g in jsondata['source'][-len(production_wellnames):]:
     Psep = wells[g['name']][1]
     if Psep < 0: Psep = [1.45e6, 0.55e6]
     g['separator'] = {'pressure': Psep}
+tmak = t2generator(name = make_name, block = geo.block_name_list[0],
+                   ex = total_steam, type = 'TMAK')
+dat.add_generator(tmak)
 jsondata['network'] = {'group': [{'name': make_name,
                                   'limiter': {'steam': total_steam},
-                                  'in': production_wellnames,
-                                  'scaling': 'progressive'}]}
+                                  'in': production_wellnames}]}
 
-dat.title = title
-dat.write(model_name + '.dat')
-dat.run(simulator = AUTOUGH2, silent = True)
-
-json.dump(jsondata, file(model_name + '.json', 'w'),
-          indent = 2, sort_keys = True)
+for case_name in ['uniform', 'progressive']:
+    model_case_name = model_name + '_' + case_name
+    hg = -1 if case_name == 'uniform' else -2
+    dat.generatorlist[-1].hg = hg
+    jsondata['network']['group'][0]['scaling'] = case_name
+    dat.title = title + ': ' + case_name + ' scaling'
+    jsondata['title'] = dat.title
+    jsondata['output']['filename'] = model_case_name + '.h5'
+    dat.write(model_case_name + '.dat')
+    inc.write(model_case_name + '.incon')
+    dat.run(simulator = AUTOUGH2, silent = True)
+    json.dump(jsondata, file(model_case_name + '.json', 'w'),
+              indent = 2, sort_keys = True)
