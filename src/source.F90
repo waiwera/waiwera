@@ -22,7 +22,7 @@ module source_module
 
   use petsc
   use kinds_module
-  use source_network_module
+  use source_network_node_module
   use separator_module, only: num_separator_variables, separator_variable_names
   use fluid_module
   use thermodynamics_module

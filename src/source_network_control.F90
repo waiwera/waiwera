@@ -23,7 +23,7 @@ module source_network_control_module
   use petsc
   use kinds_module
   use control_module
-  use source_network_module
+  use source_network_node_module
   use list_module
 
   PetscInt, parameter, public :: max_limiter_type_length = 5

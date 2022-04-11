@@ -15,7 +15,7 @@
 !   You should have received a copy of the GNU Lesser General Public License
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
-module source_network_module
+module source_network_node_module
   !! Module for source network nodes.
 
 #include <petsc/finclude/petsc.h>
@@ -363,4 +363,4 @@ contains
 
 !------------------------------------------------------------------------
 
-end module source_network_module
+end module source_network_node_module

@@ -22,7 +22,7 @@ module source_network_group_module
 
   use petsc
   use kinds_module
-  use source_network_module
+  use source_network_node_module
   use source_module, only: source_type
   use separator_module, only: num_separator_variables, separator_variable_names
   use list_module, only: list_type, list_node_type

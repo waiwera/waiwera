@@ -31,7 +31,7 @@ module source_setup_module
   use eos_module
   use thermodynamics_module, only: thermodynamics_type
   use source_module
-  use source_network_module
+  use source_network_node_module
   use source_network_control_module
   use source_network_group_module
   use source_control_module

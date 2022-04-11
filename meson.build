@@ -55,7 +55,7 @@ waiwera_sources = [
   'src/rock_setup.F90',
   'src/root_finder.F90',
   'src/separator.F90',
-  'src/source_network.F90',
+  'src/source_network_node.F90',
   'src/source_control.F90',
   'src/source_network_control.F90',
   'src/source_network_group.F90',
