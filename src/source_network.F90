@@ -24,6 +24,10 @@ module source_network_module
   use petsc
   use kinds_module
   use list_module
+  use source_module
+  use source_network_group_module
+  use control_module
+  use source_control_module
 
   implicit none
   private
@@ -46,10 +50,217 @@ module source_network_module
      type(list_type), public :: separated_sources !! Sources with separators
    contains
      private
+     procedure, public :: update => source_network_update
+     procedure, public :: assemble_cell_inflows => source_network_assemble_cell_inflows
      procedure, public :: destroy => source_network_destroy
   end type source_network_type
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_update(self, t, interval, fluid_data, fluid_section)
+    !! Updates flows through source network, applying controls and
+    !! updating source rates.
+
+    use dm_utils_module, only: global_vec_section, global_section_offset
+
+    class(source_network_type), intent(in out) :: self
+    PetscReal, intent(in) :: t !! time (s)
+    PetscReal, intent(in) :: interval(2) !! time interval bounds
+    PetscReal, pointer, contiguous, intent(in out) :: fluid_data(:) !! array on fluid vector
+    PetscSection, intent(in out) :: fluid_section !! fluid section
+    ! Locals:
+    PetscSection :: source_section, group_section
+    PetscReal, pointer, contiguous :: source_data(:), group_data(:)
+    PetscErrorCode :: ierr
+
+    call global_vec_section(self%source, source_section)
+    call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%group, group_section)
+    call VecGetArrayF90(self%group, group_data, ierr); CHKERRQ(ierr)
+
+    call self%sources%traverse(source_assign_iterator)
+    call self%groups%traverse(group_assign_iterator)
+
+    call self%separated_sources%traverse(source_separator_iterator)
+    call self%source_controls%traverse(control_iterator)
+    call self%groups%traverse(group_iterator)
+    call self%network_controls%traverse(control_iterator)
+
+    call VecRestoreArrayF90(self%group, group_data, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
+
+  contains
+
+!........................................................................
+
+    subroutine source_assign_iterator(node, stopped)
+      !! Assigns data pointers for all sources.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: s, source_offset
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         s = source%local_source_index
+         source_offset = global_section_offset(source_section, &
+              s, self%source_range_start)
+         call source%assign(source_data, source_offset)
+      end select
+    end subroutine source_assign_iterator
+
+!........................................................................
+
+    subroutine group_assign_iterator(node, stopped)
+      !! Assigns data pointers for all source network groups.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: g, group_offset
+
+      stopped = PETSC_FALSE
+      select type (group => node%data)
+      class is (source_network_group_type)
+         if (group%rank == 0) then
+            g = group%local_group_index
+            group_offset = global_section_offset( &
+                 group_section, g, self%group_range_start)
+            call group%assign(group_data, group_offset)
+         end if
+      end select
+
+    end subroutine group_assign_iterator
+
+!........................................................................
+
+    subroutine source_separator_iterator(node, stopped)
+      !! Updates enthalpy and separated outputs from separators.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal, allocatable :: phase_flow_fractions(:)
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+
+         call source%assign_fluid_local(fluid_data, fluid_section)
+         allocate(phase_flow_fractions(source%fluid%num_phases))
+         phase_flow_fractions = source%fluid%phase_flow_fractions()
+         source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
+         deallocate(phase_flow_fractions)
+
+         call source%get_separated_flows()
+
+      end select
+
+    end subroutine source_separator_iterator
+
+!........................................................................
+
+    subroutine control_iterator(node, stopped)
+      !! Applies source network node controls.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (control => node%data)
+      class is (integer_object_control_type)
+         call control%update()
+      class is (interval_update_object_control_type)
+         call control%update(interval)
+      class is (pressure_reference_source_control_type)
+         call control%update(t, interval, fluid_data, &
+              fluid_section)
+      end select
+
+    end subroutine control_iterator
+
+!........................................................................
+
+    subroutine group_iterator(node, stopped)
+      !! Computes output for source network groups.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (group => node%data)
+      class is (source_network_group_type)
+         call group%sum()
+      end select
+
+    end subroutine group_iterator
+
+  end subroutine source_network_update
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_assemble_cell_inflows(self, eos, inflow_data, &
+       inflow_section, inflow_range_start, fluid_data, fluid_section, &
+       cell_geom_data, cell_geom_section)
+    !! Assembles contributions from sources into array on inflow vector.
+
+    use eos_module, only: eos_type
+    use dm_utils_module, only: section_offset, global_section_offset
+    use cell_module, only: cell_type
+
+    class(source_network_type), intent(in out) :: self
+    class(eos_type), intent(in out) :: eos
+    PetscReal, pointer, contiguous, intent(in out) :: inflow_data(:) !! array on vector to assemble cell inflows into
+    PetscSection, intent(in out) :: inflow_section !! section for vector to assemble into
+    PetscInt, intent(in) :: inflow_range_start !! range start for vector to assemble into
+    PetscReal, pointer, contiguous, intent(in out) :: fluid_data(:) !! array on fluid vector
+    PetscSection, intent(in out) :: fluid_section !! section for fluid vector
+    PetscReal, pointer, contiguous, intent(in out) :: cell_geom_data(:) !! array on cell geometry vector
+    PetscSection, intent(in out) :: cell_geom_section !! section for cell geometry vector
+    ! Locals:
+    type(cell_type) :: cell
+
+    call cell%init(eos%num_components, eos%num_phases)
+    call self%sources%traverse(source_assembly_iterator)
+    call cell%destroy()
+
+  contains
+
+    subroutine source_assembly_iterator(node, stopped)
+      !! Assembles contributions from sources to global RHS array.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: c, cell_geom_offset, inflow_offset
+      PetscReal, pointer, contiguous :: inflow(:)
+
+      stopped = PETSC_FALSE
+      select type (source => node%data)
+      class is (source_type)
+
+         c = source%local_cell_index
+
+         inflow_offset = global_section_offset(inflow_section, c, &
+              inflow_range_start)
+         inflow => inflow_data(inflow_offset : inflow_offset + &
+              eos%num_primary_variables - 1)
+
+         cell_geom_offset = section_offset(cell_geom_section, c)
+         call cell%assign_geometry(cell_geom_data, cell_geom_offset)
+
+         call source%update_flow(fluid_data, fluid_section)
+         inflow = inflow + source%flow / cell%volume
+
+      end select
+
+    end subroutine source_assembly_iterator
+
+  end subroutine source_network_assemble_cell_inflows
 
 !------------------------------------------------------------------------
 
@@ -78,11 +289,6 @@ contains
          object_control_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%sources%destroy(source_network_node_list_node_data_destroy)
 
-  contains
-
-!........................................................................
-    
-    
   end subroutine source_network_destroy
   
 !------------------------------------------------------------------------

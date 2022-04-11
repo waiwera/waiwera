@@ -1319,14 +1319,11 @@ contains
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
     PetscReal, pointer, contiguous :: update(:), flux_array(:)
-    PetscReal, pointer, contiguous :: source_data(:), source_network_group_data(:)
     PetscSection :: rhs_section, rock_section, fluid_section, update_section
     PetscSection :: cell_geom_section, face_geom_section, flux_section
-    PetscSection :: source_section, source_network_group_section
     type(face_type) :: face
     PetscInt :: face_geom_offset, cell_geom_offsets(2), update_offset
-    PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2)
-    PetscInt :: rhs_offset, flux_offset
+    PetscInt :: rock_offsets(2), fluid_offsets(2), rhs_offsets(2), flux_offset
     PetscBool :: update_flux
     PetscInt, pointer :: cells(:)
     PetscReal, pointer, contiguous :: inflow(:)
@@ -1428,27 +1425,11 @@ contains
     call PetscLogEventEnd(cell_inflows_event, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
 
-    ! Source / sink terms:
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
-    call global_vec_section(self%source_network%source, source_section)
-    call VecGetArrayF90(self%source_network%source, source_data, ierr); CHKERRQ(ierr)
-    call global_vec_section(self%source_network%group, source_network_group_section)
-    call VecGetArrayF90(self%source_network%group, source_network_group_data, &
-         ierr); CHKERRQ(ierr)
-
-    call self%source_network%sources%traverse(source_assign_iterator)
-    call self%source_network%groups%traverse(source_network_group_assign_iterator)
-
-    call self%source_network%separated_sources%traverse(source_separator_iterator)
-    call self%source_network%source_controls%traverse(control_iterator)
-    call self%source_network%groups%traverse(source_network_group_iterator)
-    call self%source_network%network_controls%traverse(control_iterator)
-
-    call self%source_network%sources%traverse(source_iterator)
-
-    call VecRestoreArrayF90(self%source_network%group, source_network_group_data, &
-         ierr); CHKERRQ(ierr)
-    call VecRestoreArrayF90(self%source_network%source, source_data, ierr); CHKERRQ(ierr)
+    call self%source_network%update(t, interval, fluid_array, fluid_section)
+    call self%source_network%assemble_cell_inflows(self%eos, rhs_array, rhs_section, &
+         self%solution_range_start, fluid_array, fluid_section, &
+         cell_geom_array, cell_geom_section)
     call PetscLogEventEnd(sources_event, ierr); CHKERRQ(ierr)
 
     nullify(inflow)
@@ -1460,150 +1441,6 @@ contains
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flux, face_component_flow)
-
-  contains
-
-!........................................................................
-
-    subroutine source_assign_iterator(node, stopped)
-      !! Assigns data pointers for all sources.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: s, source_offset
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, self%source_network%source_range_start)
-         call source%assign(source_data, source_offset)
-      end select
-    end subroutine source_assign_iterator
-
-!........................................................................
-
-    subroutine source_network_group_assign_iterator(node, stopped)
-      !! Assigns data pointers for all source network groups.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: g, source_network_group_offset
-
-      stopped = PETSC_FALSE
-      select type (group => node%data)
-      class is (source_network_group_type)
-         if (group%rank == 0) then
-            g = group%local_group_index
-            source_network_group_offset = global_section_offset( &
-                 source_network_group_section, g, &
-                 self%source_network%group_range_start)
-            call group%assign(source_network_group_data, &
-                 source_network_group_offset)
-         end if
-      end select
-
-    end subroutine source_network_group_assign_iterator
-
-!........................................................................
-
-    subroutine source_separator_iterator(node, stopped)
-      !! Updates enthalpy and separated outputs from separators.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal, allocatable :: phase_flow_fractions(:)
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-
-         call source%assign_fluid_local(fluid_array, fluid_section)
-         allocate(phase_flow_fractions(source%fluid%num_phases))
-         phase_flow_fractions = source%fluid%phase_flow_fractions()
-         source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
-         deallocate(phase_flow_fractions)
-
-         call source%get_separated_flows()
-
-      end select
-
-    end subroutine source_separator_iterator
-
-!........................................................................
-
-    subroutine control_iterator(node, stopped)
-      !! Applies source network node controls.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type (control => node%data)
-      class is (integer_object_control_type)
-         call control%update()
-      class is (interval_update_object_control_type)
-         call control%update(interval)
-      class is (pressure_reference_source_control_type)
-         call control%update(t, interval, fluid_array, &
-              fluid_section)
-      end select
-
-    end subroutine control_iterator
-
-!........................................................................
-
-    subroutine source_iterator(node, stopped)
-      !! Assembles contributions from sources to global RHS array.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: c, cell_geom_offset
-      type(cell_type) :: cell
-
-      stopped = PETSC_FALSE
-      select type (source => node%data)
-      class is (source_type)
-
-         call cell%init(self%eos%num_components, self%eos%num_phases)
-         c = source%local_cell_index
-
-         rhs_offset = global_section_offset(rhs_section, c, &
-              self%solution_range_start)
-         inflow => rhs_array(rhs_offset : rhs_offset + np - 1)
-
-         cell_geom_offset = section_offset(cell_geom_section, c)
-         call cell%assign_geometry(cell_geom_array, cell_geom_offset)
-
-         call source%update_flow(fluid_array, fluid_section)
-         inflow = inflow + source%flow / cell%volume
-
-         call cell%destroy()
-
-      end select
-
-    end subroutine source_iterator
-
-!........................................................................
-
-    subroutine source_network_group_iterator(node, stopped)
-      !! Computes output for source network groups.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type (group => node%data)
-      class is (source_network_group_type)
-         call group%sum()
-      end select
-
-    end subroutine source_network_group_iterator
 
   end subroutine flow_simulation_cell_inflows
 
