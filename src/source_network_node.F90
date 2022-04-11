@@ -22,6 +22,7 @@ module source_network_node_module
 
   use petsc
   use kinds_module
+  use list_module
   use separator_module
 
   implicit none
@@ -69,7 +70,23 @@ module source_network_node_module
      procedure, public :: destroy => source_network_node_destroy
   end type source_network_node_type
 
+  public :: source_network_node_list_node_data_destroy
+
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_node_list_node_data_destroy(node)
+    !! Destroys source network node in each list node.
+
+    type(list_node_type), pointer, intent(in out) :: node
+
+    select type (source_network_node => node%data)
+    class is (source_network_node_type)
+       call source_network_node%destroy()
+    end select
+
+  end subroutine source_network_node_list_node_data_destroy
 
 !------------------------------------------------------------------------
 ! Source network node

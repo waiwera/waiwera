@@ -12,6 +12,7 @@ module source_control_test
   use source_control_module
   use source_network_control_module
   use source_network_group_module
+  use source_network_module
   use source_setup_module
 
   implicit none
@@ -77,14 +78,13 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(source_type) :: source
-    Vec :: fluid_vector, local_fluid_vector, source_vector, group_vector
+    Vec :: fluid_vector, local_fluid_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: fluid_section, local_fluid_section, source_section
-    type(list_type) :: sources, source_controls, source_network_groups, &
-         separated_sources, source_network_controls
-    PetscInt :: total_num_sources, total_num_source_network_groups, source_vector_size
-    PetscInt :: fluid_range_start, source_range_start, group_range_start
+    type(source_network_type) :: source_network
+    PetscInt :: source_vector_size
+    PetscInt :: fluid_range_start
     PetscReal :: t, interval(2)
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: start_time = 0._dp
@@ -92,7 +92,6 @@ contains
     type(tracer_type), allocatable :: tracers(:)
     PetscInt, parameter :: expected_num_sources = 11
     PetscMPIInt :: rank
-    IS :: source_is, source_network_group_is
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_controls_table.json")
@@ -110,24 +109,21 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
-         thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, total_num_source_network_groups, source_controls, &
-         source_is, source_network_group_is, separated_sources, source_network_groups, &
-         source_network_controls, err = err)
-    call test%assert(0, err, "source setup error")
+    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
+         thermo, start_time, fluid_vector, fluid_range_start, source_network, &
+         err = err)
+    call test%assert(0, err, "source network setup error")
     call source%init("", eos, 0, 0, 0._dp, 0, 0, size(tracers))
     call test%assert(13 + size(tracers) * 2, source%dof, "source dof")
     call source%destroy()
 
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call VecGetSize(source_vector, source_vector_size, ierr); CHKERRQ(ierr)
+    call VecGetSize(source_network%source, source_vector_size, ierr); CHKERRQ(ierr)
     if (rank == 0) then
-       call test%assert(expected_num_sources, total_num_sources, &
+       call test%assert(expected_num_sources, source_network%num_sources, &
             "number of sources")
-       call test%assert(0, total_num_source_network_groups, "number of source groups")
+       call test%assert(0, source_network%num_groups, "number of source groups")
        call test%assert(expected_num_sources * source%dof, &
             source_vector_size, "source vector size")
     end if
@@ -136,31 +132,20 @@ contains
          local_fluid_section)
     call VecGetArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
-    call global_vec_section(source_vector, source_section)
-    call VecGetArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(source_network%source, source_section)
+    call VecGetArrayReadF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
 
     t = 120._dp
     interval = [30._dp, t]
-    call source_controls%traverse(source_control_iterator)
-    call sources%traverse(source_test_iterator)
+    call source_network%source_controls%traverse(source_control_iterator)
+    call source_network%sources%traverse(source_test_iterator)
 
     call VecRestoreArrayReadF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
-    call ISDestroy(source_is, ierr); CHKERRQ(ierr)
-    call ISDestroy(source_network_group_is, ierr); CHKERRQ(ierr)
-    call source_controls%destroy(source_control_list_node_data_destroy, &
-         reverse = PETSC_TRUE)
-    call source_network_groups%destroy(source_network_group_list_node_data_destroy, &
-         reverse = PETSC_TRUE)
-    call source_network_controls%destroy(source_control_list_node_data_destroy, &
-         reverse = PETSC_TRUE)
-    call separated_sources%destroy()
-    call sources%destroy(source_list_node_data_destroy)
-    call VecRestoreArrayReadF90(source_vector, source_array, ierr); CHKERRQ(ierr)
-    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
-    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
+    call source_network%destroy()
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
     call mesh%destroy()
@@ -199,7 +184,7 @@ contains
       type is (source_type)
          s = source%local_source_index
          source_offset = global_section_offset(source_section, s, &
-              source_range_start)
+              source_network%source_range_start)
          call source%assign(source_array, source_offset)
          source_index = nint(source%source_index)
          write(srcstr, '(a, i1)') 'source ', source_index
@@ -229,30 +214,6 @@ contains
 
     end subroutine source_test_iterator
 
-    subroutine source_control_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
-      select type (source_control => node%data)
-      class is (object_control_type)
-         call source_control%destroy()
-      end select
-    end subroutine source_control_list_node_data_destroy
-
-     subroutine source_network_group_list_node_data_destroy(node)
-       type(list_node_type), pointer, intent(in out) :: node
-      select type (source_network_group => node%data)
-      class is (source_network_group_type)
-         call source_network_group%destroy()
-      end select
-    end subroutine source_network_group_list_node_data_destroy
-
-    subroutine source_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
-      select type (source => node%data)
-      class is (source_type)
-         call source%destroy()
-      end select
-    end subroutine source_list_node_data_destroy
-
   end subroutine test_source_control_table
 
 !------------------------------------------------------------------------
@@ -280,25 +241,20 @@ contains
     type(eos_wge_type) :: eos
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
-    type(list_type) :: sources, source_controls, source_network_groups, &
-         separated_sources, source_network_controls
     type(source_type) :: source
-    Vec :: source_vector, group_vector
     Vec :: fluid_vector, local_fluid_vector
     PetscReal, pointer, contiguous :: fluid_array(:), local_fluid_array(:)
     PetscReal, pointer, contiguous :: source_array(:)
     PetscSection :: source_section, fluid_section, local_fluid_section
+    type(source_network_type) :: source_network
     type(fluid_type) :: fluid
-    PetscInt :: total_num_sources, total_num_source_network_groups
     PetscInt :: num_separators, num_source_controls
-    PetscInt :: start_cell, end_cell, c, s12, source_range_start, group_range_start, &
-         fluid_range_start
+    PetscInt :: start_cell, end_cell, c, s12, fluid_range_start
     PetscInt :: fluid_offset, source_offset, cell_phase_composition
     PetscReal :: t, interval(2), props(2)
     PetscReal :: cell_temperature, cell_liquid_density, cell_liquid_internal_energy
     PetscReal :: cell_vapour_density, cell_vapour_internal_energy
     PetscReal :: cell_liquid_viscosity, cell_vapour_viscosity
-    IS :: source_is, source_network_group_is
     PetscErrorCode :: ierr, err
     PetscReal, parameter :: cell_pressure = 50.e5_dp, cell_vapour_saturation = 0.8_dp
     PetscInt, parameter :: cell_region = 4
@@ -381,26 +337,23 @@ contains
     end do
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
-         thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, total_num_source_network_groups, source_controls, &
-         source_is, source_network_group_is, separated_sources, source_network_groups, &
-         source_network_controls, err = err)
+    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
+         thermo, start_time, fluid_vector, fluid_range_start, source_network, &
+         err = err)
     call test%assert(0, err, "source setup error")
 
     if (rank == 0) then
-      call test%assert(expected_num_sources, total_num_sources, "number of sources")
-      call test%assert(0, total_num_source_network_groups, "number of source groups")
+      call test%assert(expected_num_sources, source_network%num_sources, "number of sources")
+      call test%assert(0, source_network%num_groups, "number of source groups")
     end if
 
-    call MPI_reduce(source_controls%count, num_source_controls, 1, &
+    call MPI_reduce(source_network%source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
        call test%assert(29, num_source_controls, "number of source controls")
     end if
 
-    call MPI_reduce(separated_sources%count, num_separators, 1, &
+    call MPI_reduce(source_network%separated_sources%count, num_separators, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
        call test%assert(3, num_separators, "number of separators")
@@ -411,43 +364,44 @@ contains
     call VecGetArrayF90(local_fluid_vector, local_fluid_array, ierr)
     CHKERRQ(ierr)
 
-    call global_vec_section(source_vector, source_section)
-    call VecGetArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+    call global_vec_section(source_network%source, source_section)
+    call VecGetArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
 
     t = 120._dp
     interval = [30._dp, t]
 
-    call separated_sources%traverse(source_separator_iterator)
-    call source_controls%traverse(source_control_update_iterator)
-    call source_controls%traverse(source_control_test_iterator)
+    call source_network%separated_sources%traverse(source_separator_iterator)
+    call source_network%source_controls%traverse(source_control_update_iterator)
+    call source_network%source_controls%traverse(source_control_test_iterator)
 
     s12 = -1
-    call sources%traverse(source_rate_test_iterator)
+    call source_network%sources%traverse(source_rate_test_iterator)
 
     ! Test deliverability threshold control- reduce fluid pressure:
     call source%init("source 12", eos, 0, 0, 0._dp, 0, 0, size(tracer_names))
     call reset_fluid_pressures(6.e5_dp)
-    call source_controls%traverse(source_control_update_iterator)
+    call source_network%source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
-       source_offset = global_section_offset(source_section, s12, source_range_start)
+       source_offset = global_section_offset(source_section, s12, &
+            source_network%source_range_start)
        call source%assign(source_array, source_offset)
        call test%assert(-2.25_dp, source%rate, "source 13 rate P = 6 bar")
     end if
 
     call reset_fluid_pressures(4.e5_dp)
-    call source_controls%traverse(source_control_update_iterator)
+    call source_network%source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
        call test%assert(-1.125_dp, source%rate, "source 13 rate P = 4 bar")
     end if
     call reset_fluid_pressures(3.e5_dp)
-    call source_controls%traverse(source_control_update_iterator)
+    call source_network%source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
        call test%assert(-0.5625_dp, source%rate, "source 13 rate P = 3 bar")
     end if
 
     t = t + 90._dp
     interval = [150._dp, t]
-    call source_controls%traverse(source_control_update_iterator)
+    call source_network%source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
        call test%assert(-0.0291666666667_dp, source%rate, &
             "source 13 rate P = 3 bar case 2")
@@ -457,20 +411,9 @@ contains
     CHKERRQ(ierr)
     call restore_dm_local_vec(local_fluid_vector)
 
-    call ISDestroy(source_is, ierr); CHKERRQ(ierr)
-    call ISDestroy(source_network_group_is, ierr); CHKERRQ(ierr)
     call source%destroy()
-    call source_controls%destroy(source_control_list_node_data_destroy, &
-         reverse = PETSC_TRUE)
-    call source_network_groups%destroy(source_network_group_list_node_data_destroy, &
-         reverse = PETSC_TRUE)
-    call source_network_controls%destroy(source_control_list_node_data_destroy, &
-         reverse = PETSC_TRUE)
-    call separated_sources%destroy()
-    call sources%destroy(source_list_node_data_destroy)
-    call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
-    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
-    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
+    call source_network%destroy()
     call fluid%destroy()
     call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
@@ -496,7 +439,7 @@ contains
 
          s = source%local_source_index
          source_offset = global_section_offset(source_section, &
-              s, source_range_start)
+              s, source_network%source_range_start)
          call source%assign(source_array, source_offset)
 
          call source%assign_fluid_local(local_fluid_array, local_fluid_section)
@@ -538,7 +481,7 @@ contains
          type is (source_type)
             s = source%local_source_index
             source_offset = global_section_offset(source_section, s, &
-              source_range_start)
+              source_network%source_range_start)
             call source%assign(source_array, source_offset)
             source_index = nint(source%source_index)
             select case (source_index)
@@ -586,7 +529,8 @@ contains
          select type (source => source_control%objects%head%data)
          type is (source_type)
             s = source%local_source_index
-            source_offset = global_section_offset(source_section, s, source_range_start)
+            source_offset = global_section_offset(source_section, s, &
+                 source_network%source_range_start)
             call source%assign(source_array, source_offset)
             source_index = nint(source%source_index)
             select case (source_index)
@@ -627,7 +571,8 @@ contains
       select type (source => node%data)
       type is (source_type)
          s = source%local_source_index
-         source_offset = global_section_offset(source_section, s, source_range_start)
+         source_offset = global_section_offset(source_section, s, &
+              source_network%source_range_start)
          call source%assign(source_array, source_offset)
          source_index = nint(source%source_index)
          write(srcstr, '(a, i2)') 'source ', source_index + 1
@@ -651,30 +596,6 @@ contains
       end do
 
     end subroutine reset_fluid_pressures
-
-    subroutine source_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
-      select type (source => node%data)
-      type is (source_type)
-         call source%destroy()
-      end select
-    end subroutine source_list_node_data_destroy
-
-     subroutine source_control_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
-      select type (source_control => node%data)
-      class is (object_control_type)
-         call source_control%destroy()
-      end select
-    end subroutine source_control_list_node_data_destroy
-
-     subroutine source_network_group_list_node_data_destroy(node)
-      type(list_node_type), pointer, intent(in out) :: node
-      select type (source_network_group => node%data)
-      class is (source_network_group_type)
-         call source_network_group%destroy()
-      end select
-    end subroutine source_network_group_list_node_data_destroy
 
   end subroutine test_source_control_pressure_reference
 

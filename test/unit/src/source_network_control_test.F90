@@ -12,6 +12,7 @@ module source_network_control_test
   use source_control_module
   use source_network_group_module
   use source_network_control_module
+  use source_network_module
   use source_setup_module
 
   implicit none
@@ -73,14 +74,11 @@ contains
     type(fson_value), pointer :: json
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
-    Vec :: fluid_vector, source_vector, group_vector
-    PetscInt :: fluid_range_start, source_range_start, group_range_start
+    Vec :: fluid_vector
+    PetscInt :: fluid_range_start
     PetscReal, pointer, contiguous :: source_array(:), group_array(:)
     PetscSection :: source_section, group_section
-    type(list_type) :: sources, source_controls, source_network_groups, &
-         separated_sources, source_network_controls
-    IS :: source_index, source_network_group_index
-    PetscInt :: total_num_sources, total_num_source_network_groups
+    type(source_network_type) :: source_network
     PetscMPIInt :: rank
     PetscReal, parameter :: start_time = 0._dp, end_time = 100._dp
     PetscReal, parameter :: interval(2) = [start_time, end_time]
@@ -100,48 +98,37 @@ contains
     call mesh%configure(gravity, json, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_sources(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
-         thermo, start_time, fluid_vector, fluid_range_start, source_vector, &
-         source_range_start, group_vector, group_range_start, &
-         sources, total_num_sources, total_num_source_network_groups, source_controls, &
-         source_index, source_network_group_index, separated_sources, source_network_groups, &
-         source_network_controls, err = err)
+    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
+         thermo, start_time, fluid_vector, fluid_range_start, source_network, &
+         err = err)
 
     call test%assert(0, err, "error")
     if (rank == 0) then
-       call test%assert(expected_num_sources, total_num_sources, "number of sources")
-       call test%assert(expected_num_groups, total_num_source_network_groups, "number of groups")
+       call test%assert(expected_num_sources, source_network%num_sources, "number of sources")
+       call test%assert(expected_num_groups, source_network%num_groups, "number of groups")
     end if
 
     if (err == 0) then
 
-       call global_vec_section(source_vector, source_section)
-       call global_vec_section(group_vector, group_section)
-       call VecGetArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
-       call VecGetArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
+       call global_vec_section(source_network%source, source_section)
+       call global_vec_section(source_network%group, group_section)
+       call VecGetArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
+       call VecGetArrayF90(source_network%group, group_array, ierr); CHKERRQ(ierr)
 
-       call sources%traverse(source_setup_iterator)
-       call source_network_groups%traverse(group_assign_iterator)
-       call separated_sources%traverse(source_separator_iterator)
-       call source_network_groups%traverse(group_sum_iterator)
-       call source_network_controls%traverse(network_control_iterator)
-       call sources%traverse(source_test_iterator)
-       call source_network_groups%traverse(group_test_iterator)
+       call source_network%sources%traverse(source_setup_iterator)
+       call source_network%groups%traverse(group_assign_iterator)
+       call source_network%separated_sources%traverse(source_separator_iterator)
+       call source_network%groups%traverse(group_sum_iterator)
+       call source_network%network_controls%traverse(network_control_iterator)
+       call source_network%sources%traverse(source_test_iterator)
+       call source_network%groups%traverse(group_test_iterator)
 
-       call VecRestoreArrayF90(group_vector, group_array, ierr); CHKERRQ(ierr)
-       call VecRestoreArrayF90(source_vector, source_array, ierr); CHKERRQ(ierr)
+       call VecRestoreArrayF90(source_network%group, group_array, ierr); CHKERRQ(ierr)
+       call VecRestoreArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
 
     end if
 
-    call ISDestroy(source_index, ierr); CHKERRQ(ierr)
-    call ISDestroy(source_network_group_index, ierr); CHKERRQ(ierr)
-    call VecDestroy(source_vector, ierr); CHKERRQ(ierr)
-    call VecDestroy(group_vector, ierr); CHKERRQ(ierr)
-    call separated_sources%destroy()
-    call source_network_groups%destroy(source_network_group_list_node_data_destroy)
-    call source_controls%destroy(source_control_list_node_data_destroy)
-    call source_network_controls%destroy(source_control_list_node_data_destroy)
-    call sources%destroy(source_list_node_data_destroy)
+    call source_network%destroy()
     call DMRestoreGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr)
     call mesh%destroy_distribution_data()
     call mesh%destroy()
@@ -163,7 +150,7 @@ contains
       type is (source_type)
          s = source%local_source_index
          source_offset = global_section_offset(source_section, &
-              s, source_range_start)
+              s, source_network%source_range_start)
          call source%assign(source_array, source_offset)
          select case (source%name)
          case ("s1")
@@ -230,7 +217,7 @@ contains
          if (group%rank == 0) then
             g = group%local_group_index
             group_offset = global_section_offset(group_section, &
-              g, group_range_start)
+              g, source_network%group_range_start)
             call group%assign(group_array, group_offset)
          end if
       end select
@@ -409,32 +396,6 @@ contains
     end subroutine group_test_iterator
 
   end subroutine test_source_network_limiter
-
-!------------------------------------------------------------------------
-
-  subroutine source_control_list_node_data_destroy(node)
-    type(list_node_type), pointer, intent(in out) :: node
-    select type (source_control => node%data)
-    class is (object_control_type)
-       call source_control%destroy()
-    end select
-  end subroutine source_control_list_node_data_destroy
-
-  subroutine source_network_group_list_node_data_destroy(node)
-    type(list_node_type), pointer, intent(in out) :: node
-    select type (source_network_group => node%data)
-    class is (source_network_group_type)
-       call source_network_group%destroy()
-    end select
-  end subroutine source_network_group_list_node_data_destroy
-
-  subroutine source_list_node_data_destroy(node)
-    type(list_node_type), pointer, intent(in out) :: node
-    select type (source => node%data)
-    class is (source_type)
-       call source%destroy()
-    end select
-  end subroutine source_list_node_data_destroy
 
 !------------------------------------------------------------------------
 

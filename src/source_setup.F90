@@ -30,6 +30,7 @@ module source_setup_module
   use logfile_module
   use eos_module
   use thermodynamics_module, only: thermodynamics_type
+  use source_network_module
   use source_module
   use source_network_node_module
   use source_network_control_module
@@ -40,19 +41,16 @@ module source_setup_module
   implicit none
   private
 
-  public :: setup_sources
+  public :: setup_source_network
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_sources(json, dm, ao, eos, tracer_names, thermo, start_time, &
-       fluid_vector, fluid_range_start, source_vector, source_range_start, &
-       source_network_group_vector, source_network_group_range_start, &
-       sources, num_sources, num_source_network_groups, source_controls, source_index, &
-       source_network_group_index, separated_sources, source_network_groups, &
-       source_network_controls, logfile, err)
-    !! Sets up sinks / sources, source controls and source groups.
+  subroutine setup_source_network(json, dm, ao, eos, tracer_names, thermo, start_time, &
+       fluid_vector, fluid_range_start, source_network, logfile, err)
+    !! Sets up source network, including sinks / sources, source
+    !! controls and source groups.
 
     use dm_utils_module
     use dictionary_module
@@ -69,19 +67,7 @@ contains
     PetscReal, intent(in) :: start_time
     Vec, intent(in) :: fluid_vector !! Fluid vector
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
-    Vec, intent(out) :: source_vector !! Source vector
-    PetscInt, intent(out) :: source_range_start !! Range start for global source vector
-    Vec, intent(out) :: source_network_group_vector !! Source network group vector
-    PetscInt, intent(out) :: source_network_group_range_start !! Range start for global source network group vector
-    type(list_type), intent(in out) :: sources !! List of local source objects
-    PetscInt, intent(out) :: num_sources !! Total number of sources created on all processes
-    PetscInt, intent(out) :: num_source_network_groups !! Total number of source network groups created on all processes
-    type(list_type), intent(in out) :: source_controls !! List of source controls
-    IS, intent(in out) :: source_index !! IS defining natural-to-global source ordering
-    IS, intent(in out) :: source_network_group_index !! IS defining natural-to-global source network group ordering
-    type(list_type), intent(out) :: separated_sources !! List of sources with separators
-    type(list_type), intent(in out) :: source_network_groups !! List of source network groups
-    type(list_type), intent(in out) :: source_network_controls !! List of source network controls
+    type(source_network_type), intent(in out) :: source_network !! Source network
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
@@ -103,8 +89,8 @@ contains
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    num_sources = 0
-    num_source_network_groups = 0
+    source_network%num_sources = 0
+    source_network%num_groups = 0
     num_tracers = size(tracer_names)
     num_local_root_groups = 0
     err = 0
@@ -114,23 +100,23 @@ contains
 
        call create_path_dm(num_local_sources, dm_source)
        call setup_source_dm_data_layout(dm_source)
-       call DMCreateGlobalVector(dm_source, source_vector, ierr); CHKERRQ(ierr)
-       call PetscObjectSetName(source_vector, "source", ierr); CHKERRQ(ierr)
-       call global_vec_range_start(source_vector, source_range_start)
+       call DMCreateGlobalVector(dm_source, source_network%source, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(source_network%source, "source", ierr); CHKERRQ(ierr)
+       call global_vec_range_start(source_network%source, source_network%source_range_start)
 
        call global_vec_section(fluid_vector, fluid_section)
        call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
-       call global_vec_section(source_vector, source_section)
-       call VecGetArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
+       call global_vec_section(source_network%source, source_section)
+       call VecGetArrayF90(source_network%source, source_data, ierr); CHKERRQ(ierr)
 
-       call sources%init(owner = PETSC_TRUE)
+       call source_network%sources%init(owner = PETSC_TRUE)
        call source_dict%init(owner = PETSC_FALSE)
        call source_dict_all%init(owner = PETSC_FALSE)
        call source_network_group_index_dict%init(owner = PETSC_TRUE)
-       call separated_sources%init(owner = PETSC_FALSE)
-       call source_controls%init(owner = PETSC_TRUE)
-       call source_network_groups%init(owner = PETSC_TRUE)
-       call source_network_controls%init(owner = PETSC_TRUE)
+       call source_network%separated_sources%init(owner = PETSC_FALSE)
+       call source_network%source_controls%init(owner = PETSC_TRUE)
+       call source_network%groups%init(owner = PETSC_TRUE)
+       call source_network%network_controls%init(owner = PETSC_TRUE)
 
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
@@ -139,9 +125,8 @@ contains
           local_source_index = 0
           do source_spec_index = 0, num_source_specs - 1
              call setup_source(source_spec_index, local_source_index, &
-                  source_json, ao, tracer_names, num_sources, &
-                  separated_sources, thermo, sources, source_dict, &
-                  source_dict_all, err)
+                  source_json, ao, tracer_names, thermo, source_network, &
+                  source_dict, source_dict_all, err)
              if (err > 0) exit
              source_json => fson_value_next_mpi(source_json)
           end do
@@ -154,21 +139,21 @@ contains
        if (err == 0) then
 
           allocate(indices(num_local_sources))
-          call sources%traverse(source_indices_iterator)
-          source_index = invert_indices(indices, "source_index")
+          call source_network%sources%traverse(source_indices_iterator)
+          source_network%source_index = invert_indices(indices, "source_index")
           deallocate(indices)
 
           if (fson_has_mpi(json, "network.group")) then
              call fson_get_mpi(json, "network.group", groups_json)
-             num_source_network_groups = fson_value_count_mpi(groups_json, ".")
+             source_network%num_groups = fson_value_count_mpi(groups_json, ".")
              call setup_source_network_group_index_dict(groups_json, &
-                  num_source_network_groups, source_network_group_index_dict)
-             call setup_group_dag(groups_json, num_source_network_groups, &
+                  source_network%num_groups, source_network_group_index_dict)
+             call setup_group_dag(groups_json, source_network%num_groups, &
                   group_dag, group_specs_array)
              call group_dag%sort(group_order, err)
              if (err == 0) then
-                call init_source_network_groups(num_source_network_groups, &
-                     source_network_groups, source_network_controls, &
+                call init_source_network_groups(source_network%num_groups, &
+                     source_network%groups, source_network%network_controls, &
                      num_local_root_groups, logfile, err)
              end if
           end if
@@ -176,28 +161,28 @@ contains
           if (err == 0) then
              call create_path_dm(num_local_root_groups, dm_group)
              call setup_group_dm_data_layout(dm_group)
-             call DMCreateGlobalVector(dm_group, source_network_group_vector, &
+             call DMCreateGlobalVector(dm_group, source_network%group, &
                   ierr); CHKERRQ(ierr)
-             call PetscObjectSetName(source_network_group_vector, "network_group", &
+             call PetscObjectSetName(source_network%group, "network_group", &
                   ierr); CHKERRQ(ierr)
-             call global_vec_range_start(source_network_group_vector, &
-                  source_network_group_range_start)
-             call global_vec_section(source_network_group_vector, source_network_group_section)
-             call VecGetArrayF90(source_network_group_vector, source_network_group_data, &
+             call global_vec_range_start(source_network%group, &
+                  source_network%group_range_start)
+             call global_vec_section(source_network%group, source_network_group_section)
+             call VecGetArrayF90(source_network%group, source_network_group_data, &
                   ierr); CHKERRQ(ierr)
              sorted_group_index = 0
-             call source_network_groups%traverse(group_init_data_iterator)
+             call source_network%groups%traverse(group_init_data_iterator)
              allocate(group_indices(num_local_root_groups))
-             call source_network_groups%traverse(source_network_group_indices_iterator)
-             source_network_group_index = invert_indices(group_indices, "network_group_index")
+             call source_network%groups%traverse(source_network_group_indices_iterator)
+             source_network%group_index = invert_indices(group_indices, "network_group_index")
              deallocate(group_indices)
-             call VecRestoreArrayF90(source_network_group_vector, source_network_group_data, ierr)
+             call VecRestoreArrayF90(source_network%group, source_network_group_data, ierr)
              CHKERRQ(ierr)
           end if
 
        end if
 
-       call VecRestoreArrayF90(source_vector, source_data, ierr); CHKERRQ(ierr)
+       call VecRestoreArrayF90(source_network%source, source_data, ierr); CHKERRQ(ierr)
        call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
        CHKERRQ(ierr)
        call source_dict%destroy()
@@ -405,8 +390,7 @@ contains
 !........................................................................
 
     subroutine setup_source(source_spec_index, local_source_index, source_json, &
-         ao, tracer_names, num_sources, separated_sources, thermo, &
-         sources, source_dict, source_dict_all, err)
+         ao, tracer_names, thermo, source_network, source_dict, source_dict_all, err)
       !! Sets up all cell sources for a source specification.
 
       PetscInt, intent(in) :: source_spec_index !! Index of source specification
@@ -414,10 +398,8 @@ contains
       type(fson_value), pointer, intent(in) :: source_json !! JSON input for specification
       AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
       character(*), intent(in) :: tracer_names(:) !! Tracer names
-      PetscInt, intent(in out) :: num_sources !! Current total number of sources (on all processes)
-      type(list_type), intent(in out) :: separated_sources !! List of sources with separators
       class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
-      type(list_type), intent(in out) :: sources !! List of local sources
+      type(source_network_type), intent(in out) :: source_network !! Source network
       type(dictionary_type), intent(in out) :: source_dict !! Dictionary of local named sources
       type(dictionary_type), intent(in out) :: source_dict_all !! Dictionary of all named sources
       PetscErrorCode, intent(out) :: err
@@ -479,7 +461,7 @@ contains
          if (num_cells > 0) then
             do i = 1, num_cells
                source_offset = global_section_offset(source_section, local_source_index, &
-                    source_range_start)
+                    source_network%source_range_start)
                allocate(source)
                call source%init(name, eos, local_source_index, local_cell_index(i), &
                     initial_enthalpy, injection_component, production_component, &
@@ -487,10 +469,10 @@ contains
                call source%assign(source_data, source_offset)
                call source%init_data(natural_source_index(i), natural_cell_index(i), &
                     initial_rate, tracer_injection_rate, separator_pressure, thermo)
-               call sources%append(source)
+               call source_network%sources%append(source)
                call spec_sources%append(source)
                if (source%separator%on) then
-                  call separated_sources%append(source)
+                  call source_network%separated_sources%append(source)
                end if
                local_source_index = local_source_index + 1
             end do
@@ -498,9 +480,9 @@ contains
             deallocate(natural_cell_index, natural_source_index)
          end if
          call setup_inline_source_controls(source_json, eos, thermo, &
-              start_time, source_data, source_section, source_range_start, &
+              start_time, source_data, source_section, &
               fluid_data, fluid_section, fluid_range_start, srcstr, &
-              tracer_names, spec_sources, source_controls, logfile, err)
+              tracer_names, spec_sources, source_network, logfile, err)
 
          if ((name /= "") .and. (num_cells_all == 1)) then
             ! Uniquely named source- add to dictionaries:
@@ -515,7 +497,7 @@ contains
          end if
 
          call spec_sources%destroy()
-         num_sources = num_sources + num_cells_all
+         source_network%num_sources = source_network%num_sources + num_cells_all
 
       end if
 
@@ -573,7 +555,8 @@ contains
       if (rank == 0) then
          natural_source_index_all = array_indices_in_int_array( &
               ordered_natural_cell_index_all, natural_cell_index_all)
-         natural_source_index_all = natural_source_index_all + num_sources - 1
+         natural_source_index_all = natural_source_index_all + &
+              source_network%num_sources - 1
       end if
       call MPI_scatterv(natural_source_index_all, cell_counts, cell_displacements, &
            MPI_INTEGER, natural_source_index, num_cells, MPI_INTEGER, &
@@ -651,7 +634,7 @@ contains
       type is (source_type)
          s = source%local_source_index
          source_offset = global_section_offset(source_section, s, &
-              source_range_start)
+              source_network%source_range_start)
          call source%assign(source_data, source_offset)
          indices(s + 1) = nint(source%source_index)
       end select
@@ -754,7 +737,7 @@ contains
          if (group%rank == 0) then
             g = group%local_group_index
             source_network_group_offset = global_section_offset( &
-                 source_network_group_section, g, source_network_group_range_start)
+                 source_network_group_section, g, source_network%group_range_start)
             call group%assign(source_network_group_data, &
                  source_network_group_offset)
             group_indices(g + 1) = nint(group%group_index)
@@ -821,7 +804,7 @@ contains
 
          call group%init(name)
          call setup_inline_source_group_controls(group_json, group, &
-              source_network_controls, logfile)
+              source_network, logfile)
 
          do i = 1, size(node_names)
             associate(node_name => node_names(i))
@@ -930,7 +913,7 @@ contains
          if (group%rank == 0) then
             g = group%local_group_index
             source_network_group_offset = global_section_offset( &
-                 source_network_group_section, g, source_network_group_range_start)
+                 source_network_group_section, g, source_network%group_range_start)
             call group%assign(source_network_group_data, source_network_group_offset)
             call group%init_data(group_index, separator_pressure, thermo)
          end if
@@ -941,7 +924,7 @@ contains
 
 !........................................................................
 
-  end subroutine setup_sources
+  end subroutine setup_source_network
 
 !------------------------------------------------------------------------
 
@@ -1233,9 +1216,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
-       start_time, source_data, source_section, source_range_start, &
+       start_time, source_data, source_section, &
        fluid_data, fluid_section, fluid_range_start, &
-       srcstr, tracer_names, spec_sources, source_controls, &
+       srcstr, tracer_names, spec_sources, source_network, &
        logfile, err)
     !! Sets up any 'inline' source controls for the source specification,
     !! i.e. controls defined implicitly in the specification.
@@ -1251,14 +1234,13 @@ contains
     PetscReal, intent(in) :: start_time
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
     character(len = *), intent(in) :: tracer_names(:)
     type(list_type), intent(in out) :: spec_sources
-    type(list_type), intent(in out) :: source_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -1275,37 +1257,37 @@ contains
     averaging_type = averaging_type_from_str(averaging_str)
 
     call setup_table_source_control(source_json, srcstr, interpolation_type, &
-         averaging_type, tracer_names, spec_sources, source_controls, &
+         averaging_type, tracer_names, spec_sources, source_network, &
          logfile, err)
 
     if (err == 0) then
 
        call setup_deliverability_source_controls(source_json, srcstr, &
-            start_time, source_data, source_section, source_range_start, &
+            start_time, source_data, source_section, &
             fluid_data, fluid_section, fluid_range_start, &
             interpolation_type, averaging_type, spec_sources, eos, &
-            source_controls, logfile, err)
+            source_network, logfile, err)
 
        if (err == 0) then
 
           call setup_recharge_source_controls(source_json, srcstr, &
-               source_data, source_section, source_range_start, &
+               source_data, source_section, &
                fluid_data, fluid_section, fluid_range_start, &
                interpolation_type, averaging_type, spec_sources, eos, &
-               source_controls, logfile, err)
+               source_network, logfile, err)
 
           if (err == 0) then
 
              call setup_limiter_source_controls(source_json, srcstr, thermo, &
                   interpolation_type, averaging_type, spec_sources, &
-                  source_controls, logfile)
+                  source_network, logfile)
 
              call setup_direction_source_control(source_json, srcstr, thermo, &
-                  spec_sources, source_controls, logfile)
+                  spec_sources, source_network, logfile)
 
              call setup_factor_source_control(source_json, srcstr, &
                   interpolation_type, averaging_type, spec_sources, &
-                  source_controls, logfile, err)
+                  source_network, logfile, err)
 
           end if
 
@@ -1319,7 +1301,7 @@ contains
 
   subroutine setup_table_source_control(source_json, srcstr, &
        interpolation_type, averaging_type, tracer_names, &
-       spec_sources, source_controls, logfile, err)
+       spec_sources, source_network, logfile, err)
     !! Set up rate, enthalpy and tracer table source controls.
 
     type(fson_value), pointer, intent(in) :: source_json
@@ -1327,7 +1309,7 @@ contains
     PetscInt, intent(in) :: interpolation_type, averaging_type
     character(*), intent(in) :: tracer_names(:)
     type(list_type), intent(in out) :: spec_sources
-    type(list_type), intent(in out) :: source_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
 
@@ -1363,7 +1345,7 @@ contains
             allocate(control)
             call control%init(spec_sources%copy(), data_array, &
                  interpolation_type, averaging_type)
-            call source_controls%append(control)
+            call source_network%source_controls%append(control)
          end if
          deallocate(data_array)
       end if
@@ -1396,7 +1378,7 @@ contains
             allocate(control)
             call control%init(spec_sources%copy(), data_array, &
                  interpolation_type, averaging_type)
-            call source_controls%append(control)
+            call source_network%source_controls%append(control)
          end if
          deallocate(data_array)
       end if
@@ -1433,7 +1415,7 @@ contains
                         call control%init(spec_sources%copy(), data_array, &
                              interpolation_type, averaging_type)
                         control%tracer_index = i
-                        call source_controls%append(control)
+                        call source_network%source_controls%append(control)
                      end do
                   end if
                   deallocate(data_array)
@@ -1460,7 +1442,7 @@ contains
                            call control%init(spec_sources%copy(), data_array, &
                                 interpolation_type, averaging_type)
                            control%tracer_index = tracer_index
-                           call source_controls%append(control)
+                           call source_network%source_controls%append(control)
                         else
                            call logfile%write(LOG_LEVEL_ERR, "input", &
                                 "unrecognised_tracer", &
@@ -1486,7 +1468,7 @@ contains
 
   subroutine setup_factor_source_control(source_json, srcstr, &
        interpolation_type, averaging_type, spec_sources, &
-       source_controls, logfile, err)
+       source_network, logfile, err)
     !! Set up rate factor source controls.
 
     use interpolation_module, only: interpolation_type_from_str, &
@@ -1497,7 +1479,7 @@ contains
     character(len=*) :: srcstr
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: spec_sources
-    type(list_type), intent(in out) :: source_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -1546,7 +1528,7 @@ contains
        allocate(factor_control)
        call factor_control%init(spec_sources%copy(), factor_data_array, &
             effective_interpolation_type, effective_averaging_type)
-       call source_controls%append(factor_control)
+       call source_network%source_controls%append(factor_control)
     end if
 
     if (allocated(factor_data_array)) deallocate(factor_data_array)
@@ -1693,10 +1675,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_deliverability_source_controls(source_json, srcstr, &
-       start_time, source_data, source_section, source_range_start, &
+       start_time, source_data, source_section, &
        fluid_data, fluid_section, fluid_range_start, &
        interpolation_type, averaging_type, spec_sources, eos, &
-       source_controls, logfile, err)
+       source_network, logfile, err)
     !! Set up deliverability source controls. Deliverability controls
     !! can control only one source, so if multiple cells are
     !! specified, multiple corresponding deliverability controls are
@@ -1709,14 +1691,13 @@ contains
     PetscReal, intent(in) :: start_time
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: spec_sources
     class(eos_type), intent(in) :: eos
-    type(list_type), intent(in out) :: source_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -1786,7 +1767,7 @@ contains
              deliv%threshold_productivity = &
                   deliv%productivity%interpolate(start_time, 1)
           end if
-          call source_controls%append(deliv)
+          call source_network%source_controls%append(deliv)
 
       end select
 
@@ -1853,10 +1834,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_recharge_source_controls(source_json, srcstr, &
-       source_data, source_section, source_range_start, &
+       source_data, source_section, &
        fluid_data, fluid_section, fluid_range_start, &
        interpolation_type, averaging_type, spec_sources, eos, &
-       source_controls, logfile, err)
+       source_network, logfile, err)
     !! Set up recharge source controls. Recharge controls
     !! can control only one source, so if multiple cells are
     !! specified, multiple corresponding recharge controls are
@@ -1868,14 +1849,13 @@ contains
     character(len=*) :: srcstr
     PetscReal, pointer, contiguous, intent(in) :: source_data(:)
     PetscSection, intent(in) :: source_section
-    PetscInt, intent(in) :: source_range_start
     PetscReal, pointer, contiguous, intent(in) :: fluid_data(:)
     PetscSection, intent(in) :: fluid_section
     PetscInt, intent(in) :: fluid_range_start
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: spec_sources
     class(eos_type), intent(in) :: eos
-    type(list_type), intent(in out) :: source_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -1936,7 +1916,7 @@ contains
                  fluid_section, fluid_range_start)
          end if
 
-         call source_controls%append(recharge)
+         call source_network%source_controls%append(recharge)
 
       end select
 
@@ -1948,7 +1928,7 @@ contains
 
   subroutine setup_limiter_source_controls(source_json, srcstr, &
        thermo, interpolation_type, averaging_type, spec_sources, &
-       source_controls, logfile)
+       source_network, logfile)
     !! Set up limiter source control for each cell source.
 
     type(fson_value), pointer, intent(in) :: source_json
@@ -1956,13 +1936,13 @@ contains
     class(thermodynamics_type), intent(in) :: thermo
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: spec_sources
-    type(list_type), intent(in out) :: source_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
 
     if (fson_has_mpi(source_json, "limiter")) then
        call add_limiter(source_json, srcstr, spec_sources, &
             interpolation_type, averaging_type, PETSC_TRUE, &
-            source_controls, logfile)
+            source_network%source_controls, logfile)
     end if
 
   end subroutine setup_limiter_source_controls
@@ -2137,7 +2117,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_direction_source_control(source_json, srcstr, &
-       thermo, spec_sources, source_controls, logfile)
+       thermo, spec_sources, source_network, logfile)
     !! Set up direction source control. This can control multiple
     !! sources, so only one is created.
 
@@ -2147,7 +2127,7 @@ contains
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
     type(list_type), intent(in out) :: spec_sources
-    type(list_type), intent(in out) :: source_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: direction
@@ -2178,7 +2158,7 @@ contains
             spec_sources%count > 0) then
          allocate(direction_control)
          call direction_control%init(spec_sources%copy(), direction)
-         call source_controls%append(direction_control)
+         call source_network%source_controls%append(direction_control)
        end if
 
     end if
@@ -2188,10 +2168,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_inline_source_group_controls(group_json, group, &
-       source_network_controls, logfile)
+       source_network, logfile)
     !! Sets up any 'inline' source group controls for the source group
     !! specification, i.e. controls defined implicitly in the
-    !! specification, and adds them to the source_network_controls
+    !! specification, and adds them to the source_network network_controls
     !! list.
 
     use interpolation_module, only: interpolation_type_from_str, &
@@ -2201,7 +2181,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: group_json
     class(source_network_group_type), intent(in) :: group
-    type(list_type), intent(in out) :: source_network_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: interpolation_type, averaging_type
@@ -2217,7 +2197,7 @@ contains
     averaging_type = averaging_type_from_str(averaging_str)
 
     call setup_group_limiter_source_controls(group_json, group, &
-         interpolation_type, averaging_type, source_network_controls, &
+         interpolation_type, averaging_type, source_network, &
          logfile)
 
   end subroutine setup_inline_source_group_controls
@@ -2225,14 +2205,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_group_limiter_source_controls(group_json, group, &
-       interpolation_type, averaging_type, source_network_controls, &
+       interpolation_type, averaging_type, source_network, &
        logfile)
     !! Set up limiter control on source group.
 
     type(fson_value), pointer, intent(in) :: group_json
     class(source_network_group_type), intent(in) :: group
     PetscInt, intent(in) :: interpolation_type, averaging_type
-    type(list_type), intent(in out) :: source_network_controls
+    type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     type(list_type) :: group_list
@@ -2244,7 +2224,7 @@ contains
 
        call add_limiter(group_json, group%name, group_list, &
             interpolation_type, averaging_type, PETSC_FALSE, &
-            source_network_controls, logfile)
+            source_network%network_controls, logfile)
 
        call group_list%destroy()
 

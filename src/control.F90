@@ -132,7 +132,25 @@ module control_module
 
   end interface
 
+  public :: object_control_list_node_data_destroy
+
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine object_control_list_node_data_destroy(node)
+    ! Destroys object control in a list node.
+
+    use list_module, only: list_node_type
+
+    type(list_node_type), pointer, intent(in out) :: node
+
+    select type (control => node%data)
+    class is (object_control_type)
+       call control%destroy()
+    end select
+
+  end subroutine object_control_list_node_data_destroy
 
 !------------------------------------------------------------------------
 ! Integer object control routines
