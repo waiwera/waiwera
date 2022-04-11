@@ -1563,17 +1563,12 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: s, c, source_offset, cell_geom_offset
+      PetscInt :: c, cell_geom_offset
       type(cell_type) :: cell
 
       stopped = PETSC_FALSE
       select type (source => node%data)
       class is (source_type)
-
-         s = source%local_source_index
-         source_offset = global_section_offset(source_section, &
-              s, self%source_network%source_range_start)
-         call source%assign(source_data, source_offset)
 
          call cell%init(self%eos%num_components, self%eos%num_phases)
          c = source%local_cell_index
