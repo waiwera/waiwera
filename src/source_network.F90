@@ -35,19 +35,19 @@ module source_network_module
   type, public :: source_network_type
      !! Type for source network.
      private
-     PetscInt, public :: source_range_start !! Range start for source vector
-     PetscInt, public :: group_range_start !! Range start for source group vector
+     type(list_type), public :: sources !! List of source objects
+     type(list_type), public :: groups !! Source network groups
+     type(list_type), public :: separated_sources !! Sources with separators
+     type(list_type), public :: source_controls !! Controls on sources/sinks
+     type(list_type), public :: network_controls !! Controls on source network nodes
      Vec, public :: source !! Vector for source/sink data
      Vec, public :: group !! Vector for source network group data
-     type(list_type), public :: sources !! List of source objects
+     PetscInt, public :: source_range_start !! Range start for source vector
+     PetscInt, public :: group_range_start !! Range start for source group vector
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
      PetscInt, public :: num_groups !! Total number of source network groups on all processes
      IS, public :: source_index !! Index set defining natural to global source ordering
      IS, public :: group_index !! Index set defining natural to global source network group ordering
-     type(list_type), public :: source_controls !! Controls on sources/sinks
-     type(list_type), public :: groups !! Source network groups
-     type(list_type), public :: network_controls !! Controls on source network nodes
-     type(list_type), public :: separated_sources !! Sources with separators
    contains
      private
      procedure, public :: update => source_network_update
