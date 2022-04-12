@@ -155,7 +155,7 @@ contains
 
     subroutine group_comm_iterator(node, stopped)
       !! Stops and sets colour if there are any local sources, or
-      !! groups with local sources, in the group node list.
+      !! groups with local sources, in the group input node list.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
