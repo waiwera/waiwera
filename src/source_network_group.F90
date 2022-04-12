@@ -134,6 +134,8 @@ contains
     !! group. It is assumed that the input nodes list has already been
     !! populated.
 
+    use mpi_utils_module, only: mpi_comm_root_world_rank
+
     class(source_network_group_type), intent(in out) :: self
     ! Locals:
     PetscInt :: colour
@@ -142,8 +144,12 @@ contains
     colour = MPI_UNDEFINED
     call self%in%traverse(group_comm_iterator)
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
-
-    call get_root_world_rank()
+    if (self%comm /= MPI_COMM_NULL) then
+       call MPI_comm_rank(self%comm, self%rank, ierr)
+    else
+       self%rank = -1
+    end if
+    self%root_world_rank = mpi_comm_root_world_rank(self%comm)
 
   contains
 
@@ -167,31 +173,6 @@ contains
       end select
 
     end subroutine group_comm_iterator
-
-!........................................................................
-
-    subroutine get_root_world_rank()
-      !! Finds root world rank, i.e. rank in world communicator of
-      !! root rank of the group.
-
-      ! Locals:
-      PetscMPIInt :: rank, root_world_rank
-
-      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-      root_world_rank = -1
-      if (self%comm /= MPI_COMM_NULL) then
-         call MPI_comm_rank(self%comm, self%rank, ierr)
-         if (self%rank == 0) then
-            root_world_rank = rank
-         end if
-      else
-         self%rank = -1
-      end if
-
-      call MPI_allreduce(root_world_rank, self%root_world_rank, 1, &
-           MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr); CHKERRQ(ierr)
-
-    end subroutine get_root_world_rank
 
   end subroutine source_network_group_init_comm
 

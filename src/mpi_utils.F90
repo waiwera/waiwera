@@ -26,7 +26,7 @@ module mpi_utils_module
   private
 
   public :: mpi_broadcast_error_flag, mpi_broadcast_logical
-  public :: get_mpi_int_gather_array
+  public :: get_mpi_int_gather_array, mpi_comm_root_world_rank
 
 contains
 
@@ -89,8 +89,8 @@ contains
     else
        gather_comm = PETSC_COMM_WORLD
     end if
-    call MPI_COMM_RANK(gather_comm, rank, ierr)
-    call MPI_COMM_SIZE(gather_comm, num_procs, ierr)
+    call MPI_comm_rank(gather_comm, rank, ierr)
+    call MPI_comm_size(gather_comm, num_procs, ierr)
 
     if (rank == 0) then
        size = num_procs
@@ -100,6 +100,32 @@ contains
     allocate(array(size))
 
   end function get_mpi_int_gather_array
+
+!------------------------------------------------------------------------
+
+  PetscMPIInt function mpi_comm_root_world_rank(comm)
+    !! Returns rank in world communicator of the root of the specified
+    !! communicator comm, and broadcasts it to all world ranks.
+
+    MPI_Comm, intent(in) :: comm
+    ! Locals:
+    PetscMPIInt :: rank, comm_rank, root_world_rank, max_root_world_rank
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    root_world_rank = -1
+    if (comm /= MPI_COMM_NULL) then
+       call MPI_comm_rank(comm, comm_rank, ierr)
+       if (comm_rank == 0) then
+          root_world_rank = rank
+       end if
+    end if
+
+    call MPI_allreduce(root_world_rank, max_root_world_rank, 1, &
+         MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr)
+    mpi_comm_root_world_rank = max_root_world_rank
+
+  end function mpi_comm_root_world_rank
 
 !------------------------------------------------------------------------
 
