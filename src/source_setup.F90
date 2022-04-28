@@ -152,8 +152,7 @@ contains
                   group_dag, group_specs_array)
              call group_dag%sort(group_order, err)
              if (err == 0) then
-                call init_source_network_groups(source_network%num_groups, &
-                     source_network%groups, source_network%network_controls, &
+                call init_source_network_groups(source_network, &
                      num_local_root_groups, logfile, err)
              end if
           end if
@@ -748,17 +747,15 @@ contains
 
 !........................................................................
 
-    subroutine init_source_network_groups(num_groups, source_network_groups, &
-         source_network_controls, num_local_root_groups, logfile, err)
+    subroutine init_source_network_groups(source_network, &
+         num_local_root_groups, logfile, err)
       !! Initialise source network groups and controls and return
       !! number of local root groups. An error is returned if any
       !! unrecognised group input nodes are specified.
 
       use utils_module, only: str_to_lower
 
-      PetscInt, intent(in) :: num_groups
-      type(list_type), intent(in out) :: source_network_groups
-      type(list_type), intent(in out) :: source_network_controls
+      type(source_network_type), intent(in out) :: source_network
       PetscInt, intent(out) :: num_local_root_groups
       type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
@@ -780,7 +777,7 @@ contains
       call group_source_dict%init(PETSC_FALSE)
       call source_network_group_dict%init(PETSC_FALSE)
 
-      do ig = 0, num_groups - 1
+      do ig = 0, source_network%num_groups - 1
 
          group_index = group_order(ig) + 1
          group_json => group_specs_array(group_index)%ptr
@@ -871,7 +868,7 @@ contains
             end if
             group%local_group_index = g
 
-            call source_network_groups%append(group)
+            call source_network%groups%append(group)
             if (name /= "") then
                call source_network_group_dict%add(name, group)
             end if
