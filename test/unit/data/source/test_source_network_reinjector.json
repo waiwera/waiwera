@@ -1,0 +1,25 @@
+{
+    "title": "Test network reinjection",
+    "mesh": {"filename": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo"},
+    "source": [
+        {"name": "p1", "cell": 0, "rate": -5},
+        {"name": "p2", "cell": 1, "rate": -3},
+        {"name": "p3", "cell": 7, "rate": -1.5},
+
+        {"name": "i1", "cell": 11},
+        {"name": "i2", "cell": 8}
+    ],
+    "network": {
+        "group": [
+            {"name": "group1", "in": ["p1", "p2", "p3"],
+             "separator": {"pressure": 0.5e6}}
+        ],
+        "reinjection": [
+            {"name": "re1", "in": "group1",
+             "water": [
+                 {"out": "i1", "rate": 2, "enthalpy": 83.9e3},
+                 {"out": "i2", "rate": 3.5, "enthalpy": 83.9e3}
+             ]}
+        ]
+    }
+}
