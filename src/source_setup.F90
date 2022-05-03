@@ -35,6 +35,7 @@ module source_setup_module
   use source_network_node_module
   use source_network_control_module
   use source_network_group_module
+  use source_network_reinjector_module
   use source_control_module
   use separator_module
 
@@ -75,16 +76,18 @@ contains
     DM :: dm_source, dm_group
     PetscInt :: num_local_sources, source_spec_index, local_source_index
     PetscInt :: group_index, sorted_group_index
-    type(fson_value), pointer :: sources_json, source_json, groups_json
-    PetscInt :: num_source_specs, num_tracers, num_local_root_groups
+    type(fson_value), pointer :: sources_json, source_json, groups_json, reinjectors_json
+    PetscInt :: num_source_specs, num_tracers, num_local_root_groups, num_local_root_reinjectors
     PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_network_group_data(:)
     PetscSection :: fluid_section, source_section, source_network_group_section
-    type(pfson_value_type), allocatable :: group_specs_array(:)
-    type(dag_type) :: group_dag
+    type(pfson_value_type), allocatable :: group_specs_array(:), reinjector_specs_array(:)
+    type(dag_type) :: group_dag, reinjector_dag
     type(dictionary_type) :: source_dict, source_dict_all
+    type(dictionary_type) :: source_network_group_dict
     type(dictionary_type) :: source_network_group_index_dict
+    type(dictionary_type) :: source_network_reinjector_index_dict
     PetscInt, allocatable :: indices(:), group_indices(:)
-    PetscInt, allocatable :: group_order(:)
+    PetscInt, allocatable :: group_order(:), reinjector_order(:)
     PetscErrorCode :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -112,11 +115,14 @@ contains
        call source_network%sources%init(owner = PETSC_TRUE)
        call source_dict%init(owner = PETSC_FALSE)
        call source_dict_all%init(owner = PETSC_FALSE)
+       call source_network_group_dict%init(owner = PETSC_FALSE)
        call source_network_group_index_dict%init(owner = PETSC_TRUE)
+       call source_network_reinjector_index_dict%init(owner = PETSC_TRUE)
        call source_network%separated_sources%init(owner = PETSC_FALSE)
        call source_network%source_controls%init(owner = PETSC_TRUE)
        call source_network%groups%init(owner = PETSC_TRUE)
        call source_network%network_controls%init(owner = PETSC_TRUE)
+       call source_network%reinjectors%init(owner = PETSC_TRUE)
 
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
@@ -146,9 +152,10 @@ contains
           if (fson_has_mpi(json, "network.group")) then
              call fson_get_mpi(json, "network.group", groups_json)
              source_network%num_groups = fson_value_count_mpi(groups_json, ".")
-             call setup_source_network_group_index_dict(groups_json, &
+             call setup_item_index_dict(groups_json, &
                   source_network%num_groups, source_network_group_index_dict)
              call setup_group_dag(groups_json, source_network%num_groups, &
+                  source_network_group_index_dict, &
                   group_dag, group_specs_array)
              call group_dag%sort(group_order, err)
              if (err == 0) then
@@ -177,6 +184,25 @@ contains
              deallocate(group_indices)
              call VecRestoreArrayF90(source_network%group, source_network_group_data, ierr)
              CHKERRQ(ierr)
+
+             if (fson_has_mpi(json, "network.reinjection")) then
+                call fson_get_mpi(json, "network.reinjection", reinjectors_json)
+                source_network%num_reinjectors = fson_value_count_mpi(reinjectors_json, ".")
+                call setup_item_index_dict(reinjectors_json, &
+                     source_network%num_reinjectors, source_network_reinjector_index_dict)
+                call setup_reinjector_dag(reinjectors_json, source_network%num_reinjectors, &
+                     source_network_reinjector_index_dict, &
+                     reinjector_dag, reinjector_specs_array)
+                call reinjector_dag%sort(reinjector_order, err)
+                call init_source_network_reinjectors(source_network, &
+                     num_local_root_reinjectors, logfile, err)
+             end if
+             ! if (err == 0) then
+                ! TODO: for output from reinjectors, create
+                ! dm_reinjector and source_network%reinjector Vec,
+                ! initialise reinjector data etc. as for groups
+             ! end if
+
           end if
 
        end if
@@ -186,10 +212,9 @@ contains
        CHKERRQ(ierr)
        call source_dict%destroy()
        call source_dict_all%destroy()
+       call source_network_group_dict%destroy()
        call source_network_group_index_dict%destroy()
-       if (allocated(group_specs_array)) then
-          deallocate(group_specs_array)
-       end if
+       call source_network_reinjector_index_dict%destroy()
 
     end if
 
@@ -642,43 +667,43 @@ contains
 
 !........................................................................
 
-    subroutine setup_source_network_group_index_dict(groups_json, num_groups, &
-         source_network_group_index_dict)
-      !! Forms dictionary mapping source network group names to their
-      !! group indices.
+    subroutine setup_item_index_dict(items_json, num_items, item_index_dict)
+      !! Forms dictionary mapping item names to their item
+      !! indices. Items can be groups or reinjectors.
 
-      type(fson_value), pointer, intent(in out) :: groups_json
-      PetscInt, intent(in) :: num_groups
-      type(dictionary_type), intent(in out) :: source_network_group_index_dict
+      type(fson_value), pointer, intent(in out) :: items_json
+      PetscInt, intent(in) :: num_items
+      type(dictionary_type), intent(in out) :: item_index_dict
       ! Locals:
-      type(fson_value), pointer :: group_json
-      PetscInt :: group_index
+      type(fson_value), pointer :: item_json
+      PetscInt :: item_index
       character(max_source_network_node_name_length) :: name
       PetscInt, pointer :: i
 
-      group_json => fson_value_children_mpi(groups_json)
-      do group_index = 0, num_groups - 1
-         call fson_get_mpi(group_json, "name", "", name)
+      item_json => fson_value_children_mpi(items_json)
+      do item_index = 0, num_items - 1
+         call fson_get_mpi(item_json, "name", "", name)
          if (name /= "") then
             allocate(i)
-            i = group_index
-            call source_network_group_index_dict%add(name, i)
+            i = item_index
+            call item_index_dict%add(name, i)
          end if
-         group_json => fson_value_next_mpi(group_json)
+         item_json => fson_value_next_mpi(item_json)
       end do
 
-    end subroutine setup_source_network_group_index_dict
+    end subroutine setup_item_index_dict
 
 !........................................................................
 
-    subroutine setup_group_dag(groups_json, num_groups, group_dag, &
-         group_specs_array)
-      !! Forms directed acyclic graph (DAG) representing source group
+    subroutine setup_group_dag(groups_json, num_groups, &
+         group_index_dict, group_dag, group_specs_array)
+      !! Forms directed acyclic graph (DAG) representing group
       !! dependencies. (Also populates group_specs_array, for random
       !! access into group JSON specifications.)
 
       type(fson_value), pointer, intent(in out) :: groups_json
       PetscInt, intent(in) :: num_groups
+      type(dictionary_type), intent(in out) :: group_index_dict
       type(dag_type), intent(in out) :: group_dag
       type(pfson_value_type), allocatable, intent(in out) :: group_specs_array(:)
       ! Locals:
@@ -693,25 +718,27 @@ contains
 
       group_json => fson_value_children_mpi(groups_json)
       do group_index = 0, num_groups - 1
-         call fson_get_mpi(group_json, "in", &
-              string_length = max_source_network_node_name_length, &
-              val = node_names)
-         associate(num_nodes => size(node_names))
-           allocate(dependency_indices(num_nodes))
-           do i = 1, num_nodes
-              dict_node => source_network_group_index_dict%get(node_names(i))
-              if (associated(dict_node)) then
-                 select type (idx => dict_node%data)
-                 type is (PetscInt)
-                    dependency_indices(i) = idx
-                 end select
-              else
-                 dependency_indices(i) = -1
-              end if
-           end do
-         end associate
-         dependency_indices = pack(dependency_indices, &
-              dependency_indices > 0)
+         if (fson_has_mpi(group_json, "in")) then
+            call fson_get_mpi(group_json, "in", &
+                 string_length = max_source_network_node_name_length, &
+                 val = node_names)
+            associate(num_nodes => size(node_names))
+              allocate(dependency_indices(num_nodes))
+              do i = 1, num_nodes
+                 dict_node => group_index_dict%get(node_names(i))
+                 if (associated(dict_node)) then
+                    select type (idx => dict_node%data)
+                    type is (PetscInt)
+                       dependency_indices(i) = idx
+                    end select
+                 else
+                    dependency_indices(i) = -1
+                 end if
+              end do
+            end associate
+            dependency_indices = pack(dependency_indices, &
+                 dependency_indices > 0)
+         end if
          call group_dag%set_edges(group_index, dependency_indices)
          call group_specs_array(group_index + 1)%set(group_json)
          deallocate(node_names, dependency_indices)
@@ -766,7 +793,7 @@ contains
       character(max_source_network_node_name_length), allocatable :: node_names(:)
       class(source_network_group_type), pointer :: group
       type(list_node_type), pointer :: source_dict_node, source_network_group_dict_node
-      type(dictionary_type) :: source_network_group_dict, group_source_dict
+      type(dictionary_type) :: group_source_dict
       character(len=64) :: grpstr
       character(len=12) :: igstr
       character(len=16) :: scaling_type
@@ -775,7 +802,6 @@ contains
       err = 0
       num_local_root_groups = 0
       call group_source_dict%init(PETSC_FALSE)
-      call source_network_group_dict%init(PETSC_FALSE)
 
       do ig = 0, source_network%num_groups - 1
 
@@ -813,6 +839,7 @@ contains
                             " outputs to more than one group.")
                     end if
                     err = 1
+                    deallocate(group)
                     exit
                  else
                     source_dict_node => source_dict%get(node_name)
@@ -837,6 +864,7 @@ contains
                                   " outputs to more than one group.")
                           end if
                           err = 1
+                          deallocate(group)
                           exit
                        else
                           dep_group%out => group
@@ -850,6 +878,7 @@ contains
                             "unrecognised group input: " // trim(node_name))
                     end if
                     err = 1
+                    deallocate(group)
                     exit
                  end if
               end if
@@ -879,7 +908,6 @@ contains
 
       end do
 
-      call source_network_group_dict%destroy()
       call group_source_dict%destroy()
 
     end subroutine init_source_network_groups
@@ -920,6 +948,350 @@ contains
     end subroutine group_init_data_iterator
 
 !........................................................................
+
+    subroutine setup_reinjector_dag(reinjectors_json, num_reinjectors, &
+         reinjector_index_dict, reinjector_dag, reinjector_specs_array)
+      !! Forms directed acyclic graph (DAG) representing reinjectors
+      !! dependencies. (Also populates reinjector_specs_array, for random
+      !! access into reinjector JSON specifications.)
+
+      type(fson_value), pointer, intent(in out) :: reinjectors_json
+      PetscInt, intent(in) :: num_reinjectors
+      type(dictionary_type), intent(in out) :: reinjector_index_dict
+      type(dag_type), intent(in out) :: reinjector_dag
+      type(pfson_value_type), allocatable, intent(in out) :: reinjector_specs_array(:)
+      ! Locals:
+      type(fson_value), pointer :: reinjector_json, outputs_json, output_json
+      character(5) :: key
+      PetscInt, allocatable :: dependency_indices(:), dependency_indices_all(:)
+      type(list_node_type), pointer :: dict_node
+      PetscInt :: reinjector_index, i, k, num_outputs
+      character(max_source_network_node_name_length) :: node_name
+      PetscInt, parameter :: num_keys = 2
+      character(5), parameter :: keys(num_keys) = ["water", "steam"]
+
+      call reinjector_dag%init(num_reinjectors)
+      allocate(reinjector_specs_array(num_reinjectors))
+      allocate(dependency_indices_all(0))
+
+      reinjector_json => fson_value_children_mpi(reinjectors_json)
+      do reinjector_index = 0, num_reinjectors - 1
+         do k = 1, num_keys
+            key = keys(k)
+            if (fson_has_mpi(reinjector_json, trim(key))) then
+               call fson_get_mpi(reinjector_json, trim(key), &
+                    outputs_json)
+               num_outputs = fson_value_count_mpi(outputs_json, ".")
+               allocate(dependency_indices(num_outputs))
+               output_json => fson_value_children_mpi(outputs_json)
+               do i = 1, num_outputs
+                  if (fson_has_mpi(output_json, "out")) then
+                     call fson_get_mpi(output_json, "out", &
+                          val = node_name)
+                     dict_node => reinjector_index_dict%get(node_name)
+                     if (associated(dict_node)) then
+                        select type (idx => dict_node%data)
+                        type is (PetscInt)
+                           dependency_indices(i) = idx
+                        end select
+                     else
+                        dependency_indices(i) = -1
+                     end if
+                  end if
+               end do
+               dependency_indices = pack(dependency_indices, &
+                    dependency_indices > 0)
+               dependency_indices_all = [dependency_indices_all, dependency_indices]
+               deallocate(dependency_indices)
+            end if
+         end do
+         call reinjector_dag%set_edges(reinjector_index, dependency_indices_all)
+         call reinjector_specs_array(reinjector_index + 1)%set(reinjector_json)
+         deallocate(dependency_indices_all)
+         reinjector_json => fson_value_next_mpi(reinjector_json)
+      end do
+
+    end subroutine setup_reinjector_dag
+
+!........................................................................
+
+    subroutine init_reinjector_input_source(name, reinjector_input_dict, &
+         source_dict, reinjector, err)
+      !! Initialises reinjector input from a source.
+
+      character(*), intent(in) :: name
+      type(dictionary_type), intent(in out) :: reinjector_input_dict, source_dict
+      type(source_network_reinjector_type), pointer, intent(in out) :: reinjector
+      PetscErrorCode, intent(in out) :: err
+      ! Locals:
+      type(list_node_type), pointer :: source_dict_node
+
+      if (reinjector_input_dict%has(name)) then
+         if (present(logfile)) then
+            call logfile%write(LOG_LEVEL_ERR, "input", &
+                 "duplicate reinjector input: " // trim(name))
+         end if
+         err = 1
+         deallocate(reinjector)
+      else
+         source_dict_node => source_dict%get(name)
+         if (associated(source_dict_node)) then
+            select type (source => source_dict_node%data)
+            type is (source_type)
+               reinjector%in => source
+            end select
+         end if
+         call reinjector_input_dict%add(name)
+      end if
+
+    end subroutine init_reinjector_input_source
+
+!........................................................................
+
+    subroutine init_reinjector_input_group(group, reinjector_input_dict, &
+         reinjector, err)
+      !! Initialises reinjector input from a group.
+
+      type(source_network_group_type), target, intent(in out) :: group
+      type(dictionary_type), intent(in out) :: reinjector_input_dict
+      type(source_network_reinjector_type), pointer, intent(in out) :: reinjector
+      PetscErrorCode, intent(in out) :: err
+
+      if (associated(group%out)) then
+         if (present(logfile)) then
+            call logfile%write(LOG_LEVEL_ERR, "input", &
+                 "duplicate reinjector input: " // trim(group%name))
+         end if
+         err = 1
+         deallocate(reinjector)
+      else
+         group%out => reinjector
+         reinjector%in => group
+         call reinjector_input_dict%add(group%name)
+      end if
+
+    end subroutine init_reinjector_input_group
+
+!........................................................................
+
+    subroutine init_reinjector_outputs(reinjector_json, reinjector_str, &
+         flow_type_str, source_dict, source_dict_all, reinjector_output_dict, &
+         reinjector, err)
+      !! Initialises reinjector outputs of the given flow type.
+
+      type(fson_value), pointer, intent(in out) :: reinjector_json
+      character(*), intent(in) :: reinjector_str, flow_type_str
+      type(dictionary_type), intent(in out) :: source_dict, source_dict_all, &
+           reinjector_output_dict
+      type(source_network_reinjector_type), intent(in out) :: reinjector
+      PetscErrorCode, intent(in out) :: err
+      ! Locals:
+      PetscInt :: flow_type, num_outputs, i
+      type(fson_value), pointer :: outputs_json, output_json
+      class(reinjector_output_type), pointer :: output
+      PetscReal :: enthalpy
+      character(max_source_network_node_name_length) :: out_name
+      type(list_node_type), pointer :: source_dict_node
+      character(12) :: istr
+
+      if (fson_has_mpi(reinjector_json, flow_type_str)) then
+
+         flow_type = separated_flow_type_from_str(flow_type_str)
+
+         call fson_get_mpi(reinjector_json, trim(flow_type_str), outputs_json)
+         num_outputs = fson_value_count_mpi(outputs_json, ".")
+         output_json => fson_value_children_mpi(outputs_json)
+
+         do i = 1, num_outputs
+
+            if (fson_has_mpi(output_json, "proportion")) then
+               allocate(proportion_reinjector_output_type :: output)
+            else
+               allocate(rate_reinjector_output_type :: output)
+            end if
+
+            select type (output)
+            type is (proportion_reinjector_output_type)
+               call fson_get_mpi(output_json, "proportion", val = output%proportion)
+            type is (rate_reinjector_output_type)
+               call fson_get_mpi(output_json, "rate", -1._dp, &
+                    output%rate, logfile, trim(reinjector_str) // "rate")
+            end select
+
+            call fson_get_mpi(output_json, "enthalpy", -1._dp, &
+                 enthalpy, logfile, trim(reinjector_str) // "enthalpy")
+            call output%init(reinjector, flow_type, enthalpy)
+
+            if (fson_has_mpi(output_json, "out")) then
+               call fson_get_mpi(output_json, "out", val = out_name)
+               if (reinjector_output_dict%has(out_name)) then
+                  if (present(logfile)) then
+                     call logfile%write(LOG_LEVEL_ERR, "input", &
+                          "duplicate reinjector output: " // trim(out_name))
+                  end if
+                  err = 1
+                  deallocate(output)
+                  exit
+               else
+                  if (source_dict_all%has(out_name)) then
+                     source_dict_node => source_dict%get(out_name)
+                     if (associated(source_dict_node)) then
+                        select type (source => source_dict_node%data)
+                        type is (source_type)
+                           output%out => source
+                           call reinjector%out%append(output)
+                           call reinjector_output_dict%add(out_name)
+                        end select
+                     end if
+                  else
+                     ! TODO: if output to another reinjector then
+                     ! ...
+                     ! else
+                     if (present(logfile)) then
+                        call logfile%write(LOG_LEVEL_ERR, "input", &
+                             "unrecognised reinjector output: " // trim(out_name))
+                     end if
+                     err = 1
+                     deallocate(output)
+                     exit
+                     ! end if
+                  end if
+               end if
+               output_json => output_json%next
+            else
+               if (present(logfile)) then
+                  write(istr, '(i0)') i - 1
+                  call logfile%write(LOG_LEVEL_ERR, "input", &
+                       "reinjector output not assigned: " // &
+                       trim(reinjector%name) // "." // trim(flow_type_str) // &
+                       "[" // trim(istr) // "]")
+               end if
+               err = 1
+               exit
+            end if
+         end do
+
+      end if
+
+    end subroutine init_reinjector_outputs
+
+!........................................................................
+
+    subroutine init_source_network_reinjectors(source_network, &
+         num_local_root_reinjectors, logfile, err)
+      !! Initialise source network reinjectors and return number of
+      !! local root reinjectors. An error is returned if any
+      !! unrecognised reinjector output nodes are specified, a
+      !! reinjector is not assigned an input node name, or a
+      !! reinjector input is used by more than one reinjector.
+
+      use utils_module, only: str_to_lower
+
+      type(source_network_type), intent(in out) :: source_network
+      PetscInt, intent(out) :: num_local_root_reinjectors
+      type(logfile_type), intent(in out), optional :: logfile
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscInt :: ir, reinjector_index
+      type(fson_value), pointer :: reinjector_json
+      character(max_source_network_node_name_length) :: name, in_name
+      character(len=64) :: rstr
+      character(len=12) :: irstr
+      type(dictionary_type) :: reinjector_input_dict, reinjector_output_dict
+      type(source_network_reinjector_type), pointer :: reinjector
+      type(list_node_type), pointer :: source_network_group_dict_node
+
+      err = 0
+      num_local_root_reinjectors = 0
+      call reinjector_input_dict%init(PETSC_FALSE)
+      call reinjector_output_dict%init(PETSC_FALSE)
+
+      do ir = 0, source_network%num_reinjectors - 1
+
+         reinjector_index = reinjector_order(ir) + 1
+         reinjector_json => reinjector_specs_array(reinjector_index)%ptr
+         write(irstr, '(i0)') reinjector_index - 1
+         rstr = 'network.reinjection[' // trim(irstr) // '].'
+
+         call fson_get_mpi(reinjector_json, "name", "", name)
+
+         allocate(reinjector)
+         call reinjector%init(name)
+
+         if (fson_has_mpi(reinjector_json, "in")) then
+
+            call fson_get_mpi(reinjector_json, "in", val = in_name)
+            if (source_dict_all%has(in_name)) then
+               call init_reinjector_input_source(in_name, reinjector_input_dict, &
+                    source_dict, reinjector, err)
+               if (err > 0) exit
+            else
+               source_network_group_dict_node => source_network_group_dict%get(in_name)
+               if (associated(source_network_group_dict_node)) then
+                  select type (group => source_network_group_dict_node%data)
+                  class is (source_network_group_type)
+                     call init_reinjector_input_group(group, reinjector_input_dict, &
+                          reinjector, err)
+                     if (err > 0) exit
+                  end select
+               else
+                  ! TODO: if input is another reinjector then
+                  ! ...
+                  ! else:
+                  if (present(logfile)) then
+                     call logfile%write(LOG_LEVEL_ERR, "input", &
+                          "unrecognised reinjector input: " // trim(in_name))
+                  end if
+                  err = 1
+                  deallocate(reinjector)
+                  exit
+                  ! end if
+               end if
+            end if
+
+            call init_reinjector_outputs(reinjector_json, rstr, "water", &
+                 source_dict, source_dict_all, reinjector_output_dict, reinjector, err)
+            if (err == 0) then
+               call init_reinjector_outputs(reinjector_json, rstr, "steam", &
+                    source_dict, source_dict_all, reinjector_output_dict, reinjector, err)
+               if (err == 0) then
+                  call reinjector%init_comm()
+                  if (reinjector%rank == 0) then
+                     num_local_root_reinjectors = num_local_root_reinjectors + 1
+                  end if
+                  ! TODO: enable override of overflow properties
+                  call reinjector%overflow%init(reinjector, SEPARATED_FLOW_TYPE_TOTAL, &
+                       -1._dp)
+
+                  call source_network%reinjectors%append(reinjector)
+                  ! TODO: may need something like this for recursive case
+                  ! if (name /= "") then
+                  !    call source_network_reinjector_dict%add(name, reinjector)
+                  ! end if
+               else
+                  exit
+               end if
+            else
+               deallocate(reinjector)
+               exit
+            end if
+
+         else
+            if (present(logfile)) then
+               call logfile%write(LOG_LEVEL_ERR, "input", &
+                    "reinjector has no input: " // trim(name))
+            end if
+            err = 1
+            deallocate(reinjector)
+            exit
+         end if
+
+      end do
+
+      call reinjector_input_dict%destroy()
+      call reinjector_output_dict%destroy()
+
+    end subroutine init_source_network_reinjectors
 
   end subroutine setup_source_network
 
