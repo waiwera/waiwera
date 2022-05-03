@@ -263,7 +263,7 @@ contains
 
   end subroutine list_delete
 
-  subroutine list_delete_destroy(self, node, node_data_destroy_procedure)
+  recursive subroutine list_delete_destroy(self, node, node_data_destroy_procedure)
     !! Delete specified list node and calls the given procedure to
     !! destroy its data.
 
