@@ -183,8 +183,8 @@ contains
     !! the data array, starting from the specified offset.
 
     class(source_network_group_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! source data array
-    PetscInt, intent(in) :: offset  !! source array offset
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! group data array
+    PetscInt, intent(in) :: offset  !! group array offset
     ! Locals:
     PetscInt :: group_offset
 
