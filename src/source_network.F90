@@ -26,6 +26,7 @@ module source_network_module
   use list_module
   use source_module
   use source_network_group_module
+  use source_network_reinjector_module
   use control_module
   use source_control_module
 
@@ -40,12 +41,14 @@ module source_network_module
      type(list_type), public :: separated_sources !! Sources with separators
      type(list_type), public :: source_controls !! Controls on sources/sinks
      type(list_type), public :: network_controls !! Controls on source network nodes
+     type(list_type), public :: reinjectors !! Reinjectors distributing flows to injection sources
      Vec, public :: source !! Vector for source/sink data
      Vec, public :: group !! Vector for source network group data
      PetscInt, public :: source_range_start !! Range start for source vector
      PetscInt, public :: group_range_start !! Range start for source group vector
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
      PetscInt, public :: num_groups !! Total number of source network groups on all processes
+     PetscInt, public :: num_reinjectors !! Total number of source network reinjectors on all processes
      IS, public :: source_index !! Index set defining natural to global source ordering
      IS, public :: group_index !! Index set defining natural to global source network group ordering
    contains
@@ -87,6 +90,9 @@ contains
     call self%source_controls%traverse(control_iterator)
     call self%groups%traverse(group_iterator)
     call self%network_controls%traverse(control_iterator)
+
+    ! TODO: traverse only list of top-level reinjectors
+    call self%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
 
     call VecRestoreArrayF90(self%group, group_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
@@ -199,6 +205,23 @@ contains
 
     end subroutine group_iterator
 
+!........................................................................
+
+    subroutine reinjector_iterator(node, stopped)
+      !! Updates reinjection output flows to injection sources (or
+      !! other reinjectors).
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (reinjector => node%data)
+      class is (source_network_reinjector_type)
+         call reinjector%distribute()
+      end select
+
+    end subroutine reinjector_iterator
+
   end subroutine source_network_update
 
 !------------------------------------------------------------------------
@@ -287,6 +310,8 @@ contains
          source_network_node_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%network_controls%destroy( &
          object_control_list_node_data_destroy, reverse = PETSC_TRUE)
+    call self%reinjectors%destroy( &
+         source_network_node_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%sources%destroy(source_network_node_list_node_data_destroy)
 
   end subroutine source_network_destroy
