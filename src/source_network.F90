@@ -44,13 +44,16 @@ module source_network_module
      type(list_type), public :: reinjectors !! Reinjectors distributing flows to injection sources
      Vec, public :: source !! Vector for source/sink data
      Vec, public :: group !! Vector for source network group data
+     Vec, public :: reinjector !! Vector for source network reinjector data
      PetscInt, public :: source_range_start !! Range start for source vector
      PetscInt, public :: group_range_start !! Range start for source group vector
+     PetscInt, public :: reinjector_range_start !! Range start for source reinjector vector
      PetscInt, public :: num_sources !! Total number of source/sink terms on all processes
      PetscInt, public :: num_groups !! Total number of source network groups on all processes
      PetscInt, public :: num_reinjectors !! Total number of source network reinjectors on all processes
      IS, public :: source_index !! Index set defining natural to global source ordering
      IS, public :: group_index !! Index set defining natural to global source network group ordering
+     IS, public :: reinjector_index !! Index set defining natural to global source network reinjector ordering
    contains
      private
      procedure, public :: update => source_network_update
@@ -74,17 +77,20 @@ contains
     PetscReal, pointer, contiguous, intent(in out) :: fluid_data(:) !! array on fluid vector
     PetscSection, intent(in out) :: fluid_section !! fluid section
     ! Locals:
-    PetscSection :: source_section, group_section
-    PetscReal, pointer, contiguous :: source_data(:), group_data(:)
+    PetscSection :: source_section, group_section, reinjector_section
+    PetscReal, pointer, contiguous :: source_data(:), group_data(:), reinjector_data(:)
     PetscErrorCode :: ierr
 
     call global_vec_section(self%source, source_section)
     call VecGetArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
     call global_vec_section(self%group, group_section)
     call VecGetArrayF90(self%group, group_data, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%reinjector, reinjector_section)
+    call VecGetArrayF90(self%reinjector, reinjector_data, ierr); CHKERRQ(ierr)
 
     call self%sources%traverse(source_assign_iterator)
     call self%groups%traverse(group_assign_iterator)
+    call self%reinjectors%traverse(reinjector_assign_iterator)
 
     call self%separated_sources%traverse(source_separator_iterator)
     call self%source_controls%traverse(control_iterator)
@@ -94,6 +100,7 @@ contains
     ! TODO: traverse only list of top-level reinjectors
     call self%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
 
+    call VecRestoreArrayF90(self%reinjector, reinjector_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%group, group_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%source, source_data, ierr); CHKERRQ(ierr)
 
@@ -141,6 +148,29 @@ contains
       end select
 
     end subroutine group_assign_iterator
+
+!........................................................................
+
+    subroutine reinjector_assign_iterator(node, stopped)
+      !! Assigns data pointers for all source network reinjectors.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: r, reinjector_offset
+
+      stopped = PETSC_FALSE
+      select type (reinjector => node%data)
+      class is (source_network_reinjector_type)
+         if (reinjector%rank == 0) then
+            r = reinjector%local_reinjector_index
+            reinjector_offset = global_section_offset( &
+                 reinjector_section, r, self%reinjector_range_start)
+            call reinjector%assign(reinjector_data, reinjector_offset)
+         end if
+      end select
+
+    end subroutine reinjector_assign_iterator
 
 !........................................................................
 
@@ -299,9 +329,11 @@ contains
 
     call VecDestroy(self%source, ierr); CHKERRQ(ierr)
     call VecDestroy(self%group, ierr); CHKERRQ(ierr)
+    call VecDestroy(self%reinjector, ierr); CHKERRQ(ierr)
 
     call ISDestroy(self%source_index, ierr); CHKERRQ(ierr)
     call ISDestroy(self%group_index, ierr); CHKERRQ(ierr)
+    call ISDestroy(self%reinjector_index, ierr); CHKERRQ(ierr)
 
     call self%separated_sources%destroy()
     call self%source_controls%destroy(object_control_list_node_data_destroy, &

@@ -71,7 +71,8 @@ module flow_simulation_module
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
      PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
-     PetscInt, allocatable :: output_source_network_group_field_indices(:) !! Field indices for sourcenetwork group output
+     PetscInt, allocatable :: output_source_network_group_field_indices(:) !! Field indices for source network group output
+     PetscInt, allocatable :: output_source_network_reinject_field_indices(:) !! Field indices for source network reinjector output
      PetscInt, allocatable :: output_tracer_field_indices(:) !! Field indices for tracer output
      character(max_output_filename_length), public :: jacobian_filename !! Binary Jacobian output filename
      PetscViewer :: jacobian_viewer !! Viewer for binary Jacobian output
@@ -420,6 +421,7 @@ contains
     call check_deallocate(self%output_flux_field_indices)
     call check_deallocate(self%output_source_field_indices)
     call check_deallocate(self%output_source_network_group_field_indices)
+    call check_deallocate(self%output_source_network_reinject_field_indices)
     call check_deallocate(self%output_tracer_field_indices)
 
   contains
@@ -442,6 +444,9 @@ contains
     use source_network_group_module, only: &
          default_output_source_network_group_fields, &
          required_output_source_network_group_fields
+    use source_network_reinjector_module, only: &
+         default_output_source_network_reinjector_fields, &
+         required_output_source_network_reinjector_fields
     use hdf5io_module, only: max_field_name_length
 
     class(flow_simulation_type), intent(in out) :: self
@@ -506,6 +511,12 @@ contains
          default_output_source_network_group_fields, &
          required_output_source_network_group_fields, &
          self%output_source_network_group_field_indices, output_fields)
+    deallocate(output_fields)
+
+    call setup_vector_output_fields("network_reinjection", self%source_network%reinjector, &
+         default_output_source_network_reinjector_fields, &
+         required_output_source_network_reinjector_fields, &
+         self%output_source_network_reinject_field_indices, output_fields)
     deallocate(output_fields)
 
   contains
@@ -2764,106 +2775,107 @@ contains
 !------------------------------------------------------------------------
 
   subroutine flow_simulation_output_source_constant_integer_fields(self)
-    !! Writes constant integer fields for sources and source groups to
-    !! output. Not being time-dependent, these are output only once at
-    !! the start of the simulation.
+    !! Writes constant integer fields for sources, source groups and
+    !! reinjectors to output. Not being time-dependent, these are
+    !! output only once at the start of the simulation. These fields
+    !! are also removed from the time-dependent output field arrays.
 
     use source_module, only: max_source_variable_name_length, &
          source_constant_integer_variables
     use source_network_group_module, only: max_source_network_group_variable_name_length, &
          source_network_group_constant_integer_variables
+    use source_network_reinjector_module, only: &
+         max_source_network_reinjector_variable_name_length, &
+         source_network_reinjector_constant_integer_variables
     use dm_utils_module, only: global_vec_section, global_section_offset, &
          section_get_field_names, get_field_subvector
     use hdf5io_module, only: max_field_name_length
     use utils_module, only: str_array_index
 
     class(flow_simulation_type), intent(in out) :: self
-    ! Locals:
-    PetscInt :: f, i, num_fields
-    character(max_field_name_length), allocatable :: fields(:)
-    character(max_source_variable_name_length) :: field_name
-    DM :: dm
-    PetscSection :: section
-    PetscReal, pointer, contiguous :: data(:)
-    PetscInt, allocatable :: field(:)
-    IS :: field_IS, index_set
-    Vec :: sub_v
-    PetscErrorCode :: ierr
 
     if ((self%output_filename /= "") .and. (self%source_network%num_sources > 0)) then
 
-       call VecGetDM(self%source_network%source, dm, ierr); CHKERRQ(ierr)
-       call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
-       call section_get_field_names(section, PETSC_TRUE, fields)
-
-       num_fields = size(self%output_source_field_indices)
-       do f = 1, num_fields
-          i = self%output_source_field_indices(f)
-          field_name = fields(i + 1)(1: max_source_variable_name_length)
-          if (str_array_index(field_name, source_constant_integer_variables) > 0) then
-             allocate(field(self%source_network%sources%count))
-             call get_field_subvector(self%source_network%source, i, index_set, sub_v)
-             call VecGetArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
-             field = int(data)
-             call VecRestoreArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
-             call ISCreateGeneral(PETSC_COMM_WORLD, self%source_network%sources%count, &
-                  field, PETSC_COPY_VALUES, field_IS, ierr)
-             CHKERRQ(ierr)             
-             call ISDestroy(index_set, ierr); CHKERRQ(ierr)
-             deallocate(field)
-             call PetscObjectSetName(field_IS, "source_" // trim(field_name), &
-                  ierr); CHKERRQ(ierr)
-             call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
-                  ierr); CHKERRQ(ierr)
-             call ISView(field_IS, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-             call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
-             call ISDestroy(field_IS, ierr); CHKERRQ(ierr)
-             self%output_source_field_indices(f) = -1
-          end if
-       end do
-       self%output_source_field_indices = pack(self%output_source_field_indices, &
-            self%output_source_field_indices >= 0)
-       deallocate(fields)
+       call output_constant_integer_fields(self%source_network%source, &
+            self%source_network%sources%count, max_source_variable_name_length, &
+            source_constant_integer_variables, "source_fields", "source", &
+            self%output_source_field_indices)
 
        if (self%source_network%num_groups > 0) then
+          call output_constant_integer_fields(self%source_network%group, &
+               self%source_network%groups%count, &
+               max_source_network_group_variable_name_length, &
+               source_network_group_constant_integer_variables, &
+               "source_fields", "network_group", &
+               self%output_source_network_group_field_indices)
+       end if
 
-          call VecGetDM(self%source_network%group, dm, ierr); CHKERRQ(ierr)
-          call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
-          call section_get_field_names(section, PETSC_TRUE, fields)
-
-          num_fields = size(self%output_source_network_group_field_indices)
-          do f = 1, num_fields
-             i = self%output_source_network_group_field_indices(f)
-             field_name = fields(i + 1)(1: max_source_network_group_variable_name_length)
-             if (str_array_index(field_name, &
-                  source_network_group_constant_integer_variables) > 0) then
-                allocate(field(self%source_network%groups%count))
-                call get_field_subvector(self%source_network%group, i, index_set, sub_v)
-                call VecGetArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
-                field = int(data)
-                call VecRestoreArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
-                call ISCreateGeneral(PETSC_COMM_WORLD, self%source_network%groups%count, &
-                     field, PETSC_COPY_VALUES, field_IS, ierr); CHKERRQ(ierr)
-                call ISDestroy(index_set, ierr); CHKERRQ(ierr)
-                deallocate(field)
-                call PetscObjectSetName(field_IS, "network_group_" // trim(field_name), &
-                     ierr); CHKERRQ(ierr)
-                call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/source_fields", &
-                     ierr); CHKERRQ(ierr)
-                call ISView(field_IS, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-                call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
-                call ISDestroy(field_IS, ierr); CHKERRQ(ierr)
-                self%output_source_network_group_field_indices(f) = -1
-             end if
-          end do
-          self%output_source_network_group_field_indices = pack( &
-               self%output_source_network_group_field_indices, &
-               self%output_source_network_group_field_indices >= 0)
-          deallocate(fields)
-
+       if (self%source_network%num_reinjectors > 0) then
+          call output_constant_integer_fields(self%source_network%reinjector, &
+               self%source_network%reinjectors%count, &
+               max_source_network_reinjector_variable_name_length, &
+               source_network_reinjector_constant_integer_variables, &
+               "source_fields", "network_reinject", &
+               self%output_source_network_reinject_field_indices)
        end if
 
     end if
+
+  contains
+
+    subroutine output_constant_integer_fields(v, count, max_variable_name_length, &
+         variables, hdf5_group, dataset_name, field_indices)
+      !! Outputs constant integer fields for given source output type.
+
+      Vec, intent(in) :: v
+      PetscInt, intent(in) :: count, max_variable_name_length
+      character(*), intent(in) :: variables(:)
+      character(*), intent(in) :: hdf5_group, dataset_name
+      PetscInt, intent(in out) :: field_indices(:)
+      ! Locals:
+      PetscInt :: f, i, num_fields
+      character(max_field_name_length), allocatable :: fields(:)
+      character(max_source_variable_name_length) :: field_name
+      DM :: dm
+      PetscSection :: section
+      PetscReal, pointer, contiguous :: data(:)
+      PetscInt, allocatable :: field(:)
+      IS :: field_IS, index_set
+      Vec :: sub_v
+      PetscErrorCode :: ierr
+
+      call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
+      call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
+      call section_get_field_names(section, PETSC_TRUE, fields)
+
+      num_fields = size(field_indices)
+      do f = 1, num_fields
+         i = field_indices(f)
+         field_name = fields(i + 1)(1: max_variable_name_length)
+         if (str_array_index(field_name, variables) > 0) then
+            allocate(field(count))
+            call get_field_subvector(v, i, index_set, sub_v)
+            call VecGetArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
+            field = int(data)
+            call VecRestoreArrayReadF90(sub_v, data, ierr); CHKERRQ(ierr)
+            call ISCreateGeneral(PETSC_COMM_WORLD, count, field, PETSC_COPY_VALUES, &
+                 field_IS, ierr); CHKERRQ(ierr)             
+            call ISDestroy(index_set, ierr); CHKERRQ(ierr)
+            deallocate(field)
+            call PetscObjectSetName(field_IS, trim(dataset_name) // "_" // &
+                 trim(field_name), ierr); CHKERRQ(ierr)
+            call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/" // trim(hdf5_group), &
+                 ierr); CHKERRQ(ierr)
+            call ISView(field_IS, self%hdf5_viewer, ierr); CHKERRQ(ierr)
+            call PetscViewerHDF5PopGroup(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+            call ISDestroy(field_IS, ierr); CHKERRQ(ierr)
+            field_indices(f) = -1
+         end if
+      end do
+      field_indices = pack(field_indices, field_indices >= 0)
+      deallocate(fields)
+
+    end subroutine output_constant_integer_fields
 
   end subroutine flow_simulation_output_source_constant_integer_fields
 
@@ -2910,6 +2922,11 @@ contains
           if (self%source_network%num_groups > 0) then
              call vec_sequence_view_hdf5(self%source_network%group, &
                   self%output_source_network_group_field_indices, "/source_fields", &
+                  time_index, time, self%hdf5_viewer)
+          end if
+          if (self%source_network%num_reinjectors > 0) then
+             call vec_sequence_view_hdf5(self%source_network%reinjector, &
+                  self%output_source_network_reinject_field_indices, "/source_fields", &
                   time_index, time, self%hdf5_viewer)
           end if
        end if

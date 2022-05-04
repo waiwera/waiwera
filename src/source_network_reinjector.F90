@@ -28,9 +28,28 @@ module source_network_reinjector_module
   use source_module
   use separator_module, only: SEPARATED_FLOW_TYPE_WATER, &
        SEPARATED_FLOW_TYPE_STEAM
+  use hdf5io_module, only: max_field_name_length
 
   implicit none
   private
+
+  PetscInt, parameter, public :: num_source_network_reinjector_variables = &
+       num_source_network_node_variables + 1
+  PetscInt, parameter, public :: max_source_network_reinjector_variable_name_length = 24
+  character(max_source_network_reinjector_variable_name_length), parameter, public :: &
+       source_network_reinjector_variable_names(num_source_network_reinjector_variables) = [ &
+       source_network_variable_names,  ["reinjector_index        "]]
+  PetscInt, parameter, public :: num_source_network_reinjector_constant_integer_variables = 1
+  character(max_source_network_reinjector_variable_name_length), parameter, public :: &
+       source_network_reinjector_constant_integer_variables( &
+       num_source_network_reinjector_constant_integer_variables) = [ &
+       "reinjector_index        "]
+  character(max_field_name_length), parameter, public :: &
+       required_output_source_network_reinjector_fields(0) = [&
+       character(max_field_name_length)::]
+  character(max_field_name_length), parameter, public :: &
+       default_output_source_network_reinjector_fields(2) = [&
+       "rate              ", "enthalpy          "]
 
   type, public :: reinjector_output_type
      !! Type for reinjector outputs, distributing part of the
@@ -79,10 +98,14 @@ module source_network_reinjector_module
      MPI_Comm :: comm !! MPI communicator for reinjector
      PetscMPIInt, public :: rank !! Rank of reinjector in its own communicator
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
+     PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
+     PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
    contains
      private
      procedure, public :: init => source_network_reinjector_init
      procedure, public :: init_comm => source_network_reinjector_init_comm
+     procedure, public :: assign => source_network_reinjector_assign
+     procedure, public :: init_data => source_network_reinjector_init_data
      procedure, public :: distribute => source_network_reinjector_distribute
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
@@ -354,6 +377,40 @@ contains
     end subroutine overflow_comm
 
   end subroutine source_network_reinjector_init_comm
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_reinjector_assign(self, data, offset)
+    !! Assigns pointers in source network reinjector object to elements in
+    !! the data array, starting from the specified offset.
+
+    class(source_network_reinjector_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! reinjector data array
+    PetscInt, intent(in) :: offset  !! source array offset
+    ! Locals:
+    PetscInt :: reinjector_offset
+
+    call self%source_network_node_type%assign(data, offset)
+
+    reinjector_offset = offset + num_source_network_node_variables
+
+    self%reinjector_index => data(reinjector_offset)
+
+  end subroutine source_network_reinjector_assign
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_reinjector_init_data(self, reinjector_index)
+    !! Initialised source network reinjector variables accessed via
+    !! pointers to the reinjector vector. The reinjector assign() method
+    !! must be called first.
+
+    class(source_network_reinjector_type), intent(in out) :: self
+    PetscInt, intent(in) :: reinjector_index !! Index of reinjector in input
+
+    self%reinjector_index = dble(reinjector_index)
+
+  end subroutine source_network_reinjector_init_data
 
 !------------------------------------------------------------------------
 

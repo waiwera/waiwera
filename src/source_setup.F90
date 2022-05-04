@@ -73,20 +73,22 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscMPIInt :: rank
-    DM :: dm_source, dm_group
+    DM :: dm_source, dm_group, dm_reinjector
     PetscInt :: num_local_sources, source_spec_index, local_source_index
-    PetscInt :: group_index, sorted_group_index
+    PetscInt :: sorted_group_index, sorted_reinjector_index
     type(fson_value), pointer :: sources_json, source_json, groups_json, reinjectors_json
     PetscInt :: num_source_specs, num_tracers, num_local_root_groups, num_local_root_reinjectors
-    PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), source_network_group_data(:)
-    PetscSection :: fluid_section, source_section, source_network_group_section
+    PetscReal, pointer, contiguous :: fluid_data(:), source_data(:), &
+         source_network_group_data(:), source_network_reinjector_data(:)
+    PetscSection :: fluid_section, source_section, source_network_group_section, &
+         source_network_reinjector_section
     type(pfson_value_type), allocatable :: group_specs_array(:), reinjector_specs_array(:)
     type(dag_type) :: group_dag, reinjector_dag
     type(dictionary_type) :: source_dict, source_dict_all
     type(dictionary_type) :: source_network_group_dict
     type(dictionary_type) :: source_network_group_index_dict
     type(dictionary_type) :: source_network_reinjector_index_dict
-    PetscInt, allocatable :: indices(:), group_indices(:)
+    PetscInt, allocatable :: indices(:), group_indices(:), reinjector_indices(:)
     PetscInt, allocatable :: group_order(:), reinjector_order(:)
     PetscErrorCode :: ierr
 
@@ -96,6 +98,7 @@ contains
     source_network%num_groups = 0
     num_tracers = size(tracer_names)
     num_local_root_groups = 0
+    num_local_root_reinjectors = 0
     err = 0
 
     call label_source_zones(json, num_local_sources, logfile, err)
@@ -197,11 +200,29 @@ contains
                 call init_source_network_reinjectors(source_network, &
                      num_local_root_reinjectors, logfile, err)
              end if
-             ! if (err == 0) then
-                ! TODO: for output from reinjectors, create
-                ! dm_reinjector and source_network%reinjector Vec,
-                ! initialise reinjector data etc. as for groups
-             ! end if
+             if (err == 0) then
+                call create_path_dm(num_local_root_reinjectors, dm_reinjector)
+                call setup_reinjector_dm_data_layout(dm_reinjector)
+                call DMCreateGlobalVector(dm_reinjector, source_network%reinjector, &
+                     ierr); CHKERRQ(ierr)
+                call PetscObjectSetName(source_network%reinjector, "network_reinjector", &
+                     ierr); CHKERRQ(ierr)
+                call global_vec_range_start(source_network%reinjector, &
+                     source_network%reinjector_range_start)
+                call global_vec_section(source_network%reinjector, &
+                     source_network_reinjector_section)
+                call VecGetArrayF90(source_network%reinjector, source_network_reinjector_data, &
+                     ierr); CHKERRQ(ierr)
+                sorted_reinjector_index = 0
+                call source_network%reinjectors%traverse(reinjector_init_data_iterator)
+                allocate(reinjector_indices(num_local_root_reinjectors))
+                call source_network%reinjectors%traverse(source_network_reinjector_indices_iterator)
+                source_network%reinjector_index = invert_indices(reinjector_indices, &
+                     "network_reinjector_index")
+                deallocate(reinjector_indices)
+                call VecRestoreArrayF90(source_network%reinjector, &
+                     source_network_reinjector_data, ierr); CHKERRQ(ierr)
+             end if
 
           end if
 
@@ -783,7 +804,7 @@ contains
       use utils_module, only: str_to_lower
 
       type(source_network_type), intent(in out) :: source_network
-      PetscInt, intent(out) :: num_local_root_groups
+      PetscInt, intent(in out) :: num_local_root_groups
       type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
       ! Locals:
@@ -800,7 +821,6 @@ contains
       character(len=8), parameter :: default_group_scaling_type = "uniform"
 
       err = 0
-      num_local_root_groups = 0
       call group_source_dict%init(PETSC_FALSE)
 
       do ig = 0, source_network%num_groups - 1
@@ -920,7 +940,7 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt :: g, source_network_group_offset
+      PetscInt :: g, source_network_group_offset, group_index
       character(len=64) :: grpstr
       character(len=12) :: istr
       type(fson_value), pointer :: group_json
@@ -946,6 +966,88 @@ contains
       end select
 
     end subroutine group_init_data_iterator
+
+!........................................................................
+
+    subroutine reinjector_init_data_iterator(node, stopped)
+      !! Initialises data in a source reinjector.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: r, source_network_reinjector_offset, reinjector_index
+      character(len=64) :: rstr
+      character(len=12) :: istr
+      type(fson_value), pointer :: reinjector_json
+
+      stopped = PETSC_FALSE
+      select type (reinjector => node%data)
+      class is (source_network_reinjector_type)
+         reinjector_index = reinjector_order(sorted_reinjector_index)
+         write(istr, '(i0)') reinjector_index
+         rstr = 'network.reinjector[' // trim(istr) // '].'
+         reinjector_json => reinjector_specs_array(reinjector_index + 1)%ptr
+         if (reinjector%rank == 0) then
+            r = reinjector%local_reinjector_index
+            source_network_reinjector_offset = global_section_offset( &
+                 source_network_reinjector_section, r, source_network%reinjector_range_start)
+            call reinjector%assign(source_network_reinjector_data, &
+                 source_network_reinjector_offset)
+            call reinjector%init_data(reinjector_index)
+         end if
+         sorted_reinjector_index = sorted_reinjector_index + 1
+      end select
+
+    end subroutine reinjector_init_data_iterator
+
+!........................................................................
+
+    subroutine source_network_reinjector_indices_iterator(node, stopped)
+      !! Gets indices from all local source reinjectors.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: r, source_network_reinjector_offset
+
+      stopped = PETSC_FALSE
+      select type(reinjector => node%data)
+      class is (source_network_reinjector_type)
+         if (reinjector%rank == 0) then
+            r = reinjector%local_reinjector_index
+            source_network_reinjector_offset = global_section_offset( &
+                 source_network_reinjector_section, r, &
+                 source_network%reinjector_range_start)
+            call reinjector%assign(source_network_reinjector_data, &
+                 source_network_reinjector_offset)
+            reinjector_indices(r + 1) = nint(reinjector%reinjector_index)
+         end if
+      end select
+
+    end subroutine source_network_reinjector_indices_iterator
+
+!........................................................................
+
+    subroutine setup_reinjector_dm_data_layout(dm_reinjector)
+      !! Sets up data layout on source reinjector DM.
+
+      DM, intent(in out) :: dm_reinjector
+      ! Locals:
+      PetscInt, allocatable :: num_field_components(:), field_dim(:)
+      character(max_source_network_variable_name_length), allocatable :: field_names(:)
+
+      allocate(num_field_components(num_source_network_reinjector_variables), &
+           field_dim(num_source_network_reinjector_variables), &
+           field_names(num_source_network_reinjector_variables))
+      num_field_components = 1
+      field_dim = 0
+      field_names = source_network_reinjector_variable_names
+
+      call dm_set_data_layout(dm_reinjector, num_field_components, field_dim, &
+           field_names)
+      deallocate(num_field_components, field_dim, field_names)
+
+    end subroutine setup_reinjector_dm_data_layout
 
 !........................................................................
 
@@ -1188,7 +1290,7 @@ contains
       use utils_module, only: str_to_lower
 
       type(source_network_type), intent(in out) :: source_network
-      PetscInt, intent(out) :: num_local_root_reinjectors
+      PetscInt, intent(in out) :: num_local_root_reinjectors
       type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
       ! Locals:
@@ -1202,7 +1304,6 @@ contains
       type(list_node_type), pointer :: source_network_group_dict_node
 
       err = 0
-      num_local_root_reinjectors = 0
       call reinjector_input_dict%init(PETSC_FALSE)
       call reinjector_output_dict%init(PETSC_FALSE)
 
