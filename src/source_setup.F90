@@ -1190,7 +1190,7 @@ contains
       ! Locals:
       PetscInt :: flow_type, num_outputs, i
       type(fson_value), pointer :: outputs_json, output_json
-      class(reinjector_output_type), pointer :: output
+      class(specified_reinjector_output_type), pointer :: output
       PetscReal :: enthalpy
       character(max_source_network_node_name_length) :: out_name
       type(list_node_type), pointer :: source_dict_node
@@ -1361,8 +1361,7 @@ contains
                      num_local_root_reinjectors = num_local_root_reinjectors + 1
                   end if
                   ! TODO: enable override of overflow properties
-                  call reinjector%overflow%init(reinjector, SEPARATED_FLOW_TYPE_TOTAL, &
-                       -1._dp)
+                  call reinjector%overflow%init(reinjector)
 
                   call source_network%reinjectors%append(reinjector)
                   ! TODO: may need something like this for recursive case

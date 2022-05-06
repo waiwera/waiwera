@@ -34,11 +34,13 @@ module source_network_reinjector_module
   private
 
   PetscInt, parameter, public :: num_source_network_reinjector_variables = &
-       num_source_network_node_variables + 1
+       num_source_network_node_variables + 5
   PetscInt, parameter, public :: max_source_network_reinjector_variable_name_length = 24
   character(max_source_network_reinjector_variable_name_length), parameter, public :: &
        source_network_reinjector_variable_names(num_source_network_reinjector_variables) = [ &
-       source_network_variable_names,  ["reinjector_index        "]]
+       source_network_variable_names,  ["reinjector_index        ", &
+       "overflow_water_rate     ", "overflow_water_enthalpy ", &
+       "overflow_steam_rate     ", "overflow_steam_enthalpy " ]]
   PetscInt, parameter, public :: num_source_network_reinjector_constant_integer_variables = 1
   character(max_source_network_reinjector_variable_name_length), parameter, public :: &
        source_network_reinjector_constant_integer_variables( &
@@ -49,44 +51,75 @@ module source_network_reinjector_module
        character(max_field_name_length)::]
   character(max_field_name_length), parameter, public :: &
        default_output_source_network_reinjector_fields(2) = [&
-       "rate              ", "enthalpy          "]
+       "overflow_water_rate", "overflow_steam_rate"]
 
-  type, public :: reinjector_output_type
+  type :: reinjector_output_type
      !! Type for reinjector outputs, distributing part of the
      !! reinjector flow to another network node.
      private
-     PetscInt, public :: flow_type !! Type of output flow (water or steam)
-     ! TODO: could make enthalpy time-dependent?
-     PetscReal, public :: enthalpy !! Specified enthalpy for output (-1 to use input enthalpy)
      class(source_network_node_type), pointer :: in !! Input network node
      class(source_network_node_type), pointer, public :: out !! Output network node
    contains
      private
-     procedure, public :: init => reinjector_output_init
-     procedure, public :: get_rate => reinjector_output_get_rate
+     procedure, public :: node_limit => reinjector_output_node_limit
      procedure, public :: update => reinjector_output_update
-     procedure, public :: subtract_flow => reinjector_output_subtract_flow
      procedure, public :: destroy => reinjector_output_destroy
   end type reinjector_output_type
 
-  type, public, extends(reinjector_output_type) :: rate_reinjector_output_type
+  type, public, extends(reinjector_output_type) :: specified_reinjector_output_type
+     !! Type for reinjector outputs which have specified output
+     !! rates/enthalpies, and output a particular flow type
+     !! (e.g. water or steam).
+     private
+     PetscInt, public :: flow_type !! Type of output flow (water or steam)
+     ! TODO: could make enthalpy time-dependent?
+     PetscReal, public :: enthalpy !! Specified enthalpy for output (-1 to use input enthalpy)
+   contains
+     private
+     procedure, public :: init => specified_reinjector_output_init
+     procedure, public :: specified_enthalpies => specified_reinjector_output_specified_enthalpies
+     procedure, public :: default_enthalpies => specified_reinjector_output_default_enthalpies
+     procedure, public :: rates => specified_reinjector_output_rates
+     procedure, public :: get_specified_flows => specified_reinjector_output_get_specified_flows
+     procedure, public :: subtract_flow => specified_reinjector_output_subtract_flow
+  end type specified_reinjector_output_type
+
+  type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
      !! Type for reinjector output which has a specified output rate.
      private
      ! TODO: make this an interpolation table for time-dependent rate
      PetscReal, public :: rate !! Specified output rate
    contains
-     procedure, public :: get_rate => rate_reinjector_output_get_rate
+     private
+     procedure, public :: rates => rate_reinjector_output_rates
   end type rate_reinjector_output_type
 
-  type, public, extends(reinjector_output_type) :: proportion_reinjector_output_type
+  type, public, extends(specified_reinjector_output_type) :: proportion_reinjector_output_type
      !! Type for reinjector output with an output rate which is a
      !! specified proportion of the input rate.
      private
      ! TODO: make this an interpolation table for time-dependent proportion
      PetscReal, public :: proportion !! Specified output rate
    contains
-     procedure, public :: get_rate => proportion_reinjector_output_get_rate
+     private
+     procedure, public :: rates => proportion_reinjector_output_rates
   end type proportion_reinjector_output_type
+
+  type, public, extends(reinjector_output_type) :: overflow_reinjector_output_type
+     !! Type for overflow reinjector output, which stores and can
+     !! display mass flow balances left over after specified outputs
+     !! have been reinjected, and optionally direct them to another
+     !! network node.
+     private
+     PetscReal, pointer, public :: water_rate !! Separated water mass flow rate
+     PetscReal, pointer, public :: water_enthalpy !! Separated water enthalpy
+     PetscReal, pointer, public :: steam_rate !! Separated steam mass flow rate
+     PetscReal, pointer, public :: steam_enthalpy !! Separated steam enthalpy
+   contains
+     private
+     procedure, public :: init => overflow_reinjector_output_init
+     procedure, public :: set_flows => overflow_reinjector_output_set_flows
+  end type overflow_reinjector_output_type
 
   type, public, extends(source_network_node_type) :: source_network_reinjector_type
      !! Type for reinjectors, taking a single input and distributing
@@ -94,7 +127,7 @@ module source_network_reinjector_module
      private
      class(source_network_node_type), pointer, public :: in !! Input node for reinjector
      type(list_type), public :: out !! List of outputs for reinjector
-     type(reinjector_output_type), public :: overflow !! Output for overflow
+     type(overflow_reinjector_output_type), public :: overflow !! Output for overflow
      MPI_Comm :: comm !! MPI communicator for reinjector
      PetscMPIInt, public :: rank !! Rank of reinjector in its own communicator
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
@@ -132,114 +165,73 @@ contains
 ! Reinjector output type
 !------------------------------------------------------------------------
 
-  subroutine reinjector_output_init(self, reinjector, flow_type, enthalpy)
-    !! Initialises reinjector output.
-
-    class(reinjector_output_type), intent(in out) :: self
-    type(source_network_reinjector_type), target, intent(in) :: reinjector
-    PetscInt, intent(in) :: flow_type
-    PetscReal, intent(in) :: enthalpy
-
-    self%in => reinjector
-    self%flow_type = flow_type
-    self%enthalpy = enthalpy
-
-  end subroutine reinjector_output_init
-
-!------------------------------------------------------------------------
-
-  PetscReal function reinjector_output_get_rate(self) result(rate)
-    !! Gets rate for reinjector output. Derived types override this
-    !! function.
-
-    class(reinjector_output_type), intent(in out) :: self
-
-    rate = 0._dp
-
-  end function reinjector_output_get_rate
-
-!------------------------------------------------------------------------
-
-  subroutine reinjector_output_update(self, rate)
-    !! Assigns rate to the output node, and enthalpy from the input
+  subroutine reinjector_output_node_limit(self, rate)
+    !! Limits injection rate to what can be injected into the output
     !! node.
 
     class(reinjector_output_type), intent(in out) :: self
-    PetscReal, intent(in) :: rate !! Specified flow rate
-    ! Locals:
-    PetscReal :: effective_rate, effective_enthalpy
-
-    ! TODO: add recursive case of class is (source_network_reinjector_type)
-
-    select type (n => self%out)
-    class is (source_type)
-
-       if (n%rate > 0._dp) then
-          if (rate > 0._dp) then
-             effective_rate = min(rate, n%rate)
-          else
-             effective_rate = n%rate
-          end if
-       else
-          if (rate > 0._dp) then
-             effective_rate = rate
-          else
-             effective_rate = 0._dp
-          end if
-       end if
-       call n%set_rate(effective_rate)
-
-       if (self%enthalpy > 0._dp) then
-          effective_enthalpy = self%enthalpy
-       else
-          select case (self%flow_type)
-          case (SEPARATED_FLOW_TYPE_WATER)
-             effective_enthalpy = self%in%water_enthalpy
-          case (SEPARATED_FLOW_TYPE_STEAM)
-             effective_enthalpy = self%in%steam_enthalpy
-          end select
-       end if
-       n%injection_enthalpy = effective_enthalpy
-
-       select case (self%flow_type)
-       case (SEPARATED_FLOW_TYPE_WATER)
-          n%water_rate = effective_rate
-          n%steam_rate = 0._dp
-          n%water_enthalpy = effective_enthalpy
-          n%steam_enthalpy = 0._dp
-       case (SEPARATED_FLOW_TYPE_STEAM)
-          n%water_rate = 0._dp
-          n%steam_rate = effective_rate
-          n%water_enthalpy = 0._dp
-          n%steam_enthalpy = effective_enthalpy
-       end select
-
-    end select
-
-  end subroutine reinjector_output_update
-
-!------------------------------------------------------------------------
-
-  subroutine reinjector_output_subtract_flow(self, rate, water_rate, &
-       steam_rate)
-    !! Subtracts output flow from totals, according to the output flow
-    !! type.
-
-    class(reinjector_output_type), intent(in) :: self
-    PetscReal, intent(in out) :: rate !! Total mass flow rate
-    PetscReal, intent(in out) :: water_rate !! Water mass flow rate
-    PetscReal, intent(in out) :: steam_rate !! Steam mass flow rate
+    PetscReal, intent(in out) :: rate
 
     if (associated(self%out)) then
+
        select type (n => self%out)
        class is (source_network_node_type)
-          rate = rate - n%rate
-          water_rate = water_rate - n%water_rate
-          steam_rate = steam_rate - n%steam_rate
+          if (n%rate > 0._dp) then
+             if (rate > 0._dp) then
+                ! rates specified in both reinjector output and node:
+                rate = min(rate, n%rate)
+             else
+                ! rate specified in node only:
+                rate = n%rate
+             end if
+          else
+             ! check if no rate specified in reinjector output or node:
+             rate = max(rate, 0._dp)
+          end if
        end select
     end if
 
-  end subroutine reinjector_output_subtract_flow
+  end subroutine reinjector_output_node_limit
+
+!------------------------------------------------------------------------
+
+  subroutine reinjector_output_update(self, water_rate, &
+       water_enthalpy, steam_rate, steam_enthalpy)
+    !! Assigns rates and enthalpies to the output node.
+
+    class(reinjector_output_type), intent(in out) :: self
+    PetscReal, target, intent(in) :: water_rate, water_enthalpy
+    PetscReal, target, intent(in) :: steam_rate, steam_enthalpy
+    ! Locals:
+    PetscReal :: rate, enthalpy
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    ! TODO: add recursive case of class is (source_network_reinjector_type)
+
+    if (associated(self%out)) then
+
+       rate = water_rate + steam_rate
+       if (rate > small) then
+          enthalpy = (water_rate * water_enthalpy + &
+               steam_rate * steam_enthalpy) / rate
+       else
+          enthalpy = 0._dp
+       end if
+
+       select type (n => self%out)
+       class is (source_type)
+          call n%set_rate(rate)
+          n%injection_enthalpy = enthalpy
+       end select
+
+       self%out%water_rate = water_rate
+       self%out%water_enthalpy = water_enthalpy
+       self%out%steam_rate = steam_rate
+       self%out%steam_enthalpy = steam_enthalpy
+
+    end if
+
+  end subroutine reinjector_output_update
 
 !------------------------------------------------------------------------
 
@@ -254,35 +246,194 @@ contains
   end subroutine reinjector_output_destroy
 
 !------------------------------------------------------------------------
+! Specified reinjector output type
+!------------------------------------------------------------------------
+
+  subroutine specified_reinjector_output_init(self, reinjector, &
+       flow_type, enthalpy)
+    !! Initialises specified reinjector output.
+
+    class(specified_reinjector_output_type), intent(in out) :: self
+    type(source_network_reinjector_type), target, intent(in) :: reinjector
+    PetscInt, intent(in) :: flow_type
+    PetscReal, intent(in) :: enthalpy
+
+    self%in => reinjector
+    self%flow_type = flow_type
+    self%enthalpy = enthalpy
+
+  end subroutine specified_reinjector_output_init
+
+!------------------------------------------------------------------------
+
+  subroutine specified_reinjector_output_specified_enthalpies(self, &
+       water_enthalpy, steam_enthalpy)
+    !! Returns enthalpies, taken from specified enthalpy, depending on
+    !! flow type.
+
+    class(specified_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(out) :: water_enthalpy, steam_enthalpy
+
+    select case (self%flow_type)
+    case (SEPARATED_FLOW_TYPE_WATER)
+       water_enthalpy = self%enthalpy
+       steam_enthalpy = 0._dp
+    case (SEPARATED_FLOW_TYPE_STEAM)
+       water_enthalpy = 0._dp
+       steam_enthalpy = self%enthalpy
+    end select
+
+  end subroutine specified_reinjector_output_specified_enthalpies
+
+!------------------------------------------------------------------------
+
+  subroutine specified_reinjector_output_default_enthalpies(self, &
+       water_enthalpy, steam_enthalpy)
+    !! Returns default enthalpies, taken from input, depending on flow type.
+
+    class(specified_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(out) :: water_enthalpy, steam_enthalpy
+
+    select case (self%flow_type)
+    case (SEPARATED_FLOW_TYPE_WATER)
+       water_enthalpy = self%in%water_enthalpy
+       steam_enthalpy = 0._dp
+    case (SEPARATED_FLOW_TYPE_STEAM)
+       water_enthalpy = 0._dp
+       steam_enthalpy = self%in%steam_enthalpy
+    end select
+
+  end subroutine specified_reinjector_output_default_enthalpies
+
+!------------------------------------------------------------------------
+
+  subroutine specified_reinjector_output_rates(self, water_rate, steam_rate)
+    !! Gets rates for specified reinjector output. Derived types
+    !! override this function.
+
+    class(specified_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(out) :: water_rate, steam_rate
+
+    water_rate = 0._dp
+    steam_rate = 0._dp
+
+  end subroutine specified_reinjector_output_rates
+
+!------------------------------------------------------------------------
+
+  subroutine specified_reinjector_output_get_specified_flows(self, water_rate, &
+       water_enthalpy, steam_rate, steam_enthalpy)
+    !! Gets specified rates and enthalpies for specified reinjector output.
+
+    class(specified_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(out) :: water_rate, water_enthalpy
+    PetscReal, intent(out) :: steam_rate, steam_enthalpy
+
+    call self%rates(water_rate, steam_rate)
+
+    if (self%enthalpy > 0._dp) then
+       call self%specified_enthalpies(water_enthalpy, steam_enthalpy)
+    else
+       call self%default_enthalpies(water_enthalpy, steam_enthalpy)
+    end if
+
+  end subroutine specified_reinjector_output_get_specified_flows
+
+!------------------------------------------------------------------------
+
+  subroutine specified_reinjector_output_subtract_flow(self, water_balance, &
+       steam_balance)
+    !! Subtracts output phase flows from water and steam balances,
+    !! according to the output flow type.
+
+    class(specified_reinjector_output_type), intent(in) :: self
+    PetscReal, intent(in out) :: water_balance !! Water mass flow balance
+    PetscReal, intent(in out) :: steam_balance !! Steam mass flow balance
+
+    if (associated(self%out)) then
+       select type (n => self%out)
+       class is (source_network_node_type)
+          water_balance = water_balance - n%water_rate
+          steam_balance = steam_balance - n%steam_rate
+       end select
+    end if
+
+  end subroutine specified_reinjector_output_subtract_flow
+
+!------------------------------------------------------------------------
 ! Rate reinjector output type
 !------------------------------------------------------------------------
 
-  PetscReal function rate_reinjector_output_get_rate(self) result(rate)
-    !! Gets rate for rate reinjector output.
+  subroutine rate_reinjector_output_rates(self, water_rate, steam_rate)
+    !! Gets rates for rate reinjector output.
 
     class(rate_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(out) :: water_rate, steam_rate
 
-    rate = self%rate
+    select case (self%flow_type)
+    case (SEPARATED_FLOW_TYPE_WATER)
+       water_rate = self%rate
+       steam_rate = 0._dp
+    case (SEPARATED_FLOW_TYPE_STEAM)
+       water_rate = 0._dp
+       steam_rate = self%rate
+    end select
 
-  end function rate_reinjector_output_get_rate
+  end subroutine rate_reinjector_output_rates
 
 !------------------------------------------------------------------------
 ! Proportion reinjector output type
 !------------------------------------------------------------------------
 
-  PetscReal function proportion_reinjector_output_get_rate(self) result(rate)
-    !! Gets rate for proportion reinjector output.
+  subroutine proportion_reinjector_output_rates(self, water_rate, steam_rate)
+    !! Gets rates for proportion reinjector output.
 
     class(proportion_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(out) :: water_rate, steam_rate
 
     select case (self%flow_type)
     case (SEPARATED_FLOW_TYPE_WATER)
-       rate = self%proportion * self%in%water_rate
+       water_rate = self%proportion * self%in%water_rate
+       steam_rate = 0._dp
     case (SEPARATED_FLOW_TYPE_STEAM)
-       rate = self%proportion * self%in%steam_rate
+       water_rate = 0._dp
+       steam_rate = self%proportion * self%in%steam_rate
     end select
 
-  end function proportion_reinjector_output_get_rate
+  end subroutine proportion_reinjector_output_rates
+
+!------------------------------------------------------------------------
+! Overflow reinjector output type
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_init(self, reinjector)
+    !! Initialises overflow reinjector output.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+    type(source_network_reinjector_type), target, intent(in) :: reinjector
+
+    self%in => reinjector
+
+  end subroutine overflow_reinjector_output_init
+
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_set_flows(self, water_rate, &
+       water_enthalpy, steam_rate, steam_enthalpy)
+    !! Sets overflow output flow rates and enthalpies.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(in) :: water_rate !! Separated water mass flow rate
+    PetscReal, intent(in) :: water_enthalpy !! Separated water enthalpy
+    PetscReal, intent(in) :: steam_rate !! Separated steam mass flow rate
+    PetscReal, intent(in) :: steam_enthalpy !! Separated steam enthalpy
+
+    self%water_rate = water_rate
+    self%water_enthalpy = water_enthalpy
+    self%steam_rate = steam_rate
+    self%steam_enthalpy = steam_enthalpy
+
+  end subroutine overflow_reinjector_output_set_flows
 
 !------------------------------------------------------------------------
 ! Reinjector type
@@ -396,6 +547,11 @@ contains
 
     self%reinjector_index => data(reinjector_offset)
 
+    self%overflow%water_rate => data(reinjector_offset + 1)
+    self%overflow%water_enthalpy => data(reinjector_offset + 2)
+    self%overflow%steam_rate => data(reinjector_offset + 3)
+    self%overflow%steam_enthalpy => data(reinjector_offset + 4)
+
   end subroutine source_network_reinjector_assign
 
 !------------------------------------------------------------------------
@@ -420,42 +576,39 @@ contains
 
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
-    PetscReal :: rate_balance, water_balance, steam_balance
+    PetscReal :: water_balance, steam_balance
+    PetscReal :: total, original_total, factor
 
     if (associated(self%in)) then
        select type (n => self%in)
        ! Reverse flows from production side of network (sources and
        ! groups):
        type is (source_type)
-          rate_balance = -n%rate
           water_balance = -n%water_rate
           steam_balance = -n%steam_rate
        type is (source_network_group_type)
-          rate_balance = -n%rate
           water_balance = -n%water_rate
           steam_balance = -n%steam_rate
        type is (source_network_reinjector_type)
-          rate_balance = n%rate
           water_balance = n%water_rate
           steam_balance = n%steam_rate
        end select
     else
-       rate_balance = 0._dp
        water_balance = 0._dp
        steam_balance = 0._dp
     end if
 
     call self%out%traverse(reinjector_distribute_iterator)
 
+    call self%overflow%set_flows(water_balance, self%in%water_enthalpy, &
+         steam_balance, self%in%steam_enthalpy)
     if (associated(self%overflow%out)) then
-       select type (n => self%overflow%out)
-       class is (source_network_node_type)
-          call n%set_rate(rate_balance)
-          n%water_rate = water_balance
-          n%water_enthalpy = self%in%water_enthalpy
-          n%steam_rate = steam_balance
-          n%steam_enthalpy = self%in%steam_enthalpy
-       end select
+       total = water_balance + steam_balance
+       original_total = total
+       call self%overflow%node_limit(total)
+       factor = total / original_total
+       call self%overflow%update(water_balance * factor, self%in%water_enthalpy, &
+            steam_balance * factor, self%in%steam_enthalpy)
     end if
 
   contains
@@ -465,14 +618,26 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscReal :: rate
+      PetscReal, target :: water_rate, steam_rate
+      PetscReal :: water_enthalpy, steam_enthalpy
+      PetscReal, pointer :: rate
 
       stopped = PETSC_FALSE
       select type (output => node%data)
-      class is (reinjector_output_type)
-         rate = output%get_rate()
-         call output%update(rate)
-         call output%subtract_flow(rate_balance, water_balance, steam_balance)
+      class is (specified_reinjector_output_type)
+         call output%get_specified_flows(water_rate, water_enthalpy, &
+              steam_rate, steam_enthalpy)
+         select case (output%flow_type)
+         case (SEPARATED_FLOW_TYPE_WATER)
+            rate => water_rate
+         case (SEPARATED_FLOW_TYPE_STEAM)
+            rate => steam_rate
+         end select
+         call output%node_limit(rate)
+         ! TODO call output%balance_limit(water_rate etc)
+         call output%update(water_rate, water_enthalpy, steam_rate, &
+              steam_enthalpy)
+         call output%subtract_flow(water_balance, steam_balance)
       end select
 
       ! TODO use MPI_send()/recv() to pass output flow rate to self%in%comm root?
