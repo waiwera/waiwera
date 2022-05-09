@@ -394,11 +394,11 @@ contains
 
     select case (self%flow_type)
     case (SEPARATED_FLOW_TYPE_WATER)
-       water_rate = self%proportion * self%in%water_rate
+       water_rate = self%proportion * abs(self%reinjector%in%water_rate)
        steam_rate = 0._dp
     case (SEPARATED_FLOW_TYPE_STEAM)
        water_rate = 0._dp
-       steam_rate = self%proportion * self%in%steam_rate
+       steam_rate = self%proportion * abs(self%reinjector%in%steam_rate)
     end select
 
   end subroutine proportion_reinjector_output_rates
