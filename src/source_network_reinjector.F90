@@ -577,7 +577,6 @@ contains
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
     PetscReal :: water_balance, steam_balance
-    PetscReal :: total, original_total, factor
 
     if (associated(self%in)) then
        select type (n => self%in)
@@ -603,12 +602,8 @@ contains
     call self%overflow%set_flows(water_balance, self%in%water_enthalpy, &
          steam_balance, self%in%steam_enthalpy)
     if (associated(self%overflow%out)) then
-       total = water_balance + steam_balance
-       original_total = total
-       call self%overflow%node_limit(total)
-       factor = total / original_total
-       call self%overflow%update(water_balance * factor, self%in%water_enthalpy, &
-            steam_balance * factor, self%in%steam_enthalpy)
+       call self%overflow%update(water_balance, self%in%water_enthalpy, &
+            steam_balance, self%in%steam_enthalpy)
     end if
 
   contains
