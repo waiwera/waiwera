@@ -188,8 +188,8 @@ contains
              call VecRestoreArrayF90(source_network%group, source_network_group_data, ierr)
              CHKERRQ(ierr)
 
-             if (fson_has_mpi(json, "network.reinjection")) then
-                call fson_get_mpi(json, "network.reinjection", reinjectors_json)
+             if (fson_has_mpi(json, "network.reinject")) then
+                call fson_get_mpi(json, "network.reinject", reinjectors_json)
                 source_network%num_reinjectors = fson_value_count_mpi(reinjectors_json, ".")
                 call setup_item_index_dict(reinjectors_json, &
                      source_network%num_reinjectors, source_network_reinjector_index_dict)
@@ -205,7 +205,7 @@ contains
                 call setup_reinjector_dm_data_layout(dm_reinjector)
                 call DMCreateGlobalVector(dm_reinjector, source_network%reinjector, &
                      ierr); CHKERRQ(ierr)
-                call PetscObjectSetName(source_network%reinjector, "network_reinjector", &
+                call PetscObjectSetName(source_network%reinjector, "network_reinject", &
                      ierr); CHKERRQ(ierr)
                 call global_vec_range_start(source_network%reinjector, &
                      source_network%reinjector_range_start)
@@ -218,7 +218,7 @@ contains
                 allocate(reinjector_indices(num_local_root_reinjectors))
                 call source_network%reinjectors%traverse(source_network_reinjector_indices_iterator)
                 source_network%reinjector_index = invert_indices(reinjector_indices, &
-                     "network_reinjector_index")
+                     "network_reinject_index")
                 deallocate(reinjector_indices)
                 call VecRestoreArrayF90(source_network%reinjector, &
                      source_network_reinjector_data, ierr); CHKERRQ(ierr)
@@ -1312,7 +1312,7 @@ contains
          reinjector_index = reinjector_order(ir) + 1
          reinjector_json => reinjector_specs_array(reinjector_index)%ptr
          write(irstr, '(i0)') reinjector_index - 1
-         rstr = 'network.reinjection[' // trim(irstr) // '].'
+         rstr = 'network.reinject[' // trim(irstr) // '].'
 
          call fson_get_mpi(reinjector_json, "name", "", name)
 

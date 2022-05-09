@@ -513,7 +513,7 @@ contains
          self%output_source_network_group_field_indices, output_fields)
     deallocate(output_fields)
 
-    call setup_vector_output_fields("network_reinjection", self%source_network%reinjector, &
+    call setup_vector_output_fields("network_reinject", self%source_network%reinjector, &
          default_output_source_network_reinjector_fields, &
          required_output_source_network_reinjector_fields, &
          self%output_source_network_reinject_field_indices, output_fields)

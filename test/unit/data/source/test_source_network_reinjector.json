@@ -16,7 +16,7 @@
             {"name": "group1", "in": ["p1", "p2", "p3"],
              "separator": {"pressure": 0.5e6}}
         ],
-        "reinjection": [
+        "reinject": [
             {"name": "re1", "in": "group1",
              "water": [
                  {"out": "i1", "rate": 2, "enthalpy": 83.9e3},
