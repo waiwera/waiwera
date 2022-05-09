@@ -602,19 +602,8 @@ contains
     PetscReal :: water_balance, steam_balance
 
     if (associated(self%in)) then
-       select type (n => self%in)
-       ! Reverse flows from production side of network (sources and
-       ! groups):
-       type is (source_type)
-          water_balance = -n%water_rate
-          steam_balance = -n%steam_rate
-       type is (source_network_group_type)
-          water_balance = -n%water_rate
-          steam_balance = -n%steam_rate
-       type is (source_network_reinjector_type)
-          water_balance = n%water_rate
-          steam_balance = n%steam_rate
-       end select
+       water_balance = abs(self%in%water_rate)
+       steam_balance = abs(self%in%steam_rate)
     else
        water_balance = 0._dp
        steam_balance = 0._dp
