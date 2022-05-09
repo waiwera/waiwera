@@ -332,7 +332,7 @@ contains
       type is (source_type)
          select case (source%name)
          case ("i1")
-            call flow_test(source, 2._dp, 2._dp, 0.0_dp, 83.9e3_dp)
+            call flow_test(source, 2._dp, 2._dp, 0.0_dp, 640.1853353633858e3_dp)
          case ("i2")
             call flow_test(source, 3.51189842644_dp, 3.51189842644_dp, &
                  0.0_dp, 83.9e3_dp)
@@ -340,7 +340,7 @@ contains
             call flow_test(source, 0.4_dp, 0.0_dp, 0.4_dp, 1200.0e3_dp)
          case ("i4")
             call flow_test(source, 0.180063483479_dp, 0.0_dp, &
-                 0.180063483479_dp, 1200.0e3_dp)
+                 0.180063483479_dp, 2748.107614657969e3_dp)
          end select
       end select
 

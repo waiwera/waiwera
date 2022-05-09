@@ -19,12 +19,12 @@
         "reinject": [
             {"name": "re1", "in": "group1",
              "water": [
-                 {"out": "i1", "rate": 2, "enthalpy": 83.9e3},
+                 {"out": "i1", "rate": 2},
                  {"out": "i2", "proportion": 0.4, "enthalpy": 83.9e3}
              ],
              "steam": [
                  {"out": "i3", "rate": 0.4, "enthalpy": 1200e3},
-                 {"out": "i4", "proportion": 0.25, "enthalpy": 1200e3}
+                 {"out": "i4", "proportion": 0.25}
              ]}
         ]
     }
