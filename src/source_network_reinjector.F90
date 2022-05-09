@@ -57,7 +57,7 @@ module source_network_reinjector_module
      !! Type for reinjector outputs, distributing part of the
      !! reinjector flow to another network node.
      private
-     class(source_network_node_type), pointer :: in !! Input network node
+     class(source_network_reinjector_type), pointer :: reinjector !! Reinjector to output from
      class(source_network_node_type), pointer, public :: out !! Output network node
    contains
      private
@@ -241,7 +241,7 @@ contains
 
     class(reinjector_output_type), intent(in out) :: self
 
-    self%in => null()
+    self%reinjector => null()
     self%out => null()
 
   end subroutine reinjector_output_destroy
@@ -259,7 +259,7 @@ contains
     PetscInt, intent(in) :: flow_type
     PetscReal, intent(in) :: enthalpy
 
-    self%in => reinjector
+    self%reinjector => reinjector
     self%flow_type = flow_type
     self%enthalpy = enthalpy
 
@@ -413,7 +413,7 @@ contains
     class(overflow_reinjector_output_type), intent(in out) :: self
     type(source_network_reinjector_type), target, intent(in) :: reinjector
 
-    self%in => reinjector
+    self%reinjector => reinjector
 
   end subroutine overflow_reinjector_output_init
 
