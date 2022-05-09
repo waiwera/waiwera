@@ -255,16 +255,26 @@ contains
 
 !........................................................................
 
-    subroutine flow_test(node, rate, water_rate, steam_rate)
+    subroutine flow_test(node, rate, water_rate, steam_rate, &
+         injection_enthalpy)
 
       class(source_network_node_type), intent(in) :: node
       PetscReal, intent(in) :: rate, water_rate, steam_rate
+      PetscReal, intent(in), optional :: injection_enthalpy
 
       call test%assert(rate, node%rate, trim(node%name) // " rate")
       call test%assert(water_rate, node%water_rate, &
            trim(node%name) // " water rate")
       call test%assert(steam_rate, node%steam_rate, &
            trim(node%name) //" steam rate")
+
+      if (present(injection_enthalpy)) then
+         select type (n => node)
+         type is (source_type)
+            call test%assert(injection_enthalpy, n%injection_enthalpy, &
+                 trim(n%name) // " injection enthalpy")
+         end select
+      end if
 
     end subroutine flow_test
 
@@ -280,9 +290,9 @@ contains
       type is (source_type)
          select case (source%name)
          case ("i1")
-            call flow_test(source, 2._dp, 2._dp, 0.0_dp)
+            call flow_test(source, 2._dp, 2._dp, 0.0_dp, 83.9e3_dp)
          case ("i2")
-            call flow_test(source, 3.5_dp, 3.5_dp, 0.0_dp)
+            call flow_test(source, 3.5_dp, 3.5_dp, 0.0_dp, 83.9e3_dp)
          end select
       end select
 
