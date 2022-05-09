@@ -297,11 +297,11 @@ contains
 
     select case (self%flow_type)
     case (SEPARATED_FLOW_TYPE_WATER)
-       water_enthalpy = self%in%water_enthalpy
+       water_enthalpy = self%reinjector%in%water_enthalpy
        steam_enthalpy = 0._dp
     case (SEPARATED_FLOW_TYPE_STEAM)
        water_enthalpy = 0._dp
-       steam_enthalpy = self%in%steam_enthalpy
+       steam_enthalpy = self%reinjector%in%steam_enthalpy
     end select
 
   end subroutine specified_reinjector_output_default_enthalpies
