@@ -7,7 +7,9 @@
         {"name": "p3", "cell": 7, "rate": -1.5},
 
         {"name": "i1", "cell": 11},
-        {"name": "i2", "cell": 8}
+        {"name": "i2", "cell": 8},
+        {"name": "i3", "cell": 6},
+        {"name": "i4", "cell": 3}
     ],
     "network": {
         "group": [
@@ -18,7 +20,11 @@
             {"name": "re1", "in": "group1",
              "water": [
                  {"out": "i1", "rate": 2, "enthalpy": 83.9e3},
-                 {"out": "i2", "rate": 3.5, "enthalpy": 83.9e3}
+                 {"out": "i2", "proportion": 0.4, "enthalpy": 83.9e3}
+             ],
+             "steam": [
+                 {"out": "i3", "rate": 0.4, "enthalpy": 1200e3},
+                 {"out": "i4", "proportion": 0.25, "enthalpy": 1200e3}
              ]}
         ]
     }

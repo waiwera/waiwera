@@ -77,15 +77,15 @@ contains
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector
     PetscInt :: fluid_range_start
-    PetscReal, pointer, contiguous :: source_array(:), group_array(:)
-    PetscSection :: source_section, group_section
+    PetscReal, pointer, contiguous :: source_array(:), group_array(:), reinjector_array(:)
+    PetscSection :: source_section, group_section, reinjector_section
     type(source_network_type) :: source_network
     PetscMPIInt :: rank
     PetscReal, parameter :: start_time = 0._dp, end_time = 100._dp
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 5
+    PetscInt, parameter :: expected_num_sources = 7
     PetscInt, parameter :: expected_num_groups = 1
     PetscInt, parameter :: expected_num_reinjectors = 1
 
@@ -116,18 +116,23 @@ contains
 
        call global_vec_section(source_network%source, source_section)
        call global_vec_section(source_network%group, group_section)
+       call global_vec_section(source_network%reinjector, reinjector_section)
        call VecGetArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
        call VecGetArrayF90(source_network%group, group_array, ierr); CHKERRQ(ierr)
+       call VecGetArrayF90(source_network%reinjector, reinjector_array, ierr); CHKERRQ(ierr)
 
        call source_network%sources%traverse(source_setup_iterator)
        call source_network%groups%traverse(group_assign_iterator)
+       call source_network%reinjectors%traverse(reinjector_assign_iterator)
        call source_network%separated_sources%traverse(source_separator_iterator)
        call source_network%groups%traverse(group_sum_iterator)
        call source_network%network_controls%traverse(network_control_iterator)
        call source_network%groups%traverse(group_test_iterator)
        call source_network%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
        call source_network%sources%traverse(source_test_iterator)
+       call source_network%reinjectors%traverse(reinjector_test_iterator)
 
+       call VecRestoreArrayF90(source_network%reinjector, reinjector_array, ierr); CHKERRQ(ierr)
        call VecRestoreArrayF90(source_network%group, group_array, ierr); CHKERRQ(ierr)
        call VecRestoreArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
 
@@ -190,6 +195,28 @@ contains
       end select
 
     end subroutine group_assign_iterator
+
+!........................................................................
+
+    subroutine reinjector_assign_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: r, reinjector_offset
+
+      stopped = PETSC_FALSE
+      select type(reinjector => node%data)
+      class is (source_network_reinjector_type)
+         if (reinjector%rank == 0) then
+            r = reinjector%local_reinjector_index
+            reinjector_offset = global_section_offset(reinjector_section, &
+              r, source_network%reinjector_range_start)
+            call reinjector%assign(reinjector_array, reinjector_offset)
+         end if
+      end select
+
+    end subroutine reinjector_assign_iterator
 
 !........................................................................
 
@@ -280,6 +307,21 @@ contains
 
 !........................................................................
 
+    subroutine reinjector_test(reinjector, overflow_water_rate, &
+         overflow_steam_rate)
+
+      class(source_network_reinjector_type), intent(in) :: reinjector
+      PetscReal, intent(in) :: overflow_water_rate, overflow_steam_rate
+
+      call test%assert(overflow_water_rate, reinjector%overflow%water_rate, &
+           trim(reinjector%name) // " overflow water rate")
+      call test%assert(overflow_steam_rate, reinjector%overflow%steam_rate, &
+           trim(reinjector%name) // " overflow steam rate")
+
+    end subroutine reinjector_test
+
+!........................................................................
+
     subroutine source_test_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
@@ -292,7 +334,13 @@ contains
          case ("i1")
             call flow_test(source, 2._dp, 2._dp, 0.0_dp, 83.9e3_dp)
          case ("i2")
-            call flow_test(source, 3.5_dp, 3.5_dp, 0.0_dp, 83.9e3_dp)
+            call flow_test(source, 3.51189842644_dp, 3.51189842644_dp, &
+                 0.0_dp, 83.9e3_dp)
+         case ("i3")
+            call flow_test(source, 0.4_dp, 0.0_dp, 0.4_dp, 1200.0e3_dp)
+         case ("i4")
+            call flow_test(source, 0.180063483479_dp, 0.0_dp, &
+                 0.180063483479_dp, 1200.0e3_dp)
          end select
       end select
 
@@ -318,6 +366,27 @@ contains
       end select
 
     end subroutine group_test_iterator
+
+!........................................................................
+
+    subroutine reinjector_test_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (reinjector => node%data)
+      class is (source_network_reinjector_type)
+         if (reinjector%rank == 0) then
+            select case (reinjector%name)
+            case ("re1")
+               call reinjector_test(reinjector, 3.26784763965_dp, &
+                    0.140190450435_dp)
+            end select
+         end if
+      end select
+
+    end subroutine reinjector_test_iterator
 
   end subroutine test_source_network_reinjector
 
