@@ -566,6 +566,10 @@ contains
     PetscInt, intent(in) :: reinjector_index !! Index of reinjector in input
 
     self%reinjector_index = dble(reinjector_index)
+    self%overflow%water_rate = 0._dp
+    self%overflow%water_enthalpy = 0._dp
+    self%overflow%steam_rate = 0._dp
+    self%overflow%steam_enthalpy = 0._dp
 
   end subroutine source_network_reinjector_init_data
 
