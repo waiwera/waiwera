@@ -118,6 +118,7 @@ module source_network_reinjector_module
    contains
      private
      procedure, public :: init => overflow_reinjector_output_init
+     procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
   end type overflow_reinjector_output_type
 
@@ -419,6 +420,23 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine overflow_reinjector_output_assign(self, data, offset)
+    !! Assigns pointers in overflow reinjector output object to
+    !! elements in the data array, starting from the specified offset.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! reinjector data array
+    PetscInt, intent(in) :: offset  !! source array offset
+
+    self%water_rate => data(offset)
+    self%water_enthalpy => data(offset + 1)
+    self%steam_rate => data(offset + 2)
+    self%steam_enthalpy => data(offset + 3)
+
+  end subroutine overflow_reinjector_output_assign
+
+!------------------------------------------------------------------------
+
   subroutine overflow_reinjector_output_set_flows(self, water_rate, &
        water_enthalpy, steam_rate, steam_enthalpy)
     !! Sets overflow output flow rates and enthalpies.
@@ -545,13 +563,8 @@ contains
     call self%source_network_node_type%assign(data, offset)
 
     reinjector_offset = offset + num_source_network_node_variables
-
     self%reinjector_index => data(reinjector_offset)
-
-    self%overflow%water_rate => data(reinjector_offset + 1)
-    self%overflow%water_enthalpy => data(reinjector_offset + 2)
-    self%overflow%steam_rate => data(reinjector_offset + 3)
-    self%overflow%steam_enthalpy => data(reinjector_offset + 4)
+    call self%overflow%assign(data, reinjector_offset + 1)
 
   end subroutine source_network_reinjector_assign
 
