@@ -134,6 +134,11 @@ module source_network_reinjector_module
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
      PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
      PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
+     PetscInt :: local_gather_count !! How many local outputs are included in gather operations
+     PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
+     PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
+     PetscInt, allocatable :: gather_displacements(:) !! Process displacements for gather operations
+     PetscInt, allocatable :: gather_index(:) !! Sort index for gather operations
    contains
      private
      procedure, public :: init => source_network_reinjector_init
@@ -485,8 +490,9 @@ contains
 
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: colour
+    PetscInt :: colour, i
     PetscErrorCode :: ierr
+    PetscInt, allocatable :: local_index(:)
 
     colour = MPI_UNDEFINED
     call self%out%traverse(reinjector_comm_iterator)
@@ -498,6 +504,8 @@ contains
        self%rank = -1
     end if
     self%root_world_rank = mpi_comm_root_world_rank(self%comm)
+
+    call get_gather_parameters()
 
   contains
 
@@ -525,6 +533,100 @@ contains
       end select
 
     end subroutine reinjector_comm_iterator
+
+!........................................................................
+
+    subroutine get_gather_parameters()
+      !! Finds counts, displacements and order (to match the order of
+      !! the self%out list) for data gathered over the reinjector
+      !! communicator.
+
+      use mpi_utils_module, only: get_mpi_int_gather_array
+      use utils_module, only: array_cumulative_sum
+
+      ! Locals:
+      PetscMPIInt :: comm_size
+      PetscInt, allocatable :: indices_all(:)
+      PetscErrorCode :: ierr
+
+      self%local_gather_count = 0
+
+      if (self%rank >= 0) then
+
+         call self%out%traverse(local_gather_count_iterator)
+
+         call MPI_comm_size(self%comm, comm_size, ierr)
+
+         self%gather_counts = get_mpi_int_gather_array(self%comm)
+         self%gather_displacements = get_mpi_int_gather_array(self%comm)
+         call MPI_gather(self%local_gather_count, 1, MPI_INTEGER, &
+              self%gather_counts, 1, MPI_INTEGER, 0, self%comm, ierr)
+         if (self%rank == 0) then
+            self%gather_displacements = [[0], &
+                 array_cumulative_sum(self%gather_counts(1: comm_size - 1))]
+            self%gather_count = sum(self%gather_counts)
+         else
+            self%gather_count = 1
+         end if
+
+         allocate(local_index(self%local_gather_count))
+         local_index = -1
+         i = 1
+         call self%out%traverse(output_index_iterator)
+
+         allocate(self%gather_index(self%gather_count), &
+              indices_all(self%gather_count))
+         call MPI_gatherv(local_index, self%local_gather_count, MPI_INTEGER, &
+              indices_all, self%gather_counts, self%gather_displacements, &
+              MPI_INTEGER, 0, self%comm, ierr)
+
+         if (self%rank == 0) then
+            self%gather_index = [(i, i = 0, self%gather_count - 1)]
+            call PetscSortIntWithPermutation(self%gather_count, indices_all, &
+                 self%gather_index, ierr); CHKERRQ(ierr)
+            self%gather_index = self%gather_index + 1
+         end if
+
+         deallocate(indices_all)
+
+      end if
+
+    end subroutine get_gather_parameters
+
+!........................................................................
+
+    subroutine local_gather_count_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (output => node%data)
+      class is (reinjector_output_type)
+         if (output%out%link_index >= 0) then
+            self%local_gather_count = self%local_gather_count + 1
+         end if
+      end select
+
+    end subroutine local_gather_count_iterator
+
+!........................................................................
+
+    subroutine output_index_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (output => node%data)
+      class is (reinjector_output_type)
+         if (output%out%link_index >= 0) then
+            local_index(i) = output%out%link_index
+            i = i + 1
+         end if
+      end select
+
+    end subroutine output_index_iterator
 
   end subroutine source_network_reinjector_init_comm
 
