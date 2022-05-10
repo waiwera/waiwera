@@ -897,6 +897,52 @@
                                                  "progressive", "Progressive"]}
                         }, "additionalProperties": false
                     }
+                },
+                "reinject": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "in": {"type": "string"},
+                            "water": {
+                                "type": "array",
+                                "items": {"anyOf": [
+                                    {"type": "object",
+                                     "properties": {
+                                         "out": {"type": "string"},
+                                         "rate":  {"type": "number", "minimum": 0},
+                                         "enthalpy": {"type": "number", "minimum": 0}
+                                     }},
+                                    {"type": "object",
+                                     "properties": {
+                                         "out": {"type": "string"},
+                                         "proportion":  {"type": "number", "minimum": 0},
+                                         "enthalpy": {"type": "number", "minimum": 0}
+                                     }}
+                                    ]
+                                }
+                            },
+                            "steam": {
+                                "type": "array",
+                                "items": {"anyOf": [
+                                    {"type": "object",
+                                     "properties": {
+                                         "out": {"type": "string"},
+                                         "rate":  {"type": "number", "minimum": 0},
+                                         "enthalpy": {"type": "number", "minimum": 0}
+                                     }},
+                                    {"type": "object",
+                                     "properties": {
+                                         "out": {"type": "string"},
+                                         "proportion":  {"type": "number", "minimum": 0},
+                                         "enthalpy": {"type": "number", "minimum": 0}
+                                     }}
+                                    ]
+                                }
+                            }
+                        }, "additionalProperties": false
+                    }
                 }
             }, "additionalProperties": false
         },
