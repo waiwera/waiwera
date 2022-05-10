@@ -1178,7 +1178,7 @@ contains
 
     subroutine init_reinjector_outputs(reinjector_json, reinjector_str, &
          flow_type_str, source_dict, source_dict_all, reinjector_output_dict, &
-         reinjector, err)
+         output_index, reinjector, err)
       !! Initialises reinjector outputs of the given flow type.
 
       type(fson_value), pointer, intent(in out) :: reinjector_json
@@ -1186,6 +1186,7 @@ contains
       type(dictionary_type), intent(in out) :: source_dict, source_dict_all, &
            reinjector_output_dict
       type(source_network_reinjector_type), intent(in out) :: reinjector
+      PetscInt, intent(in out) :: output_index
       PetscErrorCode, intent(in out) :: err
       ! Locals:
       PetscInt :: flow_type, num_outputs, i
@@ -1241,6 +1242,7 @@ contains
                         select type (source => source_dict_node%data)
                         type is (source_type)
                            output%out => source
+                           source%link_index = output_index
                            call reinjector%out%append(output)
                            call reinjector_output_dict%add(out_name)
                         end select
@@ -1271,6 +1273,8 @@ contains
                err = 1
                exit
             end if
+
+            output_index = output_index + 1
          end do
 
       end if
@@ -1294,7 +1298,7 @@ contains
       type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
       ! Locals:
-      PetscInt :: ir, reinjector_index, r
+      PetscInt :: ir, reinjector_index, r, output_index
       type(fson_value), pointer :: reinjector_json
       character(max_source_network_node_name_length) :: name, in_name
       character(len=64) :: rstr
@@ -1350,11 +1354,14 @@ contains
                end if
             end if
 
+            output_index = 1
             call init_reinjector_outputs(reinjector_json, rstr, "water", &
-                 source_dict, source_dict_all, reinjector_output_dict, reinjector, err)
+                 source_dict, source_dict_all, reinjector_output_dict, output_index, &
+                 reinjector, err)
             if (err == 0) then
                call init_reinjector_outputs(reinjector_json, rstr, "steam", &
-                    source_dict, source_dict_all, reinjector_output_dict, reinjector, err)
+                    source_dict, source_dict_all, reinjector_output_dict, output_index, &
+                    reinjector, err)
                if (err == 0) then
                   call reinjector%init_comm()
                   if (reinjector%rank == 0) then
