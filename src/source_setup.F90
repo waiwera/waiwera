@@ -866,7 +866,7 @@ contains
                     if (associated(source_dict_node)) then
                        select type (source => source_dict_node%data)
                        type is (source_type)
-                          source%out_input_index = i
+                          source%link_index = i
                           call group%in%append(source)
                        end select
                     end if
@@ -888,7 +888,7 @@ contains
                           exit
                        else
                           dep_group%out => group
-                          if (dep_group%rank == 0) dep_group%out_input_index = i
+                          if (dep_group%rank == 0) dep_group%link_index = i
                           call group%in%append(dep_group)
                        end if
                     end select

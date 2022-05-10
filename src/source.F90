@@ -144,7 +144,7 @@ contains
     self%dof = num_source_scalar_variables + self%num_primary_variables + &
          self%num_tracers * 2
     self%heat = (self%production_component == self%num_primary_variables)
-    self%out_input_index = -1
+    self%link_index = -1
 
   end subroutine source_init
 

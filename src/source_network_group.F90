@@ -123,7 +123,7 @@ contains
 
     call self%in%init(owner = PETSC_FALSE)
     self%out => null()
-    self%out_input_index = -1
+    self%link_index = -1
 
   end subroutine source_network_group_init
 
@@ -600,7 +600,7 @@ contains
       stopped = PETSC_FALSE
       select type (network_node => node%data)
       class is (source_network_node_type)
-         if (network_node%out_input_index >= 0) then
+         if (network_node%link_index >= 0) then
             self%local_gather_count = self%local_gather_count + 1
          end if
       end select
@@ -617,8 +617,8 @@ contains
       stopped = PETSC_FALSE
       select type (network_node => node%data)
       class is (source_network_node_type)
-         if (network_node%out_input_index >= 0) then
-            local_index(i) = network_node%out_input_index
+         if (network_node%link_index >= 0) then
+            local_index(i) = network_node%link_index
             i = i + 1
          end if
       end select
@@ -708,7 +708,7 @@ contains
       stopped = PETSC_FALSE
       select type (network_node => node%data)
       class is (source_network_node_type)
-         if (network_node%out_input_index >= 0) then
+         if (network_node%link_index >= 0) then
             local_q(i) = abs(network_node%get_rate_by_type(ft))
             i = i + 1
          end if
@@ -728,7 +728,7 @@ contains
       stopped = PETSC_FALSE
       select type (network_node => node%data)
       class is (source_network_node_type)
-         if (network_node%out_input_index >= 0) then
+         if (network_node%link_index >= 0) then
             effective_local_node_limit = local_node_limit(i, :)
             i = i + 1
          else
