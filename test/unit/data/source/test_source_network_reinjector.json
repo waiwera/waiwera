@@ -9,12 +9,22 @@
         {"name": "i1", "cell": 11},
         {"name": "i2", "cell": 8},
         {"name": "i3", "cell": 6},
-        {"name": "i4", "cell": 3}
+        {"name": "i4", "cell": 3},
+
+        {"name": "p4", "cell": 2, "rate": -1, "separator": {"pressure": 0.55e6}},
+        {"name": "p5", "cell": 5, "rate": -2, "separator": {"pressure": 0.6e6}},
+
+        {"name": "i5", "cell": 10, "rate": 2},
+        {"name": "i6", "cell": 9, "rate": 1.9},
+        {"name": "i7", "cell": 8},
+        {"name": "i8", "cell": 2}
+
     ],
     "network": {
         "group": [
             {"name": "group1", "in": ["p1", "p2", "p3"],
-             "separator": {"pressure": 0.5e6}}
+             "separator": {"pressure": 0.5e6}},
+            {"name": "group2", "in": ["p4", "p5"]}
         ],
         "reinject": [
             {"name": "re1", "in": "group1",
@@ -25,6 +35,15 @@
              "steam": [
                  {"out": "i3", "rate": 0.4, "enthalpy": 1200e3},
                  {"out": "i4", "proportion": 0.25}
+             ]},
+            {"name": "re2", "in": "group2",
+             "water": [
+                 {"out": "i5", "enthalpy": 90e3},
+                 {"out": "i6", "rate": 1.5, "enthalpy": 85e3},
+                 {"out": "i7", "rate": 1, "enthalpy": 83.9e3}
+             ],
+             "steam": [
+                 {"out": "i8", "enthalpy": 1500.0e3}
              ]}
         ]
     }

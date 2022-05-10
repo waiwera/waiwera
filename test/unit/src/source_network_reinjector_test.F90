@@ -85,9 +85,9 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 7
-    PetscInt, parameter :: expected_num_groups = 1
-    PetscInt, parameter :: expected_num_reinjectors = 1
+    PetscInt, parameter :: expected_num_sources = 13
+    PetscInt, parameter :: expected_num_groups = 2
+    PetscInt, parameter :: expected_num_reinjectors = 2
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_reinjector.json")
@@ -169,6 +169,10 @@ contains
             source%enthalpy = 800.e3_dp
          case ("p3")
             source%enthalpy = 800.e3_dp
+         case ("p4")
+            source%enthalpy = 900.e3_dp
+         case ("p5")
+            source%enthalpy = 1000.e3_dp
          end select
       end select
 
@@ -341,6 +345,15 @@ contains
          case ("i4")
             call flow_test(source, 0.180063483479_dp, 0.0_dp, &
                  0.180063483479_dp, 2748.107614657969e3_dp)
+         case ("i5")
+            call flow_test(source, 2._dp, 2.0_dp, 0._dp, 90.e3_dp)
+         case ("i6")
+            call flow_test(source, 0.5675848219035333_dp, &
+                 0.5675848219035333_dp, 0._dp, 85.e3_dp)
+         case ("i7")
+            call flow_test(source, 0._dp, 0._dp, 0._dp, 0._dp)
+         case ("i8")
+            call flow_test(source, 0._dp, 0._dp, 0._dp, 0._dp)
          end select
       end select
 
@@ -361,6 +374,9 @@ contains
             case ("group1")
                call flow_test(group, -9.5_dp, -8.779746066085552_dp, &
                     -0.7202539339144485_dp)
+            case ("group2")
+               call flow_test(group, -3._dp, -2.5675848219035333_dp, &
+                    -0.4324151780964667_dp)
             end select
          end if
       end select
@@ -382,6 +398,8 @@ contains
             case ("re1")
                call reinjector_test(reinjector, 3.26784763965_dp, &
                     0.140190450435_dp)
+            case ("re2")
+               call reinjector_test(reinjector, 0._dp, 0.4324151780964667_dp)
             end select
          end if
       end select
