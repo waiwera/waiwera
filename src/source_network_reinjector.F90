@@ -762,6 +762,10 @@ contains
     call self%out%destroy(reinjector_output_list_node_data_destroy)
     call MPI_comm_free(self%comm, ierr)
 
+    if (allocated(self%gather_index)) deallocate(self%gather_index)
+    if (allocated(self%gather_counts)) deallocate(self%gather_counts)
+    if (allocated(self%gather_displacements)) deallocate(self%gather_displacements)
+
     call self%source_network_node_type%destroy()
 
   end subroutine source_network_reinjector_destroy
