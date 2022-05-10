@@ -1364,7 +1364,7 @@ contains
                      r = -1
                   end if
                   reinjector%local_reinjector_index = r
-                  ! TODO: enable override of overflow properties
+                  ! TODO: enable assigning overflow output to another node
                   call reinjector%overflow%init(reinjector)
 
                   call source_network%reinjectors%append(reinjector)
