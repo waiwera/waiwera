@@ -1294,7 +1294,7 @@ contains
       type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
       ! Locals:
-      PetscInt :: ir, reinjector_index
+      PetscInt :: ir, reinjector_index, r
       type(fson_value), pointer :: reinjector_json
       character(max_source_network_node_name_length) :: name, in_name
       character(len=64) :: rstr
@@ -1358,8 +1358,12 @@ contains
                if (err == 0) then
                   call reinjector%init_comm()
                   if (reinjector%rank == 0) then
+                     r = num_local_root_reinjectors
                      num_local_root_reinjectors = num_local_root_reinjectors + 1
+                  else
+                     r = -1
                   end if
+                  reinjector%local_reinjector_index = r
                   ! TODO: enable override of overflow properties
                   call reinjector%overflow%init(reinjector)
 
