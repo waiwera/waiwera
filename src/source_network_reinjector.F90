@@ -490,7 +490,6 @@ contains
 
     colour = MPI_UNDEFINED
     call self%out%traverse(reinjector_comm_iterator)
-    call overflow_comm()
 
     call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
     if (self%comm /= MPI_COMM_NULL) then
@@ -526,25 +525,6 @@ contains
       end select
 
     end subroutine reinjector_comm_iterator
-
-!........................................................................
-
-    subroutine overflow_comm()
-      !! Sets colour if overflow node is assigned to a local source or
-      !! a reinjector with a local source as output or overflow.
-
-      if (associated(self%overflow%out)) then
-         select type (node => self%overflow%out)
-         type is (source_type)
-            colour = 1
-         class is (source_network_reinjector_type)
-            if (node%rank >= 0) then
-               colour = 1
-            end if
-         end select
-      end if
-
-    end subroutine overflow_comm
 
   end subroutine source_network_reinjector_init_comm
 
