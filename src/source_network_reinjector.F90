@@ -142,6 +142,7 @@ module source_network_reinjector_module
    contains
      private
      procedure, public :: init => source_network_reinjector_init
+     procedure, public :: comm_key => source_network_reinjector_comm_key
      procedure, public :: init_comm => source_network_reinjector_init_comm
      procedure, public :: assign => source_network_reinjector_assign
      procedure, public :: init_data => source_network_reinjector_init_data
@@ -481,6 +482,37 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscInt function source_network_reinjector_comm_key(self) result(key)
+    !! Returns key to pass to MPI_comm_split(), defining the rank
+    !! order of processes in the reinjector communicator. We want the
+    !! process hosting the reinjector input to be assigned the root
+    !! rank for the reinjector. Other processes are assigned
+    !! reinjector ranks corresponding to their rank order in the world
+    !! communicator.
+
+    class(source_network_reinjector_type), intent(in) :: self
+    ! Locals:
+    PetscMPIInt :: world_rank
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, world_rank, ierr)
+    key = world_rank + 1
+
+    if (associated(self%in)) then
+       select type (n => self%in)
+       type is (source_type)
+          key = 0
+       class is (source_network_group_type)
+          if (n%rank == 0) key = 0
+       class is (source_network_reinjector_type)
+          if (n%rank == 0) key = 0
+       end select
+    end if
+
+  end function source_network_reinjector_comm_key
+
+!------------------------------------------------------------------------
+
   subroutine source_network_reinjector_init_comm(self)
     !! Initialises MPI communicator, rank and root world rank for the
     !! reinjector. It is assumed that the output node list has already
@@ -490,14 +522,16 @@ contains
 
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: colour, i
+    PetscInt :: colour, key, i
     PetscErrorCode :: ierr
     PetscInt, allocatable :: local_index(:)
 
     colour = MPI_UNDEFINED
     call self%out%traverse(reinjector_comm_iterator)
 
-    call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
+    key = self%comm_key()
+
+    call MPI_comm_split(PETSC_COMM_WORLD, colour, key, self%comm, ierr)
     if (self%comm /= MPI_COMM_NULL) then
        call MPI_comm_rank(self%comm, self%rank, ierr)
     else
