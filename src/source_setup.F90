@@ -1121,6 +1121,8 @@ contains
          source_dict, reinjector, err)
       !! Initialises reinjector input from a source.
 
+      use mpi_utils_module, only: mpi_broadcast_error_flag
+
       character(*), intent(in) :: name
       type(dictionary_type), intent(in out) :: reinjector_input_dict, source_dict
       type(source_network_reinjector_type), pointer, intent(in out) :: reinjector
@@ -1146,6 +1148,8 @@ contains
          call reinjector_input_dict%add(name)
       end if
 
+      call mpi_broadcast_error_flag(err)
+
     end subroutine init_reinjector_input_source
 
 !........................................................................
@@ -1153,6 +1157,8 @@ contains
     subroutine init_reinjector_input_group(group, reinjector_input_dict, &
          reinjector, err)
       !! Initialises reinjector input from a group.
+
+      use mpi_utils_module, only: mpi_broadcast_error_flag
 
       type(source_network_group_type), target, intent(in out) :: group
       type(dictionary_type), intent(in out) :: reinjector_input_dict
@@ -1172,6 +1178,8 @@ contains
          call reinjector_input_dict%add(group%name)
       end if
 
+      call mpi_broadcast_error_flag(err)
+
     end subroutine init_reinjector_input_group
 
 !........................................................................
@@ -1180,6 +1188,8 @@ contains
          flow_type_str, source_dict, source_dict_all, reinjector_output_dict, &
          output_index, reinjector, err)
       !! Initialises reinjector outputs of the given flow type.
+
+      use mpi_utils_module, only: mpi_broadcast_error_flag
 
       type(fson_value), pointer, intent(in out) :: reinjector_json
       character(*), intent(in) :: reinjector_str, flow_type_str
@@ -1281,6 +1291,8 @@ contains
          end do
 
       end if
+
+      call mpi_broadcast_error_flag(err)
 
     end subroutine init_reinjector_outputs
 
