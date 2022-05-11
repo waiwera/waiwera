@@ -145,6 +145,7 @@ module source_network_reinjector_module
      procedure, public :: init_comm => source_network_reinjector_init_comm
      procedure, public :: assign => source_network_reinjector_assign
      procedure, public :: init_data => source_network_reinjector_init_data
+     procedure, public :: overflow_output => source_network_reinjector_overflow_output
      procedure, public :: distribute => source_network_reinjector_distribute
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
@@ -681,9 +682,33 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine source_network_reinjector_overflow_output(self, water_balance, &
+       water_enthalpy, steam_balance, steam_enthalpy)
+    !! Updates overflow data in reinjection vector, and assigns to
+    !! overflow output node if there is one.
 
+    class(source_network_reinjector_type), intent(in out) :: self
+    PetscReal, intent(in out) :: water_balance, water_enthalpy
+    PetscReal, intent(in out) :: steam_balance, steam_enthalpy
 
+    if (self%rank == 0) then
+       call self%overflow%set_flows(water_balance, water_enthalpy, &
+            steam_balance, steam_enthalpy)
+    end if
 
+    ! TODO: assign overflow_rank (and bcast) at reinjector init time
+    ! if (self%overflow_rank >= 0) then
+    !    call self%comm_send(water_balance, 0, self%overflow_rank)
+    !    call self%comm_send(water_enthalpy, 0, self%overflow_rank)
+    !    call self%comm_send(steam_balance, 0, self%overflow_rank)
+    !    call self%comm_send(steam_enthalpy, 0, self%overflow_rank)
+    !    if (associated(self%overflow%out)) then
+    !       call self%overflow%update(water_balance, water_enthalpy, &
+    !            steam_balance, steam_enthalpy)
+    !    end if
+    ! end if
+
+  end subroutine source_network_reinjector_overflow_output
 
 !------------------------------------------------------------------------
 
