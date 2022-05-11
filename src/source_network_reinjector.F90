@@ -330,15 +330,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine specified_reinjector_output_get_specified_flows(self, water_rate, &
-       water_enthalpy, steam_rate, steam_enthalpy)
-    !! Gets specified rates and enthalpies for specified reinjector output.
+  subroutine specified_reinjector_output_enthalpies(self, &
+       water_enthalpy, steam_enthalpy)
+    !! Gets specified enthalpies for specified reinjector output.
 
     class(specified_reinjector_output_type), intent(in out) :: self
-    PetscReal, intent(out) :: water_rate, water_enthalpy
-    PetscReal, intent(out) :: steam_rate, steam_enthalpy
-
-    call self%rates(water_rate, steam_rate)
+    PetscReal, intent(out) :: water_enthalpy, steam_enthalpy
 
     if (self%enthalpy > 0._dp) then
        call self%specified_enthalpies(water_enthalpy, steam_enthalpy)
