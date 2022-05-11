@@ -130,6 +130,7 @@ module source_network_reinjector_module
      type(overflow_reinjector_output_type), public :: overflow !! Output for overflow
      MPI_Comm :: comm !! MPI communicator for reinjector
      PetscMPIInt, public :: rank !! Rank of reinjector in its own communicator
+     ! PetscMPIInt :: overflow_rank !! Rank in communicator of overflow node (or -1)
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
      PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
      PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
