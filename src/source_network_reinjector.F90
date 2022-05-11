@@ -145,7 +145,6 @@ module source_network_reinjector_module
      procedure, public :: init_comm => source_network_reinjector_init_comm
      procedure, public :: assign => source_network_reinjector_assign
      procedure, public :: init_data => source_network_reinjector_init_data
-     procedure, public :: balance_limit => source_network_reinjector_balance_limit
      procedure, public :: distribute => source_network_reinjector_distribute
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
@@ -682,21 +681,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_reinjector_balance_limit(self, water_balance, &
-       steam_balance, water_rate, steam_rate)
-    !! Limits water and steam rates so they do not exceed the current
-    !! remaining water and steam balances.
 
-    class(source_network_reinjector_type), intent(in) :: self
-    PetscReal, intent(in) :: water_balance !! Current reinjector water balance
-    PetscReal, intent(in) :: steam_balance !! Current reinjector steam balance
-    PetscReal, intent(in out) :: water_rate !! Water rate for next output
-    PetscReal, intent(in out) :: steam_rate !! Steam rate for next output
 
-    water_rate = min(water_rate, water_balance)
-    steam_rate = min(steam_rate, steam_balance)
 
-  end subroutine source_network_reinjector_balance_limit
 
 !------------------------------------------------------------------------
 
