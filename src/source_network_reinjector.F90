@@ -143,6 +143,7 @@ module source_network_reinjector_module
      procedure, public :: init => source_network_reinjector_init
      procedure, public :: comm_key => source_network_reinjector_comm_key
      procedure, public :: init_comm => source_network_reinjector_init_comm
+     ! procedure, public :: comm_send => source_network_reinjector_comm_send
      procedure, public :: assign => source_network_reinjector_assign
      procedure, public :: init_data => source_network_reinjector_init_data
      procedure, public :: overflow_output => source_network_reinjector_overflow_output
@@ -641,6 +642,29 @@ contains
     end subroutine output_index_iterator
 
   end subroutine source_network_reinjector_init_comm
+
+!------------------------------------------------------------------------
+
+  ! subroutine source_network_reinjector_comm_send(self, data, from_rank, to_rank)
+  !   !! Sends data from from_rank to to_rank, using the reinjector's
+  !   !! communicator. (Note that from_rank and to_rank must be the same
+  !   !! on all processes.)
+
+  !   class(source_network_reinjector_type), intent(in out) :: self
+  !   PetscReal, intent(in out) :: data !! PetscReal data to send
+  !   PetscMPIInt, intent(in) :: from_rank !! Rank to send from
+  !   PetscMPIInt, intent(in) :: to_rank !! Rank to send to
+  !   ! Locals:
+  !   PetscErrorCode :: ierr
+
+  !   if (self%rank == from_rank) then
+  !      call MPI_send(data, 1, MPI_DOUBLE_PRECISION, to_rank, 0, self%comm, ierr)
+  !   else if ((self%rank == to_rank) .and. (self%rank /= -1)) then
+  !      call MPI_recv(data, 1, MPI_DOUBLE_PRECISION, from_rank, 0, self%comm, &
+  !           MPI_STATUS_IGNORE, ierr)
+  !   end if
+
+  ! end subroutine source_network_reinjector_comm_send
 
 !------------------------------------------------------------------------
 
