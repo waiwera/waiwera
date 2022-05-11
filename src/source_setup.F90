@@ -1261,7 +1261,7 @@ contains
                      ! end if
                   end if
                end if
-               output_json => output_json%next
+               output_json => fson_value_next_mpi(output_json)
             else
                if (present(logfile)) then
                   write(istr, '(i0)') i - 1
