@@ -833,9 +833,10 @@ contains
       select type (output => node%data)
       class is (specified_reinjector_output_type)
          if (output%out%link_index >= 0) then
-         call output%enthalpies(water_enthalpy, steam_enthalpy)
-         call output%update(local_qw(i), water_enthalpy, local_qs(i), &
-              steam_enthalpy)
+            call output%enthalpies(water_enthalpy, steam_enthalpy)
+            call output%update(local_qw(i), water_enthalpy, local_qs(i), &
+                 steam_enthalpy)
+            i = i + 1
          end if
       end select
 
