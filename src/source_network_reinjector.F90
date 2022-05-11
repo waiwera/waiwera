@@ -134,6 +134,8 @@ module source_network_reinjector_module
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
      PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
      PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
+     PetscReal :: in_water_rate !! Water rate in input node
+     PetscReal :: in_steam_rate !! Steam rate in input node
      PetscInt :: local_gather_count !! How many local outputs are included in gather operations
      PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
      PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
@@ -378,11 +380,11 @@ contains
 
     select case (self%flow_type)
     case (SEPARATED_FLOW_TYPE_WATER)
-       water_rate = self%proportion * abs(self%reinjector%in%water_rate)
+       water_rate = self%proportion * abs(self%reinjector%in_water_rate)
        steam_rate = 0._dp
     case (SEPARATED_FLOW_TYPE_STEAM)
        water_rate = 0._dp
-       steam_rate = self%proportion * abs(self%reinjector%in%steam_rate)
+       steam_rate = self%proportion * abs(self%reinjector%in_steam_rate)
     end select
 
   end subroutine proportion_reinjector_output_rates
@@ -747,6 +749,13 @@ contains
     PetscInt :: i
     PetscErrorCode :: ierr
 
+    if (self%rank == 0) then
+       self%in_water_rate = abs(self%in%water_rate)
+       self%in_steam_rate = abs(self%in%steam_rate)
+    end if
+    call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+
     i = 1
     call self%out%traverse(local_rates_iterator)
 
@@ -763,9 +772,9 @@ contains
 
     if (self%rank == 0) then
 
-       water_balance = abs(self%in%water_rate)
+       water_balance = self%in_water_rate
        water_enthalpy = self%in%water_enthalpy
-       steam_balance = abs(self%in%steam_rate)
+       steam_balance = self%in_steam_rate
        steam_enthalpy = self%in%steam_enthalpy
 
        do i = 1, self%gather_count
