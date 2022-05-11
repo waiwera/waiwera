@@ -740,58 +740,106 @@ contains
 
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
-    PetscReal :: water_balance, steam_balance
+    PetscReal :: water_balance, water_enthalpy
+    PetscReal :: steam_balance, steam_enthalpy
+    PetscReal :: local_qw(self%local_gather_count), qw(self%gather_count)
+    PetscReal :: local_qs(self%local_gather_count), qs(self%gather_count)
+    PetscInt :: i
+    PetscErrorCode :: ierr
 
-    if (associated(self%in)) then
+    i = 1
+    call self%out%traverse(local_rates_iterator)
+
+    if (self%rank >= 0) then
+       call MPI_gatherv(local_qw, self%local_gather_count, &
+            MPI_DOUBLE_PRECISION, qw, self%gather_counts, &
+            self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
+            self%comm, ierr)
+       call MPI_gatherv(local_qs, self%local_gather_count, &
+            MPI_DOUBLE_PRECISION, qs, self%gather_counts, &
+            self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
+            self%comm, ierr)
+    end if
+
+    if (self%rank == 0) then
+
        water_balance = abs(self%in%water_rate)
+       water_enthalpy = self%in%water_enthalpy
        steam_balance = abs(self%in%steam_rate)
-    else
-       water_balance = 0._dp
-       steam_balance = 0._dp
+       steam_enthalpy = self%in%steam_enthalpy
+
+       do i = 1, self%gather_count
+          ! Limit flows so they can't exceed remaining balances:
+          qw(i) = min(qw(i), water_balance)
+          qs(i) = min(qs(i), steam_balance)
+          ! Update balances:
+          water_balance = max(water_balance - qw(i), 0._dp)
+          steam_balance = max(steam_balance - qs(i), 0._dp)
+       end do
+
     end if
 
-    call self%out%traverse(reinjector_distribute_iterator)
-
-    call self%overflow%set_flows(water_balance, self%in%water_enthalpy, &
-         steam_balance, self%in%steam_enthalpy)
-    if (associated(self%overflow%out)) then
-       call self%overflow%update(water_balance, self%in%water_enthalpy, &
-            steam_balance, self%in%steam_enthalpy)
+    if (self%rank >= 0) then
+       call MPI_scatterv(qw, self%gather_counts, &
+            self%gather_displacements, MPI_DOUBLE_PRECISION, &
+            local_qw, self%local_gather_count, &
+            MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+       call MPI_scatterv(qs, self%gather_counts, &
+            self%gather_displacements, MPI_DOUBLE_PRECISION, &
+            local_qs, self%local_gather_count, &
+            MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
     end if
+
+    ! bcast default water, steam enthalpies
+
+    i = 1
+    call self%out%traverse(local_update_iterator)
+
+    call self%overflow_output(water_balance, water_enthalpy, &
+         steam_balance, steam_enthalpy)
 
   contains
 
-    subroutine reinjector_distribute_iterator(node, stopped)
+    subroutine local_rates_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscReal, target :: water_rate, steam_rate
-      PetscReal :: water_enthalpy, steam_enthalpy
-      PetscReal, pointer :: rate
 
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (specified_reinjector_output_type)
-         call output%get_specified_flows(water_rate, water_enthalpy, &
-              steam_rate, steam_enthalpy)
-         select case (output%flow_type)
-         case (SEPARATED_FLOW_TYPE_WATER)
-            rate => water_rate
-         case (SEPARATED_FLOW_TYPE_STEAM)
-            rate => steam_rate
-         end select
-         call output%node_limit(rate)
-         call self%balance_limit(water_balance, steam_balance, &
-              water_rate, steam_rate)
-         call output%update(water_rate, water_enthalpy, steam_rate, &
-              steam_enthalpy)
-         call output%subtract_flow(water_balance, steam_balance)
+         if (output%out%link_index >= 0) then
+            call output%rates(local_qw(i), local_qs(i))
+            select case (output%flow_type)
+            case (SEPARATED_FLOW_TYPE_WATER)
+               call output%node_limit(local_qw(i))
+            case (SEPARATED_FLOW_TYPE_STEAM)
+               call output%node_limit(local_qs(i))
+            end select
+            i = i + 1
+         end if
       end select
 
-      ! TODO use MPI_send()/recv() to pass output flow rate to self%in%comm root?
+    end subroutine local_rates_iterator
 
-    end subroutine reinjector_distribute_iterator
+!........................................................................
+
+    subroutine local_update_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (output => node%data)
+      class is (specified_reinjector_output_type)
+         if (output%out%link_index >= 0) then
+         call output%enthalpies(water_enthalpy, steam_enthalpy)
+         call output%update(local_qw(i), water_enthalpy, local_qs(i), &
+              steam_enthalpy)
+         end if
+      end select
+
+    end subroutine local_update_iterator
 
   end subroutine source_network_reinjector_distribute
 
