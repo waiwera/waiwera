@@ -1239,6 +1239,7 @@ contains
                   if (source_dict_all%has(out_name)) then
                      source_dict_node => source_dict%get(out_name)
                      if (associated(source_dict_node)) then
+                        ! source is on this process:
                         select type (source => source_dict_node%data)
                         type is (source_type)
                            output%out => source
@@ -1246,6 +1247,8 @@ contains
                            call reinjector%out%append(output)
                            call reinjector_output_dict%add(out_name)
                         end select
+                     else ! source is not on this process:
+                        deallocate(output)
                      end if
                   else
                      ! TODO: if output to another reinjector then
