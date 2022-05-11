@@ -80,7 +80,7 @@ module source_network_reinjector_module
      procedure, public :: specified_enthalpies => specified_reinjector_output_specified_enthalpies
      procedure, public :: default_enthalpies => specified_reinjector_output_default_enthalpies
      procedure, public :: rates => specified_reinjector_output_rates
-     procedure, public :: get_specified_flows => specified_reinjector_output_get_specified_flows
+     procedure, public :: enthalpies => specified_reinjector_output_enthalpies
   end type specified_reinjector_output_type
 
   type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
@@ -344,8 +344,7 @@ contains
        call self%default_enthalpies(water_enthalpy, steam_enthalpy)
     end if
 
-  end subroutine specified_reinjector_output_get_specified_flows
-
+  end subroutine specified_reinjector_output_enthalpies
 
 !------------------------------------------------------------------------
 ! Rate reinjector output type
