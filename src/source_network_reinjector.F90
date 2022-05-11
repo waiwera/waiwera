@@ -81,7 +81,6 @@ module source_network_reinjector_module
      procedure, public :: default_enthalpies => specified_reinjector_output_default_enthalpies
      procedure, public :: rates => specified_reinjector_output_rates
      procedure, public :: get_specified_flows => specified_reinjector_output_get_specified_flows
-     procedure, public :: subtract_flow => specified_reinjector_output_subtract_flow
   end type specified_reinjector_output_type
 
   type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
@@ -347,26 +346,6 @@ contains
 
   end subroutine specified_reinjector_output_get_specified_flows
 
-!------------------------------------------------------------------------
-
-  subroutine specified_reinjector_output_subtract_flow(self, water_balance, &
-       steam_balance)
-    !! Subtracts output phase flows from water and steam balances,
-    !! according to the output flow type.
-
-    class(specified_reinjector_output_type), intent(in) :: self
-    PetscReal, intent(in out) :: water_balance !! Water mass flow balance
-    PetscReal, intent(in out) :: steam_balance !! Steam mass flow balance
-
-    if (associated(self%out)) then
-       select type (n => self%out)
-       class is (source_network_node_type)
-          water_balance = water_balance - n%water_rate
-          steam_balance = steam_balance - n%steam_rate
-       end select
-    end if
-
-  end subroutine specified_reinjector_output_subtract_flow
 
 !------------------------------------------------------------------------
 ! Rate reinjector output type
