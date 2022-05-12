@@ -353,7 +353,8 @@ contains
          case ("i7")
             call flow_test(source, 0._dp, 0._dp, 0._dp, 0._dp)
          case ("i8")
-            call flow_test(source, 0._dp, 0._dp, 0._dp, 0._dp)
+            call flow_test(source, 0.4324151780964667_dp, 0._dp, &
+                 0.4324151780964667_dp, 1500.e3_dp)
          end select
       end select
 
@@ -399,7 +400,7 @@ contains
                call reinjector_test(reinjector, 3.26784763965_dp, &
                     0.140190450435_dp)
             case ("re2")
-               call reinjector_test(reinjector, 0._dp, 0.4324151780964667_dp)
+               call reinjector_test(reinjector, 0._dp, 0._dp)
             end select
          end if
       end select

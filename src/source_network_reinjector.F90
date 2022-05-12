@@ -197,9 +197,6 @@ contains
                 ! rate specified in node only:
                 rate = n%rate
              end if
-          else
-             ! check if no rate specified in reinjector output or node:
-             rate = max(rate, 0._dp)
           end if
        end select
     end if
@@ -785,12 +782,8 @@ contains
 
           do i = 1, self%gather_count
              j = self%gather_index(i)
-             ! Limit flows so they can't exceed remaining balances:
-             qw(j) = min(qw(j), water_balance)
-             qs(j) = min(qs(j), steam_balance)
-             ! Update balances:
-             water_balance = max(water_balance - qw(j), 0._dp)
-             steam_balance = max(steam_balance - qs(j), 0._dp)
+             call limit_rate(qw(j), water_balance)
+             call limit_rate(qs(j), steam_balance)
           end do
 
        end if
@@ -834,6 +827,26 @@ contains
       end select
 
     end subroutine local_rates_iterator
+
+!........................................................................
+
+    subroutine limit_rate(rate, balance)
+      !! Limits rate to remaining balance, and updates balance.
+
+      PetscReal, intent(in out) :: rate, balance
+
+      if (rate < 0._dp) then
+         ! No limit on flow rate - set to remaining balance:
+         rate = balance
+      end if
+
+      ! Rate cannot exceed remaining balance:
+      rate = min(rate, balance)
+
+      ! Update balance:
+      balance = max(balance - rate, 0._dp)
+
+    end subroutine limit_rate
 
 !........................................................................
 
