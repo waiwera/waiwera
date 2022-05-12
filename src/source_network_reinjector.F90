@@ -746,7 +746,7 @@ contains
     PetscReal :: steam_balance, steam_enthalpy
     PetscReal :: local_qw(self%local_gather_count), qw(self%gather_count)
     PetscReal :: local_qs(self%local_gather_count), qs(self%gather_count)
-    PetscInt :: i
+    PetscInt :: i, j
     PetscErrorCode :: ierr
 
     if (self%rank == 0) then
@@ -778,12 +778,13 @@ contains
        steam_enthalpy = self%in%steam_enthalpy
 
        do i = 1, self%gather_count
+          j = self%gather_index(i)
           ! Limit flows so they can't exceed remaining balances:
-          qw(i) = min(qw(i), water_balance)
-          qs(i) = min(qs(i), steam_balance)
+          qw(j) = min(qw(j), water_balance)
+          qs(j) = min(qs(j), steam_balance)
           ! Update balances:
-          water_balance = max(water_balance - qw(i), 0._dp)
-          steam_balance = max(steam_balance - qs(i), 0._dp)
+          water_balance = max(water_balance - qw(j), 0._dp)
+          steam_balance = max(steam_balance - qs(j), 0._dp)
        end do
 
     end if
