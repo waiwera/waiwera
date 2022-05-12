@@ -757,10 +757,12 @@ contains
        self%in_steam_rate = abs(self%in%steam_rate)
        self%in_steam_enthalpy = self%in%steam_enthalpy
     end if
-    call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-    call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-    call MPI_bcast(self%in_water_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-    call MPI_bcast(self%in_steam_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    if (self%rank >= 0) then
+       call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+       call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+       call MPI_bcast(self%in_water_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+       call MPI_bcast(self%in_steam_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    end if
 
     i = 1
     call self%out%traverse(local_rates_iterator)
