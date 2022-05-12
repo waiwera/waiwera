@@ -768,6 +768,7 @@ contains
     call self%out%traverse(local_rates_iterator)
 
     if (self%rank >= 0) then
+
        call MPI_gatherv(local_qw, self%local_gather_count, &
             MPI_DOUBLE_PRECISION, qw, self%gather_counts, &
             self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
@@ -776,26 +777,24 @@ contains
             MPI_DOUBLE_PRECISION, qs, self%gather_counts, &
             self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
             self%comm, ierr)
-    end if
 
-    if (self%rank == 0) then
+       if (self%rank == 0) then
 
-       water_balance = self%in_water_rate
-       steam_balance = self%in_steam_rate
+          water_balance = self%in_water_rate
+          steam_balance = self%in_steam_rate
 
-       do i = 1, self%gather_count
-          j = self%gather_index(i)
-          ! Limit flows so they can't exceed remaining balances:
-          qw(j) = min(qw(j), water_balance)
-          qs(j) = min(qs(j), steam_balance)
-          ! Update balances:
-          water_balance = max(water_balance - qw(j), 0._dp)
-          steam_balance = max(steam_balance - qs(j), 0._dp)
-       end do
+          do i = 1, self%gather_count
+             j = self%gather_index(i)
+             ! Limit flows so they can't exceed remaining balances:
+             qw(j) = min(qw(j), water_balance)
+             qs(j) = min(qs(j), steam_balance)
+             ! Update balances:
+             water_balance = max(water_balance - qw(j), 0._dp)
+             steam_balance = max(steam_balance - qs(j), 0._dp)
+          end do
 
-    end if
+       end if
 
-    if (self%rank >= 0) then
        call MPI_scatterv(qw, self%gather_counts, &
             self%gather_displacements, MPI_DOUBLE_PRECISION, &
             local_qw, self%local_gather_count, &
