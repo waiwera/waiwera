@@ -136,6 +136,8 @@ module source_network_reinjector_module
      PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
      PetscReal :: in_water_rate !! Water rate in input node
      PetscReal :: in_steam_rate !! Steam rate in input node
+     PetscReal :: in_water_enthalpy !! Water enthalpy in input node
+     PetscReal :: in_steam_enthalpy !! Steam enthalpy in input node
      PetscInt :: local_gather_count !! How many local outputs are included in gather operations
      PetscInt, allocatable :: gather_counts(:) !! Process counts for gather operations
      PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
@@ -307,11 +309,11 @@ contains
 
     select case (self%flow_type)
     case (SEPARATED_FLOW_TYPE_WATER)
-       water_enthalpy = self%reinjector%in%water_enthalpy
+       water_enthalpy = self%reinjector%in_water_enthalpy
        steam_enthalpy = 0._dp
     case (SEPARATED_FLOW_TYPE_STEAM)
        water_enthalpy = 0._dp
-       steam_enthalpy = self%reinjector%in%steam_enthalpy
+       steam_enthalpy = self%reinjector%in_steam_enthalpy
     end select
 
   end subroutine specified_reinjector_output_default_enthalpies
@@ -742,8 +744,8 @@ contains
 
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
-    PetscReal :: water_balance, water_enthalpy
-    PetscReal :: steam_balance, steam_enthalpy
+    PetscReal :: water_balance
+    PetscReal :: steam_balance
     PetscReal :: local_qw(self%local_gather_count), qw(self%gather_count)
     PetscReal :: local_qs(self%local_gather_count), qs(self%gather_count)
     PetscInt :: i, j
@@ -751,10 +753,14 @@ contains
 
     if (self%rank == 0) then
        self%in_water_rate = abs(self%in%water_rate)
+       self%in_water_enthalpy = self%in%water_enthalpy
        self%in_steam_rate = abs(self%in%steam_rate)
+       self%in_steam_enthalpy = self%in%steam_enthalpy
     end if
     call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
     call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    call MPI_bcast(self%in_water_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    call MPI_bcast(self%in_steam_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
 
     i = 1
     call self%out%traverse(local_rates_iterator)
@@ -773,9 +779,7 @@ contains
     if (self%rank == 0) then
 
        water_balance = self%in_water_rate
-       water_enthalpy = self%in%water_enthalpy
        steam_balance = self%in_steam_rate
-       steam_enthalpy = self%in%steam_enthalpy
 
        do i = 1, self%gather_count
           j = self%gather_index(i)
@@ -800,13 +804,11 @@ contains
             MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
     end if
 
-    ! bcast default water, steam enthalpies
-
     i = 1
     call self%out%traverse(local_update_iterator)
 
-    call self%overflow_output(water_balance, water_enthalpy, &
-         steam_balance, steam_enthalpy)
+    call self%overflow_output(water_balance, self%in_water_enthalpy, &
+         steam_balance, self%in_steam_enthalpy)
 
   contains
 
@@ -838,6 +840,8 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal :: water_enthalpy, steam_enthalpy
 
       stopped = PETSC_FALSE
       select type (output => node%data)
