@@ -1174,7 +1174,7 @@ contains
          deallocate(reinjector)
       else
          group%out => reinjector
-         reinjector%in => group
+         if (group%rank == 0) reinjector%in => group
          call reinjector_input_dict%add(group%name)
       end if
 
