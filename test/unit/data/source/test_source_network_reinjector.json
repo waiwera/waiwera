@@ -17,7 +17,12 @@
         {"name": "i5", "cell": 10, "rate": 2},
         {"name": "i6", "cell": 9, "rate": 1.9},
         {"name": "i7", "cell": 8},
-        {"name": "i8", "cell": 2}
+        {"name": "i8", "cell": 2},
+
+        {"name": "p6", "cell": 0, "rate": -3, "separator": {"pressure": 0.55e6}},
+
+        {"name": "i9", "cell": 11, "rate": 1.5},
+        {"name": "i10", "cell": 3}
 
     ],
     "network": {
@@ -44,7 +49,13 @@
              ],
              "steam": [
                  {"out": "i8", "enthalpy": 1500.0e3}
-             ]}
+             ]},
+            {"name": "re3", "in": "p6",
+             "water": [
+                 {"out": "i9", "rate": 0.9},
+                 {"out": "i10", "rate": 1, "enthalpy": 95e3}
+                 ]
+            }
         ]
     }
 }

@@ -85,9 +85,9 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 13
+    PetscInt, parameter :: expected_num_sources = 16
     PetscInt, parameter :: expected_num_groups = 2
-    PetscInt, parameter :: expected_num_reinjectors = 2
+    PetscInt, parameter :: expected_num_reinjectors = 3
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_reinjector.json")
@@ -173,6 +173,8 @@ contains
             source%enthalpy = 900.e3_dp
          case ("p5")
             source%enthalpy = 1000.e3_dp
+         case ("p6")
+            source%enthalpy = 1100.e3_dp
          end select
       end select
 
@@ -355,6 +357,11 @@ contains
          case ("i8")
             call flow_test(source, 0.4324151780964667_dp, 0._dp, &
                  0.4324151780964667_dp, 1500.e3_dp)
+         case ("i9")
+            call flow_test(source, 0.9_dp, 0.9_dp, &
+                 0._dp, 655.8766515067405e3_dp)
+         case ("i10")
+            call flow_test(source, 1._dp, 1._dp, 0._dp, 95.e3_dp)
          end select
       end select
 
@@ -401,6 +408,9 @@ contains
                     0.140190450435_dp)
             case ("re2")
                call reinjector_test(reinjector, 0._dp, 0._dp)
+            case ("re3")
+               call reinjector_test(reinjector, 0.46446499954_dp, &
+                    0.635535000462524_dp)
             end select
          end if
       end select
