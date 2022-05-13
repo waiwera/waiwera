@@ -129,7 +129,10 @@ module source_network_reinjector_module
      type(list_type), public :: out !! List of outputs for reinjector
      type(overflow_reinjector_output_type), public :: overflow !! Output for overflow
      MPI_Comm :: comm !! MPI communicator for reinjector
+     MPI_Comm :: in_comm !! MPI communicator for reinjector, including input node process
      PetscMPIInt, public :: rank !! Rank of reinjector in its own communicator
+     PetscMPIInt, public :: in_comm_rank !! Rank of reinjector in self%in_comm
+     PetscMPIInt, public :: in_comm_input_rank !! Rank of input node process in self%in_comm
      ! PetscMPIInt :: overflow_rank !! Rank in communicator of overflow node (or -1)
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
      PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
@@ -146,7 +149,6 @@ module source_network_reinjector_module
    contains
      private
      procedure, public :: init => source_network_reinjector_init
-     procedure, public :: comm_key => source_network_reinjector_comm_key
      procedure, public :: init_comm => source_network_reinjector_init_comm
      ! procedure, public :: comm_send => source_network_reinjector_comm_send
      procedure, public :: assign => source_network_reinjector_assign
@@ -460,56 +462,27 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function source_network_reinjector_comm_key(self) result(key)
-    !! Returns key to pass to MPI_comm_split(), defining the rank
-    !! order of processes in the reinjector communicator. We want the
-    !! process hosting the reinjector input to be assigned the root
-    !! rank for the reinjector. Other processes are assigned
-    !! reinjector ranks corresponding to their rank order in the world
-    !! communicator.
-
-    class(source_network_reinjector_type), intent(in) :: self
-    ! Locals:
-    PetscMPIInt :: world_rank
-    PetscErrorCode :: ierr
-
-    call MPI_comm_rank(PETSC_COMM_WORLD, world_rank, ierr)
-    key = world_rank + 1
-
-    if (associated(self%in)) then
-       select type (n => self%in)
-       type is (source_type)
-          key = 0
-       class is (source_network_group_type)
-          if (n%rank == 0) key = 0
-       class is (source_network_reinjector_type)
-          if (n%rank == 0) key = 0
-       end select
-    end if
-
-  end function source_network_reinjector_comm_key
-
-!------------------------------------------------------------------------
-
   subroutine source_network_reinjector_init_comm(self)
     !! Initialises MPI communicator, rank and root world rank for the
     !! reinjector. It is assumed that the output node list has already
-    !! been populated and overflow (if any) has been assigned.
+    !! been populated and overflow (if any) has been assigned. A
+    !! second communicator is created which also includes the process
+    !! containing the input node for the reinjector. This is used for
+    !! broadcasting inflow parameters to the outputs.
 
     use mpi_utils_module, only: mpi_comm_root_world_rank
 
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
-    PetscInt :: colour, key, i
-    PetscErrorCode :: ierr
+    PetscInt :: colour, i
     PetscInt, allocatable :: local_index(:)
+    PetscMPIInt :: in_comm_input_rank, max_in_comm_input_rank
+    PetscErrorCode :: ierr
 
     colour = MPI_UNDEFINED
     call self%out%traverse(reinjector_comm_iterator)
 
-    key = self%comm_key()
-
-    call MPI_comm_split(PETSC_COMM_WORLD, colour, key, self%comm, ierr)
+    call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%comm, ierr)
     if (self%comm /= MPI_COMM_NULL) then
        call MPI_comm_rank(self%comm, self%rank, ierr)
     else
@@ -518,6 +491,30 @@ contains
     self%root_world_rank = mpi_comm_root_world_rank(self%comm)
 
     call get_gather_parameters()
+
+    if (associated(self%in)) colour = 1
+
+    call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%in_comm, ierr)
+
+    if (self%in_comm /= MPI_COMM_NULL) then
+
+       call MPI_comm_rank(self%in_comm, self%in_comm_rank, ierr)
+
+       if (associated(self%in)) then
+          in_comm_input_rank = self%in_comm_rank
+       else
+          in_comm_input_rank = -1
+       end if
+       call MPI_allreduce(in_comm_input_rank, max_in_comm_input_rank, 1, &
+            MPI_INTEGER, MPI_MAX, self%in_comm, ierr)
+       self%in_comm_input_rank = max_in_comm_input_rank
+
+    else
+       self%in_comm_rank = -1
+       self%in_comm_input_rank = -1
+    end if
+    write(*,*) self%name, 'rank:', self%rank, 'in_comm_rank:', self%in_comm_rank, &
+         'in:', associated(self%in)
 
   contains
 
@@ -748,17 +745,21 @@ contains
     PetscInt :: i, j
     PetscErrorCode :: ierr
 
-    if (self%rank == 0) then
+    if (associated(self%in)) then
        self%in_water_rate = abs(self%in%water_rate)
        self%in_water_enthalpy = self%in%water_enthalpy
        self%in_steam_rate = abs(self%in%steam_rate)
        self%in_steam_enthalpy = self%in%steam_enthalpy
     end if
-    if (self%rank >= 0) then
-       call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-       call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-       call MPI_bcast(self%in_water_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
-       call MPI_bcast(self%in_steam_enthalpy, 1, MPI_DOUBLE_PRECISION, 0, self%comm, ierr)
+    if (self%in_comm_rank >= 0) then
+       call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, &
+            self%in_comm_input_rank, self%in_comm, ierr)
+       call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, &
+            self%in_comm_input_rank, self%in_comm, ierr)
+       call MPI_bcast(self%in_water_enthalpy, 1, MPI_DOUBLE_PRECISION, &
+            self%in_comm_input_rank, self%in_comm, ierr)
+       call MPI_bcast(self%in_steam_enthalpy, 1, MPI_DOUBLE_PRECISION, &
+            self%in_comm_input_rank, self%in_comm, ierr)
     end if
 
     i = 1
