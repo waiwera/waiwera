@@ -513,8 +513,6 @@ contains
        self%in_comm_rank = -1
        self%in_comm_input_rank = -1
     end if
-    write(*,*) self%name, 'rank:', self%rank, 'in_comm_rank:', self%in_comm_rank, &
-         'in:', associated(self%in)
 
   contains
 
