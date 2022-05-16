@@ -154,6 +154,7 @@ module source_network_reinjector_module
      procedure, public :: assign => source_network_reinjector_assign
      procedure, public :: init_data => source_network_reinjector_init_data
      procedure, public :: overflow_output => source_network_reinjector_overflow_output
+     procedure, public :: capacity => source_network_reinjector_capacity
      procedure, public :: distribute => source_network_reinjector_distribute
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
@@ -727,6 +728,95 @@ contains
     ! end if
 
   end subroutine source_network_reinjector_overflow_output
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_reinjector_capacity(self)
+    !! Calculates output capacity of a reinjector and assigns this
+    !! capacity to its rate property. If any outputs are unrated
+    !! (i.e. have no capacity specified, flagged by their flow rates
+    !! set to -1) then the reinjector capacity is also set to -1.
+
+    class(source_network_reinjector_type), intent(in out) :: self
+    ! Locals:
+    PetscReal :: local_water_capacity, local_steam_capacity
+    PetscBool :: water_unrated, steam_unrated
+    PetscErrorCode :: ierr
+
+    local_water_capacity = 0._dp
+    local_steam_capacity = 0._dp
+
+    call self%out%traverse(output_capacity_iterator)
+
+    call MPI_allreduce(local_water_capacity < 0._dp, water_unrated, 1, &
+         MPI_LOGICAL, MPI_LOR, self%comm, ierr)
+    if (water_unrated) then
+       self%water_rate = -1._dp
+    else
+       call MPI_reduce(local_water_capacity, self%water_rate, 1, &
+            MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+    end if
+
+    call MPI_allreduce(local_steam_capacity < 0._dp, steam_unrated, 1, &
+         MPI_LOGICAL, MPI_LOR, self%comm, ierr)
+    if (steam_unrated) then
+       self%steam_rate = -1._dp
+    else
+       call MPI_reduce(local_steam_capacity, self%steam_rate, 1, &
+            MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+    end if
+
+  contains
+
+    subroutine update_capacity(rate, capacity)
+      !! Updates capacity according to rate. If rate = -1, capacity is
+      !! also set to -1.
+
+      PetscReal, intent(in) :: rate
+      PetscReal, intent(in out) :: capacity
+
+      if (rate > 0._dp) then
+         if (capacity > 0._dp) capacity = capacity + rate
+      else
+         capacity = -1._dp
+      end if
+
+    end subroutine update_capacity
+
+!........................................................................
+
+    subroutine output_capacity_iterator(node, stopped)
+      !! Updates water and steam capacities from reinjector output.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (output => node%data)
+      class is (specified_reinjector_output_type)
+         if (output%out%link_index >= 0) then
+            select type (n => output%out)
+            class is (source_type)
+               select case (output%flow_type)
+               case (SEPARATED_FLOW_TYPE_WATER)
+                  call update_capacity(n%rate, local_water_capacity)
+               case (SEPARATED_FLOW_TYPE_STEAM)
+                  call update_capacity(n%rate, local_steam_capacity)
+               end select
+            class is (source_network_reinjector_type)
+               select case (output%flow_type)
+               case (SEPARATED_FLOW_TYPE_WATER)
+                  call update_capacity(n%water_rate, local_water_capacity)
+               case (SEPARATED_FLOW_TYPE_STEAM)
+                  call update_capacity(n%steam_rate, local_steam_capacity)
+               end select
+            end select
+         end if
+      end select
+
+    end subroutine output_capacity_iterator
+
+  end subroutine source_network_reinjector_capacity
 
 !------------------------------------------------------------------------
 
