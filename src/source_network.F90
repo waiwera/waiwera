@@ -118,6 +118,7 @@ contains
     call self%network_controls%traverse(control_iterator)
 
     call self%unrated_reinjection_sources%traverse(init_unrated_iterator)
+    call self%reinjectors%traverse(reinjector_capacity_iterator)
     call self%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
 
     call VecRestoreArrayF90(self%reinjector, reinjector_data, ierr); CHKERRQ(ierr)
