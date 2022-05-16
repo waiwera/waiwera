@@ -81,6 +81,7 @@ module source_network_reinjector_module
      procedure, public :: default_enthalpies => specified_reinjector_output_default_enthalpies
      procedure, public :: rates => specified_reinjector_output_rates
      procedure, public :: enthalpies => specified_reinjector_output_enthalpies
+     procedure, public :: node_limit => specified_reinjector_output_node_limit
   end type specified_reinjector_output_type
 
   type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
@@ -119,6 +120,7 @@ module source_network_reinjector_module
      procedure, public :: init => overflow_reinjector_output_init
      procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
+     procedure, public :: node_limit => overflow_reinjector_output_node_limit
   end type overflow_reinjector_output_type
 
   type, public, extends(source_network_node_type) :: source_network_reinjector_type
@@ -178,31 +180,37 @@ contains
   end subroutine reinjector_output_list_node_data_destroy
 
 !------------------------------------------------------------------------
+
+  subroutine node_limit_rate(node_rate, rate)
+    !! Limits specified rate according to node_rate.
+
+    PetscReal, intent(in) :: node_rate
+    PetscReal, intent(in out) :: rate
+
+    if (node_rate > 0._dp) then
+       if (rate > 0._dp) then
+          ! rates specified in both reinjector output and node:
+          rate = min(rate, node_rate)
+       else
+          ! rate specified in node only:
+          rate = node_rate
+       end if
+    end if
+
+  end subroutine node_limit_rate
+
+!------------------------------------------------------------------------
 ! Reinjector output type
 !------------------------------------------------------------------------
 
   subroutine reinjector_output_node_limit(self, rate)
     !! Limits injection rate to what can be injected into the output
-    !! node.
+    !! node. Derived types override this routine.
 
     class(reinjector_output_type), intent(in out) :: self
     PetscReal, intent(in out) :: rate
 
-    if (associated(self%out)) then
-
-       select type (n => self%out)
-       class is (source_network_node_type)
-          if (n%rate > 0._dp) then
-             if (rate > 0._dp) then
-                ! rates specified in both reinjector output and node:
-                rate = min(rate, n%rate)
-             else
-                ! rate specified in node only:
-                rate = n%rate
-             end if
-          end if
-       end select
-    end if
+    continue
 
   end subroutine reinjector_output_node_limit
 
@@ -350,6 +358,33 @@ contains
   end subroutine specified_reinjector_output_enthalpies
 
 !------------------------------------------------------------------------
+
+  subroutine specified_reinjector_output_node_limit(self, rate)
+    !! Limits injection rate to what can be injected into the output
+    !! node.
+
+    class(specified_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(in out) :: rate
+
+    if (associated(self%out)) then
+
+       select type (n => self%out)
+       class is (source_type)
+          call node_limit_rate(n%rate, rate)
+       class is (source_network_reinjector_type)
+          select case (self%flow_type)
+          case (SEPARATED_FLOW_TYPE_WATER)
+             call node_limit_rate(n%water_rate, rate)
+          case (SEPARATED_FLOW_TYPE_STEAM)
+             call node_limit_rate(n%steam_rate, rate)
+          end select
+       end select
+
+    end if
+
+  end subroutine specified_reinjector_output_node_limit
+
+!------------------------------------------------------------------------
 ! Rate reinjector output type
 !------------------------------------------------------------------------
 
@@ -440,6 +475,29 @@ contains
     self%steam_enthalpy = steam_enthalpy
 
   end subroutine overflow_reinjector_output_set_flows
+
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_node_limit(self, rate)
+    !! Limits injection rate from overflow to what can be injected
+    !! into the output node. The overflow is limited only if
+    !! reinjecting it directly to a source. If reinjecting it to
+    !! another reinjector, it is permitted to exceed that reinjector's
+    !! capacity, and the excess will be assigned to its own overflow.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+    PetscReal, intent(in out) :: rate
+
+    if (associated(self%out)) then
+
+       select type (n => self%out)
+       class is (source_type)
+          call node_limit_rate(n%rate, rate)
+       end select
+
+    end if
+
+  end subroutine overflow_reinjector_output_node_limit
 
 !------------------------------------------------------------------------
 ! Reinjector type
