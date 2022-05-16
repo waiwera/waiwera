@@ -42,6 +42,7 @@ module source_network_module
      type(list_type), public :: source_controls !! Controls on sources/sinks
      type(list_type), public :: network_controls !! Controls on source network nodes
      type(list_type), public :: reinjectors !! Reinjectors distributing flows to injection sources
+     type(list_type), public :: reinjection_sources !! Sources that inject fluid from reinjectors
      Vec, public :: source !! Vector for source/sink data
      Vec, public :: group !! Vector for source network group data
      Vec, public :: reinjector !! Vector for source network reinjector data
@@ -56,12 +57,31 @@ module source_network_module
      IS, public :: reinjector_index !! Index set defining natural to global source network reinjector ordering
    contains
      private
+     procedure, public :: init => source_network_init
      procedure, public :: update => source_network_update
      procedure, public :: assemble_cell_inflows => source_network_assemble_cell_inflows
      procedure, public :: destroy => source_network_destroy
   end type source_network_type
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_init(self)
+    !! Initialises source network. Only the main lists of source
+    !! network objects are initialised here.
+
+    class(source_network_type), intent(in out) :: self
+
+       call self%sources%init(owner = PETSC_TRUE)
+       call self%groups%init(owner = PETSC_TRUE)
+       call self%separated_sources%init(owner = PETSC_FALSE)
+       call self%source_controls%init(owner = PETSC_TRUE)
+       call self%network_controls%init(owner = PETSC_TRUE)
+       call self%reinjectors%init(owner = PETSC_TRUE)
+       call self%reinjection_sources%init(owner = PETSC_FALSE)
+
+  end subroutine source_network_init
 
 !------------------------------------------------------------------------
 
@@ -344,6 +364,7 @@ contains
          object_control_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%reinjectors%destroy( &
          source_network_node_list_node_data_destroy, reverse = PETSC_TRUE)
+    call self%reinjection_sources%destroy()
     call self%sources%destroy(source_network_node_list_node_data_destroy)
 
   end subroutine source_network_destroy

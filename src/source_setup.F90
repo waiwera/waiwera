@@ -104,6 +104,14 @@ contains
     call label_source_zones(json, num_local_sources, logfile, err)
     if (err == 0) then
 
+       call source_network%init()
+
+       call source_dict%init(owner = PETSC_FALSE)
+       call source_dict_all%init(owner = PETSC_FALSE)
+       call source_network_group_dict%init(owner = PETSC_FALSE)
+       call source_network_group_index_dict%init(owner = PETSC_TRUE)
+       call source_network_reinjector_index_dict%init(owner = PETSC_TRUE)
+
        call create_path_dm(num_local_sources, dm_source)
        call setup_source_dm_data_layout(dm_source)
        call DMCreateGlobalVector(dm_source, source_network%source, ierr); CHKERRQ(ierr)
@@ -114,18 +122,6 @@ contains
        call VecGetArrayReadF90(fluid_vector, fluid_data, ierr); CHKERRQ(ierr)
        call global_vec_section(source_network%source, source_section)
        call VecGetArrayF90(source_network%source, source_data, ierr); CHKERRQ(ierr)
-
-       call source_network%sources%init(owner = PETSC_TRUE)
-       call source_dict%init(owner = PETSC_FALSE)
-       call source_dict_all%init(owner = PETSC_FALSE)
-       call source_network_group_dict%init(owner = PETSC_FALSE)
-       call source_network_group_index_dict%init(owner = PETSC_TRUE)
-       call source_network_reinjector_index_dict%init(owner = PETSC_TRUE)
-       call source_network%separated_sources%init(owner = PETSC_FALSE)
-       call source_network%source_controls%init(owner = PETSC_TRUE)
-       call source_network%groups%init(owner = PETSC_TRUE)
-       call source_network%network_controls%init(owner = PETSC_TRUE)
-       call source_network%reinjectors%init(owner = PETSC_TRUE)
 
        if (fson_has_mpi(json, "source")) then
           call fson_get_mpi(json, "source", sources_json)
@@ -1186,7 +1182,7 @@ contains
 
     subroutine init_reinjector_outputs(reinjector_json, reinjector_str, &
          flow_type_str, source_dict, source_dict_all, reinjector_output_dict, &
-         output_index, reinjector, err)
+         reinjection_sources, output_index, reinjector, err)
       !! Initialises reinjector outputs of the given flow type.
 
       use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1195,6 +1191,7 @@ contains
       character(*), intent(in) :: reinjector_str, flow_type_str
       type(dictionary_type), intent(in out) :: source_dict, source_dict_all, &
            reinjector_output_dict
+      type(list_type), intent(in out) :: reinjection_sources
       type(source_network_reinjector_type), intent(in out) :: reinjector
       PetscInt, intent(in out) :: output_index
       PetscErrorCode, intent(in out) :: err
@@ -1256,6 +1253,7 @@ contains
                            source%link_index = output_index
                            call reinjector%out%append(output)
                            call reinjector_output_dict%add(out_name)
+                           call reinjection_sources%append(source)
                         end select
                      else ! source is not on this process:
                         deallocate(output)
@@ -1371,11 +1369,13 @@ contains
 
             output_index = 1
             call init_reinjector_outputs(reinjector_json, rstr, "water", &
-                 source_dict, source_dict_all, reinjector_output_dict, output_index, &
+                 source_dict, source_dict_all, reinjector_output_dict, &
+                 source_network%reinjection_sources, output_index, &
                  reinjector, err)
             if (err == 0) then
                call init_reinjector_outputs(reinjector_json, rstr, "steam", &
-                    source_dict, source_dict_all, reinjector_output_dict, output_index, &
+                    source_dict, source_dict_all, reinjector_output_dict, &
+                    source_network%reinjection_sources, output_index, &
                     reinjector, err)
                if (err == 0) then
                   call reinjector%init_comm()
