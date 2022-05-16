@@ -366,8 +366,9 @@ contains
       PetscInt, allocatable :: num_field_components(:), field_dim(:)
       PetscInt, parameter :: max_field_name_length = 40
       character(max_field_name_length), allocatable :: field_names(:)
+      PetscBool, parameter :: unrated = PETSC_FALSE
 
-      call source%init("", eos, 0, 0, 0._dp, 1, 1, num_tracers)
+      call source%init("", eos, 0, 0, 0._dp, 1, 1, unrated, num_tracers)
       allocate(num_field_components(source%dof), field_dim(source%dof), &
            field_names(source%dof))
       call source%destroy()
@@ -459,6 +460,7 @@ contains
       ISLocalToGlobalMapping :: l2g
       PetscReal :: tracer_injection_rate(size(tracer_names))
       character(max_source_network_node_name_length) :: name
+      PetscBool :: unrated
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -467,7 +469,7 @@ contains
 
       call get_components(source_json, eos, &
            injection_component, production_component, logfile)
-      call get_initial_rate(source_json, initial_rate)
+      call get_initial_rate(source_json, initial_rate, unrated)
       call get_initial_enthalpy(source_json, eos, &
            injection_component, initial_enthalpy)
       call get_separator_pressure(source_json, srcstr, separator_pressure, logfile)
@@ -506,7 +508,7 @@ contains
                allocate(source)
                call source%init(name, eos, local_source_index, local_cell_index(i), &
                     initial_enthalpy, injection_component, production_component, &
-                    num_tracers)
+                    unrated, num_tracers)
                call source%assign(source_data, source_offset)
                call source%init_data(natural_source_index(i), natural_cell_index(i), &
                     initial_rate, tracer_injection_rate, separator_pressure, thermo)
@@ -1182,7 +1184,7 @@ contains
 
     subroutine init_reinjector_outputs(reinjector_json, reinjector_str, &
          flow_type_str, source_dict, source_dict_all, reinjector_output_dict, &
-         reinjection_sources, output_index, reinjector, err)
+         unrated_reinjection_sources, output_index, reinjector, err)
       !! Initialises reinjector outputs of the given flow type.
 
       use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1191,7 +1193,7 @@ contains
       character(*), intent(in) :: reinjector_str, flow_type_str
       type(dictionary_type), intent(in out) :: source_dict, source_dict_all, &
            reinjector_output_dict
-      type(list_type), intent(in out) :: reinjection_sources
+      type(list_type), intent(in out) :: unrated_reinjection_sources
       type(source_network_reinjector_type), intent(in out) :: reinjector
       PetscInt, intent(in out) :: output_index
       PetscErrorCode, intent(in out) :: err
@@ -1253,7 +1255,9 @@ contains
                            source%link_index = output_index
                            call reinjector%out%append(output)
                            call reinjector_output_dict%add(out_name)
-                           call reinjection_sources%append(source)
+                           if (source%unrated) then
+                             call unrated_reinjection_sources%append(source)
+                           end if
                         end select
                      else ! source is not on this process:
                         deallocate(output)
@@ -1370,12 +1374,12 @@ contains
             output_index = 1
             call init_reinjector_outputs(reinjector_json, rstr, "water", &
                  source_dict, source_dict_all, reinjector_output_dict, &
-                 source_network%reinjection_sources, output_index, &
+                 source_network%unrated_reinjection_sources, output_index, &
                  reinjector, err)
             if (err == 0) then
                call init_reinjector_outputs(reinjector_json, rstr, "steam", &
                     source_dict, source_dict_all, reinjector_output_dict, &
-                    source_network%reinjection_sources, output_index, &
+                    source_network%unrated_reinjection_sources, output_index, &
                     reinjector, err)
                if (err == 0) then
                   call reinjector%init_comm()
@@ -1479,7 +1483,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_initial_rate(source_json, initial_rate)
+  subroutine get_initial_rate(source_json, initial_rate, unrated)
     !! Gets initial flow rate. This can only be determined for
     !! constant-rate sources. For other source types, a default
     !! initial rate is assigned, which may be modified by any source
@@ -1487,6 +1491,7 @@ contains
 
     type(fson_value), pointer, intent(in) :: source_json
     PetscReal, intent(out) :: initial_rate
+    PetscBool, intent(out) :: unrated
     ! Locals:
     PetscInt :: rate_type
 
@@ -1501,8 +1506,11 @@ contains
           initial_rate = default_source_rate
        end select
 
+       unrated = PETSC_FALSE
+
     else
        initial_rate = default_source_rate
+       unrated = PETSC_TRUE
     end if
 
   end subroutine get_initial_rate
@@ -1794,7 +1802,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_table_source_control(source_json, srcstr, &
+  subroutine unset_source_unrated_iterator(node, stopped)
+    !! Sets source unrated property to false. Used when adding a
+    !! control to a source, so it is no longer considered unrated.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type(source => node%data)
+      type is (source_type)
+         source%unrated = PETSC_FALSE
+      end select
+
+    end subroutine unset_source_unrated_iterator
+
+!------------------------------------------------------------------------
+
+    subroutine setup_table_source_control(source_json, srcstr, &
        interpolation_type, averaging_type, tracer_names, &
        spec_sources, source_network, logfile, err)
     !! Set up rate, enthalpy and tracer table source controls.
@@ -1841,6 +1866,7 @@ contains
             call control%init(spec_sources%copy(), data_array, &
                  interpolation_type, averaging_type)
             call source_network%source_controls%append(control)
+            call spec_sources%traverse(unset_source_unrated_iterator)
          end if
          deallocate(data_array)
       end if
@@ -2263,6 +2289,7 @@ contains
                   deliv%productivity%interpolate(start_time, 1)
           end if
           call source_network%source_controls%append(deliv)
+          source%unrated = PETSC_FALSE
 
       end select
 
@@ -2412,6 +2439,7 @@ contains
          end if
 
          call source_network%source_controls%append(recharge)
+         source%unrated = PETSC_FALSE
 
       end select
 
