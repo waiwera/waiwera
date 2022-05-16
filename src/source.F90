@@ -77,6 +77,7 @@ module source_module
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
      PetscInt, public :: num_tracers !! Number of tracers
      PetscBool, public :: isothermal !! Whether equation of state is isothermal
+     PetscBool, public :: unrated !! Whether source has no flow rate specified
      PetscReal, pointer, public :: source_index !! Index of source in input
      PetscReal, pointer, public :: natural_cell_index !! Natural index of cell the source is in
      PetscReal, pointer, public :: component !! Mass (or energy) component being produced or injected
@@ -108,7 +109,7 @@ contains
 
   subroutine source_init(self, name, eos, local_source_index, &
        local_cell_index, injection_enthalpy, injection_component, &
-       production_component, num_tracers)
+       production_component, unrated, num_tracers)
     !! Initialises a source object. Only values stored in the object
     !! itself are initialised, not those in the source data vector
     !! accesssed via pointers.
@@ -123,6 +124,7 @@ contains
     PetscReal, intent(in) :: injection_enthalpy !! Enthalpy for injection
     PetscInt, intent(in) :: injection_component !! Component for injection
     PetscInt, intent(in) :: production_component !! Component for production
+    PetscBool, intent(in) :: unrated !! Whether source has no flow rate specified
     PetscInt, intent(in), optional :: num_tracers !! Number of tracers
 
     self%name = name
@@ -134,6 +136,7 @@ contains
     self%injection_component = injection_component
     self%production_component = production_component
     self%isothermal = eos%isothermal
+    self%unrated = unrated
 
     if (present(num_tracers)) then
        self%num_tracers = num_tracers
