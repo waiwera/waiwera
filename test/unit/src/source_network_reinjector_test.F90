@@ -76,7 +76,7 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector
-    PetscInt :: fluid_range_start
+    PetscInt :: fluid_range_start, num_unrated
     PetscReal, pointer, contiguous :: source_array(:), group_array(:), reinjector_array(:)
     PetscSection :: source_section, group_section, reinjector_section
     type(source_network_type) :: source_network
@@ -86,6 +86,7 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
     PetscInt, parameter :: expected_num_sources = 16
+    PetscInt, parameter :: expected_num_unrated_reinjection_sources = 7
     PetscInt, parameter :: expected_num_groups = 2
     PetscInt, parameter :: expected_num_reinjectors = 3
 
@@ -110,6 +111,13 @@ contains
        call test%assert(expected_num_groups, source_network%num_groups, "number of groups")
        call test%assert(expected_num_reinjectors, source_network%num_reinjectors, &
             "number of reinjectors")
+    end if
+
+    call MPI_reduce(source_network%unrated_reinjection_sources%count, num_unrated, 1, &
+         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       call test%assert(expected_num_unrated_reinjection_sources, num_unrated, &
+            "number of unrated reinjection sources")
     end if
 
     if (err == 0) then
