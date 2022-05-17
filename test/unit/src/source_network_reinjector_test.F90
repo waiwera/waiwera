@@ -132,13 +132,16 @@ contains
        call source_network%sources%traverse(source_setup_iterator)
        call source_network%groups%traverse(group_assign_iterator)
        call source_network%reinjectors%traverse(reinjector_assign_iterator)
+
        call source_network%separated_sources%traverse(source_separator_iterator)
        call source_network%groups%traverse(group_sum_iterator)
        call source_network%network_controls%traverse(network_control_iterator)
-       call source_network%groups%traverse(group_test_iterator)
+
        call source_network%unrated_reinjection_sources%traverse(init_unrated_iterator)
        call source_network%reinjectors%traverse(reinjector_capacity_iterator)
        call source_network%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
+
+       call source_network%groups%traverse(group_test_iterator)
        call source_network%sources%traverse(source_test_iterator)
        call source_network%reinjectors%traverse(reinjector_test_iterator)
 
