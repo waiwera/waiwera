@@ -616,6 +616,7 @@ contains
       PetscErrorCode :: ierr
 
       self%local_gather_count = 0
+      self%gather_count = 0
 
       if (self%rank >= 0) then
 
