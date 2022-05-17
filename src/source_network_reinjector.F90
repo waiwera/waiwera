@@ -1039,6 +1039,7 @@ contains
     if (associated(self%in)) self%in => null()
     call self%out%destroy(reinjector_output_list_node_data_destroy)
     call MPI_comm_free(self%comm, ierr)
+    call MPI_comm_free(self%in_comm, ierr)
 
     if (allocated(self%gather_index)) deallocate(self%gather_index)
     if (allocated(self%gather_counts)) deallocate(self%gather_counts)
