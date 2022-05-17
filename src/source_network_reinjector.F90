@@ -798,7 +798,7 @@ contains
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
     PetscReal :: local_water_capacity, local_steam_capacity
-    PetscBool :: water_unrated, steam_unrated
+    PetscReal :: water_capacity, steam_capacity
     PetscErrorCode :: ierr
 
     local_water_capacity = 0._dp
@@ -806,25 +806,32 @@ contains
 
     call self%out%traverse(output_capacity_iterator)
 
-    call MPI_allreduce(local_water_capacity < 0._dp, water_unrated, 1, &
-         MPI_LOGICAL, MPI_LOR, self%comm, ierr)
-    if (water_unrated) then
-       self%water_rate = -1._dp
-    else
-       call MPI_reduce(local_water_capacity, self%water_rate, 1, &
-            MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
-    end if
-
-    call MPI_allreduce(local_steam_capacity < 0._dp, steam_unrated, 1, &
-         MPI_LOGICAL, MPI_LOR, self%comm, ierr)
-    if (steam_unrated) then
-       self%steam_rate = -1._dp
-    else
-       call MPI_reduce(local_steam_capacity, self%steam_rate, 1, &
-            MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
-    end if
+    water_capacity = total_capacity(local_water_capacity)
+    if (self%rank == 0) self%water_rate = water_capacity
+    steam_capacity = total_capacity(local_steam_capacity)
+    if (self%rank == 0) self%steam_rate = steam_capacity
 
   contains
+
+    PetscReal function total_capacity(local_capacity)
+      !! Calculates total capacity (-1 if unrated).
+
+      PetscReal, intent(in) :: local_capacity
+      ! Locals:
+      PetscBool :: unrated
+
+      call MPI_allreduce(local_capacity < 0._dp, unrated, 1, &
+           MPI_LOGICAL, MPI_LOR, self%comm, ierr)
+      if (unrated) then
+         total_capacity = -1._dp
+      else
+         call MPI_reduce(local_capacity, total_capacity, 1, &
+              MPI_DOUBLE_PRECISION, MPI_SUM, 0, self%comm, ierr)
+      end if
+
+    end function total_capacity
+
+!........................................................................
 
     subroutine update_capacity(rate, capacity)
       !! Updates capacity according to rate. If rate = -1, capacity is
