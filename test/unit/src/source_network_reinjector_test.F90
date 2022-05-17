@@ -136,6 +136,8 @@ contains
        call source_network%groups%traverse(group_sum_iterator)
        call source_network%network_controls%traverse(network_control_iterator)
        call source_network%groups%traverse(group_test_iterator)
+       call source_network%unrated_reinjection_sources%traverse(init_unrated_iterator)
+       call source_network%reinjectors%traverse(reinjector_capacity_iterator)
        call source_network%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
        call source_network%sources%traverse(source_test_iterator)
        call source_network%reinjectors%traverse(reinjector_test_iterator)
@@ -278,6 +280,39 @@ contains
     end subroutine network_control_iterator
 
 !........................................................................
+
+    subroutine init_unrated_iterator(node, stopped)
+      !! Initialises flow rate in unrated reinjection source to -1,
+      !! flagging that its rate has not been specified.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (source => node%data)
+      type is (source_type)
+         source%rate = -1._dp
+      end select
+
+    end subroutine init_unrated_iterator
+
+!........................................................................
+
+    subroutine reinjector_capacity_iterator(node, stopped)
+      !! Calculates output capacity of a reinjector.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (reinjector => node%data)
+      class is (source_network_reinjector_type)
+         call reinjector%capacity()
+      end select
+
+    end subroutine reinjector_capacity_iterator
+
+!------------------------------------------------------------------------
 
     subroutine reinjector_iterator(node, stopped)
       !! Updates reinjection output flows to injection sources (or
