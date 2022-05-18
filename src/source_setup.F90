@@ -1253,7 +1253,6 @@ contains
                            output%out => source
                            source%link_index = output_index
                            call reinjector%out%append(output)
-                           call reinjector_output_dict%add(out_name)
                            if (source%unrated) then
                              call unrated_reinjection_sources%append(source)
                            end if
@@ -1263,17 +1262,27 @@ contains
                      end if
                      call reinjector_output_dict%add(out_name)
                   else
-                     ! TODO: if output to another reinjector then
-                     ! ...
-                     ! else
-                     if (present(logfile)) then
-                        call logfile%write(LOG_LEVEL_ERR, "input", &
-                             "unrecognised reinjector output: " // trim(out_name))
+                     reinjector_dict_node => reinjector_dict%get(out_name)
+                     if (associated(reinjector_dict_node)) then
+                        select type (out_reinjector => reinjector_dict_node%data)
+                        class is (source_network_reinjector_type)
+                           if (out_reinjector%rank == 0) then
+                              output%out => out_reinjector
+                              out_reinjector%in => output
+                              out_reinjector%link_index = output_index
+                              call reinjector%out%append(output)
+                           end if
+                           call reinjector_output_dict%add(out_name)
+                        end select
+                     else
+                        if (present(logfile)) then
+                           call logfile%write(LOG_LEVEL_ERR, "input", &
+                                "unrecognised reinjector output: " // trim(out_name))
+                        end if
+                        err = 1
+                        deallocate(output)
+                        exit
                      end if
-                     err = 1
-                     deallocate(output)
-                     exit
-                     ! end if
                   end if
                end if
                output_json => fson_value_next_mpi(output_json)
