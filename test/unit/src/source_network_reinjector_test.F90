@@ -85,10 +85,10 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 16
-    PetscInt, parameter :: expected_num_unrated_reinjection_sources = 7
-    PetscInt, parameter :: expected_num_groups = 2
-    PetscInt, parameter :: expected_num_reinjectors = 3
+    PetscInt, parameter :: expected_num_sources = 21
+    PetscInt, parameter :: expected_num_unrated_reinjection_sources = 10
+    PetscInt, parameter :: expected_num_groups = 3
+    PetscInt, parameter :: expected_num_reinjectors = 5
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_reinjector.json")
