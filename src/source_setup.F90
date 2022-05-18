@@ -1357,9 +1357,6 @@ contains
                      if (err > 0) exit
                   end select
                else
-                  ! TODO: if input is another reinjector then
-                  ! ...
-                  ! else:
                   if (present(logfile)) then
                      call logfile%write(LOG_LEVEL_ERR, "input", &
                           "unrecognised reinjector input: " // trim(in_name))
@@ -1367,7 +1364,6 @@ contains
                   err = 1
                   deallocate(reinjector)
                   exit
-                  ! end if
                end if
             end if
 
