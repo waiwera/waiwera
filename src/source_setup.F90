@@ -1371,47 +1371,39 @@ contains
                end if
             end if
 
-            output_index = 1
-            call init_reinjector_outputs(reinjector_json, rstr, "water", &
+         end if
+
+         output_index = 1
+         call init_reinjector_outputs(reinjector_json, rstr, "water", &
+              source_dict, source_dict_all, reinjector_output_dict, &
+              source_network%unrated_reinjection_sources, output_index, &
+              reinjector, err)
+         if (err == 0) then
+            call init_reinjector_outputs(reinjector_json, rstr, "steam", &
                  source_dict, source_dict_all, reinjector_output_dict, &
                  source_network%unrated_reinjection_sources, output_index, &
                  reinjector, err)
             if (err == 0) then
-               call init_reinjector_outputs(reinjector_json, rstr, "steam", &
-                    source_dict, source_dict_all, reinjector_output_dict, &
-                    source_network%unrated_reinjection_sources, output_index, &
-                    reinjector, err)
-               if (err == 0) then
-                  call reinjector%init_comm()
-                  if (reinjector%rank == 0) then
-                     r = num_local_root_reinjectors
-                     num_local_root_reinjectors = num_local_root_reinjectors + 1
-                  else
-                     r = -1
-                  end if
-                  reinjector%local_reinjector_index = r
-                  ! TODO: enable assigning overflow output to another node
-                  call reinjector%overflow%init(reinjector)
-
-                  call source_network%reinjectors%append(reinjector)
-                  ! TODO: may need something like this for recursive case
-                  ! if (name /= "") then
-                  !    call source_network_reinjector_dict%add(name, reinjector)
-                  ! end if
+               call reinjector%init_comm()
+               if (reinjector%rank == 0) then
+                  r = num_local_root_reinjectors
+                  num_local_root_reinjectors = num_local_root_reinjectors + 1
                else
-                  exit
+                  r = -1
                end if
+               reinjector%local_reinjector_index = r
+               ! TODO: enable assigning overflow output to another node
+               call reinjector%overflow%init(reinjector)
+
+               call source_network%reinjectors%append(reinjector)
+               ! TODO: may need something like this for recursive case
+               ! if (name /= "") then
+               !    call source_network_reinjector_dict%add(name, reinjector)
+               ! end if
             else
-               deallocate(reinjector)
                exit
             end if
-
          else
-            if (present(logfile)) then
-               call logfile%write(LOG_LEVEL_ERR, "input", &
-                    "reinjector has no input: " // trim(name))
-            end if
-            err = 1
             deallocate(reinjector)
             exit
          end if
