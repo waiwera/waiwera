@@ -70,11 +70,12 @@ contains
     PetscInt, intent(in) :: fluid_range_start !! Range start for global fluid vector
     type(source_network_type), intent(in out) :: source_network !! Source network
     type(logfile_type), intent(in out), optional :: logfile !! Logfile for log output
+    PetscInt, allocatable :: dependency_indices(:)
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscMPIInt :: rank
     DM :: dm_source, dm_group, dm_reinjector
-    PetscInt :: num_local_sources, source_spec_index, local_source_index
+    PetscInt :: num_local_sources, source_spec_index, local_source_index, idep
     PetscInt :: sorted_group_index, sorted_reinjector_index
     type(fson_value), pointer :: sources_json, source_json, groups_json, reinjectors_json
     PetscInt :: num_source_specs, num_tracers, num_local_root_groups, num_local_root_reinjectors
@@ -727,7 +728,6 @@ contains
       ! Locals:
       type(fson_value), pointer :: group_json
       character(max_source_network_node_name_length), allocatable :: node_names(:)
-      PetscInt, allocatable :: dependency_indices(:)
       type(list_node_type), pointer :: dict_node
       PetscInt :: group_index, i
 
@@ -1062,7 +1062,7 @@ contains
       ! Locals:
       type(fson_value), pointer :: reinjector_json, outputs_json, output_json
       character(5) :: key
-      PetscInt, allocatable :: dependency_indices(:), dependency_indices_all(:)
+      type(list_type) :: dep_list
       type(list_node_type), pointer :: dict_node
       PetscInt :: reinjector_index, i, k, num_outputs
       character(max_source_network_node_name_length) :: node_name
@@ -1071,17 +1071,16 @@ contains
 
       call reinjector_dag%init(num_reinjectors)
       allocate(reinjector_specs_array(num_reinjectors))
-      allocate(dependency_indices_all(0))
 
       reinjector_json => fson_value_children_mpi(reinjectors_json)
       do reinjector_index = 0, num_reinjectors - 1
+         call dep_list%init(owner = PETSC_FALSE)
          do k = 1, num_keys
             key = keys(k)
             if (fson_has_mpi(reinjector_json, trim(key))) then
                call fson_get_mpi(reinjector_json, trim(key), &
                     outputs_json)
                num_outputs = fson_value_count_mpi(outputs_json, ".")
-               allocate(dependency_indices(num_outputs))
                output_json => fson_value_children_mpi(outputs_json)
                do i = 1, num_outputs
                   if (fson_has_mpi(output_json, "out")) then
@@ -1091,27 +1090,42 @@ contains
                      if (associated(dict_node)) then
                         select type (idx => dict_node%data)
                         type is (PetscInt)
-                           dependency_indices(i) = idx
+                           call dep_list%append(idx)
                         end select
-                     else
-                        dependency_indices(i) = -1
                      end if
                   end if
                   output_json => fson_value_next_mpi(output_json)
                end do
-               dependency_indices = pack(dependency_indices, &
-                    dependency_indices > 0)
-               dependency_indices_all = [dependency_indices_all, dependency_indices]
-               deallocate(dependency_indices)
             end if
          end do
-         call reinjector_dag%set_edges(reinjector_index, dependency_indices_all)
+         allocate(dependency_indices(dep_list%count))
+         idep = 1
+         call dep_list%traverse(dag_dependency_iterator)
+         call dep_list%destroy()
+         call reinjector_dag%set_edges(reinjector_index, dependency_indices)
+         deallocate(dependency_indices)
          call reinjector_specs_array(reinjector_index + 1)%set(reinjector_json)
-         deallocate(dependency_indices_all)
          reinjector_json => fson_value_next_mpi(reinjector_json)
       end do
 
     end subroutine setup_reinjector_dag
+
+!........................................................................
+
+    subroutine dag_dependency_iterator(node, stopped)
+      !! Converts dependency list into an integer array.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type(idx => node%data)
+      type is (PetscInt)
+         dependency_indices(idep) = idx
+         idep = idep + 1
+      end select
+
+    end subroutine dag_dependency_iterator
 
 !........................................................................
 
