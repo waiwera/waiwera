@@ -905,15 +905,20 @@ contains
        self%in_steam_rate = abs(self%in%steam_rate)
        self%in_steam_enthalpy = self%in%steam_enthalpy
     end if
-    if (self%in_comm_rank >= 0) then
+    if ((self%in_comm_rank >= 0) .and. (self%in_comm_input_rank >= 0)) then
        call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, &
-            self%in_comm_input_rank, self%in_comm, ierr)
-       call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, &
             self%in_comm_input_rank, self%in_comm, ierr)
        call MPI_bcast(self%in_water_enthalpy, 1, MPI_DOUBLE_PRECISION, &
             self%in_comm_input_rank, self%in_comm, ierr)
+       call MPI_bcast(self%in_steam_rate, 1, MPI_DOUBLE_PRECISION, &
+            self%in_comm_input_rank, self%in_comm, ierr)
        call MPI_bcast(self%in_steam_enthalpy, 1, MPI_DOUBLE_PRECISION, &
             self%in_comm_input_rank, self%in_comm, ierr)
+    else
+       self%in_water_rate = 0._dp
+       self%in_water_enthalpy = 0._dp
+       self%in_steam_rate = 0._dp
+       self%in_steam_enthalpy = 0._dp
     end if
 
     i = 1
