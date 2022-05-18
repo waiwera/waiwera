@@ -86,7 +86,7 @@ contains
     type(dag_type) :: group_dag, reinjector_dag
     type(dictionary_type) :: source_dict, source_dict_all
     type(dictionary_type) :: group_dict, group_index_dict
-    type(dictionary_type) :: reinjector_index_dict
+    type(dictionary_type) :: reinjector_dict, reinjector_index_dict
     PetscInt, allocatable :: indices(:), group_indices(:), reinjector_indices(:)
     PetscInt, allocatable :: group_order(:), reinjector_order(:)
     PetscErrorCode :: ierr
@@ -109,6 +109,7 @@ contains
        call source_dict_all%init(owner = PETSC_FALSE)
        call group_dict%init(owner = PETSC_FALSE)
        call group_index_dict%init(owner = PETSC_TRUE)
+       call reinjector_dict%init(owner = PETSC_FALSE)
        call reinjector_index_dict%init(owner = PETSC_TRUE)
 
        call create_path_dm(num_local_sources, dm_source)
@@ -228,6 +229,7 @@ contains
        call source_dict_all%destroy()
        call group_dict%destroy()
        call group_index_dict%destroy()
+       call reinjector_dict%destroy()
        call reinjector_index_dict%destroy()
 
     end if
@@ -1200,7 +1202,7 @@ contains
       class(specified_reinjector_output_type), pointer :: output
       PetscReal :: enthalpy
       character(max_source_network_node_name_length) :: out_name
-      type(list_node_type), pointer :: source_dict_node
+      type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
       character(12) :: istr
 
       if (fson_has_mpi(reinjector_json, flow_type_str)) then
@@ -1259,6 +1261,7 @@ contains
                      else ! source is not on this process:
                         deallocate(output)
                      end if
+                     call reinjector_output_dict%add(out_name)
                   else
                      ! TODO: if output to another reinjector then
                      ! ...
@@ -1389,10 +1392,9 @@ contains
                call reinjector%overflow%init(reinjector)
 
                call source_network%reinjectors%append(reinjector)
-               ! TODO: may need something like this for recursive case
-               ! if (name /= "") then
-               !    call source_network_reinjector_dict%add(name, reinjector)
-               ! end if
+               if (name /= "") then
+                  call reinjector_dict%add(name, reinjector)
+               end if
             else
                exit
             end if
