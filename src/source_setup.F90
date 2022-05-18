@@ -85,9 +85,8 @@ contains
     type(pfson_value_type), allocatable :: group_specs_array(:), reinjector_specs_array(:)
     type(dag_type) :: group_dag, reinjector_dag
     type(dictionary_type) :: source_dict, source_dict_all
-    type(dictionary_type) :: source_network_group_dict
-    type(dictionary_type) :: source_network_group_index_dict
-    type(dictionary_type) :: source_network_reinjector_index_dict
+    type(dictionary_type) :: group_dict, group_index_dict
+    type(dictionary_type) :: reinjector_index_dict
     PetscInt, allocatable :: indices(:), group_indices(:), reinjector_indices(:)
     PetscInt, allocatable :: group_order(:), reinjector_order(:)
     PetscErrorCode :: ierr
@@ -108,9 +107,9 @@ contains
 
        call source_dict%init(owner = PETSC_FALSE)
        call source_dict_all%init(owner = PETSC_FALSE)
-       call source_network_group_dict%init(owner = PETSC_FALSE)
-       call source_network_group_index_dict%init(owner = PETSC_TRUE)
-       call source_network_reinjector_index_dict%init(owner = PETSC_TRUE)
+       call group_dict%init(owner = PETSC_FALSE)
+       call group_index_dict%init(owner = PETSC_TRUE)
+       call reinjector_index_dict%init(owner = PETSC_TRUE)
 
        call create_path_dm(num_local_sources, dm_source)
        call setup_source_dm_data_layout(dm_source)
@@ -152,10 +151,9 @@ contains
              call fson_get_mpi(json, "network.group", groups_json)
              source_network%num_groups = fson_value_count_mpi(groups_json, ".")
              call setup_item_index_dict(groups_json, &
-                  source_network%num_groups, source_network_group_index_dict)
+                  source_network%num_groups, group_index_dict)
              call setup_group_dag(groups_json, source_network%num_groups, &
-                  source_network_group_index_dict, &
-                  group_dag, group_specs_array)
+                  group_index_dict, group_dag, group_specs_array)
              call group_dag%sort(group_order, err)
              if (err == 0) then
                 call init_source_network_groups(source_network, &
@@ -188,10 +186,9 @@ contains
                 call fson_get_mpi(json, "network.reinject", reinjectors_json)
                 source_network%num_reinjectors = fson_value_count_mpi(reinjectors_json, ".")
                 call setup_item_index_dict(reinjectors_json, &
-                     source_network%num_reinjectors, source_network_reinjector_index_dict)
+                     source_network%num_reinjectors, reinjector_index_dict)
                 call setup_reinjector_dag(reinjectors_json, source_network%num_reinjectors, &
-                     source_network_reinjector_index_dict, &
-                     reinjector_dag, reinjector_specs_array)
+                     reinjector_index_dict, reinjector_dag, reinjector_specs_array)
                 call reinjector_dag%sort(reinjector_order, err)
                 call init_source_network_reinjectors(source_network, &
                      num_local_root_reinjectors, logfile, err)
@@ -229,9 +226,9 @@ contains
        CHKERRQ(ierr)
        call source_dict%destroy()
        call source_dict_all%destroy()
-       call source_network_group_dict%destroy()
-       call source_network_group_index_dict%destroy()
-       call source_network_reinjector_index_dict%destroy()
+       call group_dict%destroy()
+       call group_index_dict%destroy()
+       call reinjector_index_dict%destroy()
 
     end if
 
@@ -811,7 +808,7 @@ contains
       character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
       class(source_network_group_type), pointer :: group
-      type(list_node_type), pointer :: source_dict_node, source_network_group_dict_node
+      type(list_node_type), pointer :: source_dict_node, group_dict_node
       type(dictionary_type) :: group_source_dict
       character(len=64) :: grpstr
       character(len=12) :: igstr
@@ -871,9 +868,9 @@ contains
                     call group_source_dict%add(node_name)
                  end if
               else
-                 source_network_group_dict_node => source_network_group_dict%get(node_name)
-                 if (associated(source_network_group_dict_node)) then
-                    select type (dep_group => source_network_group_dict_node%data)
+                 group_dict_node => group_dict%get(node_name)
+                 if (associated(group_dict_node)) then
+                    select type (dep_group => group_dict_node%data)
                     class is (source_network_group_type)
                        if (associated(dep_group%out)) then
                           if (present(logfile)) then
@@ -917,7 +914,7 @@ contains
 
             call source_network%groups%append(group)
             if (name /= "") then
-               call source_network_group_dict%add(name, group)
+               call group_dict%add(name, group)
             end if
 
          end if
@@ -1322,7 +1319,7 @@ contains
       character(len=12) :: irstr
       type(dictionary_type) :: reinjector_input_dict, reinjector_output_dict
       type(source_network_reinjector_type), pointer :: reinjector
-      type(list_node_type), pointer :: source_network_group_dict_node
+      type(list_node_type), pointer :: group_dict_node
 
       err = 0
       call reinjector_input_dict%init(PETSC_FALSE)
@@ -1348,9 +1345,9 @@ contains
                     source_dict, reinjector, err)
                if (err > 0) exit
             else
-               source_network_group_dict_node => source_network_group_dict%get(in_name)
-               if (associated(source_network_group_dict_node)) then
-                  select type (group => source_network_group_dict_node%data)
+               group_dict_node => group_dict%get(in_name)
+               if (associated(group_dict_node)) then
+                  select type (group => group_dict_node%data)
                   class is (source_network_group_type)
                      call init_reinjector_input_group(group, reinjector_input_dict, &
                           reinjector, err)
