@@ -1097,6 +1097,7 @@ contains
                         dependency_indices(i) = -1
                      end if
                   end if
+                  output_json => fson_value_next_mpi(output_json)
                end do
                dependency_indices = pack(dependency_indices, &
                     dependency_indices > 0)
