@@ -1226,7 +1226,7 @@ contains
                call fson_get_mpi(output_json, "proportion", val = output%proportion)
             type is (rate_reinjector_output_type)
                call fson_get_mpi(output_json, "rate", -1._dp, &
-                    output%rate, logfile, trim(reinjector_str) // "rate")
+                    output%specified_rate, logfile, trim(reinjector_str) // "rate")
             end select
 
             call fson_get_mpi(output_json, "enthalpy", -1._dp, &
