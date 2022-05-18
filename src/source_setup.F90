@@ -870,21 +870,21 @@ contains
               else
                  group_dict_node => group_dict%get(node_name)
                  if (associated(group_dict_node)) then
-                    select type (dep_group => group_dict_node%data)
+                    select type (in_group => group_dict_node%data)
                     class is (source_network_group_type)
-                       if (associated(dep_group%out)) then
+                       if (associated(in_group%out)) then
                           if (present(logfile)) then
                              call logfile%write(LOG_LEVEL_ERR, "input", &
-                                  "group " // trim(dep_group%name) // &
+                                  "group " // trim(in_group%name) // &
                                   " outputs to more than one group.")
                           end if
                           err = 1
                           deallocate(group)
                           exit
                        else
-                          dep_group%out => group
-                          if (dep_group%rank == 0) dep_group%link_index = i
-                          call group%in%append(dep_group)
+                          in_group%out => group
+                          if (in_group%rank == 0) in_group%link_index = i
+                          call group%in%append(in_group)
                        end if
                     end select
                  else
