@@ -882,7 +882,7 @@ contains
       PetscReal, intent(in out) :: capacity
 
       if (rate > 0._dp) then
-         if (capacity > 0._dp) capacity = capacity + rate
+         if (capacity > -1._dp) capacity = capacity + rate
       else
          capacity = -1._dp
       end if
