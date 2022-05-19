@@ -1429,10 +1429,30 @@ contains
 
       end do
 
+      call source_network%reinjectors%traverse(init_reinjector_in_comms_iterator)
       call reinjector_input_dict%destroy()
       call reinjector_output_dict%destroy()
 
     end subroutine init_source_network_reinjectors
+
+!........................................................................
+
+    subroutine init_reinjector_in_comms_iterator(node, stopped)
+      !! Initialises MPI communicators for all reinjectors. Note this
+      !! cannot be done until after all reinjectors have been created
+      !! (the inputs for some reinjectors are assigned only during the
+      !! creation of the outputs of other reinjectors).
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type(reinjector => node%data)
+      class is (source_network_reinjector_type)
+         call reinjector%init_in_comm()
+      end select
+
+    end subroutine init_reinjector_in_comms_iterator
 
   end subroutine setup_source_network
 
