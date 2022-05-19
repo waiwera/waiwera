@@ -188,6 +188,10 @@ contains
             source%enthalpy = 1000.e3_dp
          case ("p6")
             source%enthalpy = 1100.e3_dp
+         case ("p7")
+            source%enthalpy = 800.e3_dp
+         case ("p8")
+            source%enthalpy = 900.e3_dp
          end select
       end select
 
@@ -408,6 +412,15 @@ contains
                  0._dp, 655.8766515067405e3_dp)
          case ("i10")
             call flow_test(source, 1._dp, 1._dp, 0._dp, 95.e3_dp)
+         case ("i11")
+            call flow_test(source, 4.94069064259_dp, 4.94069064259_dp, &
+                 0._dp, 640.1853353633858e3_dp)
+         case ("i12")
+            call flow_test(source, 3._dp, 3._dp, &
+                 0._dp, 640.1853353633858e3_dp)
+         case ("i13")
+            call flow_test(source, 1.94069064259_dp, 1.94069064259_dp, &
+                 0._dp, 640.1853353633858e3_dp)
          end select
       end select
 
@@ -431,6 +444,9 @@ contains
             case ("group2")
                call flow_test(group, -3._dp, -2.5675848219035333_dp, &
                     -0.4324151780964667_dp)
+            case ("group3")
+               call flow_test(group, -11._dp, -9.881381285181043_dp, &
+                    -1.1186187148189581_dp)
             end select
          end if
       end select
@@ -457,6 +473,10 @@ contains
             case ("re3")
                call reinjector_test(reinjector, 0.46446499954_dp, &
                     0.635535000462524_dp)
+            case ("re4")
+               call reinjector_test(reinjector, 0._dp, 1.1186187148189581_dp)
+            case ("re5")
+               call reinjector_test(reinjector, 0._dp, 0._dp)
             end select
          end if
       end select
