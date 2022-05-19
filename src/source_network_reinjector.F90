@@ -148,6 +148,7 @@ module source_network_reinjector_module
      private
      procedure, public :: init => source_network_reinjector_init
      procedure, public :: init_comm => source_network_reinjector_init_comm
+     procedure, public :: init_in_comm => source_network_reinjector_init_in_comm
      ! procedure, public :: comm_send => source_network_reinjector_comm_send
      procedure, public :: assign => source_network_reinjector_assign
      procedure, public :: init_data => source_network_reinjector_init_data
@@ -544,10 +545,7 @@ contains
   subroutine source_network_reinjector_init_comm(self)
     !! Initialises MPI communicator, rank and root world rank for the
     !! reinjector. It is assumed that the output node list has already
-    !! been populated and overflow (if any) has been assigned. A
-    !! second communicator is created which also includes the process
-    !! containing the input node for the reinjector. This is used for
-    !! broadcasting inflow parameters to the outputs.
+    !! been populated and overflow (if any) has been assigned.
 
     use mpi_utils_module, only: mpi_comm_root_world_rank
 
@@ -555,7 +553,6 @@ contains
     ! Locals:
     PetscInt :: colour, i
     PetscInt, allocatable :: local_index(:)
-    PetscMPIInt :: in_comm_input_rank, max_in_comm_input_rank
     PetscErrorCode :: ierr
 
     colour = MPI_UNDEFINED
@@ -570,28 +567,6 @@ contains
     self%root_world_rank = mpi_comm_root_world_rank(self%comm)
 
     call get_gather_parameters()
-
-    if (associated(self%in)) colour = 1
-
-    call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%in_comm, ierr)
-
-    if (self%in_comm /= MPI_COMM_NULL) then
-
-       call MPI_comm_rank(self%in_comm, self%in_comm_rank, ierr)
-
-       if (associated(self%in)) then
-          in_comm_input_rank = self%in_comm_rank
-       else
-          in_comm_input_rank = -1
-       end if
-       call MPI_allreduce(in_comm_input_rank, max_in_comm_input_rank, 1, &
-            MPI_INTEGER, MPI_MAX, self%in_comm, ierr)
-       self%in_comm_input_rank = max_in_comm_input_rank
-
-    else
-       self%in_comm_rank = -1
-       self%in_comm_input_rank = -1
-    end if
 
   contains
 
@@ -716,6 +691,51 @@ contains
     end subroutine output_index_iterator
 
   end subroutine source_network_reinjector_init_comm
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_reinjector_init_in_comm(self)
+    !! Creates a communicator which includes all processes in the main
+    !! self%comm communicator, plus the process containing the input
+    !! node for the reinjector. This is used for broadcasting inflow
+    !! parameters to the outputs. Also identifies the rank of the
+    !! input node in this communicator.
+
+    use mpi_utils_module, only: mpi_comm_root_world_rank
+
+    class(source_network_reinjector_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: colour
+    PetscMPIInt :: in_comm_input_rank, max_in_comm_input_rank
+    PetscErrorCode :: ierr
+
+    if ((self%rank >= 0) .or. (associated(self%in))) then
+       colour = 1
+    else
+       colour = MPI_UNDEFINED
+    end if
+
+    call MPI_comm_split(PETSC_COMM_WORLD, colour, 0, self%in_comm, ierr)
+
+    if (self%in_comm /= MPI_COMM_NULL) then
+
+       call MPI_comm_rank(self%in_comm, self%in_comm_rank, ierr)
+
+       if (associated(self%in)) then
+          in_comm_input_rank = self%in_comm_rank
+       else
+          in_comm_input_rank = -1
+       end if
+       call MPI_allreduce(in_comm_input_rank, max_in_comm_input_rank, 1, &
+            MPI_INTEGER, MPI_MAX, self%in_comm, ierr)
+       self%in_comm_input_rank = max_in_comm_input_rank
+
+    else
+       self%in_comm_rank = -1
+       self%in_comm_input_rank = -1
+    end if
+
+  end subroutine source_network_reinjector_init_in_comm
 
 !------------------------------------------------------------------------
 
