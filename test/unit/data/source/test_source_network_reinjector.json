@@ -29,7 +29,15 @@
 
         {"name": "i11", "cell": 11},
         {"name": "i12", "cell": 8},
-        {"name": "i13", "cell": 2}
+        {"name": "i13", "cell": 2},
+
+        {"name": "p9", "cell": 9, "rate": -6},
+        {"name": "p10", "cell": 1, "rate": -5},
+
+        {"name": "i14", "cell": 1, "rate": 4},
+        {"name": "i15", "cell": 3, "rate": 1},
+        {"name": "i16", "cell": 8, "rate": 1.5},
+        {"name": "i17", "cell": 11, "rate": 1.8}
 
     ],
     "network": {
@@ -38,6 +46,8 @@
              "separator": {"pressure": 0.5e6}},
             {"name": "group2", "in": ["p4", "p5"]},
             {"name": "group3", "in": ["p7", "p8"],
+             "separator": {"pressure": 0.5e6}},
+            {"name": "group4", "in": ["p9", "p10"],
              "separator": {"pressure": 0.5e6}}
         ],
         "reinject": [
@@ -78,6 +88,19 @@
              "water": [
                  {"out": "i12", "rate": 3},
                  {"out": "i13"}
+             ]
+            },
+            {"name": "re6", "in": "group4",
+             "water": [
+                 {"out": "i14", "proportion": 0.5},
+                 {"out": "re7", "proportion": 0.3},
+                 {"out": "i17", "proportion": 0.2}
+             ]
+            },
+            {"name": "re7",
+             "water": [
+                 {"out": "i15", "proportion": 0.4},
+                 {"out": "i16", "proportion": 0.6}
              ]
             }
         ]
