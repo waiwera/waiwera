@@ -701,8 +701,6 @@ contains
     !! parameters to the outputs. Also identifies the rank of the
     !! input node in this communicator.
 
-    use mpi_utils_module, only: mpi_comm_root_world_rank
-
     class(source_network_reinjector_type), intent(in out) :: self
     ! Locals:
     PetscInt :: colour
