@@ -1286,6 +1286,8 @@ contains
                               out_reinjector%in => output
                               out_reinjector%link_index = output_index
                               call reinjector%out%append(output)
+                           else
+                              deallocate(output)
                            end if
                            call reinjector_output_dict%add(out_name)
                         end select
