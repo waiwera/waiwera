@@ -27,6 +27,7 @@ module mpi_utils_module
 
   public :: mpi_broadcast_error_flag, mpi_broadcast_logical
   public :: get_mpi_int_gather_array, mpi_comm_root_world_rank
+  public :: mpi_comm_send
 
 contains
 
@@ -126,6 +127,32 @@ contains
     mpi_comm_root_world_rank = max_root_world_rank
 
   end function mpi_comm_root_world_rank
+
+!------------------------------------------------------------------------
+
+  subroutine mpi_comm_send(comm, data, from_rank, to_rank)
+    !! Sends PetscReal data from from_rank to to_rank, using the
+    !! specified communicator.  (Note that from_rank and to_rank must
+    !! be the same on all processes.)
+
+    MPI_Comm, intent(in) :: comm
+    PetscReal, intent(in out) :: data !! PetscReal data to send
+    PetscMPIInt, intent(in) :: from_rank !! Rank to send from
+    PetscMPIInt, intent(in) :: to_rank !! Rank to send to
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(comm, rank, ierr)
+
+    if (rank == from_rank) then
+       call MPI_send(data, 1, MPI_DOUBLE_PRECISION, to_rank, 0, comm, ierr)
+    else if (rank == to_rank) then
+       call MPI_recv(data, 1, MPI_DOUBLE_PRECISION, from_rank, 0, comm, &
+            MPI_STATUS_IGNORE, ierr)
+    end if
+
+  end subroutine mpi_comm_send
 
 !------------------------------------------------------------------------
 
