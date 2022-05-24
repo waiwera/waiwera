@@ -563,8 +563,8 @@ contains
 
     self%in => null()
     call self%out%init(owner = PETSC_TRUE)
-    self%overflow%out => null()
     allocate(self%overflow)
+    call self%overflow%init(self)
 
   end subroutine source_network_reinjector_init
 
