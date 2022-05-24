@@ -111,9 +111,12 @@ module source_network_reinjector_module
      !! display mass flow balances left over after specified outputs
      !! have been reinjected, and optionally direct them to another
      !! network node.
+     private
+     PetscMPIInt :: out_world_rank !! Rank in world communicator of output node
    contains
      private
      procedure, public :: init => overflow_reinjector_output_init
+     procedure, public :: get_world_rank => overflow_reinjector_output_get_world_rank
      procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
      procedure, public :: node_limit => overflow_reinjector_output_node_limit
@@ -457,8 +460,33 @@ contains
     type(source_network_reinjector_type), target, intent(in) :: reinjector
 
     self%reinjector => reinjector
+    self%out => null()
 
   end subroutine overflow_reinjector_output_init
+
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_get_world_rank(self)
+    !! Gets rank in world communicator of output node, if it exists,
+    !! otherwise -1. This is used to send flows from a reinjector's
+    !! root rank to the overflow output rank.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+    ! Locals:
+    PetscMPIInt :: rank, overflow_world_rank, max_overflow_world_rank
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+    if (associated(self%out)) then
+       overflow_world_rank = rank
+    else
+       overflow_world_rank = -1
+    end if
+    call MPI_allreduce(overflow_world_rank, max_overflow_world_rank, 1, &
+         MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr)
+    self%out_world_rank = max_overflow_world_rank
+
+  end subroutine overflow_reinjector_output_get_world_rank
 
 !------------------------------------------------------------------------
 
