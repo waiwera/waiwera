@@ -940,7 +940,15 @@
                                      }}
                                     ]
                                 }
-                            }
+                            },
+                            "overflow": {"anyOf": [
+                                {"type": "string"},
+                                {"type": "object",
+                                 "properties": {
+                                     "out": {"type": "string"}
+                                 }, "additionalProperties": false}
+                            ]
+                                        }
                         }, "additionalProperties": false
                     }
                 }
