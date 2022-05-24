@@ -128,7 +128,7 @@ module source_network_reinjector_module
      private
      class(source_network_node_type), pointer, public :: in !! Input node for reinjector
      type(list_type), public :: out !! List of outputs for reinjector
-     type(overflow_reinjector_output_type), public :: overflow !! Output for overflow
+     type(overflow_reinjector_output_type), pointer, public :: overflow !! Output for overflow
      MPI_Comm :: comm !! MPI communicator for reinjector
      MPI_Comm :: in_comm !! MPI communicator for reinjector, including input node process
      PetscMPIInt, public :: rank !! Rank of reinjector in its own communicator
@@ -564,6 +564,7 @@ contains
     self%in => null()
     call self%out%init(owner = PETSC_TRUE)
     self%overflow%out => null()
+    allocate(self%overflow)
 
   end subroutine source_network_reinjector_init
 
@@ -1085,6 +1086,7 @@ contains
 
     if (associated(self%in)) self%in => null()
     call self%out%destroy(reinjector_output_list_node_data_destroy)
+    deallocate(self%overflow)
     call MPI_comm_free(self%comm, ierr)
     call MPI_comm_free(self%in_comm, ierr)
 
