@@ -1064,7 +1064,7 @@ contains
       character(5) :: key
       type(list_type) :: dep_list
       type(list_node_type), pointer :: dict_node
-      PetscInt :: reinjector_index, i, k, num_outputs
+      PetscInt :: reinjector_index, i, k, num_outputs, overflow_type
       character(max_source_network_node_name_length) :: node_name
       PetscInt, parameter :: num_keys = 2
       character(5), parameter :: keys(num_keys) = ["water", "steam"]
@@ -1074,6 +1074,7 @@ contains
 
       reinjector_json => fson_value_children_mpi(reinjectors_json)
       do reinjector_index = 0, num_reinjectors - 1
+
          call dep_list%init(owner = PETSC_FALSE)
          do k = 1, num_keys
             key = keys(k)
@@ -1098,6 +1099,30 @@ contains
                end do
             end if
          end do
+
+         node_name = ""
+         if (fson_has_mpi(reinjector_json, "overflow")) then
+            overflow_type = fson_type_mpi(reinjector_json, "overflow")
+            select case (overflow_type)
+            case (TYPE_STRING)
+               call fson_get_mpi(reinjector_json, "overflow", val = node_name)
+            case (TYPE_OBJECT)
+               if (fson_has_mpi(reinjector_json, "overflow.out")) then
+                  call fson_get_mpi(reinjector_json, "overflow.out", &
+                       val = node_name)
+               end if
+            end select
+         end if
+         if (node_name /= "") then
+            dict_node => reinjector_index_dict%get(node_name)
+            if (associated(dict_node)) then
+               select type (idx => dict_node%data)
+               type is (PetscInt)
+                  call dep_list%append(idx)
+               end select
+            end if
+         end if
+
          allocate(dependency_indices(dep_list%count))
          idep = 1
          call dep_list%traverse(dag_dependency_iterator)
@@ -1105,6 +1130,7 @@ contains
          call reinjector_dag%set_edges(reinjector_index, dependency_indices)
          deallocate(dependency_indices)
          call reinjector_specs_array(reinjector_index + 1)%set(reinjector_json)
+
          reinjector_json => fson_value_next_mpi(reinjector_json)
       end do
 
@@ -1324,6 +1350,92 @@ contains
 
     end subroutine init_reinjector_outputs
 
+!------------------------------------------------------------------------
+
+    subroutine init_reinjector_overflow(reinjector_json, reinjector_str, &
+         source_dict, source_dict_all, reinjector_output_dict, &
+         unrated_reinjection_sources, reinjector, err)
+      !! Initialises reinjector overflow.
+
+      use mpi_utils_module, only: mpi_broadcast_error_flag
+
+      type(fson_value), pointer, intent(in out) :: reinjector_json
+      character(*), intent(in) :: reinjector_str
+      type(dictionary_type), intent(in out) :: source_dict, source_dict_all, &
+           reinjector_output_dict
+      type(list_type), intent(in out) :: unrated_reinjection_sources
+      type(source_network_reinjector_type), intent(in out) :: reinjector
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscInt :: overflow_type
+      character(max_source_network_node_name_length) :: node_name
+      type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
+
+      err = 0
+      if (fson_has_mpi(reinjector_json, "overflow")) then
+         overflow_type = fson_type_mpi(reinjector_json, "overflow")
+         node_name = ""
+         select case (overflow_type)
+         case (TYPE_STRING)
+            call fson_get_mpi(reinjector_json, "overflow", val = node_name)
+         case (TYPE_OBJECT)
+            if (fson_has_mpi(reinjector_json, "overflow.out")) then
+               call fson_get_mpi(reinjector_json, "overflow.out", &
+                    val = node_name)
+            end if
+         end select
+         if (node_name /= "") then
+            if (reinjector_output_dict%has(node_name)) then
+               if (present(logfile)) then
+                  call logfile%write(LOG_LEVEL_ERR, "input", &
+                       "duplicate reinjector output: " // trim(node_name))
+               end if
+               err = 1
+            else
+               if (source_dict_all%has(node_name)) then
+                  source_dict_node => source_dict%get(node_name)
+                  if (associated(source_dict_node)) then
+                     ! source is on this process:
+                     select type (source => source_dict_node%data)
+                     type is (source_type)
+                        reinjector%overflow%out => source
+                        source%link_index = 0 ! not used
+                        if (source%unrated) then
+                           call unrated_reinjection_sources%append(source)
+                        end if
+                     end select
+                  end if
+                  call reinjector_output_dict%add(node_name)
+               else
+                  reinjector_dict_node => reinjector_dict%get(node_name)
+                  if (associated(reinjector_dict_node)) then
+                     select type (out_reinjector => reinjector_dict_node%data)
+                        class is (source_network_reinjector_type)
+                        if (out_reinjector%rank == 0) then
+                           reinjector%overflow%out => out_reinjector
+                           out_reinjector%in => reinjector%overflow
+                           out_reinjector%link_index = 0 ! not used
+                        end if
+                        call reinjector_output_dict%add(node_name)
+                     end select
+                  else
+                     if (present(logfile)) then
+                        call logfile%write(LOG_LEVEL_ERR, "input", &
+                             "unrecognised reinjector output: " // trim(node_name))
+                     end if
+                     err = 1
+                  end if
+               end if
+            end if
+         end if
+      end if
+
+      call mpi_broadcast_error_flag(err)
+
+      if (err == 0) call reinjector%overflow%get_world_rank()
+
+    end subroutine init_reinjector_overflow
+
 !........................................................................
 
     subroutine init_source_network_reinjectors(source_network, &
@@ -1406,22 +1518,28 @@ contains
                  source_network%unrated_reinjection_sources, output_index, &
                  reinjector, err)
             if (err == 0) then
-               call reinjector%init_comm()
-               if (reinjector%rank == 0) then
-                  r = num_local_root_reinjectors
-                  num_local_root_reinjectors = num_local_root_reinjectors + 1
+               call init_reinjector_overflow(reinjector_json, rstr, &
+                 source_dict, source_dict_all, reinjector_output_dict, &
+                 source_network%unrated_reinjection_sources, reinjector, err)
+               if (err == 0) then
+                  call reinjector%init_comm()
+                  if (reinjector%rank == 0) then
+                     r = num_local_root_reinjectors
+                     num_local_root_reinjectors = num_local_root_reinjectors + 1
+                  else
+                     r = -1
+                  end if
+                  reinjector%local_reinjector_index = r
+                  call source_network%reinjectors%append(reinjector)
+                  if (name /= "") then
+                     call reinjector_dict%add(name, reinjector)
+                  end if
                else
-                  r = -1
-               end if
-               reinjector%local_reinjector_index = r
-               ! TODO: enable assigning overflow output to another node
-               call reinjector%overflow%init(reinjector)
-
-               call source_network%reinjectors%append(reinjector)
-               if (name /= "") then
-                  call reinjector_dict%add(name, reinjector)
+                  deallocate(reinjector)
+                  exit
                end if
             else
+               deallocate(reinjector)
                exit
             end if
          else
