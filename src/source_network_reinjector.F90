@@ -808,6 +808,8 @@ contains
     !! Updates overflow data in reinjection vector, and assigns to
     !! overflow output node if there is one.
 
+    use mpi_utils_module, only: mpi_comm_send
+
     class(source_network_reinjector_type), intent(in out) :: self
     PetscReal, intent(in out) :: water_balance, water_enthalpy
     PetscReal, intent(in out) :: steam_balance, steam_enthalpy
@@ -817,17 +819,23 @@ contains
             steam_balance, steam_enthalpy)
     end if
 
-    ! TODO: assign overflow_rank (and bcast) at reinjector init time
-    ! if (self%overflow_rank >= 0) then
-    !    call self%comm_send(water_balance, 0, self%overflow_rank)
-    !    call self%comm_send(water_enthalpy, 0, self%overflow_rank)
-    !    call self%comm_send(steam_balance, 0, self%overflow_rank)
-    !    call self%comm_send(steam_enthalpy, 0, self%overflow_rank)
-    !    if (associated(self%overflow%out)) then
-    !       call self%overflow%update(water_balance, water_enthalpy, &
-    !            steam_balance, steam_enthalpy)
-    !    end if
-    ! end if
+    if (self%overflow%out_world_rank >= 0) then
+
+       call mpi_comm_send(PETSC_COMM_WORLD, water_balance, &
+            self%root_world_rank, self%overflow%out_world_rank)
+       call mpi_comm_send(PETSC_COMM_WORLD, water_enthalpy, &
+            self%root_world_rank, self%overflow%out_world_rank)
+       call mpi_comm_send(PETSC_COMM_WORLD, steam_balance, &
+            self%root_world_rank, self%overflow%out_world_rank)
+       call mpi_comm_send(PETSC_COMM_WORLD, steam_enthalpy, &
+            self%root_world_rank, self%overflow%out_world_rank)
+
+       if (associated(self%overflow%out)) then
+          call self%overflow%update(water_balance, water_enthalpy, &
+               steam_balance, steam_enthalpy)
+       end if
+
+    end if
 
   end subroutine source_network_reinjector_overflow_output
 
