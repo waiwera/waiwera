@@ -162,7 +162,7 @@ contains
     PetscMPIInt :: rank
     PetscInt :: ierr, err
     PetscInt :: ip, it
-    PetscReal :: visc
+    PetscReal :: Pi, Ti, visc
     character(40) :: s
     PetscReal, parameter :: tol = 1.e-8_dp
     PetscReal, parameter :: pc(6) = [0.1e6_dp, 1.e6_dp, 5.e6_dp, &
@@ -188,10 +188,12 @@ contains
     if (rank == 0) then
 
        do ip = 1, 6
+          Pi = pc(ip)
           do it = 1, 5
-             call gas%viscosity(pc(ip), t(it), visc, err)
+             Ti = t(it)
+             call gas%viscosity(Pi, Ti, visc, err)
              write(s, '(a, e8.3, a, f6.2)') 'p = ', &
-                  pc(ip), ', t = ', t(it)
+                  Pi, ', t = ', Ti
              call test%assert(0, err, trim(s) // ' error')
              call test%assert(expected_visc(ip, it), visc, s, tol)
           end do
