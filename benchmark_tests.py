@@ -35,7 +35,7 @@ for path, dirs, files in os.walk(tests_path):
     for script in scripts:
         print(os.path.join(path, script), '...', end = "")
         sys.stdout.flush()
-        cmd = ['python', script, '-np', npstr]
+        cmd = [sys.executable, script, '-np', npstr]
         if args.docker: cmd += ['-d']
         subprocess.call(cmd, stdout = open(os.devnull, 'wb'))
         if os.path.isdir('output'):
