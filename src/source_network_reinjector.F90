@@ -284,6 +284,7 @@ contains
     PetscReal, intent(in) :: enthalpy
 
     self%reinjector => reinjector
+    self%out => null()
     self%flow_type = flow_type
     self%specified_enthalpy = enthalpy
 
