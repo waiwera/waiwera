@@ -425,6 +425,18 @@ contains
          case ("i13")
             call flow_test(source, 1.94069064259_dp, 1.94069064259_dp, &
                  0._dp, 640.1853353633858e3_dp)
+         case ("i14")
+            call flow_test(source, 4._dp, 4._dp, &
+                 0._dp, 640.1853353633858e3_dp)
+         case ("i15")
+            call flow_test(source, 1._dp, 1._dp, &
+                 0._dp, 640.1853353633858e3_dp)
+         case ("i16")
+            call flow_test(source, 1.5_dp, 1.5_dp, &
+                 0._dp, 640.1853353633858e3_dp)
+         case ("i17")
+            call flow_test(source, 1.8_dp, 1.8_dp, &
+                 0._dp, 640.1853353633858e3_dp)
          end select
       end select
 
