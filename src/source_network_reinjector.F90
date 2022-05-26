@@ -463,6 +463,10 @@ contains
     self%reinjector => reinjector
     self%out => null()
 
+    allocate(self%rate, self%enthalpy)
+    allocate(self%water_rate, self%water_enthalpy)
+    allocate(self%steam_rate, self%steam_enthalpy)
+
   end subroutine overflow_reinjector_output_init
 
 !------------------------------------------------------------------------
