@@ -85,10 +85,10 @@ contains
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
-    PetscInt, parameter :: expected_num_sources = 27
+    PetscInt, parameter :: expected_num_sources = 33
     PetscInt, parameter :: expected_num_unrated_reinjection_sources = 10
-    PetscInt, parameter :: expected_num_groups = 4
-    PetscInt, parameter :: expected_num_reinjectors = 7
+    PetscInt, parameter :: expected_num_groups = 5
+    PetscInt, parameter :: expected_num_reinjectors = 8
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_reinjector.json")
@@ -196,6 +196,10 @@ contains
             source%enthalpy = 900.e3_dp
          case ("p10")
             source%enthalpy = 800.e3_dp
+         case ("p11")
+            source%enthalpy = 800.e3_dp
+         case ("p12")
+            source%enthalpy = 900.e3_dp
          end select
       end select
 
@@ -426,17 +430,22 @@ contains
             call flow_test(source, 1.94069064259_dp, 1.94069064259_dp, &
                  0._dp, 640.1853353633858e3_dp)
          case ("i14")
-            call flow_test(source, 4._dp, 4._dp, &
-                 0._dp, 640.1853353633858e3_dp)
+            call flow_test(source, 4._dp, 4._dp, 0._dp, 640.1853353633858e3_dp)
          case ("i15")
-            call flow_test(source, 1._dp, 1._dp, &
-                 0._dp, 640.1853353633858e3_dp)
+            call flow_test(source, 1._dp, 1._dp, 0._dp, 640.1853353633858e3_dp)
          case ("i16")
-            call flow_test(source, 1.5_dp, 1.5_dp, &
-                 0._dp, 640.1853353633858e3_dp)
+            call flow_test(source, 1.5_dp, 1.5_dp, 0._dp, 640.1853353633858e3_dp)
          case ("i17")
-            call flow_test(source, 1.8_dp, 1.8_dp, &
-                 0._dp, 640.1853353633858e3_dp)
+            call flow_test(source, 1.8_dp, 1.8_dp, 0._dp, 640.1853353633858e3_dp)
+         case ("i18")
+            call flow_test(source, 4._dp, 4._dp, 0._dp, 640.1853353633858e3_dp)
+         case ("i19")
+            call flow_test(source, 2.5_dp, 2.5_dp, 0._dp, 640.1853353633858e3_dp)
+         case ("i20")
+            call flow_test(source, 1.8_dp, 1.8_dp, 0._dp, 640.1853353633858e3_dp)
+         case ("i21")
+            call flow_test(source, 2.7_dp, 1.58138128518_dp, &
+                 1.1186187148189581_dp, 1513.50433944e3_dp)
          end select
       end select
 
@@ -464,6 +473,9 @@ contains
                call flow_test(group, -11._dp, -9.881381285181043_dp, &
                     -1.1186187148189581_dp)
             case ("group4")
+               call flow_test(group, -11._dp, -9.881381285181043_dp, &
+                    -1.1186187148189581_dp)
+            case ("group5")
                call flow_test(group, -11._dp, -9.881381285181043_dp, &
                     -1.1186187148189581_dp)
             end select
@@ -500,6 +512,8 @@ contains
                call reinjector_test(reinjector, 1.58138128518_dp, 1.1186187148189581_dp)
             case ("re7")
                call reinjector_test(reinjector, 0._dp, 0._dp)
+            case ("re8")
+               call reinjector_test(reinjector, 1.58138128518_dp, 1.1186187148189581_dp)
             end select
          end if
       end select

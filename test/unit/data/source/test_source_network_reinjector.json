@@ -37,7 +37,15 @@
         {"name": "i14", "cell": 1, "rate": 4},
         {"name": "i15", "cell": 3, "rate": 1},
         {"name": "i16", "cell": 8, "rate": 1.5},
-        {"name": "i17", "cell": 11, "rate": 1.8}
+        {"name": "i17", "cell": 11, "rate": 1.8},
+
+        {"name": "p11", "cell": 8, "rate": -5},
+        {"name": "p12", "cell": 2, "rate": -6},
+
+        {"name": "i18", "cell": 1, "rate": 4},
+        {"name": "i19", "cell": 5, "rate": 2.5},
+        {"name": "i20", "cell": 11, "rate": 1.8},
+        {"name": "i21", "cell": 7, "rate": 2}
 
     ],
     "network": {
@@ -48,6 +56,8 @@
             {"name": "group3", "in": ["p7", "p8"],
              "separator": {"pressure": 0.5e6}},
             {"name": "group4", "in": ["p9", "p10"],
+             "separator": {"pressure": 0.5e6}},
+            {"name": "group5", "in": ["p11", "p12"],
              "separator": {"pressure": 0.5e6}}
         ],
         "reinject": [
@@ -102,6 +112,14 @@
                  {"out": "i15", "proportion": 0.4},
                  {"out": "i16", "proportion": 0.6}
              ]
+            },
+            {"name": "re8", "in": "group5",
+             "water": [
+                 {"out": "i18", "proportion": 0.5},
+                 {"out": "i19", "proportion": 0.3},
+                 {"out": "i20", "proportion": 0.2}
+             ],
+             "overflow": "i21"
             }
         ]
     }
