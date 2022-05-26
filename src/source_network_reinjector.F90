@@ -835,10 +835,8 @@ contains
        call mpi_comm_send(PETSC_COMM_WORLD, steam_enthalpy, &
             self%root_world_rank, self%overflow%out_world_rank)
 
-       if (associated(self%overflow%out)) then
-          call self%overflow%update(water_balance, water_enthalpy, &
-               steam_balance, steam_enthalpy)
-       end if
+       call self%overflow%update(water_balance, water_enthalpy, &
+            steam_balance, steam_enthalpy)
 
     end if
 
