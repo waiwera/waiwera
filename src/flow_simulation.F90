@@ -711,10 +711,18 @@ contains
          int_values = [dof_total, dof_min, dof_max], &
          real_keys = ['imbalance'], &
          real_values = [dof_imbalance], rank = 0)
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'source', &
-         int_keys = ['count'], int_values = [self%source_network%num_sources])
-    call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'network.group', &
-         int_keys = ['count'], int_values = [self%source_network%num_groups])
+    if (self%source_network%num_sources > 0) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'source', &
+            int_keys = ['count'], int_values = [self%source_network%num_sources])
+    end if
+    if (self%source_network%num_groups > 0) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'network.group', &
+            int_keys = ['count'], int_values = [self%source_network%num_groups])
+    end if
+    if (self%source_network%num_reinjectors > 0) then
+       call self%logfile%write(LOG_LEVEL_INFO, 'simulation', 'network.reinject', &
+            int_keys = ['count'], int_values = [self%source_network%num_reinjectors])
+    end if
 
     call self%logfile%write_blank()
 

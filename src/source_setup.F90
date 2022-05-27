@@ -96,6 +96,7 @@ contains
 
     source_network%num_sources = 0
     source_network%num_groups = 0
+    source_network%num_reinjectors = 0
     num_tracers = size(tracer_names)
     num_local_root_groups = 0
     num_local_root_reinjectors = 0
