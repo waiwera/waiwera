@@ -145,11 +145,13 @@ contains
 
     call MPI_comm_rank(comm, rank, ierr)
 
-    if (rank == from_rank) then
-       call MPI_send(data, 1, MPI_DOUBLE_PRECISION, to_rank, 0, comm, ierr)
-    else if (rank == to_rank) then
-       call MPI_recv(data, 1, MPI_DOUBLE_PRECISION, from_rank, 0, comm, &
-            MPI_STATUS_IGNORE, ierr)
+    if (from_rank /= to_rank) then
+       if (rank == from_rank) then
+          call MPI_send(data, 1, MPI_DOUBLE_PRECISION, to_rank, 0, comm, ierr)
+       else if (rank == to_rank) then
+          call MPI_recv(data, 1, MPI_DOUBLE_PRECISION, from_rank, 0, comm, &
+               MPI_STATUS_IGNORE, ierr)
+       end if
     end if
 
   end subroutine mpi_comm_send
