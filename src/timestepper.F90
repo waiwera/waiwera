@@ -1296,9 +1296,11 @@ contains
              end if
           else
              call check_num_tries(TIMESTEP_AUX_NOT_CONVERGED)
+             self%checkpoints%hit = PETSC_FALSE
           end if
        else
           call check_num_tries(TIMESTEP_NOT_CONVERGED)
+          self%checkpoints%hit = PETSC_FALSE
        end if
     end if
 
