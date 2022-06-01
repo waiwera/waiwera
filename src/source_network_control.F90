@@ -24,6 +24,7 @@ module source_network_control_module
   use kinds_module
   use control_module
   use source_network_node_module
+  use source_network_reinjector_module
   use list_module
 
   PetscInt, parameter, public :: max_limiter_type_length = 5
@@ -41,10 +42,34 @@ module source_network_control_module
      procedure, public :: iterator => limiter_table_source_network_control_iterator
   end type limiter_table_source_network_control_type
 
+  type, public, extends(table_object_control_type) :: &
+       reinjector_rate_table_source_network_control_type
+     !! Controls reinjector output rate via a table of values vs. time.
+   contains
+     private
+     procedure, public :: iterator => reinjector_rate_table_source_network_control_iterator
+  end type reinjector_rate_table_source_network_control_type
+
+  type, public, extends(table_object_control_type) :: &
+       reinjector_proportion_table_source_network_control_type
+     !! Controls reinjector output proportion via a table of values vs. time.
+   contains
+     private
+     procedure, public :: iterator => reinjector_proportion_table_source_network_control_iterator
+  end type reinjector_proportion_table_source_network_control_type
+
+  type, public, extends(table_object_control_type) :: &
+       reinjector_enthalpy_table_source_network_control_type
+     !! Controls reinjector output enthalpy via a table of values vs. time.
+   contains
+     private
+     procedure, public :: iterator => reinjector_enthalpy_table_source_network_control_iterator
+  end type reinjector_enthalpy_table_source_network_control_type
+
 contains
 
 !------------------------------------------------------------------------
-! Limiter table source network controls:
+! Limiter table source network control:
 !------------------------------------------------------------------------
 
   subroutine limiter_table_source_network_control_iterator(self, node, &
@@ -66,5 +91,74 @@ contains
   end subroutine limiter_table_source_network_control_iterator
 
 !------------------------------------------------------------------------  
+! Reinjector rate table source network control:
+!------------------------------------------------------------------------
+
+  subroutine reinjector_rate_table_source_network_control_iterator(self, &
+       node, stopped)
+    !! Updates reinjector output flow rate from table.
+
+    class(reinjector_rate_table_source_network_control_type), &
+         intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node !! List node
+    PetscBool, intent(out) :: stopped
+
+    stopped = PETSC_FALSE
+    select type (output => node%data)
+    class is (rate_reinjector_output_type)
+       associate(rate => self%value(1))
+         output%specified_rate = rate
+       end associate
+    end select
+
+  end subroutine reinjector_rate_table_source_network_control_iterator
+
+!------------------------------------------------------------------------
+! Reinjector proportion table source network control:
+!------------------------------------------------------------------------
+
+  subroutine reinjector_proportion_table_source_network_control_iterator(self, &
+       node, stopped)
+    !! Updates reinjector output flow proportion from table.
+
+    class(reinjector_proportion_table_source_network_control_type), &
+         intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node !! List node
+    PetscBool, intent(out) :: stopped
+
+    stopped = PETSC_FALSE
+    select type (output => node%data)
+    class is (proportion_reinjector_output_type)
+       associate(proportion => self%value(1))
+         output%proportion = proportion
+       end associate
+    end select
+
+  end subroutine reinjector_proportion_table_source_network_control_iterator
+
+!------------------------------------------------------------------------
+! Reinjector enthalpy table source network control:
+!------------------------------------------------------------------------
+
+  subroutine reinjector_enthalpy_table_source_network_control_iterator(self, &
+       node, stopped)
+    !! Updates reinjector output enthalpy from table.
+
+    class(reinjector_enthalpy_table_source_network_control_type), &
+         intent(in out) :: self
+    type(list_node_type), pointer, intent(in out) :: node !! List node
+    PetscBool, intent(out) :: stopped
+
+    stopped = PETSC_FALSE
+    select type (output => node%data)
+    class is (specified_reinjector_output_type)
+       associate(enthalpy => self%value(1))
+         output%specified_enthalpy = enthalpy
+       end associate
+    end select
+
+  end subroutine reinjector_enthalpy_table_source_network_control_iterator
+
+!------------------------------------------------------------------------
 
 end module source_network_control_module
