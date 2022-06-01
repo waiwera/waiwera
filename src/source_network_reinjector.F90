@@ -275,18 +275,16 @@ contains
 !------------------------------------------------------------------------
 
   subroutine specified_reinjector_output_init(self, reinjector, &
-       flow_type, enthalpy)
+       flow_type)
     !! Initialises specified reinjector output.
 
     class(specified_reinjector_output_type), intent(in out) :: self
     type(source_network_reinjector_type), target, intent(in) :: reinjector
     PetscInt, intent(in) :: flow_type
-    PetscReal, intent(in) :: enthalpy
 
     self%reinjector => reinjector
     self%out => null()
     self%flow_type = flow_type
-    self%specified_enthalpy = enthalpy
 
     allocate(self%rate, self%enthalpy)
     allocate(self%water_rate, self%water_enthalpy)

@@ -1262,6 +1262,7 @@ contains
             else
                allocate(rate_reinjector_output_type :: output)
             end if
+            call output%init(reinjector, flow_type)
 
             select type (output)
             type is (proportion_reinjector_output_type)
@@ -1273,7 +1274,7 @@ contains
 
             call fson_get_mpi(output_json, "enthalpy", -1._dp, &
                  enthalpy, logfile, trim(reinjector_str) // "enthalpy")
-            call output%init(reinjector, flow_type, enthalpy)
+            output%specified_enthalpy = enthalpy
 
             if (fson_has_mpi(output_json, "out")) then
                call fson_get_mpi(output_json, "out", val = out_name)
