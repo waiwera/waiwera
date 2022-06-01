@@ -1225,7 +1225,7 @@ contains
 
     subroutine init_reinjector_outputs(reinjector_json, reinjector_str, &
          flow_type_str, source_dict, source_dict_all, reinjector_output_dict, &
-         unrated_reinjection_sources, output_index, reinjector, err)
+         source_network, output_index, reinjector, err)
       !! Initialises reinjector outputs of the given flow type.
 
       use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1234,7 +1234,7 @@ contains
       character(*), intent(in) :: reinjector_str, flow_type_str
       type(dictionary_type), intent(in out) :: source_dict, source_dict_all, &
            reinjector_output_dict
-      type(list_type), intent(in out) :: unrated_reinjection_sources
+      type(source_network_type), intent(in out) :: source_network
       type(source_network_reinjector_type), intent(in out) :: reinjector
       PetscInt, intent(in out) :: output_index
       PetscErrorCode, intent(in out) :: err
@@ -1287,7 +1287,7 @@ contains
                            source%link_index = output_index
                            call reinjector%out%append(output)
                            if (source%unrated) then
-                             call unrated_reinjection_sources%append(source)
+                             call source_network%unrated_reinjection_sources%append(source)
                            end if
                         end select
                      else ! source is not on this process:
@@ -1320,7 +1320,6 @@ contains
                      end if
                   end if
                end if
-               output_json => fson_value_next_mpi(output_json)
             else
                if (present(logfile)) then
                   write(istr, '(i0)') i - 1
@@ -1334,6 +1333,10 @@ contains
                exit
             end if
 
+            call setup_source_reinjector_output_controls(output_json, output, &
+                 source_network)
+
+            output_json => fson_value_next_mpi(output_json)
             output_index = output_index + 1
          end do
 
@@ -1419,6 +1422,143 @@ contains
       end if
 
     end subroutine get_initial_reinjector_output_enthalpy
+
+!------------------------------------------------------------------------
+
+    subroutine setup_rate_reinjector_output_control(output_json, &
+         interpolation_type, averaging_type, output, source_network)
+      !! Sets up control for rate reinjector output.
+
+      type(fson_value), pointer, intent(in out) :: output_json
+      PetscInt, intent(in) :: interpolation_type, averaging_type
+      class(specified_reinjector_output_type), pointer, intent(in out) :: output
+      class(source_network_type), intent(in out) :: source_network
+      ! Locals:
+      PetscInt :: rate_type
+      PetscReal, allocatable :: data_array(:,:)
+      type(reinjector_rate_table_source_network_control_type), pointer :: control
+      type(list_type) :: outputs
+
+      if (fson_has_mpi(output_json, "rate")) then
+         rate_type = fson_type_mpi(output_json, "rate")
+         if (rate_type == TYPE_ARRAY) then
+            call fson_get_mpi(output_json, "rate", val = data_array)
+            if (associated(output)) then
+               allocate(control)
+               call outputs%init(owner = PETSC_FALSE)
+               call outputs%append(output)
+               call control%init(outputs, data_array, interpolation_type, &
+                    averaging_type)
+               call source_network%network_controls%append(control)
+            end if
+         end if
+      end if
+
+    end subroutine setup_rate_reinjector_output_control
+
+!------------------------------------------------------------------------
+
+    subroutine setup_proportion_reinjector_output_control(output_json, &
+         interpolation_type, averaging_type, output, source_network)
+      !! Sets up control for proportion reinjector output.
+
+      type(fson_value), pointer, intent(in out) :: output_json
+      PetscInt, intent(in) :: interpolation_type, averaging_type
+      class(specified_reinjector_output_type), pointer, intent(in out) :: output
+      class(source_network_type), intent(in out) :: source_network
+      ! Locals:
+      PetscInt :: proportion_type
+      PetscReal, allocatable :: data_array(:,:)
+      type(reinjector_proportion_table_source_network_control_type), pointer :: control
+      type(list_type) :: outputs
+
+      if (fson_has_mpi(output_json, "proportion")) then
+         proportion_type = fson_type_mpi(output_json, "proportion")
+         if (proportion_type == TYPE_ARRAY) then
+            call fson_get_mpi(output_json, "proportion", val = data_array)
+            if (associated(output)) then
+               allocate(control)
+               call outputs%init(owner = PETSC_FALSE)
+               call outputs%append(output)
+               call control%init(outputs, data_array, interpolation_type, &
+                    averaging_type)
+               call source_network%network_controls%append(control)
+            end if
+         end if
+      end if
+
+    end subroutine setup_proportion_reinjector_output_control
+
+!------------------------------------------------------------------------
+
+    subroutine setup_enthalpy_reinjector_output_control(output_json, &
+         interpolation_type, averaging_type, output, source_network)
+      !! Sets up enthalpy control for reinjector output.
+
+      type(fson_value), pointer, intent(in out) :: output_json
+      PetscInt, intent(in) :: interpolation_type, averaging_type
+      class(specified_reinjector_output_type), pointer, intent(in out) :: output
+      class(source_network_type), intent(in out) :: source_network
+      ! Locals:
+      PetscInt :: enthalpy_type
+      PetscReal, allocatable :: data_array(:,:)
+      type(reinjector_enthalpy_table_source_network_control_type), pointer :: control
+      type(list_type) :: outputs
+
+      if (fson_has_mpi(output_json, "enthalpy")) then
+         enthalpy_type = fson_type_mpi(output_json, "enthalpy")
+         if (enthalpy_type == TYPE_ARRAY) then
+            call fson_get_mpi(output_json, "enthalpy", val = data_array)
+            if (associated(output)) then
+               allocate(control)
+               call outputs%init(owner = PETSC_FALSE)
+               call outputs%append(output)
+               call control%init(outputs, data_array, interpolation_type, &
+                    averaging_type)
+               call source_network%network_controls%append(control)
+            end if
+         end if
+      end if
+
+    end subroutine setup_enthalpy_reinjector_output_control
+
+!------------------------------------------------------------------------
+
+    subroutine setup_source_reinjector_output_controls(output_json, output, &
+         source_network)
+      !! Sets up controls on reinjector outputs.
+
+      use interpolation_module, only: interpolation_type_from_str, &
+           averaging_type_from_str, max_interpolation_str_length, &
+           max_averaging_str_length, default_interpolation_str, &
+           default_averaging_str
+
+      type(fson_value), pointer, intent(in out) :: output_json
+      class(specified_reinjector_output_type), pointer, intent(in out) :: output
+      class(source_network_type), intent(in out) :: source_network
+      ! Locals:
+      PetscInt :: interpolation_type, averaging_type
+      character(max_interpolation_str_length) :: interpolation_str
+      character(max_averaging_str_length) :: averaging_str
+
+      call fson_get_mpi(output_json, "interpolation", &
+           default_interpolation_str, interpolation_str)
+      interpolation_type = interpolation_type_from_str(interpolation_str)
+
+      call fson_get_mpi(output_json, "averaging", &
+           default_averaging_str, averaging_str)
+      averaging_type = averaging_type_from_str(averaging_str)
+
+      call setup_rate_reinjector_output_control(output_json, &
+           interpolation_type, averaging_type, output, source_network)
+
+      call setup_proportion_reinjector_output_control(output_json, &
+           interpolation_type, averaging_type, output, source_network)
+
+      call setup_enthalpy_reinjector_output_control(output_json, &
+           interpolation_type, averaging_type, output, source_network)
+
+    end subroutine setup_source_reinjector_output_controls
 
 !------------------------------------------------------------------------
 
@@ -1580,13 +1720,11 @@ contains
          output_index = 1
          call init_reinjector_outputs(reinjector_json, rstr, "water", &
               source_dict, source_dict_all, reinjector_output_dict, &
-              source_network%unrated_reinjection_sources, output_index, &
-              reinjector, err)
+              source_network, output_index, reinjector, err)
          if (err == 0) then
             call init_reinjector_outputs(reinjector_json, rstr, "steam", &
                  source_dict, source_dict_all, reinjector_output_dict, &
-                 source_network%unrated_reinjection_sources, output_index, &
-                 reinjector, err)
+                 source_network, output_index, reinjector, err)
             if (err == 0) then
                call init_reinjector_overflow(reinjector_json, rstr, &
                  source_dict, source_dict_all, reinjector_output_dict, &
