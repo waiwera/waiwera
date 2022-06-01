@@ -72,7 +72,6 @@ module source_network_reinjector_module
      !! (e.g. water or steam).
      private
      PetscInt, public :: flow_type !! Type of output flow (water or steam)
-     ! TODO: could make enthalpy time-dependent?
      PetscReal, public :: specified_enthalpy !! Specified enthalpy for output (-1 to use input enthalpy)
    contains
      private
@@ -88,7 +87,6 @@ module source_network_reinjector_module
   type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
      !! Type for reinjector output which has a specified output rate.
      private
-     ! TODO: make this an interpolation table for time-dependent rate
      PetscReal, public :: specified_rate !! Specified output rate
    contains
      private
@@ -99,7 +97,6 @@ module source_network_reinjector_module
      !! Type for reinjector output with an output rate which is a
      !! specified proportion of the input rate.
      private
-     ! TODO: make this an interpolation table for time-dependent proportion
      PetscReal, public :: proportion !! Specified output rate
    contains
      private
