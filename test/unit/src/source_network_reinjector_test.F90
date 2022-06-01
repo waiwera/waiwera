@@ -81,7 +81,7 @@ contains
     PetscSection :: source_section, group_section, reinjector_section
     type(source_network_type) :: source_network
     PetscMPIInt :: rank
-    PetscReal, parameter :: start_time = 0._dp, end_time = 100._dp
+    PetscReal, parameter :: start_time = 100._dp, end_time = 200._dp
     PetscReal, parameter :: interval(2) = [start_time, end_time]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr

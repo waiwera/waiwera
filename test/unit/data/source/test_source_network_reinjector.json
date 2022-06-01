@@ -77,13 +77,14 @@
                  {"out": "i2", "proportion": 0.4, "enthalpy": 83.9e3}
              ],
              "steam": [
-                 {"out": "i3", "rate": 0.4, "enthalpy": 1200e3},
+                 {"out": "i3", "rate": [[0, 0], [50, 0.4], [350, 0.5]],
+                  "enthalpy": 1200e3, "interpolation": "step"},
                  {"out": "i4", "proportion": 0.25}
              ]},
 
             {"name": "re2", "in": "group2",
              "water": [
-                 {"out": "i5", "enthalpy": 90e3},
+                 {"out": "i5", "enthalpy": [[0, 80e3], [300, 100e3]]},
                  {"out": "i6", "rate": 1.5, "enthalpy": 85e3},
                  {"out": "i7", "rate": 1, "enthalpy": 83.9e3}
              ],
@@ -100,8 +101,8 @@
 
             {"name": "re4", "in": "group3",
              "water": [
-                 {"out": "i11", "proportion": 0.5},
-                 {"out": "re5", "proportion": 0.5}
+                 {"out": "i11", "proportion": [[100, 0.4], [200, 0.6]]},
+                 {"out": "re5", "proportion": [[100, 0.6], [200, 0.4]]}
              ]
             },
             {"name": "re5",
