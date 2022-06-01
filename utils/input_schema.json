@@ -911,14 +911,46 @@
                                     {"type": "object",
                                      "properties": {
                                          "out": {"type": "string"},
-                                         "rate":  {"type": "number", "minimum": 0},
-                                         "enthalpy": {"type": "number", "minimum": 0}
+                                         "rate":  {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number"},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "enthalpy": {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number"},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "interpolation": {"type": "string",
+                                                           "enum": ["linear", "Linear",
+                                                                    "step", "Step"]},
+                                         "averaging": {"type": "string",
+                                                       "enum": ["endpoint", "Endpoint",
+                                                                "integrate", "Integrate"]}
                                      }},
                                     {"type": "object",
                                      "properties": {
                                          "out": {"type": "string"},
-                                         "proportion":  {"type": "number", "minimum": 0},
-                                         "enthalpy": {"type": "number", "minimum": 0}
+                                         "proportion":  {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number"},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "enthalpy": {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number"},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "interpolation": {"type": "string",
+                                                           "enum": ["linear", "Linear",
+                                                                    "step", "Step"]},
+                                         "averaging": {"type": "string",
+                                                       "enum": ["endpoint", "Endpoint",
+                                                                "integrate", "Integrate"]}
                                      }}
                                     ]
                                 }
@@ -929,14 +961,46 @@
                                     {"type": "object",
                                      "properties": {
                                          "out": {"type": "string"},
-                                         "rate":  {"type": "number", "minimum": 0},
-                                         "enthalpy": {"type": "number", "minimum": 0}
+                                         "rate":  {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number", "minimum": 0},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "enthalpy": {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number", "minimum": 0},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "interpolation": {"type": "string",
+                                                           "enum": ["linear", "Linear",
+                                                                    "step", "Step"]},
+                                         "averaging": {"type": "string",
+                                                       "enum": ["endpoint", "Endpoint",
+                                                                "integrate", "Integrate"]}
                                      }},
                                     {"type": "object",
                                      "properties": {
                                          "out": {"type": "string"},
-                                         "proportion":  {"type": "number", "minimum": 0},
-                                         "enthalpy": {"type": "number", "minimum": 0}
+                                         "proportion":  {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number", "minimum": 0},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "enthalpy": {"oneOf": [
+                                             {"type": "number", "minimum": 0},
+                                             {"type": "array",
+                                              "items": {"type": "array",
+                                                        "items": {"type": "number", "minimum": 0},
+                                                        "minItems": 2, "maxItems": 2}}]},
+                                         "interpolation": {"type": "string",
+                                                           "enum": ["linear", "Linear",
+                                                                    "step", "Step"]},
+                                         "averaging": {"type": "string",
+                                                       "enum": ["endpoint", "Endpoint",
+                                                                "integrate", "Integrate"]}
                                      }}
                                     ]
                                 }
