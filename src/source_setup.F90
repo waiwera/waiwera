@@ -1339,6 +1339,7 @@ contains
                        trim(reinjector%name) // "." // trim(flow_type_str) // &
                        "[" // trim(istr) // "]")
                end if
+               deallocate(output)
                err = 1
                exit
             end if
