@@ -1242,7 +1242,6 @@ contains
       PetscInt :: flow_type, num_outputs, i
       type(fson_value), pointer :: outputs_json, output_json
       class(specified_reinjector_output_type), pointer :: output
-      PetscReal :: enthalpy
       character(max_source_network_node_name_length) :: out_name
       type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
       character(12) :: istr
@@ -1259,22 +1258,13 @@ contains
 
             if (fson_has_mpi(output_json, "proportion")) then
                allocate(proportion_reinjector_output_type :: output)
+               call get_initial_reinjector_output_proportion(output_json, output)
             else
                allocate(rate_reinjector_output_type :: output)
+               call get_initial_reinjector_output_rate(output_json, output)
             end if
             call output%init(reinjector, flow_type)
-
-            select type (output)
-            type is (proportion_reinjector_output_type)
-               call fson_get_mpi(output_json, "proportion", val = output%proportion)
-            type is (rate_reinjector_output_type)
-               call fson_get_mpi(output_json, "rate", -1._dp, &
-                    output%specified_rate, logfile, trim(reinjector_str) // "rate")
-            end select
-
-            call fson_get_mpi(output_json, "enthalpy", -1._dp, &
-                 enthalpy, logfile, trim(reinjector_str) // "enthalpy")
-            output%specified_enthalpy = enthalpy
+            call get_initial_reinjector_output_enthalpy(output_json, output)
 
             if (fson_has_mpi(output_json, "out")) then
                call fson_get_mpi(output_json, "out", val = out_name)
@@ -1352,6 +1342,83 @@ contains
       call mpi_broadcast_error_flag(err)
 
     end subroutine init_reinjector_outputs
+
+!------------------------------------------------------------------------
+
+    subroutine get_initial_reinjector_output_proportion(output_json, output)
+      !! Gets initial flow proportion for proportion reinjector output.
+
+      type(fson_value), pointer, intent(in out) :: output_json
+      class(specified_reinjector_output_type), intent(in out) :: output
+      ! Locals:
+      PetscInt :: proportion_type
+
+      select type (prop_output => output)
+      class is (proportion_reinjector_output_type)
+         proportion_type = fson_type_mpi(output_json, "proportion")
+         select case (proportion_type)
+         case (TYPE_REAL, TYPE_INTEGER)
+            call fson_get_mpi(output_json, "proportion", &
+                 val = prop_output%proportion)
+         case default
+            prop_output%proportion = default_reinjector_output_proportion
+         end select
+      end select
+
+    end subroutine get_initial_reinjector_output_proportion
+
+!------------------------------------------------------------------------
+
+    subroutine get_initial_reinjector_output_rate(output_json, output)
+      !! Gets initial flow rate for rate reinjector output.
+
+      type(fson_value), pointer, intent(in out) :: output_json
+      class(specified_reinjector_output_type), intent(in out) :: output
+      ! Locals:
+      PetscInt :: rate_type
+
+      select type (rate_output => output)
+      class is (rate_reinjector_output_type)
+         if (fson_has_mpi(output_json, "rate")) then
+            rate_type = fson_type_mpi(output_json, "rate")
+            select case (rate_type)
+            case (TYPE_REAL, TYPE_INTEGER)
+               call fson_get_mpi(output_json, "rate", &
+                    val = rate_output%specified_rate)
+            case default
+               rate_output%specified_rate = default_reinjector_output_rate
+            end select
+         else
+            rate_output%specified_rate = default_reinjector_output_rate
+         end if
+      end select
+
+    end subroutine get_initial_reinjector_output_rate
+
+!------------------------------------------------------------------------
+
+    subroutine get_initial_reinjector_output_enthalpy(output_json, output)
+      !! Gets initial enthalpy for rate reinjector output.
+
+      type(fson_value), pointer, intent(in out) :: output_json
+      class(specified_reinjector_output_type), intent(in out) :: output
+      ! Locals:
+      PetscInt :: enthalpy_type
+
+      if (fson_has_mpi(output_json, "enthalpy")) then
+         enthalpy_type = fson_type_mpi(output_json, "enthalpy")
+         select case (enthalpy_type)
+         case (TYPE_REAL, TYPE_INTEGER)
+            call fson_get_mpi(output_json, "enthalpy", &
+                 val = output%specified_enthalpy)
+         case default
+            output%specified_enthalpy = default_reinjector_output_enthalpy
+         end select
+      else
+         output%specified_enthalpy = default_reinjector_output_enthalpy
+      end if
+
+    end subroutine get_initial_reinjector_output_enthalpy
 
 !------------------------------------------------------------------------
 
