@@ -52,6 +52,9 @@ module source_network_reinjector_module
   character(max_field_name_length), parameter, public :: &
        default_output_source_network_reinjector_fields(2) = [&
        "overflow_water_rate", "overflow_steam_rate"]
+  PetscReal, parameter, public :: default_reinjector_output_rate = -1._dp
+  PetscReal, parameter, public :: default_reinjector_output_proportion = 0._dp
+  PetscReal, parameter, public :: default_reinjector_output_enthalpy = -1._dp
 
   type, extends(source_network_node_type) :: reinjector_output_type
      !! Type for reinjector outputs, distributing part of the
