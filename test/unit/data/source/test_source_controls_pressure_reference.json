@@ -58,7 +58,7 @@
         },
         {"name": "source 9", "cell": 8,
          "direction": "in",
-         "recharge": {
+         "injectivity": {
              "coefficient": 1.1e-2,
              "pressure": 49.99e5}
         },

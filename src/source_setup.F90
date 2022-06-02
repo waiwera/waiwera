@@ -2658,12 +2658,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_recharge_coefficient(json, source_json, srcstr, &
+  subroutine get_recharge_coefficient(json, srcstr, key, source_json, &
        recharge_array, logfile)
-    !! Gets recharge coefficient for recharge source control.
+    !! Gets recharge/injectivity coefficient for recharge source control.
 
     type(fson_value), pointer, intent(in) :: json, source_json
-    character(len = *), intent(in) :: srcstr
+    character(len = *), intent(in) :: srcstr, key
     PetscReal, allocatable :: recharge_array(:,:)
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
@@ -2697,7 +2697,7 @@ contains
        case default
           if (present(logfile) .and. logfile%active) then
              call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = trim(srcstr) // "recharge.coefficient", &
+                  str_key = trim(srcstr) // trim(key) // ".coefficient", &
                   str_value = "...")
           end if
        end select
@@ -2705,7 +2705,7 @@ contains
     else
        if (present(logfile) .and. logfile%active) then
           call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               [trim(srcstr) // "recharge.coefficient"], &
+               [trim(srcstr) // trim(key) // ".coefficient"], &
                real_values = [recharge_coefficient])
        end if
     end if
@@ -2719,7 +2719,7 @@ contains
        fluid_data, fluid_section, fluid_range_start, &
        interpolation_type, averaging_type, spec_sources, eos, &
        source_network, logfile, err)
-    !! Set up recharge source controls. Recharge controls
+    !! Set up recharge/injectivity source controls. These controls
     !! can control only one source, so if multiple cells are
     !! specified, multiple corresponding recharge controls are
     !! created.
@@ -2745,32 +2745,39 @@ contains
     type(recharge_source_control_type), pointer :: recharge
     PetscBool :: calculate_reference_pressure
     PetscReal, allocatable :: recharge_array(:,:)
-    PetscInt :: pressure_table_coordinate
+    PetscInt :: pressure_table_coordinate, k
+    PetscInt, parameter :: num_keys = 2
+    character(12), parameter :: keys(num_keys) = ["recharge   ", "injectivity"]
+    character(12) :: key
 
-    if (fson_has_mpi(source_json, "recharge")) then
+    do k = 1, num_keys
+       key = keys(k)
+       if (fson_has_mpi(source_json, key)) then
 
-       call fson_get_mpi(source_json, "recharge", recharge_json)
+          call fson_get_mpi(source_json, key, recharge_json)
 
-       call get_reference_pressure(recharge_json, srcstr, "recharge", &
-            reference_pressure_array, calculate_reference_pressure, &
-            pressure_table_coordinate, logfile)
+          call get_reference_pressure(recharge_json, srcstr, key, &
+               reference_pressure_array, calculate_reference_pressure, &
+               pressure_table_coordinate, logfile)
 
-       if (pressure_table_coordinate == SRC_PRESSURE_TABLE_COORD_TIME) then
+          if (pressure_table_coordinate == SRC_PRESSURE_TABLE_COORD_TIME) then
 
-          call get_recharge_coefficient(recharge_json, source_json, &
-               srcstr, recharge_array, logfile)
+             call get_recharge_coefficient(recharge_json, srcstr, key, &
+                  source_json, recharge_array, logfile)
 
-          call spec_sources%traverse(setup_recharge_iterator)
+             call spec_sources%traverse(setup_recharge_iterator)
 
-       else
-          if (present(logfile) .and. logfile%active) then
-             call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
-                  str_key = trim(srcstr) // "recharge.pressure", &
-                  str_value = "...")
+          else
+             if (present(logfile) .and. logfile%active) then
+                call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
+                     str_key = trim(srcstr) // trim(key) // ".pressure", &
+                     str_value = "...")
+             end if
           end if
-       end if
 
-    end if
+          exit
+       end if
+    end do
 
   contains
 

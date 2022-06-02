@@ -64,6 +64,9 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |"recharge"             |object          |{}          |:ref:`recharge` source   |
    |                       |                |            |control                  |
    +-----------------------+----------------+------------+-------------------------+
+   |"injectivity"          |object          |{}          |:ref:`injectivity`       |
+   |                       |                |            |source control           |
+   +-----------------------+----------------+------------+-------------------------+
    |"limiter"              |object          |{}          |:ref:`limiter` source    |
    |                       |                |            |control                  |
    +-----------------------+----------------+------------+-------------------------+
@@ -532,6 +535,46 @@ For example, the source below has a recharge control with reference pressure set
 
    {"source": [
      {"cell": 200, "recharge": {"pressure": "initial", "coefficient": 1e-3}}
+   ]}
+
+.. index:: source controls; injectivity
+.. _injectivity:
+
+Injectivity
+-----------
+
+The injectivity source control is typically used for injection wells which inject fluid against a specified pressure, i.e. the injection rate decreases as the fluid pressure increases.
+
+The injectivity source control is in fact exactly the same as the :ref:`recharge` control, and the input and options are identical, except that in the Waiwera JSON input file, an injectivity control is added to a source specification via its **"injectivity"** value.
+
+.. note::
+   **JSON object**: injectivity source control
+
+   **JSON path**: source[`index`]["injectivity"]
+
+   +--------------+------------+------------+-------------------+
+   |**name**      |**type**    |**default** |**value**          |
+   +--------------+------------+------------+-------------------+
+   |"pressure"    |number |    |10\ :sup:`5`|reference pressure |
+   |              |array |     |Pa          |:math:`P_0` (Pa)   |
+   |              |object |    |            |                   |
+   |              |string      |            |                   |
+   +--------------+------------+------------+-------------------+
+   |"coefficient" |number |    |10\         |injectivity        |
+   |              |array |     |:sup:`-2`   |coefficient        |
+   |              |object      |m.s         |:math:`\beta` (m.s)|
+   |              |            |            |                   |
+   +--------------+------------+------------+-------------------+
+
+Usually it is not desirable for the injection rate to go negative if the fluid pressure increases above the reference pressure. Hence, like the :ref:`deliverability` source control, the injectivity control is usually used in conjunction with a direction control (see :ref:`direction`). For example:
+
+.. code-block:: json
+
+   {"source": [
+     {"cell": 200,
+      "direction": "injection",
+      "injectivity": {"pressure": 65e5, "coefficient": 1e-4}
+      }
    ]}
 
 .. index:: source controls; limiter

@@ -735,6 +735,64 @@
                                                 ]}
                                         },
                                         "additionalProperties": false},
+                           "injectivity": {"type": "object",
+                                        "properties": {
+                                            "pressure": {
+                                                "oneOf": [
+                                                    {"type": "number"},
+                                                    {"type": "array",
+                                                     "items": {
+                                                         "type": "array",
+                                                         "items": {"type": "number"},
+                                                         "minItems": 2, "maxItems": 2}},
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "time": {"type": "array",
+                                                                  "items": {
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                          "type": "number"},
+                                                                      "minItems": 2,
+                                                                      "maxItems": 2}}
+                                                     }, "additionalProperties": false
+                                                    },
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "enthalpy": {"type": "array",
+                                                                      "items": {
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                              "type": "number"},
+                                                                          "minItems": 2,
+                                                                          "maxItems": 2}}
+                                                     }, "additionalProperties": false
+                                                    },
+                                                    {"type": "string",
+                                                     "enum": ["initial", "Initial"]}
+                                                ]
+                                            },
+                                            "coefficient": {
+                                                "oneOf": [
+                                                    {"type": "number"},
+                                                    {"type": "array",
+                                                     "items": {
+                                                         "type": "array",
+                                                         "items": {"type": "number"},
+                                                         "minItems": 2, "maxItems": 2}},
+                                                    {"type": "object",
+                                                     "properties": {
+                                                         "time": {"type": "array",
+                                                                  "items": {
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                          "type": "number"},
+                                                                      "minItems": 2,
+                                                                      "maxItems": 2}}
+                                                     }, "additionalProperties": false
+                                                    }
+                                                ]}
+                                        },
+                                        "additionalProperties": false},
                            "limiter": {"oneOf": [
                                {"type": "object",
                                 "properties": {
