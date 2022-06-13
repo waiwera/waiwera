@@ -399,11 +399,11 @@ contains
 
     class(specified_reinjector_output_type), intent(in out) :: self
 
-    call self%reinjector_output_type%destroy()
-
     deallocate(self%rate, self%enthalpy)
     deallocate(self%water_rate, self%water_enthalpy)
     deallocate(self%steam_rate, self%steam_enthalpy)
+
+    call self%reinjector_output_type%destroy()
 
   end subroutine specified_reinjector_destroy
 
