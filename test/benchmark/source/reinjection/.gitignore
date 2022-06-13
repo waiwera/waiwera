@@ -1,0 +1,6 @@
+run/*
+!run/greinjection.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc
