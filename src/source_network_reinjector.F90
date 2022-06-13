@@ -264,6 +264,8 @@ contains
 
     class(reinjector_output_type), intent(in out) :: self
 
+    call self%source_network_node_type%destroy()
+
     self%reinjector => null()
     self%out => null()
 
