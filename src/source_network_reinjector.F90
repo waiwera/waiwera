@@ -120,6 +120,7 @@ module source_network_reinjector_module
      procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
      procedure, public :: node_limit => overflow_reinjector_output_node_limit
+     procedure, public :: destroy => overflow_reinjector_output_destroy
   end type overflow_reinjector_output_type
 
   type, public, extends(source_network_node_type) :: source_network_reinjector_type
@@ -548,6 +549,19 @@ contains
     end if
 
   end subroutine overflow_reinjector_output_node_limit
+
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_destroy(self)
+    !! Destroys overflow reinjector output.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+
+    deallocate(self%rate, self%enthalpy)
+
+    call self%reinjector_output_type%destroy()
+
+  end subroutine overflow_reinjector_output_destroy
 
 !------------------------------------------------------------------------
 ! Reinjector type
@@ -1094,7 +1108,9 @@ contains
 
     if (associated(self%in)) self%in => null()
     call self%out%destroy(reinjector_output_list_node_data_destroy)
+    call self%overflow%destroy()
     deallocate(self%overflow)
+
     call MPI_comm_free(self%comm, ierr)
     call MPI_comm_free(self%in_comm, ierr)
 
