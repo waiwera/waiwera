@@ -134,7 +134,6 @@ module source_network_reinjector_module
      PetscMPIInt, public :: rank !! Rank of reinjector in its own communicator
      PetscMPIInt, public :: in_comm_rank !! Rank of reinjector in self%in_comm
      PetscMPIInt, public :: in_comm_input_rank !! Rank of input node process in self%in_comm
-     ! PetscMPIInt :: overflow_rank !! Rank in communicator of overflow node (or -1)
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
      PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
      PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
