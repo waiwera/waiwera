@@ -186,8 +186,8 @@ contains
     PetscReal, intent(in) :: node_rate
     PetscReal, intent(in out) :: rate
 
-    if (node_rate > 0._dp) then
-       if (rate > 0._dp) then
+    if (node_rate > -1._dp) then
+       if (rate > -1._dp) then
           ! rates specified in both reinjector output and node:
           rate = min(rate, node_rate)
        else
@@ -893,7 +893,7 @@ contains
       PetscReal, intent(in) :: rate
       PetscReal, intent(in out) :: capacity
 
-      if (rate > 0._dp) then
+      if (rate > -1._dp) then
          if (capacity > -1._dp) capacity = capacity + rate
       else
          capacity = -1._dp
