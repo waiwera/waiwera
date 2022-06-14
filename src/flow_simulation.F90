@@ -2775,6 +2775,10 @@ contains
                call ISView(self%source_network%group_index, &
                     self%hdf5_viewer, ierr); CHKERRQ(ierr)
             end if
+            if (self%source_network%num_reinjectors > 0) then
+               call ISView(self%source_network%reinjector_index, &
+                    self%hdf5_viewer, ierr); CHKERRQ(ierr)
+            end if
          end if
     end if
 
