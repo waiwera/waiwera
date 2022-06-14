@@ -775,4 +775,7 @@ However, some of these combinations are more useful than others. There is no poi
 
 Waiwera applies controls to a source in a pre-defined order -- in fact, the same order they have been described here. (The order in which they are specified in the JSON input file is not important.) So, for example, if a source did have both a deliverability control and a recharge control, the flow rate computed by the deliverability control would be overridden by the flow rate computed by the recharge control. Controls which do not compute a flow rate (e.g. limiters, direction and factor controls), but only modify flow rates computed by other controls, are applied last.
 
+Interactions between sources
+============================
 
+For simulations in which sources interact (e.g. for groupings of wells, or reinjection), these interactions are defined not as part of the individual source specifications, but rather by means of a "source network" -- see :ref:`source_networks`.
