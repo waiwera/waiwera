@@ -43,7 +43,7 @@ A **group** takes multiple inputs and combines them into a single output. The in
 
 The mass flow rate at the output is simply the sum of the mass flow rates from the inputs. The enthalpy at the output is a weighted sum of the input enthalpies (weighted by mass flow rate). Hence, the total input and output mass and energy flow rates are equal.
 
-A group also calculates output mass flow rates and enthalpies for separated water and steam (i.e. liquid and vapour phases) from two-phase inputs. How this is done depends on whether the group has its own separator or not  (see :ref:`group_separators`).
+A group also calculates output mass flow rates and enthalpies for separated water and steam (i.e. liquid and vapour phases) from two-phase inputs. How this is done depends on whether the group has its own separator or not  (see :ref:`group_separator`).
 
 Source groups are set up in the Waiwera JSON input file via the **"network.group"** value. This is an array of objects. Each object in the array specifies a single group.
 
@@ -52,57 +52,57 @@ Source groups are set up in the Waiwera JSON input file via the **"network.group
 
    **JSON path**: network.group[`index`]
 
-   +-----------------------+----------------+------------+-------------------------+
-   |**name**               |**type**        |**default** |**value**                |
-   +-----------------------+----------------+------------+-------------------------+
-   |"name"                 |string          |""          |optional group name      |
-   |                       |                |            |                         |
-   +-----------------------+----------------+------------+-------------------------+
-   |"in"                   |array           |[]          |names of inputs          |
-   |                       |                |            |                         |
-   +-----------------------+----------------+------------+-------------------------+
-   |"limiter"              |object          |{}          |                         |
-   |                       |                |            |                         |
-   +-----------------------+----------------+------------+-------------------------+
-   |"scaling"              |string          |"uniform"   |scaling type             |
-   |                       |                |            |                         |
-   |                       |                |            |                         |
-   +-----------------------+----------------+------------+-------------------------+
-   |"separator"            |boolean | object|``false``   |separator                |
-   |                       |                |            |                         |
-   +-----------------------+----------------+------------+-------------------------+
+   +-----------------------+----------------+------------+---------------------------+
+   |**name**               |**type**        |**default** |**value**                  |
+   +-----------------------+----------------+------------+---------------------------+
+   |"name"                 |string          |""          |:ref:`group_name`          |
+   |                       |                |            |                           |
+   +-----------------------+----------------+------------+---------------------------+
+   |"in"                   |array           |[]          |:ref:`group_inputs`        |
+   |                       |                |            |                           |
+   +-----------------------+----------------+------------+---------------------------+
+   |"limiter"              |object          |{}          |:ref:`group_limiter`       |
+   |                       |                |            |                           |
+   +-----------------------+----------------+------------+---------------------------+
+   |"scaling"              |string          |"uniform"   |:ref:`group_scaling` type  |
+   |                       |                |            |                           |
+   |                       |                |            |                           |
+   +-----------------------+----------------+------------+---------------------------+
+   |"separator"            |boolean | object|``false``   |:ref:`group_separator`     |
+   |                       |                |            |                           |
+   +-----------------------+----------------+------------+---------------------------+
 
 
 .. index:: source groups; name
 .. _group_name:
 
-Name
-----
+Group name
+----------
 
 .. index:: source groups; inputs
 .. _group_inputs:
 
-Inputs
-------
+Group inputs
+------------
 
 
 .. index:: source groups; limiter
 .. _group_limiter:
 
-Limiters
---------
+Group limiter
+-------------
 
 .. index:: source groups; scaling
 .. _group_scaling:
 
-Scaling
--------
+Group scaling
+-------------
 
 .. index:: source groups; separator, separators
-.. _group_separators:
+.. _group_separator:
 
-Separators
-----------
+Group separator
+---------------
 
 .. index:: source groups; output
 .. _group_output:
