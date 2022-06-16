@@ -67,6 +67,16 @@
                              "oneOf": [
                                  {"type": "array", "items": {"type": "string"}},
                                  {"type": "string", "enum": ["all", "All", "ALL"]}
+                             ]},
+                         "network_group": {
+                             "oneOf": [
+                                 {"type": "array", "items": {"type": "string"}},
+                                 {"type": "string", "enum": ["all", "All", "ALL"]}
+                             ]},
+                         "network_reinject": {
+                             "oneOf": [
+                                 {"type": "array", "items": {"type": "string"}},
+                                 {"type": "string", "enum": ["all", "All", "ALL"]}
                              ]}
                      }, "additionalProperties": false
                  },
