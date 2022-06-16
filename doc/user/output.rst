@@ -53,6 +53,8 @@ The **"source_fields"** group in a Waiwera HDF5 output file contains output data
 
 Like the fluid datasets, most of the source datasets are time-dependent, having one row per output time, with each row having one column per source.
 
+If the simulation uses a source network (see :ref:`source_networks`), the "source_fields" group in the HDF5 output file also contains output data defined at the source network groups and reinjectors. These datasets have names beginning with "network\_", e.g. "network_group_rate", "network_reinject_overflow_steam_rate". The datasets included here can also be selected in the Waiwera JSON input file (see :ref:`output_source_network_fields`). Again, most of the group and reinjector datasets are time-dependent, with one row per output time and each row having one column per group or reinjector.
+
 .. index:: output; cells, HDF5; cell_fields group, tracers; output, output; tracers
 .. _output_at_faces:
 
@@ -97,7 +99,9 @@ The Waiwera HDF5 output file contains a dataset (in the root group) called **"ce
 
 This index array can be used to re-order output in global output ordering back into natural ordering, for post-processing. It is also used internally by Waiwera to re-order fluid data when a simulation is restarted from the output of a previous run (see :ref:`restarting`).
 
-Similarly, there is another dataset called **"source_index"** which maps the natural source ordering onto the global source ordering in the output. The "natural" source ordering follows the order in which sources are specified in the input. If a source specification defines multiple sources using the "cells" array, the natural source ordering follows the specified cell order within that specification. If a source specification defines multiple sources using the "zones" value, the natural source ordering follows the natural cell ordering within each zone. 
+Similarly, there is another dataset called **"source_index"** which maps the natural source ordering onto the global source ordering in the output. The "natural" source ordering follows the order in which sources are specified in the input. If a source specification defines multiple sources using the "cells" array, the natural source ordering follows the specified cell order within that specification. If a source specification defines multiple sources using the "zones" value, the natural source ordering follows the natural cell ordering within each zone.
+
+If a source network (see :ref:`source_networks`) is used in the simulation, there may be additional **"network_group_index"** and **"network_reinject_index"** datasets which map the natural source group and reinjector ordering (following the ordering in the input) to the global group and reinjector ordering in the output. (Note that even in a serial simulation, these global orderings may not be the same as the natural orderings, because groups and reinjectors may be internally re-ordered if, for example, a group in the input refers to other groups which are only defined later in the input.)
 
 If there is :ref:`output_at_faces` (in the "face_fields" HDF5 group) then two more index datasets will be present in the root group: **"face_cell_1"** and **"face_cell_2"**. These contain the natural indices of the cells on either side of each face, and can be used to identify the correct face field data for a given face in the simulation mesh.
 

@@ -12,6 +12,7 @@ Waiwera simulation results consist mainly of:
 * selected fluid properties (e.g. pressures, temperatures) in each cell
 * selected flux properties (e.g. mass fluxes) through each face
 * selected source properties (e.g. flow rates, enthalpies) at each source (see :ref:`source_terms`)
+* selected source group and reinjector properties (e.g. flow rates, enthalpies) if a source network is defined (see :ref:`source_networks`)
 * selected mesh geometry properties (e.g. cell centroids and volumes, and face areas)
 
 which are written to the HDF5 file at specified times.
@@ -176,35 +177,43 @@ If output results at the simulation start time (i.e. the initial conditions) are
 Output fields
 =============
 
-The main simulation results consist of fluid, flux and source properties, or "fields", output for each cell, face and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with five values, **"fluid"**, **flux**, **"source"**, **"cell_geometry"** and **"face_geometry"**, specifying the fluid, flux, source, cell geometry and face geometry output fields respectively.
+The main simulation results consist of fluid, flux and source properties, or "fields", output for each cell, face and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with values **"fluid"**, **flux**, **"source"**, **network_group**, **network_reinject**, **"cell_geometry"** and **"face_geometry"**, specifying the fluid, flux, source, source network group, source network reinjector, cell geometry and face geometry output fields respectively.
 
 .. note::
    **JSON object**: output fields
 
    **JSON path**: output.fields
 
-   +---------------+---------------+--------------+--------------+
-   |**name**       |**type**       |**default**   |**value**     |
-   +---------------+---------------+--------------+--------------+
-   |"fluid"        |array | string |depends on    |fluid output  |
-   |               |               |EOS           |fields        |
-   +---------------+---------------+--------------+--------------+
-   |"flux"         |array | string |[]            |flux output   |
-   |               |               |              |fields        |
-   |               |               |              |              |
-   +---------------+---------------+--------------+--------------+
-   |"source"       |array | string |["component", |source output |
-   |               |               |"rate",       |fields        |
-   |               |               |"enthalpy"]   |              |
-   +---------------+---------------+--------------+--------------+
-   |"cell_geometry"|array | string |["centroid",  |cell geometry |
-   |               |               |"volume"]     |fields        |
-   |               |               |              |              |
-   +---------------+---------------+--------------+--------------+
-   |"face_geometry"|array | string |["area"]      |face geometry |
-   |               |               |              |fields        |
-   |               |               |              |              |
-   +---------------+---------------+--------------+--------------+
+   +------------------+---------------+------------------------+----------------+
+   |**name**          |**type**       |**default**             |**value**       |
+   +------------------+---------------+------------------------+----------------+
+   |"fluid"           |array | string |depends on              |fluid output    |
+   |                  |               |EOS                     |fields          |
+   +------------------+---------------+------------------------+----------------+
+   |"flux"            |array | string |[]                      |flux output     |
+   |                  |               |                        |fields          |
+   |                  |               |                        |                |
+   +------------------+---------------+------------------------+----------------+
+   |"source"          |array | string |["component",           |source output   |
+   |                  |               |"rate",                 |fields          |
+   |                  |               |"enthalpy"]             |                |
+   +------------------+---------------+------------------------+----------------+
+   |"network_group"   |array | string |["rate",                |source network  |
+   |                  |               |"enthalpy"]             |group fields    |
+   |                  |               |                        |                |
+   +------------------+---------------+------------------------+----------------+
+   |"network_reinject"|array | string |["overflow_water_rate", |source network  |
+   |                  |               |"overflow_steam_rate"]  |reinjector      |
+   |                  |               |                        |fields          |
+   +------------------+---------------+------------------------+----------------+
+   |"cell_geometry"   |array | string |["centroid",            |cell geometry   |
+   |                  |               |"volume"]               |fields          |
+   |                  |               |                        |                |
+   +------------------+---------------+------------------------+----------------+
+   |"face_geometry"   |array | string |["area"]                |face geometry   |
+   |                  |               |                        |fields          |
+   |                  |               |                        |                |
+   +------------------+---------------+------------------------+----------------+
 
 Each of these values can be specified as an array of strings, containing the field names. Alternatively, they can be set to the single string value **"all"**, in which case all available fields will be output.
 
@@ -366,6 +375,74 @@ If tracers are being simulated (see :ref:`setup_tracers`), then there is an addi
 
 Regardless of the :ref:`eos`, the default source output fields are ["natural_cell_index", "component", "rate", "enthalpy"].
 
+.. index:: output; source network, source groups; output, source reinjectors; output
+.. _output_source_network_fields:
+
+Source network fields
+---------------------
+
+The available source network group output fields are:
+
++-----------------------+-------------------------------+
+|**name**               |**value**                      |
++-----------------------+-------------------------------+
+|"group_index"          |index of group in input        |
++-----------------------+-------------------------------+
+|"rate"                 |flow rate (kg/s or J/s)        |
++-----------------------+-------------------------------+
+|"enthalpy"             |enthalpy (J/kg)                |
++-----------------------+-------------------------------+
+|"water_rate"           |separated water flow rate      |
+|                       |(kg/s)                         |
++-----------------------+-------------------------------+
+|"water_enthalpy"       |separated water enthalpy (J/kg)|
+|                       |                               |
++-----------------------+-------------------------------+
+|"steam_rate"           |separated steam flow rate      |
+|                       |(kg/s)                         |
++-----------------------+-------------------------------+
+|"steam_enthalpy"       |separated steam enthalpy (J/kg)|
+|                       |                               |
++-----------------------+-------------------------------+
+|"steam_fraction"       |separated steam fraction       |
++-----------------------+-------------------------------+
+
+The default source group output fields are ["rate", "enthalpy"].
+
+The available source network reinjector output fields are:
+
++-------------------------+-------------------------------+
+|**name**                 |**value**                      |
++-------------------------+-------------------------------+
+|"reinjector_index"       |index of reinjector in input   |
++-------------------------+-------------------------------+
+|"water_rate"             |separated water inflow rate    |
+|                         |(kg/s)                         |
++-------------------------+-------------------------------+
+|"water_enthalpy"         |separated water inflow enthalpy|
+|                         |(J/kg)                         |
++-------------------------+-------------------------------+
+|"steam_rate"             |separated steam inflow rate    |
+|                         |(kg/s)                         |
++-------------------------+-------------------------------+
+|"steam_enthalpy"         |separated steam inflow enthalpy|
+|                         |(J/kg)                         |
++-------------------------+-------------------------------+
+|"overflow_water_rate"    |separated water overflow rate  |
+|                         |(kg/s)                         |
++-------------------------+-------------------------------+
+|"overflow_water_enthalpy"|separated water overflow       |
+|                         |enthalpy (J/kg)                |
++-------------------------+-------------------------------+
+|"overflow_steam_rate"    |separated steam overflow rate  |
+|                         |(kg/s)                         |
++-------------------------+-------------------------------+
+|"overflow_steam_enthalpy"|separated steam overflow       |
+|                         |enthalpy (J/kg)                |
++-------------------------+-------------------------------+
+
+The default source reinjector output fields are ["overflow_water_rate", "overflow_steam_rate"].
+
 .. index:: output; mesh geometry
 .. _output_geometry_fields:
 
@@ -451,6 +528,16 @@ The next example specifies the water / air / energy EOS, with source output fiel
    {"eos": {"name": "wae"},
     "output": {"fields": {
                   "source": ["enthalpy", "water_flow", "air_flow"]}}}
+
+Here the same source output fields are selected, plus separated water and steam output flow rates and enthalpies for source network groups:
+
+.. code-block:: json
+
+   {"eos": {"name": "wae"},
+    "output": {"fields": {
+                  "source": ["enthalpy", "water_flow", "air_flow"],
+                  "network_group": ["water_rate", "water_enthalpy", "steam_rate", "steam_enthalpy"]
+                  }}}
 
 In this example all available fluid fields will be output:
 

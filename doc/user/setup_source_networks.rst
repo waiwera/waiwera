@@ -33,7 +33,7 @@ In the Waiwera JSON input file a source network may be set up using the **networ
    |                       |                |            |                         |
    +-----------------------+----------------+------------+-------------------------+
 
-.. index:: source networks; groups, source groups
+.. index:: source networks; groups, source groups, groups
 .. _source_network_groups:
 
 Groups
@@ -129,7 +129,7 @@ In the following example, four production sources are defined. A group "g1" is d
      ]
    }}
 
-.. index:: source groups; limiter
+.. index:: source groups; limiters
 .. _group_limiter:
 
 Group limiter
@@ -212,7 +212,7 @@ Here a group is defined with three inputs, limits on steam and total flow and pr
 
 Note that water or steam limiters with progressive scaling should not be used for groups which have their own :ref:`group_separator`. This is because the inputs are scaled by different factors, and if they have different enthalpies, then the output enthalpy will be changed by the progressive scaling process. This would also alter the proportion of water to steam flow coming out of a group separator, resulting in a complex non-linear feedback loop. Hence, groups with water or steam limiters and their own separators (e.g. representing multi-feed wells) should use uniform scaling. Conversely, groups with water or steam limiters and progressive scaling (e.g. make-up well groups) should not have their own separator.
    
-.. index:: source groups; separator, separators
+.. index:: source groups; separators, separators
 .. _group_separator:
 
 Group separator
@@ -257,6 +257,8 @@ Here a group is defined with two inputs, a steam limiter, uniform scaling and a 
 
 Output from groups
 ------------------
+
+Like sources, source network groups also generate output datasets (e.g. flow rates and enthalpies) in the Waiwera HDF5 output file. These datasets are contained in the same HDF5 group as the source output datasets. The output fields for network groups can be specified in the Waiwera JSON input file (see :ref:`output_fields`).
 
 .. index:: source networks; reinjectors
 .. _source_network_reinjectors:
