@@ -260,6 +260,8 @@ Output from groups
 
 Like sources, source network groups also generate output datasets (e.g. flow rates and enthalpies) in the Waiwera HDF5 output file. These datasets are contained in the same HDF5 group as the source output datasets. The output fields for network groups can be specified in the Waiwera JSON input file (see :ref:`output_fields`).
 
+Note that, as for production sources, source groups always have negative (or zero) flow rates, as they represent fluid being removed from the model.
+
 .. index:: source networks; reinjectors
 .. _source_network_reinjectors:
 
