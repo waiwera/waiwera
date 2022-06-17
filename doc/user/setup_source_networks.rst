@@ -16,7 +16,7 @@ To model the interactions between sources in a Waiwera simulation, a **source ne
 - **groups**, defining groupings of production sources
 - **reinjectors**, defining the distribution of produced fluid (from sources or groups) amongst injection sources
 
-In the Waiwera JSON input file a source network may be set up using the **network** value. This is an object containing two array values, **"group"** and **"reinject"**, defining source groups and reinjectors respectively.
+In the Waiwera JSON input file a source network may be set up using the **network** value. This is an object containing two array values, **"group"** and **"reinject"**, defining source network :ref:`source_network_groups` and :ref:`source_network_reinjectors` respectively.
 
 .. note::
    **JSON object**: source network
@@ -96,6 +96,8 @@ Note that groups can be defined in arbitrary order, so a group can include other
 
 The order of the inputs in a group is also usually arbitrary, but can be significant if for example progressive :ref:`group_scaling` is used.
 
+A source or group cannot belong to (i.e. be specified as an input for) more than one group.
+
 Example:
 
 .. code-block:: json
@@ -157,10 +159,10 @@ As for a limiter source control, a group limiter may specify limits on total flo
    |                     |array       |            |limit (kg/s)             |
    +---------------------+------------+------------+-------------------------+
    |"interpolation"      |string      |"linear"    |interpolation method for |
-   |                     |            |            |limit tables             |
+   |                     |            |            |limit arrays             |
    +---------------------+------------+------------+-------------------------+
    |"averaging"          |string      |"integrate" |averaging method for     |
-   |                     |            |            |limit tables             |
+   |                     |            |            |limit arrays             |
    +---------------------+------------+------------+-------------------------+
 
 If any of the output flow rates (total, water or steam) exceeds its specified corresponding limit, the flow rates in some or all of the group inputs are reduced so that the output flow rate equals the limit. Exactly how this is done depends on the :ref:`group_scaling` policy.
@@ -252,19 +254,173 @@ Example:
 
 Here a group is defined with two inputs, a steam limiter, uniform scaling and a two-stage separator.
 
-.. index:: source groups; output
-.. _group_output:
+.. index:: source groups; file output
+.. _group_file_output:
 
-Output from groups
-------------------
+File output from groups
+-----------------------
 
 Like sources, source network groups also generate output datasets (e.g. flow rates and enthalpies) in the Waiwera HDF5 output file. These datasets are contained in the same HDF5 group as the source output datasets. The output fields for network groups can be specified in the Waiwera JSON input file (see :ref:`output_fields`).
 
 Note that, as for production sources, source groups always have negative (or zero) flow rates, as they represent fluid being removed from the model.
 
-.. index:: source networks; reinjectors
+.. index:: source networks; reinjectors, reinjectors
 .. _source_network_reinjectors:
 
 Reinjectors
 ===========
 
+A **reinjector** is in some ways the opposite of a group: instead of taking multiple input flows and combining them into a single output, it takes a single input flow and distributes it amongst multiple outputs. The input (see :ref:`reinjector_input`) can be a production source, a group or another reinjector. The outputs can be injection sources or other reinjectors.
+
+Each reinjector output can deliver either separated water or separated steam (not two-phase fluid). The outputs are specified in two arrays, **water** and **steam** (see :ref:`reinjector_outputs`).
+
+A reinjector also has an **overflow** which handles any fluid left over after the outputs have been processed (see :ref:`reinjector_overflow`).
+
+Reinjectors are set up in the Waiwera JSON input file via the **"network.reinject"** value. This is an array of objects. Each object in the array specifies a single reinjector.
+
+.. note::
+   **JSON object**: source reinjector
+
+   **JSON path**: network.reinject[`index`]
+
+   +-----------------------+----------------+------------+----------------------------------+
+   |**name**               |**type**        |**default** |**value**                         |
+   +-----------------------+----------------+------------+----------------------------------+
+   |"name"                 |string          |""          |:ref:`reinjector_name`            |
+   |                       |                |            |                                  |
+   +-----------------------+----------------+------------+----------------------------------+
+   |"in"                   |string          |""          |:ref:`reinjector_input`           |
+   |                       |                |            |                                  |
+   +-----------------------+----------------+------------+----------------------------------+
+   |"water"                |array           |[]          |separated water outputs (see      |
+   |                       |                |            |:ref:`reinjector_outputs`)        |
+   +-----------------------+----------------+------------+----------------------------------+
+   |"steam"                |array           |[]          |separated steam outputs (see      |
+   |                       |                |            |:ref:`reinjector_outputs`)        |
+   |                       |                |            |                                  |
+   +-----------------------+----------------+------------+----------------------------------+
+   |"overflow"             |string | object |{}          |:ref:`reinjector_overflow`        |
+   |                       |                |            |                                  |
+   +-----------------------+----------------+------------+----------------------------------+
+
+.. index:: reinjectors; name
+.. _reinjector_name:
+
+Reinjector name
+---------------
+
+Like a group, a reinjector can be given a name using its **"name"** value, which can be an arbitrary string. This is optional, unless the reinjector is to be referenced by another reinjector (for example, if it serves as an output or overflow from another reinjector), in which case a name will be needed.
+
+The name must also be unique, that is, no other sources, groups or reinjectors may have the same name.
+
+.. index:: reinjectors; input
+.. _reinjector_input:
+
+Reinjector input
+----------------
+
+If a reinjector is taking its input from a production source or group, this is specified using the reinjector's  **"in"** value. This is string value containing the name of the appropriate source or group.
+
+If the input is a source, it must have its own separator, so that input separated water and steam flow rates are available to the reinjector. Similarly, if the input is a group, it should either have its own separator, or all its inputs should have separated water and steam flows available.
+
+If a reinjector's input comes not from a source or group but from one of the outputs or the overflow from another reinjector, this is not specified using the "in" value. This is because reinjectors can have multiple outputs, so it would be necessary to specify not only the reinjector name but also which output (or the overflow) was being used. Instead, the appropriate reinjector output or overflow specifies the receiving reinjector using its own "out" value (see :ref:`reinjector_outputs`). The receiving reinjector's "in" value does not need to be specified.
+
+The order of reinjectors in the Waiwera JSON input file is not significant, and a reinjector output can be assigned to another reinjector that appears later in the reinjector list.
+
+.. index:: reinjectors; outputs
+.. _reinjector_outputs:
+
+Reinjector outputs
+------------------
+
+Reinjector outputs are divided into two categories: separated water and separated steam. For each category, a list of outputs is specified (see below).
+
+Within each category, the corresponding input fluid is distributed **progressively** amongst the list of outputs - that is, the first output is assigned a flow rate, then the second output, and so on until either all the input flow has been distributed, or all the outputs have been assigned. If all the input flow is distributed to the outputs, then any remaining outputs in the list will have zero flow (and the overflow for that category will be zero). Otherwise, there will be a non-zero overflow (see :ref:`reinjector_overflow`).
+
+Hence, the order of reinjector outputs is significant (for the same reason that the order of group inputs is significant when progressive scaling is used).
+
+The reinjector outputs are specified in the Waiwera JSON input using two values, **"water"** for separated water outputs and **"steam"** for separated steam outputs. These are both arrays of objects. Each object represents a single separated water or steam output and its values are listed below.
+
+.. note::
+   **JSON object**: reinjector output
+
+   **JSON path**: network.reinject[`index`]["water"][`index`] **or** network.reinject[`index`]["steam"][`index`]
+
+   +---------------------+------------+------------+-------------------------+
+   |**name**             |**type**    |**default** |**value**                |
+   +---------------------+------------+------------+-------------------------+
+   |"out"                |string      |""          |name of output source or |
+   |                     |            |            |reinjector               |
+   +---------------------+------------+------------+-------------------------+
+   |"rate"               |number |    |see below   |output flow rate (kg/s)  |
+   |                     |array       |            |                         |
+   +---------------------+------------+------------+-------------------------+
+   |"proportion"         |number |    |see below   |proportion of input flow |
+   |                     |array       |            |                         |
+   +---------------------+------------+------------+-------------------------+
+   |"enthalpy"           |number |    |see below   |output enthalpy (J/kg)   |
+   |                     |array       |            |                         |
+   +---------------------+------------+------------+-------------------------+
+   |"interpolation"      |string      |"linear"    |interpolation method for |
+   |                     |            |            |arrays                   |
+   +---------------------+------------+------------+-------------------------+
+   |"averaging"          |string      |"integrate" |averaging method for     |
+   |                     |            |            |arrays                   |
+   +---------------------+------------+------------+-------------------------+
+
+The **"out"** string value specifies the name of the output source or reinjector. Note that a source or reinjector cannot be specified as an output for more than one reinjector. If multiple reinjector outputs or reinjectors need to inject fluid to the same cell, individual injection sources (with the same cell) must be defined for each one.
+
+A reinjector output can specify its flow rate using either the **"rate"** or the **"proportion"** value. The "rate" value specifies an absolute flow rate, whereas the "proportion" value specifies the output flow rate as a proportion (between zero and one) of the input flow rate for the corresponding phase (separated water or steam).
+
+If neither a rate nor a proportion is specified, the flow rate for the output will be set to the capacity of the receiving source or reinjector, if this has been defined. If the output is an injection source, this means that a flow rate has been specified for that source, or it has a source control computing its flow rate (e.g. an :ref:`injectivity`). If the output is another reinjector, its capacity is determined by summing the capacities of its outputs. If any of its outputs are also reinjectors, then its capacity is calculated recursively.
+
+It is also possible to specify a flow rate for both the reinjector output and its receiving source. In this case, the injection rate used will be the minimum of the two values.
+
+If there is no flow rate specified in either the reinjector output (via the "rate" or "proportion" values) or the receiving source, then the source is treated as if it has effectively infinite capacity, and the injection rate is set to the balance of the input flow not already reinjected by previous outputs in the list. Clearly, this means any subsequent reinjector outputs in the list will have zero flow.
+
+The **"enthalpy"** of the output can also be specified. If it is not specified, it is set equal to the enthalpy of the input, for the corresponding category (separated water or steam).
+
+The "rate", "proportion" and "enthalpy" values can all be specified either as fixed constants or rank-2 arrays of time-dependent values. If array values are used, the interpolation and averaging types can be set via the **"interpolation"** and **"averaging"** values (see :ref:`interpolation_tables`).
+
+Example:
+
+.. code-block:: json
+
+   {"source": [
+     {"name": "p1", "cell": 234, "rate": -2.4, "separator": {"pressure": 5e5}},
+     {"name": "p2", "cell": 275, "rate": -3.1, "separator": {"pressure": 6e5}},
+     {"name": "i1", "cell": 658},
+     {"name": "i2", "cell": 697}
+    ],
+    "network": {
+       "group": [{"name": "g1", "in": ["p1", "p2"]}],
+       "reinject": [{"name": "r1", "in": "g1",
+                     "water": [
+                       {"out": "i1", "rate": 1.5, "enthalpy": 85e3},
+                       {"out": "i2", "proportion": 0.3, "enthalpy": 85e3}
+                     ]}]
+   }}
+
+Here there are two production wells ("p1" and "p2") in a group called "g1", and a reinjector "r1" taking its input from the group "g1". The reinjector has two separated water outputs, going to the two injection wells, "i1" and "i2". The first output has a fixed rate of 1.5 kg/s while the second output's flow is 30\% of the input separated water flow. Both outputs have a specified enthalpy of 85 kJ/kg.
+
+.. index:: reinjectors; overflow
+.. _reinjector_overflow:
+
+Reinjector overflow
+-------------------
+
+If there is more fluid entering a reinjector than can be delivered through its outputs (i.e. the input separated water or steam flow is greater than the sum of its corresponding outputs), then there will be some left over. This is handled by the reinjector's "overflow".
+
+Unlike :ref:`reinjector_outputs`, the reinjector overflow handles both separated water and steam overflows (i.e. there are not separate overflows for water and steam). The overflow flow rates can be monitored or post-processed via their values in the Waiwera output (see :ref:`reinjector_file_output`).
+
+Overflows can also be directed to an injection source or another reinjector using the reinjector's **"overflow"** value. This is a string or an object with a string **"out"** value, in either case containing the name of the source or reinjector.
+
+.. index:: reinjectors; file output
+.. _reinjector_file_output:
+
+File output from reinjectors
+----------------------------
+
+Like source network groups, reinjectors generate output datasets in the Waiwera HDF5 output file, in the same HDF5 group as the source output datasets. The output fields for reinjectors can be specified in the Waiwera JSON input file (see :ref:`output_fields`).
+
+Note that, as for injection sources, reinjectors always have positive (or zero) flow rates, as they represent fluid being added to the model.
