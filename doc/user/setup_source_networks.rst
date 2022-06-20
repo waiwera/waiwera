@@ -382,7 +382,7 @@ The **"enthalpy"** of the output can also be specified. If it is not specified, 
 
 The "rate", "proportion" and "enthalpy" values can all be specified either as fixed constants or rank-2 arrays of time-dependent values. If array values are used, the interpolation and averaging types can be set via the **"interpolation"** and **"averaging"** values (see :ref:`interpolation_tables`).
 
-Example:
+Examples:
 
 .. code-block:: json
 
@@ -403,6 +403,34 @@ Example:
 
 Here there are two production wells ("p1" and "p2") in a group called "g1", and a reinjector "r1" taking its input from the group "g1". The reinjector has two separated water outputs, going to the two injection wells, "i1" and "i2". The first output has a fixed rate of 1.5 kg/s while the second output's flow is 30\% of the input separated water flow. Both outputs have a specified enthalpy of 85 kJ/kg.
 
+.. code-block:: json
+
+   {"source": [
+     {"name": "p1", "cell": 234, "rate": -2.4, "separator": {"pressure": 5e5}},
+     {"name": "p2", "cell": 275, "rate": -3.1, "separator": {"pressure": 6e5}},
+     {"name": "i1", "cell": 658},
+     {"name": "i2", "cell": 697},
+     {"name": "i3", "cell": 602, "injectivity": {"pressure": 6e5, "coefficient": 1e-6},
+                                 "limiter": {"total": 5.5}},
+     {"name": "i4", "cell": 633}
+    ],
+    "network": {
+       "group": [{"name": "g1", "in": ["p1", "p2"]}],
+       "reinject": [{"name": "r1", "in": "g1",
+                     "water": [
+                       {"out": "i1", "proportion": 0.2, "enthalpy": 85e3},
+                       {"out": "r2", "proportion": 0.5, "enthalpy": 85e3},
+                       {"out": "i2", "proportion": 0.3, "enthalpy": 85e3}
+                     ]},
+                    {"name": "r2",
+                     "water": [
+                       {"out": "i3"},
+                       {"out": "i4", "rate": 2.4}
+                     ]}]
+   }}
+
+Here there are again two production wells and a group "g1", which feeds into the reinjector "r1". This has three outputs, the second of which is another reinjector, "r2". Note that the reinjector "r2" does not need to specify its input, as this is defined in the corresponding output of "r1". The reinjector "r2" outputs to two injection wells, the first of which has its flow rate determined by an injectivity control. There is no flow rate defined in this reinjector output.
+
 .. index:: reinjectors; overflow
 .. _reinjector_overflow:
 
@@ -414,6 +442,39 @@ If there is more fluid entering a reinjector than can be delivered through its o
 Unlike :ref:`reinjector_outputs`, the reinjector overflow handles both separated water and steam overflows (i.e. there are not separate overflows for water and steam). The overflow flow rates can be monitored or post-processed via their values in the Waiwera output (see :ref:`reinjector_file_output`).
 
 Overflows can also be directed to an injection source or another reinjector using the reinjector's **"overflow"** value. This is a string or an object with a string **"out"** value, in either case containing the name of the source or reinjector.
+
+Example:
+
+.. code-block:: json
+
+   {"source": [
+     {"name": "p1", "cell": 234,
+      "deliverability": {"pressure": 4e5, "productivity": 1e-11},
+      "separator": {"pressure": 5e5}},
+     {"name": "p2", "cell": 275,
+      "deliverability": {"pressure": 3e5, "productivity": 5e-12},
+      "separator": {"pressure": 6e5}},
+     {"name": "i1", "cell": 658},
+     {"name": "i2", "cell": 697},
+     {"name": "i3", "cell": 605},
+     {"name": "i4", "cell": 618}
+    ],
+    "network": {
+       "group": [{"name": "g1", "in": ["p1", "p2"]}],
+       "reinject": [{"name": "r1", "in": "g1",
+                     "water": [
+                       {"out": "i1", "rate": 1.5, "enthalpy": 85e3},
+                       {"out": "i2", "rate": 0.9, "enthalpy": 85e3}
+                     ],
+                     "overflow": "re2"},
+                    {"name": "re2",
+                     "water": [
+                       {"out": "i3", "proportion": 0.5, "enthalpy": 85e3},
+                       {"out": "i4", "proportion": 0.5, "enthalpy": 85e3}
+                     ]}]
+   }}
+
+In this example, two production wells on deliverability feed into a group "g1" and this in turn feeds into a reinjector "r1", which has two fixed-rate outputs into the injection wells "i1" and "i2". Any water flow left over after injection into these two wells is directed to a second reinjector, "r2", which divides the overflow equally between the injection wells "i3" and "i4".
 
 .. index:: reinjectors; file output
 .. _reinjector_file_output:
