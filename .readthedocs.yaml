@@ -16,3 +16,6 @@ python:
   install:
     - requirements: doc/user/requirements.txt
 
+formats:
+  - pdf
+  - epub

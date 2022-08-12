@@ -52,4 +52,4 @@ sim['time'] = {
 
 sim['output'] = {'initial': False, 'frequency': 0}
 
-json.dump(sim, file('demo.json', 'w'), indent = 2, sort_keys = True)
+json.dump(sim, open('demo.json', 'w'), indent = 2, sort_keys = True)

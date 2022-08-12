@@ -27,9 +27,9 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
    |                       |                || 0         |                         |
    |                       |                |(production)|                         |
    +-----------------------+----------------+------------+-------------------------+
-   |"production_component" |integer | string|"heat" if   |mass or energy component |
+   |"production_component" |integer | string|"energy" if |mass or energy component |
    |                       |                |"component" |for :ref:`mixed_flow`    |
-   |                       |                |= "heat",   |production               |
+   |                       |                |= "energy", |production               |
    |                       |                |otherwise 0 |                         |
    +-----------------------+----------------+------------+-------------------------+
    |"rate"                 |number | array ||0           |flow rate (kg/s or J/s)  |
@@ -184,7 +184,7 @@ Mixed flow
 
 The flow rate in a source may vary with time (see :ref:`source_controls`), and while it is uncommon, by default there is nothing to prevent a source from switching between production and injection during a simulation. (It is possible to limit the flow direction using a :ref:`direction` source control.)
 
-For mixed-flow sources, it is possible to specify the production component independently of the injection component (determined by the "component" value) if desired, so that a source may inject one component and produce a different one. This can be done by specifying the **"production_component"** value. If not specified, by default it is given the value "heat" if the "component" value is also "heat". If the "component" value specifies a mass component, then "production_component" takes the default value of zero (i.e. produce all mass components).
+For mixed-flow sources, it is possible to specify the production component independently of the injection component (determined by the "component" value) if desired, so that a source may inject one component and produce a different one. This can be done by specifying the **"production_component"** value. If not specified, by default it is given the value "energy" if the "component" value is also "energy". If the "component" value specifies a mass component, then "production_component" takes the default value of zero (i.e. produce all mass components).
 
 Note that it is not necessary to set the "production_component" value except in this special case of mixed-flow sources with different components for production and injection. In all other cases, setting the "component" value by itself is sufficient.
 
