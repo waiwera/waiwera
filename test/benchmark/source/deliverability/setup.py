@@ -146,6 +146,6 @@ for run_name in run_names:
 
     jsondata = dat.json(geo, mesh_filename)
     filename = run_base_name + '.json'
-    json.dump(jsondata, file(filename, 'w'), indent = 2)
+    json.dump(jsondata, open(filename, 'w'), indent = 2)
 
 os.chdir(orig_dir)

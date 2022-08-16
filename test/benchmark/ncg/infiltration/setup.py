@@ -98,6 +98,6 @@ jsondata['boundaries'][0]['region'] = 1
 jsondata['gravity'] = None
 jsondata['output']['final'] = False
 jsondata['output']['fields'] = {'fluid': ['liquid_saturation']}
-json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2, sort_keys = True)
+json.dump(jsondata, open(model_name + '.json', 'w'), indent = 2, sort_keys = True)
 
 os.chdir(orig_dir)

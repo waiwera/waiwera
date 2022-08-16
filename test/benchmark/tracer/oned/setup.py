@@ -107,7 +107,7 @@ for phase in phases:
     del jsondata['output']['filename']
     jsondata['output']['initial'] = False
     jsondata['logfile'] = {'echo': False}
-    json.dump(jsondata, file(case_model_name + '_ss.json', 'w'), indent = 2)
+    json.dump(jsondata, open(case_model_name + '_ss.json', 'w'), indent = 2)
     subprocess.call(['waiwera', case_model_name + '_ss.json'])
     
     dat.simulator = 'AUTOUGH2.2EWT'
@@ -161,6 +161,6 @@ for phase in phases:
     jsondata['initial'] = {'filename': case_model_name + '_ss.h5'}
     jsondata['logfile'] = {'echo': True}
 
-    json.dump(jsondata, file(case_model_name + '.json', 'w'), indent = 2)
+    json.dump(jsondata, open(case_model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)

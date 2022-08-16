@@ -108,6 +108,6 @@ jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
 jsondata['initial']['primary'] = [P0, T0]
 jsondata['mesh']['radial'] = True
 jsondata['gravity'] = [0., -9.8]
-json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
+json.dump(jsondata, open(model_name + '.json', 'w'), indent = 2)
                   
 os.chdir(orig_dir)

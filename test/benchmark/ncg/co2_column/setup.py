@@ -110,6 +110,6 @@ for xgp in CO2_mass_fractions:
     jsondata['output']['fields'] = {'fluid': [
         'liquid_saturation', 'liquid_density', 'liquid_CO2_mass_fraction',
         'vapour_saturation', 'vapour_density', 'vapour_CO2_mass_fraction']}
-    json.dump(jsondata, file(case_model_name + '.json', 'w'), indent = 2, sort_keys = True)
+    json.dump(jsondata, open(case_model_name + '.json', 'w'), indent = 2, sort_keys = True)
 
 os.chdir(orig_dir)

@@ -79,7 +79,7 @@ dat.run(simulator = AUTOUGH2, silent = True)
 
 jsondata = dat.json(geo, mesh_filename)
 jsondata['initial']['region'] = 4
-json.dump(jsondata, file(single_model_name + '.json', 'w'),
+json.dump(jsondata, open(single_model_name + '.json', 'w'),
           indent = 2, sort_keys = True)
 
 # MINC runs:
@@ -118,6 +118,6 @@ for spacing in [50, 100, 200]:
                  'matrix': {'type': matrix_rockname},
                  'zones': 'all'}}
 
-    json.dump(jsondata, file(case_model_name + '.json', 'w'),
+    json.dump(jsondata, open(case_model_name + '.json', 'w'),
               indent = 2, sort_keys = True)
     

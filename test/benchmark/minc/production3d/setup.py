@@ -191,5 +191,5 @@ for case in ['base', 'refined']:
                  'matrix': {'type': matrix_rockname},
                  'zones': 'minc'}}
 
-    json.dump(jsondata, file(model_case_name + '.json', 'w'),
+    json.dump(jsondata, open(model_case_name + '.json', 'w'),
               indent = 2, sort_keys = True)
