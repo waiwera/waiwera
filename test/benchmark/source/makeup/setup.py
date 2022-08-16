@@ -136,5 +136,5 @@ for case_name in ['uniform', 'progressive']:
     dat.write(model_case_name + '.dat')
     inc.write(model_case_name + '.incon')
     dat.run(simulator = AUTOUGH2, silent = True)
-    json.dump(jsondata, file(model_case_name + '.json', 'w'),
+    json.dump(jsondata, open(model_case_name + '.json', 'w'),
               indent = 2, sort_keys = True)
