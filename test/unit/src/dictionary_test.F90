@@ -20,7 +20,8 @@ module dictionary_test
   end type thing_type
 
   public :: setup, teardown
-  public :: test_integer, test_thing, test_dict_list, test_dict_no_data
+  public :: test_integer, test_thing, test_dict_list, test_dict_no_data, &
+       test_long_key
 
 contains
 
@@ -248,6 +249,56 @@ contains
     call dict%destroy()
 
   end subroutine test_dict_no_data
+
+!------------------------------------------------------------------------
+
+  subroutine test_long_key(test)
+    ! dict with long keys
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(dictionary_type) :: dict
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    call dict%init()
+
+    call dict%add("this is a rather long name 1", 101)
+    call dict%add("this is a rather long name 2", 102)
+
+    call test%assert(2, dict%count(), "count")
+
+    call test%assert(dict%has("this is a rather long name 1"), "has 1")
+    call test%assert(dict%has("this is a rather long name 2"), "has 2")
+    call test%assert(.not. dict%has("bar"), "has no bar")
+
+    call dict_test("this is a rather long name 1", 101)
+    call dict_test("this is a rather long name 2", 102)
+
+    call dict%destroy()
+
+  contains
+
+    subroutine dict_test(key, expected)
+
+      character(*), intent(in) :: key
+      PetscInt, intent(in) :: expected
+      ! Locals:
+      type(list_node_type), pointer :: node
+
+      node => dict%get(key)
+      if (rank == 0) then
+         select type (data => node%data)
+         type is (PetscInt)
+            call test%assert(expected, data, key)
+         end select
+      end if
+
+    end subroutine dict_test
+
+  end subroutine test_long_key
 
 !------------------------------------------------------------------------
 
