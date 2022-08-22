@@ -832,11 +832,17 @@ contains
        self%time = time
        self%repeat = repeat
        self%tolerance = max(tolerance, min_checkpoint_tol)
-       self%index = 1
        self%repeat_index = 1
-       self%repeat_shift = self%time(size(self%time)) - start_time
-       self%next_time = self%time(1)
+       self%repeat_shift = self%time(size(self%time))
+       if (self%repeat_shift > start_time) then
+          self%repeat_shift = self%repeat_shift - start_time
+       end if
        self%done = PETSC_FALSE
+       self%index = 1
+       self%next_time = self%time(1)
+       do while ((self%next_time < start_time) .and. (.not. self%done))
+          call self%update()
+       end do
 
     else
        self%done = PETSC_TRUE

@@ -116,6 +116,6 @@ jsondata = dat.json(geo, mesh_filename, incons = inc, bdy_incons = inc,
                     mesh_coords = 'xz')
 jsondata['mesh']['thickness'] = width
 jsondata['output']['fields'] = {'fluid': ['liquid_saturation']}
-json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
+json.dump(jsondata, open(model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)

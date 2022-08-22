@@ -101,7 +101,7 @@ jsondata['rock']['types'][0]['zones'] = 'all'
 del jsondata['output']['filename']
 jsondata['output']['initial'] = False
 jsondata['logfile'] = {'echo': False}
-json.dump(jsondata, file(model_name + '_ss.json', 'w'), indent = 2)
+json.dump(jsondata, open(model_name + '_ss.json', 'w'), indent = 2)
 
 # add tracer to TOUGH2 model:
 dat.simulator = 'AUTOUGH2.2EWTD'
@@ -170,6 +170,6 @@ jsondata['source'][0]['interpolation'] = 'step'
 jsondata['initial'] = {'filename': model_name + '_ss.h5'}
 jsondata['logfile'] = {'echo': True}
 
-json.dump(jsondata, file(model_name + '.json', 'w'), indent = 2)
+json.dump(jsondata, open(model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)

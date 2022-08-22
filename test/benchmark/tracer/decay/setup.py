@@ -56,6 +56,6 @@ inp['tracer'] = [
     {'name': 'temperature', 'decay': k0, 'activation': Ea}
     ]
 
-json.dump(inp, file(model_name + '.json', 'w'), indent = 2)
+json.dump(inp, open(model_name + '.json', 'w'), indent = 2)
 
 os.chdir(orig_dir)

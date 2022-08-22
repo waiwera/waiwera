@@ -98,7 +98,7 @@ dat.write(model_name + '_' + case_name + '.dat')
 inc.write(model_name + '_' + case_name + '.incon')
 dat.run(simulator = AUTOUGH2, silent = True)
 jsondata = dat.json(geo, mesh_filename, incons = inc)
-json.dump(jsondata, file(model_name + '_' + case_name + '.json', 'w'),
+json.dump(jsondata, open(model_name + '_' + case_name + '.json', 'w'),
           indent = 2, sort_keys = True)
 
 vol = [0.1, 0.3, 0.6]
@@ -140,5 +140,5 @@ jsondata['mesh']['minc'] = {
              'matrix': {'type': matrix_rockname},
              'zones': 'minc'}}
 
-json.dump(jsondata, file(model_name + '_' + case_name + '.json', 'w'),
+json.dump(jsondata, open(model_name + '_' + case_name + '.json', 'w'),
           indent = 2, sort_keys = True)

@@ -75,6 +75,6 @@ jsondata = dat.json(geo, mesh_filename)
 jsondata["output"]["frequency"] = 1
 jsondata["output"]["initial"] = True
 filename = model_name + '_' + run_name + '.json'
-json.dump(jsondata, file(filename, 'w'), indent = 2)
+json.dump(jsondata, open(filename, 'w'), indent = 2)
 
 os.chdir(orig_dir)
