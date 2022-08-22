@@ -1437,6 +1437,34 @@ contains
        call test%assert(checkpoints%hit, 'indefinite repeat t = 4.1 hit')
        call checkpoints%destroy()
 
+       ! Test start time after first checkpoint time:
+       times = [1._dp, 2._dp, 4._dp, 8._dp]
+       start_time = 3._dp
+       repeat = -1
+       call checkpoints%init(times, repeat, tolerance, start_time)
+       call test%assert(.not. checkpoints%done, 'start time done 1')
+       call test%assert(4._dp, checkpoints%next_time, 'start time first next time')
+       call checkpoints%update()
+       call test%assert(.not. checkpoints%done, 'start time done 2')
+       call test%assert(8._dp, checkpoints%next_time, 'start time t = 4 next time')
+       call checkpoints%destroy()
+
+       ! Test start time after last checkpoint time:
+       start_time = 10._dp
+       repeat = 1
+       call checkpoints%init(times, repeat, tolerance, start_time)
+       call test%assert(checkpoints%done, 'start time 2 done 1')
+       call checkpoints%destroy()
+
+       ! Test start time after last checkpoint time with repeat:
+       times = [1._dp]
+       repeat = 10
+       start_time = 5._dp
+       call checkpoints%init(times, repeat, tolerance, start_time)
+       call test%assert(.not. checkpoints%done, 'start time 3 done 1')
+       call test%assert(5._dp, checkpoints%next_time, 'start time 3 first next time')
+       call checkpoints%destroy()
+
        deallocate(times)
 
     end if
