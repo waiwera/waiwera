@@ -407,7 +407,8 @@ The available source network group output fields are:
 |"steam_fraction"       |separated steam fraction       |
 +-----------------------+-------------------------------+
 
-The default source group output fields are ["rate", "enthalpy"].
+The default source group output fields are ["rate", "enthalpy",
+"water_rate", "steam_rate"].
 
 The available source network reinjector output fields are:
 

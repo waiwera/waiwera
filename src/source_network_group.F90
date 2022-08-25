@@ -48,8 +48,9 @@ module source_network_group_module
        required_output_source_network_group_fields(0) = [&
        character(max_field_name_length)::]
   character(max_field_name_length), parameter, public :: &
-       default_output_source_network_group_fields(2) = [&
-       "rate              ", "enthalpy          "]
+       default_output_source_network_group_fields(4) = [&
+       "rate              ", "enthalpy          ", &
+       "water_rate        ", "steam_rate        "]
 
   type, public, extends(source_network_node_type) :: source_network_group_type
      !! Type for group of source network nodes, e.g. multi-feed well
