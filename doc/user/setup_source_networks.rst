@@ -272,7 +272,7 @@ Reinjectors
 
 A **reinjector** is in some ways the opposite of a group: instead of taking multiple input flows and combining them into a single output, it takes a single input flow and distributes it amongst multiple outputs. The input (see :ref:`reinjector_input`) can be a production source, a group or another reinjector. The outputs can be injection sources or other reinjectors.
 
-Each reinjector output can deliver either separated water or separated steam (not two-phase fluid). The outputs are specified in two arrays, **water** and **steam** (see :ref:`reinjector_outputs`).
+Each reinjector output can deliver fluid from one of two categories: separated water or separated steam (not two-phase fluid). The outputs are specified in two arrays, **water** and **steam** (see :ref:`reinjector_outputs`). For geothemal reservoir models, reinjected fluid in the "steam" category is usually not in fact steam but steam condensate, after the steam from the production wells has passed through a power plant and cooling facilities.
 
 A reinjector also has an **overflow** which handles any fluid left over after the outputs have been processed (see :ref:`reinjector_overflow`).
 
@@ -333,13 +333,13 @@ The order of reinjectors in the Waiwera JSON input file is not significant, and 
 Reinjector outputs
 ------------------
 
-Reinjector outputs are divided into two categories: separated water and separated steam. For each category, a list of outputs is specified (see below).
+Reinjector outputs are divided into two categories: separated water and separated steam (or steam condensate). For each category, a list of outputs is specified (see below).
 
 Within each category, the corresponding input fluid is distributed **progressively** amongst the list of outputs - that is, the first output is assigned a flow rate, then the second output, and so on until either all the input flow has been distributed, or all the outputs have been assigned. If all the input flow is distributed to the outputs, then any remaining outputs in the list will have zero flow (and the overflow for that category will be zero). Otherwise, there will be a non-zero overflow (see :ref:`reinjector_overflow`).
 
 Hence, the order of reinjector outputs is significant (for the same reason that the order of group inputs is significant when progressive scaling is used).
 
-The reinjector outputs are specified in the Waiwera JSON input using two values, **"water"** for separated water outputs and **"steam"** for separated steam outputs. These are both arrays of objects. Each object represents a single separated water or steam output and its values are listed below.
+The reinjector outputs are specified in the Waiwera JSON input using two values, **"water"** for separated water outputs and **"steam"** for separated steam (or steam condensate) outputs. These are both arrays of objects. Each object represents a single separated water or steam output and its values are listed below.
 
 .. note::
    **JSON object**: reinjector output
@@ -378,7 +378,7 @@ It is also possible to specify a flow rate for both the reinjector output and it
 
 If there is no flow rate specified in either the reinjector output (via the "rate" or "proportion" values) or the receiving source, then the source is treated as if it has effectively infinite capacity, and the injection rate is set to the balance of the input flow not already reinjected by previous outputs in the list. Clearly, this means any subsequent reinjector outputs in the list will have zero flow.
 
-The **"enthalpy"** of the output can also be specified. If it is not specified, it is set equal to the enthalpy of the input, for the corresponding category (separated water or steam).
+The **"enthalpy"** of the output can also be specified. If it is not specified, it is set equal to the enthalpy of the input, for the corresponding category (separated water or steam). In most cases the enthalpy should be specified, particularly for steam condensate outputs which will have a much lower (liquid) enthalpy than the produced steam.
 
 The "rate", "proportion" and "enthalpy" values can all be specified either as fixed constants or rank-2 arrays of time-dependent values. If array values are used, the interpolation and averaging types can be set via the **"interpolation"** and **"averaging"** values (see :ref:`interpolation_tables`).
 
@@ -437,7 +437,7 @@ Here there are again two production wells and a group "g1", which feeds into the
 Reinjector overflow
 -------------------
 
-If there is more fluid entering a reinjector than can be delivered through its outputs (i.e. the input separated water or steam flow is greater than the sum of its corresponding outputs), then there will be some left over. This is handled by the reinjector's "overflow".
+If there is more fluid entering a reinjector than can be delivered through its outputs (i.e. the input separated water or steam (condensate) flow is greater than the sum of its corresponding outputs), then there will be some left over. This is handled by the reinjector's "overflow".
 
 Unlike :ref:`reinjector_outputs`, the reinjector overflow handles both separated water and steam overflows (i.e. there are not separate overflows for water and steam). The overflow flow rates can be monitored or post-processed via their values in the Waiwera output (see :ref:`reinjector_file_output`).
 
