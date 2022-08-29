@@ -111,7 +111,7 @@ reinjection_test.addTestComp(run_index, "AUTOUGH2 history",
 for source_index in source_indices:
     reinjection_test.addTestComp(run_index, "AUTOUGH2 source %d" % source_index,
                             HistoryWithinTolTC(fieldsToTest = test_source_fields,
-                                               defFieldTol = 0.02,
+                                               defFieldTol = 0.06,
                                                expected = AUTOUGH2_result[run_name],
                                                testSourceIndex = source_index))
 
