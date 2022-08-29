@@ -72,12 +72,13 @@ module source_module
      PetscInt, public :: local_cell_index !! Local index of cell the source is in
      PetscReal, public :: injection_enthalpy !! Enthalpy to apply for injection
      PetscInt, public :: injection_component !! Component for injection
+     PetscBool, public :: rate_specified !! Whether rate specified, by value or controls
+     PetscReal, public :: specified_rate !! Rate specified (may be overridden by reinjectors)
      PetscInt, public :: production_component !! Component for production (default 0 means all)
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
      PetscInt, public :: num_tracers !! Number of tracers
      PetscBool, public :: isothermal !! Whether equation of state is isothermal
-     PetscBool, public :: unrated !! Whether source has no flow rate specified
      PetscReal, pointer, public :: source_index !! Index of source in input
      PetscReal, pointer, public :: natural_cell_index !! Natural index of cell the source is in
      PetscReal, pointer, public :: component !! Mass (or energy) component being produced or injected
@@ -97,6 +98,8 @@ module source_module
      procedure, public :: assign_fluid_local => source_assign_fluid_local
      procedure, public :: assign_fluid => source_assign_fluid
      procedure, public :: init_data => source_init_data
+     procedure, public :: set_rate => source_set_rate
+     procedure, public :: specified_injection_rate => source_specified_injection_rate
      procedure, public :: update_component => source_update_component
      procedure, public :: update_flow => source_update_flow
      procedure, public :: update_tracer_flow => source_update_tracer_flow
@@ -109,7 +112,7 @@ contains
 
   subroutine source_init(self, name, eos, local_source_index, &
        local_cell_index, injection_enthalpy, injection_component, &
-       production_component, unrated, num_tracers)
+       production_component, rate_specified, specified_rate, num_tracers)
     !! Initialises a source object. Only values stored in the object
     !! itself are initialised, not those in the source data vector
     !! accesssed via pointers.
@@ -124,7 +127,8 @@ contains
     PetscReal, intent(in) :: injection_enthalpy !! Enthalpy for injection
     PetscInt, intent(in) :: injection_component !! Component for injection
     PetscInt, intent(in) :: production_component !! Component for production
-    PetscBool, intent(in) :: unrated !! Whether source has no flow rate specified
+    PetscBool, intent(in) :: rate_specified !! Whether rate specified
+    PetscReal, intent(in) :: specified_rate !! Specified rate
     PetscInt, intent(in), optional :: num_tracers !! Number of tracers
 
     self%name = name
@@ -134,9 +138,10 @@ contains
     self%local_cell_index = local_cell_index
     self%injection_enthalpy = injection_enthalpy
     self%injection_component = injection_component
+    self%rate_specified = rate_specified
+    self%specified_rate = specified_rate
     self%production_component = production_component
     self%isothermal = eos%isothermal
-    self%unrated = unrated
 
     if (present(num_tracers)) then
        self%num_tracers = num_tracers
@@ -248,6 +253,37 @@ contains
     call self%set_rate(rate)
 
   end subroutine source_init_data
+
+!------------------------------------------------------------------------
+
+  subroutine source_set_rate(self, rate)
+    !! Sets source flow rate to specified value. For injection, also
+    !! sets specified injection rate.
+
+    class(source_type), intent(in out) :: self
+    PetscReal, intent(in) :: rate !! Flow rate
+
+    call self%source_network_node_type%set_rate(rate)
+    if (self%rate_specified) then
+       self%specified_rate = rate
+    end if
+
+  end subroutine source_set_rate
+
+!------------------------------------------------------------------------
+
+  PetscReal function source_specified_injection_rate(self) result(rate)
+    !! Returns specified rate if rate is specified, or -1 otherwise.
+
+    class(source_type), intent(in) :: self
+
+    if (self%rate_specified) then
+       rate = self%specified_rate
+    else
+       rate = -1._dp
+    end if
+
+  end function source_specified_injection_rate
 
 !------------------------------------------------------------------------
 

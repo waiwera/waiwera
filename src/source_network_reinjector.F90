@@ -374,12 +374,15 @@ contains
 
     class(specified_reinjector_output_type), intent(in out) :: self
     PetscReal, intent(in out) :: rate
+    ! Locals:
+    PetscReal :: node_rate
 
     if (associated(self%out)) then
 
        select type (n => self%out)
        class is (source_type)
-          call node_limit_rate(n%rate, rate)
+          node_rate = n%specified_injection_rate()
+          call node_limit_rate(node_rate, rate)
        class is (source_network_reinjector_type)
           select case (self%flow_type)
           case (SEPARATED_FLOW_TYPE_WATER)
@@ -921,6 +924,8 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscReal :: node_rate
 
       stopped = PETSC_FALSE
       select type (output => node%data)
@@ -928,11 +933,12 @@ contains
          if (output%out%link_index >= 0) then
             select type (n => output%out)
             class is (source_type)
+               node_rate = n%specified_injection_rate()
                select case (output%flow_type)
                case (SEPARATED_FLOW_TYPE_WATER)
-                  call update_capacity(n%rate, local_water_capacity)
+                  call update_capacity(node_rate, local_water_capacity)
                case (SEPARATED_FLOW_TYPE_STEAM)
-                  call update_capacity(n%rate, local_steam_capacity)
+                  call update_capacity(node_rate, local_steam_capacity)
                end select
             class is (source_network_reinjector_type)
                select case (output%flow_type)

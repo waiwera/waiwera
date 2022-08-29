@@ -90,7 +90,8 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
-    PetscBool, parameter :: unrated = PETSC_FALSE
+    PetscBool, parameter :: rate_specified = PETSC_FALSE
+    PetscReal, parameter :: specified_rate = -1._dp
     PetscInt, parameter :: expected_num_sources = 11
     PetscMPIInt :: rank
 
@@ -114,7 +115,8 @@ contains
          thermo, start_time, fluid_vector, fluid_range_start, source_network, &
          err = err)
     call test%assert(0, err, "source network setup error")
-    call source%init("", eos, 0, 0, 0._dp, 0, 0, unrated, size(tracers))
+    call source%init("", eos, 0, 0, 0._dp, 0, 0, rate_specified, &
+         specified_rate, size(tracers))
     call test%assert(13 + size(tracers) * 2, source%dof, "source dof")
     call source%destroy()
 
@@ -262,7 +264,8 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     character :: tracer_names(0)
-    PetscBool, parameter :: unrated = PETSC_FALSE
+    PetscBool, parameter :: rate_specified = PETSC_FALSE
+    PetscReal, parameter :: specified_rate = -1._dp
     PetscInt, parameter :: expected_num_sources = 17
     PetscReal, parameter :: expected_rates(0: expected_num_sources - 1) = [ &
          -12.8728519749_dp, -10._dp, -9.3081349399_dp, -11._dp, -10.1910078135_dp, &
@@ -380,7 +383,8 @@ contains
     call source_network%sources%traverse(source_rate_test_iterator)
 
     ! Test deliverability threshold control- reduce fluid pressure:
-    call source%init("source 12", eos, 0, 0, 0._dp, 0, 0, unrated, size(tracer_names))
+    call source%init("source 12", eos, 0, 0, 0._dp, 0, 0, rate_specified, &
+         specified_rate, size(tracer_names))
     call reset_fluid_pressures(6.e5_dp)
     call source_network%source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then

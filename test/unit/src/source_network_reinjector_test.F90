@@ -76,7 +76,7 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector
-    PetscInt :: fluid_range_start, num_unrated
+    PetscInt :: fluid_range_start
     PetscReal, pointer, contiguous :: source_array(:), group_array(:), reinjector_array(:)
     PetscSection :: source_section, group_section, reinjector_section
     type(source_network_type) :: source_network
@@ -86,7 +86,6 @@ contains
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscErrorCode :: err, ierr
     PetscInt, parameter :: expected_num_sources = 39
-    PetscInt, parameter :: expected_num_unrated_reinjection_sources = 11
     PetscInt, parameter :: expected_num_groups = 6
     PetscInt, parameter :: expected_num_reinjectors = 10
 
@@ -113,13 +112,6 @@ contains
             "number of reinjectors")
     end if
 
-    call MPI_reduce(source_network%unrated_reinjection_sources%count, num_unrated, 1, &
-         MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
-    if (rank == 0) then
-       call test%assert(expected_num_unrated_reinjection_sources, num_unrated, &
-            "number of unrated reinjection sources")
-    end if
-
     if (err == 0) then
 
        call global_vec_section(source_network%source, source_section)
@@ -137,7 +129,6 @@ contains
        call source_network%groups%traverse(group_sum_iterator)
        call source_network%network_controls%traverse(network_control_iterator)
 
-       call source_network%unrated_reinjection_sources%traverse(init_unrated_iterator)
        call source_network%reinjectors%traverse(reinjector_capacity_iterator)
        call source_network%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
 
@@ -297,23 +288,6 @@ contains
       end select
 
     end subroutine network_control_iterator
-
-!........................................................................
-
-    subroutine init_unrated_iterator(node, stopped)
-      !! Initialises flow rate in unrated reinjection source to -1,
-      !! flagging that its rate has not been specified.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type (source => node%data)
-      type is (source_type)
-         source%rate = -1._dp
-      end select
-
-    end subroutine init_unrated_iterator
 
 !........................................................................
 

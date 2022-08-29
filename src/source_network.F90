@@ -42,7 +42,6 @@ module source_network_module
      type(list_type), public :: source_controls !! Controls on sources/sinks
      type(list_type), public :: network_controls !! Controls on source network nodes
      type(list_type), public :: reinjectors !! Reinjectors distributing flows to injection sources
-     type(list_type), public :: unrated_reinjection_sources !! Reinjection sources which have no rate assigned (and no controls)
      Vec, public :: source !! Vector for source/sink data
      Vec, public :: group !! Vector for source network group data
      Vec, public :: reinjector !! Vector for source network reinjector data
@@ -79,7 +78,6 @@ contains
        call self%source_controls%init(owner = PETSC_TRUE)
        call self%network_controls%init(owner = PETSC_TRUE)
        call self%reinjectors%init(owner = PETSC_TRUE)
-       call self%unrated_reinjection_sources%init(owner = PETSC_FALSE)
 
   end subroutine source_network_init
 
@@ -117,7 +115,6 @@ contains
     call self%groups%traverse(group_iterator)
     call self%network_controls%traverse(control_iterator)
 
-    call self%unrated_reinjection_sources%traverse(init_unrated_iterator)
     call self%reinjectors%traverse(reinjector_capacity_iterator)
     call self%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
 
@@ -258,23 +255,6 @@ contains
 
 !........................................................................
 
-    subroutine init_unrated_iterator(node, stopped)
-      !! Initialises flow rate in unrated reinjection source to -1,
-      !! flagging that its rate has not been specified.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type (source => node%data)
-      type is (source_type)
-         source%rate = -1._dp
-      end select
-
-    end subroutine init_unrated_iterator
-
-!........................................................................
-
     subroutine reinjector_capacity_iterator(node, stopped)
       !! Calculates output capacity of a reinjector.
 
@@ -398,7 +378,6 @@ contains
          object_control_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%reinjectors%destroy( &
          source_network_node_list_node_data_destroy, reverse = PETSC_TRUE)
-    call self%unrated_reinjection_sources%destroy()
     call self%sources%destroy(source_network_node_list_node_data_destroy)
 
   end subroutine source_network_destroy

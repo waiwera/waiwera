@@ -367,9 +367,11 @@ contains
       PetscInt, allocatable :: num_field_components(:), field_dim(:)
       PetscInt, parameter :: max_field_name_length = 40
       character(max_field_name_length), allocatable :: field_names(:)
-      PetscBool, parameter :: unrated = PETSC_FALSE
+      PetscBool, parameter :: rate_specified = PETSC_FALSE
+      PetscReal, parameter :: specified_rate = -1._dp
 
-      call source%init("", eos, 0, 0, 0._dp, 1, 1, unrated, num_tracers)
+      call source%init("", eos, 0, 0, 0._dp, 1, 1, rate_specified, &
+           specified_rate, num_tracers)
       allocate(num_field_components(source%dof), field_dim(source%dof), &
            field_names(source%dof))
       call source%destroy()
@@ -461,7 +463,8 @@ contains
       ISLocalToGlobalMapping :: l2g
       PetscReal :: tracer_injection_rate(size(tracer_names))
       character(max_source_network_node_name_length) :: name
-      PetscBool :: unrated
+      PetscBool :: rate_specified
+      PetscReal :: specified_rate
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -470,7 +473,7 @@ contains
 
       call get_components(source_json, eos, &
            injection_component, production_component, logfile)
-      call get_initial_rate(source_json, initial_rate, unrated)
+      call get_initial_rate(source_json, initial_rate, rate_specified, specified_rate)
       call get_initial_enthalpy(source_json, eos, &
            injection_component, initial_enthalpy)
       call get_separator_pressure(source_json, srcstr, separator_pressure, logfile)
@@ -509,7 +512,7 @@ contains
                allocate(source)
                call source%init(name, eos, local_source_index, local_cell_index(i), &
                     initial_enthalpy, injection_component, production_component, &
-                    unrated, num_tracers)
+                    rate_specified, specified_rate, num_tracers)
                call source%assign(source_data, source_offset)
                call source%init_data(natural_source_index(i), natural_cell_index(i), &
                     initial_rate, tracer_injection_rate, separator_pressure, thermo)
@@ -1286,9 +1289,6 @@ contains
                            output%out => source
                            source%link_index = output_index
                            call reinjector%out%append(output)
-                           if (source%unrated) then
-                             call source_network%unrated_reinjection_sources%append(source)
-                           end if
                         end select
                      else ! source is not on this process:
                         deallocate(output)
@@ -1564,7 +1564,7 @@ contains
 
     subroutine init_reinjector_overflow(reinjector_json, reinjector_str, &
          source_dict, source_dict_all, reinjector_output_dict, &
-         unrated_reinjection_sources, reinjector, err)
+         reinjector, err)
       !! Initialises reinjector overflow.
 
       use mpi_utils_module, only: mpi_broadcast_error_flag
@@ -1573,7 +1573,6 @@ contains
       character(*), intent(in) :: reinjector_str
       type(dictionary_type), intent(in out) :: source_dict, source_dict_all, &
            reinjector_output_dict
-      type(list_type), intent(in out) :: unrated_reinjection_sources
       type(source_network_reinjector_type), intent(in out) :: reinjector
       PetscErrorCode, intent(out) :: err
       ! Locals:
@@ -1610,9 +1609,6 @@ contains
                      type is (source_type)
                         reinjector%overflow%out => source
                         source%link_index = 0 ! not used
-                        if (source%unrated) then
-                           call unrated_reinjection_sources%append(source)
-                        end if
                      end select
                   end if
                   call reinjector_output_dict%add(node_name)
@@ -1728,7 +1724,7 @@ contains
             if (err == 0) then
                call init_reinjector_overflow(reinjector_json, rstr, &
                  source_dict, source_dict_all, reinjector_output_dict, &
-                 source_network%unrated_reinjection_sources, reinjector, err)
+                 reinjector, err)
                if (err == 0) then
                   call reinjector%init_comm()
                   if (reinjector%rank == 0) then
@@ -1842,7 +1838,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine get_initial_rate(source_json, initial_rate, unrated)
+  subroutine get_initial_rate(source_json, initial_rate, rate_specified, &
+       specified_rate)
     !! Gets initial flow rate. This can only be determined for
     !! constant-rate sources. For other source types, a default
     !! initial rate is assigned, which may be modified by any source
@@ -1850,7 +1847,8 @@ contains
 
     type(fson_value), pointer, intent(in) :: source_json
     PetscReal, intent(out) :: initial_rate
-    PetscBool, intent(out) :: unrated
+    PetscBool, intent(out) :: rate_specified
+    PetscReal, intent(out) :: specified_rate
     ! Locals:
     PetscInt :: rate_type
 
@@ -1865,12 +1863,14 @@ contains
           initial_rate = default_source_rate
        end select
 
-       unrated = PETSC_FALSE
+       rate_specified = PETSC_TRUE
 
     else
        initial_rate = default_source_rate
-       unrated = PETSC_TRUE
+       rate_specified = PETSC_FALSE
     end if
+
+    specified_rate = initial_rate
 
   end subroutine get_initial_rate
 
@@ -2161,23 +2161,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine unset_source_unrated_iterator(node, stopped)
-    !! Sets source unrated property to false. Used when adding a
-    !! control to a source, so it is no longer considered unrated.
-
-      type(list_node_type), pointer, intent(in out) :: node
-      PetscBool, intent(out) :: stopped
-
-      stopped = PETSC_FALSE
-      select type(source => node%data)
-      type is (source_type)
-         source%unrated = PETSC_FALSE
-      end select
-
-    end subroutine unset_source_unrated_iterator
-
-!------------------------------------------------------------------------
-
     subroutine setup_table_source_control(source_json, srcstr, &
        interpolation_type, averaging_type, tracer_names, &
        spec_sources, source_network, logfile, err)
@@ -2225,7 +2208,6 @@ contains
             call control%init(spec_sources%copy(), data_array, &
                  interpolation_type, averaging_type)
             call source_network%source_controls%append(control)
-            call spec_sources%traverse(unset_source_unrated_iterator)
          end if
          deallocate(data_array)
       end if
@@ -2647,8 +2629,8 @@ contains
              deliv%threshold_productivity = &
                   deliv%productivity%interpolate(start_time, 1)
           end if
+          source%rate_specified = PETSC_TRUE
           call source_network%source_controls%append(deliv)
-          source%unrated = PETSC_FALSE
 
       end select
 
@@ -2803,9 +2785,9 @@ contains
             call recharge%set_reference_pressure_initial(fluid_data, &
                  fluid_section, fluid_range_start)
          end if
+         source%rate_specified = PETSC_TRUE
 
          call source_network%source_controls%append(recharge)
-         source%unrated = PETSC_FALSE
 
       end select
 

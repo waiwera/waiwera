@@ -82,7 +82,8 @@ contains
     PetscInt, parameter :: offset = 1
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscInt, parameter :: nt = 0 ! number of tracers
-    PetscBool, parameter :: unrated = PETSC_FALSE
+    PetscBool, parameter :: rate_specified = PETSC_FALSE
+    PetscReal, parameter :: specified_rate = -1._dp
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -174,7 +175,7 @@ contains
       PetscReal, parameter :: separator_pressure(1) = [-1._dp]
 
       call source%init(tag, eos, 0, 0, enthalpy, injection_component, &
-           production_component, unrated, nt)
+           production_component, rate_specified, specified_rate, nt)
       allocate(source_data(source%dof))
       call source%assign(source_data, 1)
       call source%init_data(0, 0, rate, injection_tracer, &
