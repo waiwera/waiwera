@@ -45,13 +45,14 @@ model_name = 'reinjection'
 AUTOUGH2_FIELDMAP = {
     'Vapour saturation': 'Vapour saturation',
     'Temperature': 'Temperature',
-    'Rate': 'Generation rate'}
+    'Rate': 'Generation rate',
+    'Enthalpy': 'Enthalpy'}
 WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
-    'Enthalpy': 'source_enthalpy',
-    'Rate': 'source_rate'}
+    'Rate': 'source_rate',
+    'Enthalpy': 'source_enthalpy'}
 
 model_dir = './run'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
@@ -62,11 +63,11 @@ run_index = 0
 
 test_fields = ['Pressure', 'Temperature', 'Vapour saturation']
 plot_fields = test_fields
-test_source_fields = ['Rate']
+test_source_fields = ['Rate', 'Enthalpy']
 field_scale = {'Pressure': 1.e5, 'Temperature': 1., 'Vapour saturation': 1.,
-               'Rate': 1.0}
+               'Rate': 1.0, 'Enthalpy': 1.e3}
 field_unit = {'Pressure': 'bar', 'Temperature': '$^{\circ}$C', 'Vapour saturation': '',
-              'Rate': 'kg/s'}
+              'Rate': 'kg/s', 'Enthalpy': 'kJ/kg'}
 
 reinjection_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 reinjection_test.description = """1-D column problem, production run with reinjection, starting from steady-state solution.
@@ -91,13 +92,8 @@ map_out_atm = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
 
 reinjection_test.setupEmptyTestCompsList()
 AUTOUGH2_result = {}
-
-run_base_name = model_name
 results_filename = os.path.join(model_dir, run_base_name + ".listing")
-run_filename = run_base_name + '.json'
-inp = json.load(open(os.path.join(base_path, run_filename)))
-lst = t2listing(results_filename)
-lst.last()
+
 AUTOUGH2_result[run_name] = T2ModelResult("AUTOUGH2", results_filename,
                                 geo_filename = t2geo_filename,
                                 fieldname_map = AUTOUGH2_FIELDMAP,
