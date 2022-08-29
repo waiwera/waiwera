@@ -113,7 +113,7 @@ reinjection_test.addTestComp(run_index, "AUTOUGH2 history",
                                            expected = AUTOUGH2_result[run_name],
                                            testCellIndex = obs_cell_index))
 for source_index in source_indices:
-    reinjection_test.addTestComp(run_index, "AUTOUGH2 source",
+    reinjection_test.addTestComp(run_index, "AUTOUGH2 source %d" % source_index,
                             HistoryWithinTolTC(fieldsToTest = test_source_fields,
                                                defFieldTol = 0.02,
                                                expected = AUTOUGH2_result[run_name],
