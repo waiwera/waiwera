@@ -34,11 +34,13 @@ module source_network_reinjector_module
   private
 
   PetscInt, parameter, public :: num_source_network_reinjector_variables = &
-       num_source_network_node_variables + 5
+       num_source_network_node_variables + 8
   PetscInt, parameter, public :: max_source_network_reinjector_variable_name_length = 24
   character(max_source_network_reinjector_variable_name_length), parameter, public :: &
        source_network_reinjector_variable_names(num_source_network_reinjector_variables) = [ &
        source_network_variable_names,  ["reinjector_index        ", &
+       "output_rate             ", &
+       "output_water_rate       ", "output_steam_rate       ", &
        "overflow_water_rate     ", "overflow_water_enthalpy ", &
        "overflow_steam_rate     ", "overflow_steam_enthalpy " ]]
   PetscInt, parameter, public :: num_source_network_reinjector_constant_integer_variables = 1
@@ -50,7 +52,8 @@ module source_network_reinjector_module
        required_output_source_network_reinjector_fields(0) = [&
        character(max_field_name_length)::]
   character(max_field_name_length), parameter, public :: &
-       default_output_source_network_reinjector_fields(2) = [&
+       default_output_source_network_reinjector_fields(4) = [&
+       "output_water_rate  ", "output_steam_rate  ", &
        "overflow_water_rate", "overflow_steam_rate"]
   PetscReal, parameter, public :: default_reinjector_output_rate = -1._dp
   PetscReal, parameter, public :: default_reinjector_output_proportion = 0._dp
@@ -138,6 +141,9 @@ module source_network_reinjector_module
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
      PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
      PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
+     PetscReal, pointer, public :: output_rate !! Sum of output rates
+     PetscReal, pointer, public :: output_water_rate !! Sum of water output rates
+     PetscReal, pointer, public :: output_steam_rate !! Sum of steam output rates
      PetscReal :: in_water_rate !! Water rate in input node
      PetscReal :: in_steam_rate !! Steam rate in input node
      PetscReal :: in_water_enthalpy !! Water enthalpy in input node
@@ -808,7 +814,10 @@ contains
 
     reinjector_offset = offset + num_source_network_node_variables
     self%reinjector_index => data(reinjector_offset)
-    call self%overflow%assign(data, reinjector_offset + 1)
+    self%output_rate => data(reinjector_offset + 1)
+    self%output_water_rate => data(reinjector_offset + 2)
+    self%output_steam_rate => data(reinjector_offset + 3)
+    call self%overflow%assign(data, reinjector_offset + 4)
 
   end subroutine source_network_reinjector_assign
 
@@ -823,6 +832,11 @@ contains
     PetscInt, intent(in) :: reinjector_index !! Index of reinjector in input
 
     self%reinjector_index = dble(reinjector_index)
+
+    self%output_rate = 0._dp
+    self%output_water_rate = 0._dp
+    self%output_steam_rate = 0._dp
+
     self%overflow%water_rate = 0._dp
     self%overflow%water_enthalpy = 0._dp
     self%overflow%steam_rate = 0._dp
@@ -1020,14 +1034,23 @@ contains
 
        if (self%rank == 0) then
 
+          ! Set rates and enthalpies for output:
+          self%water_rate = self%in_water_rate
+          self%water_enthalpy = self%in_water_enthalpy
+          self%steam_rate = self%in_steam_rate
+          self%steam_enthalpy = self%in_steam_enthalpy
+
+          self%output_water_rate = 0._dp
+          self%output_steam_rate = 0._dp
           water_balance = self%in_water_rate
           steam_balance = self%in_steam_rate
 
           do i = 1, self%gather_count
              j = self%gather_index(i)
-             call limit_rate(qw(j), water_balance)
-             call limit_rate(qs(j), steam_balance)
+             call limit_rate(qw(j), water_balance, self%output_water_rate)
+             call limit_rate(qs(j), steam_balance, self%output_steam_rate)
           end do
+          self%output_rate = self%output_water_rate + self%output_steam_rate
 
        end if
 
@@ -1073,10 +1096,11 @@ contains
 
 !........................................................................
 
-    subroutine limit_rate(rate, balance)
-      !! Limits rate to remaining balance, and updates balance.
+    subroutine limit_rate(rate, balance, total)
+      !! Limits rate to remaining balance, and updates balance and
+      !! total.
 
-      PetscReal, intent(in out) :: rate, balance
+      PetscReal, intent(in out) :: rate, balance, total
 
       if (rate < 0._dp) then
          ! No limit on flow rate - set to remaining balance:
@@ -1088,6 +1112,7 @@ contains
 
       ! Update balance:
       balance = max(balance - rate, 0._dp)
+      total = total + rate
 
     end subroutine limit_rate
 

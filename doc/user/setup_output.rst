@@ -429,6 +429,15 @@ The available source network reinjector output fields are:
 |"steam_enthalpy"         |separated steam inflow enthalpy|
 |                         |(J/kg)                         |
 +-------------------------+-------------------------------+
+|"output_rate"            |total output rate (kg/s)       |
+|                         |                               |
++-------------------------+-------------------------------+
+|"output_water_rate"      |total separated water output   |
+|                         |rate (kg/s)                    |
++-------------------------+-------------------------------+
+|"output_steam_rate"      |total separated steam output   |
+|                         |rate (kg/s)                    |
++-------------------------+-------------------------------+
 |"overflow_water_rate"    |separated water overflow rate  |
 |                         |(kg/s)                         |
 +-------------------------+-------------------------------+
@@ -442,7 +451,8 @@ The available source network reinjector output fields are:
 |                         |enthalpy (J/kg)                |
 +-------------------------+-------------------------------+
 
-The default source reinjector output fields are ["overflow_water_rate", "overflow_steam_rate"].
+The default source reinjector output fields are ["output_water_rate",
+"output_steam_rate", "overflow_water_rate", "overflow_steam_rate"].
 
 .. index:: output; mesh geometry
 .. _output_geometry_fields:
