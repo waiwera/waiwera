@@ -286,9 +286,11 @@ Time stepping termination
 The time stepper can terminate in a number of ways:
 
 * if the time reaches or exceeds the stop time, specified by the **"time.stop"** value in the JSON input (if the time exceeds the stop time, the time step size will be reduced to hit the stop time exactly)
-* if the number of time steps reaches the limit specified by the **"time.step.maximum.number"** value
+* if the number of time steps reaches the limit specified by the **"time.step.maximum.number"** value (and this is not ``null``)
 * if the time step size falls below a lower limit specified by **"time.step.stop.size.minimum"** or exceeds **"time.step.stop.size.maximum"**
 * if a time step fails to complete, and the time step size reduction process is repeated more than the maximum allowable number of tries specified by the **"time.step.maximum.tries"** value
+
+Note that the default maximum number of time steps (**"time.step.maximum.number"**) is not ``null`` (i.e. infinite) - it is usually a good idea to keep some limit on the number of time steps in case the simulation does not terminate as expected. To remove any limit on time step number, this value should be explicitly set to ``null``.
 
 .. index:: time; steady state
 
