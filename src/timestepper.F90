@@ -121,7 +121,7 @@ module timestepper_module
      type(timestepper_step_type), pointer, public :: last !! Previous time step
      PetscInt, public :: num_stored !! Number of steps stored
      PetscInt, public :: taken !! Number of steps taken so far
-     PetscInt, public :: max_num !! Maximum allowable number of steps
+     PetscInt, public :: max_num !! Maximum allowable number of steps (-1 for no limit)
      PetscInt, public :: max_num_tries !! Maximum allowable number of tries per step
      PetscInt, public :: fixed_step_index !! Current index in array of fixed step sizes
      PetscReal, public :: next_stepsize !! Step size to be used for next step
@@ -1220,7 +1220,7 @@ contains
                   real_keys = ['size'], real_values = [self%current%stepsize])
           end if
        end if
-       if (self%taken + 1 >= self%max_num) then
+       if ((self%max_num >= 0) .and. (self%taken + 1 >= self%max_num)) then
           self%finished = PETSC_TRUE
           call logfile%write(LOG_LEVEL_INFO, 'timestep', 'max_timesteps_reached')
        end if
@@ -1919,6 +1919,7 @@ end subroutine timestepper_steps_set_next_stepsize
     class(ode_type), intent(in), target :: ode
     ! Locals:
     PetscInt :: max_num_steps
+    PetscInt :: max_num_steps_type
     PetscReal, parameter :: default_stop_time = 1.0_dp
     PetscReal, parameter :: default_stepsize = 0.1_dp
     PetscInt :: step_size_type
@@ -2083,8 +2084,22 @@ end subroutine timestepper_steps_set_next_stepsize
                   str_key = "time.step.stop.size.maximum", &
                   str_value = "null")
        end if
-       call fson_get_mpi(json, "time.step.maximum.number", &
-            default_max_num_steps, max_num_steps, self%ode%logfile)
+
+       if (fson_has_mpi(json, "time.step.maximum.number")) then
+          max_num_steps_type = fson_type_mpi(json, "time.step.maximum.number")
+          if (max_num_steps_type == TYPE_NULL) then
+             max_num_steps = -1
+          else
+             call fson_get_mpi(json, "time.step.maximum.number", &
+                  val = max_num_steps)
+          end if
+       else
+          max_num_steps = default_max_num_steps
+          call self%ode%logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  int_keys = ["time.step.maximum.number"], &
+                  int_values = [default_max_num_steps])
+       end if
+
        call fson_get_mpi(json, "time.step.maximum.tries", &
             default_max_num_tries, max_num_tries, self%ode%logfile)
 

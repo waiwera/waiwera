@@ -1039,7 +1039,7 @@ contains
          '"method": "beuler", "adapt": {"on": false}}}}'
 
     json_str(2) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
-         '"step": {"size": 0.1, "maximum": {"number": 20, "size": null}, ' // &
+         '"step": {"size": 0.1, "maximum": {"number": null, "size": null}, ' // &
          '"method": "bdf2", "adapt": {"on": false}}}}'
 
     json_str(3) = '{"time": {"start": 0.0, "stop": 1.0, ' // &
