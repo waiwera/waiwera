@@ -165,7 +165,7 @@ contains
     select type(source => node%data)
     type is (source_type)
        associate(enthalpy => self%value(1))
-         source%injection_enthalpy = enthalpy
+         call source%set_enthalpy(enthalpy)
        end associate
     end select
 

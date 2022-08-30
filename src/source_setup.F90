@@ -367,11 +367,12 @@ contains
       PetscInt, allocatable :: num_field_components(:), field_dim(:)
       PetscInt, parameter :: max_field_name_length = 40
       character(max_field_name_length), allocatable :: field_names(:)
-      PetscBool, parameter :: rate_specified = PETSC_FALSE
-      PetscReal, parameter :: specified_rate = -1._dp
+      PetscBool, parameter :: rate_specified = PETSC_FALSE, &
+           enthalpy_specified = PETSC_FALSE
+      PetscReal, parameter :: specified_rate = -1._dp, specified_enthalpy = 0._dp
 
       call source%init("", eos, 0, 0, 0._dp, 1, 1, rate_specified, &
-           specified_rate, num_tracers)
+           specified_rate, enthalpy_specified, specified_enthalpy, num_tracers)
       allocate(num_field_components(source%dof), field_dim(source%dof), &
            field_names(source%dof))
       call source%destroy()
@@ -463,8 +464,8 @@ contains
       ISLocalToGlobalMapping :: l2g
       PetscReal :: tracer_injection_rate(size(tracer_names))
       character(max_source_network_node_name_length) :: name
-      PetscBool :: rate_specified
-      PetscReal :: specified_rate
+      PetscBool :: rate_specified, enthalpy_specified
+      PetscReal :: specified_rate, specified_enthalpy
 
       err = 0
       call DMGetLocalToGlobalMapping(dm, l2g, ierr); CHKERRQ(ierr)
@@ -475,7 +476,7 @@ contains
            injection_component, production_component, logfile)
       call get_initial_rate(source_json, initial_rate, rate_specified, specified_rate)
       call get_initial_enthalpy(source_json, eos, &
-           injection_component, initial_enthalpy)
+           injection_component, initial_enthalpy, enthalpy_specified, specified_enthalpy)
       call get_separator_pressure(source_json, srcstr, separator_pressure, logfile)
       call get_tracer_injection_rate(source_json, tracer_names, &
            srcstr, tracer_injection_rate, logfile, err)
@@ -512,7 +513,8 @@ contains
                allocate(source)
                call source%init(name, eos, local_source_index, local_cell_index(i), &
                     initial_enthalpy, injection_component, production_component, &
-                    rate_specified, specified_rate, num_tracers)
+                    rate_specified, specified_rate, enthalpy_specified, specified_enthalpy, &
+                    num_tracers)
                call source%assign(source_data, source_offset)
                call source%init_data(natural_source_index(i), natural_cell_index(i), &
                     initial_rate, tracer_injection_rate, separator_pressure, thermo)
@@ -1877,13 +1879,15 @@ contains
 !------------------------------------------------------------------------
 
   subroutine get_initial_enthalpy(source_json, eos, injection_component, &
-       enthalpy)
+       enthalpy, enthalpy_specified, specified_enthalpy)
     !! Gets initial injection enthalpy for the source, if needed.
 
     type(fson_value), pointer, intent(in) :: source_json
     class(eos_type), intent(in) :: eos
     PetscInt, intent(in) :: injection_component
     PetscReal, intent(out) :: enthalpy
+    PetscBool, intent(out) :: enthalpy_specified
+    PetscReal, intent(out) :: specified_enthalpy
     ! Locals:
     PetscInt :: enthalpy_type
 
@@ -1903,15 +1907,21 @@ contains
                enthalpy = default_source_injection_enthalpy
             end select
 
+            enthalpy_specified = PETSC_TRUE
+
          else
             enthalpy = default_source_injection_enthalpy
+            enthalpy_specified = PETSC_FALSE
          end if
 
       else ! heat injection - no enthalpy needed
          enthalpy = 0._dp
+         enthalpy_specified = PETSC_FALSE
       end if
 
     end associate
+
+    specified_enthalpy = enthalpy
 
   end subroutine get_initial_enthalpy
 

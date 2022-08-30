@@ -74,6 +74,8 @@ module source_module
      PetscInt, public :: injection_component !! Component for injection
      PetscBool, public :: rate_specified !! Whether rate specified, by value or controls
      PetscReal, public :: specified_rate !! Rate specified (may be overridden by reinjectors)
+     PetscBool, public :: enthalpy_specified !! Whether enthalpy specified, by value or controls
+     PetscReal, public :: specified_enthalpy !! Enthalpy specified (may be overridden by reinjectors)
      PetscInt, public :: production_component !! Component for production (default 0 means all)
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
@@ -100,6 +102,7 @@ module source_module
      procedure, public :: init_data => source_init_data
      procedure, public :: set_rate => source_set_rate
      procedure, public :: specified_injection_rate => source_specified_injection_rate
+     procedure, public :: set_enthalpy => source_set_enthalpy
      procedure, public :: update_component => source_update_component
      procedure, public :: update_flow => source_update_flow
      procedure, public :: update_tracer_flow => source_update_tracer_flow
@@ -112,7 +115,8 @@ contains
 
   subroutine source_init(self, name, eos, local_source_index, &
        local_cell_index, injection_enthalpy, injection_component, &
-       production_component, rate_specified, specified_rate, num_tracers)
+       production_component, rate_specified, specified_rate, &
+       enthalpy_specified, specified_enthalpy, num_tracers)
     !! Initialises a source object. Only values stored in the object
     !! itself are initialised, not those in the source data vector
     !! accesssed via pointers.
@@ -129,6 +133,8 @@ contains
     PetscInt, intent(in) :: production_component !! Component for production
     PetscBool, intent(in) :: rate_specified !! Whether rate specified
     PetscReal, intent(in) :: specified_rate !! Specified rate
+    PetscBool, intent(in) :: enthalpy_specified !! Whether enthalpy specified
+    PetscReal, intent(in) :: specified_enthalpy !! Specified enthalpy
     PetscInt, intent(in), optional :: num_tracers !! Number of tracers
 
     self%name = name
@@ -140,6 +146,8 @@ contains
     self%injection_component = injection_component
     self%rate_specified = rate_specified
     self%specified_rate = specified_rate
+    self%enthalpy_specified = enthalpy_specified
+    self%specified_enthalpy = specified_enthalpy
     self%production_component = production_component
     self%isothermal = eos%isothermal
 
@@ -284,6 +292,21 @@ contains
     end if
 
   end function source_specified_injection_rate
+
+!------------------------------------------------------------------------
+
+  subroutine source_set_enthalpy(self, enthalpy)
+    !! Sets source injection enthalpy and specified enthalpy to specified value.
+
+    class(source_type), intent(in out) :: self
+    PetscReal, intent(in) :: enthalpy !! Injection enthalpy
+
+    self%injection_enthalpy = enthalpy
+    if (self%enthalpy_specified) then
+       self%specified_enthalpy = enthalpy
+    end if
+
+  end subroutine source_set_enthalpy
 
 !------------------------------------------------------------------------
 

@@ -216,13 +216,14 @@ contains
 !------------------------------------------------------------------------
 
   subroutine reinjector_output_update(self, water_rate, &
-       water_enthalpy, steam_rate, steam_enthalpy)
+       water_enthalpy, steam_rate, steam_enthalpy, enthalpy_specified)
     !! Updates output rates and enthalpies, and assigns them to the
     !! output node if it is a source.
 
     class(reinjector_output_type), intent(in out) :: self
     PetscReal, target, intent(in) :: water_rate, water_enthalpy
     PetscReal, target, intent(in) :: steam_rate, steam_enthalpy
+    PetscBool, intent(in) :: enthalpy_specified
     ! Locals:
     PetscReal :: rate, enthalpy
     PetscReal, parameter :: small = 1.e-6_dp
@@ -247,11 +248,13 @@ contains
        select type (n => self%out)
        class is (source_type)
           n%rate = rate
-          n%injection_enthalpy = enthalpy
           n%water_rate = water_rate
-          n%water_enthalpy = water_enthalpy
           n%steam_rate = steam_rate
-          n%steam_enthalpy = steam_enthalpy
+          if (.not. n%enthalpy_specified) then
+             n%injection_enthalpy = enthalpy
+             n%water_enthalpy = water_enthalpy
+             n%steam_enthalpy = steam_enthalpy
+          end if
        end select
 
     end if
@@ -352,16 +355,20 @@ contains
 !------------------------------------------------------------------------
 
   subroutine specified_reinjector_output_enthalpies(self, &
-       water_enthalpy, steam_enthalpy)
-    !! Gets specified enthalpies for specified reinjector output.
+       water_enthalpy, steam_enthalpy, enthalpy_specified)
+    !! Gets enthalpies for specified reinjector output, and
+    !! whether these are specified or defaults.
 
     class(specified_reinjector_output_type), intent(in out) :: self
     PetscReal, intent(out) :: water_enthalpy, steam_enthalpy
+    PetscBool, intent(out) :: enthalpy_specified
 
     if (self%specified_enthalpy > 0._dp) then
        call self%specified_enthalpies(water_enthalpy, steam_enthalpy)
+       enthalpy_specified = PETSC_TRUE
     else
        call self%default_enthalpies(water_enthalpy, steam_enthalpy)
+       enthalpy_specified = PETSC_FALSE
     end if
 
   end subroutine specified_reinjector_output_enthalpies
@@ -541,12 +548,15 @@ contains
 
     class(overflow_reinjector_output_type), intent(in out) :: self
     PetscReal, intent(in out) :: rate
+    ! Locals:
+    PetscReal :: node_rate
 
     if (associated(self%out)) then
 
        select type (n => self%out)
        class is (source_type)
-          call node_limit_rate(n%rate, rate)
+          node_rate = n%specified_injection_rate()
+          call node_limit_rate(node_rate, rate)
        end select
 
     end if
@@ -832,6 +842,8 @@ contains
     class(source_network_reinjector_type), intent(in out) :: self
     PetscReal, intent(in out) :: water_balance, water_enthalpy
     PetscReal, intent(in out) :: steam_balance, steam_enthalpy
+    ! Locals:
+    PetscBool, parameter :: output_enthalpy_specified = PETSC_FALSE
 
     if (self%rank == 0) then
        call self%overflow%set_flows(water_balance, water_enthalpy, &
@@ -850,7 +862,7 @@ contains
             self%root_world_rank, self%overflow%out_world_rank)
 
        call self%overflow%update(water_balance, water_enthalpy, &
-            steam_balance, steam_enthalpy)
+            steam_balance, steam_enthalpy, output_enthalpy_specified)
 
     end if
 
@@ -1087,14 +1099,16 @@ contains
       PetscBool, intent(out) :: stopped
       ! Locals:
       PetscReal :: water_enthalpy, steam_enthalpy
+      PetscBool :: output_enthalpy_specified
 
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (specified_reinjector_output_type)
          if (output%out%link_index >= 0) then
-            call output%enthalpies(water_enthalpy, steam_enthalpy)
+            call output%enthalpies(water_enthalpy, steam_enthalpy, &
+                 output_enthalpy_specified)
             call output%update(local_qw(i), water_enthalpy, local_qs(i), &
-                 steam_enthalpy)
+                 steam_enthalpy, output_enthalpy_specified)
             i = i + 1
          end if
       end select
