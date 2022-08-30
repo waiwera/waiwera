@@ -380,6 +380,8 @@ If there is no flow rate specified in either the reinjector output (via the "rat
 
 The **"enthalpy"** of the output can also be specified. If it is not specified, it is set equal to the enthalpy of the input, for the corresponding category (separated water or steam). In most cases the enthalpy should be specified, particularly for steam condensate outputs which will have a much lower (liquid) enthalpy than the produced steam.
 
+If the output is delivering fluid to a source, it is also possible to specify the injection enthalpy in the source itself, rather than the corresponding reinjector output. (If both are specified, the enthalpy in the source overrides the enthalpy in the reinjector output.)
+
 The "rate", "proportion" and "enthalpy" values can all be specified either as fixed constants or rank-2 arrays of time-dependent values. If array values are used, the interpolation and averaging types can be set via the **"interpolation"** and **"averaging"** values (see :ref:`interpolation_tables`).
 
 Examples:
