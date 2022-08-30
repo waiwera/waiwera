@@ -147,7 +147,6 @@ inj = t2generator(name = 'inj 3', block = blkname,
 dat.add_generator(inj)
 jsondata['source'].append({'name': 'inj 3', 'cell': cell_index,
                            'direction': 'injection',
-                           'enthalpy': hl,
                            'limiter': {'total': qmax},
                            'injectivity': {'pressure': Pref,
                                            'coefficient': injectivity}})
@@ -164,7 +163,7 @@ jsondata['network'] = {
     'reinject': [
         {'name': 'reinjector', 'in': 'reinjection group', 'overflow': 'overflow reinjector',
          'water': [
-             {'out': 'inj 3'}
+             {'out': 'inj 3', 'enthalpy': hl}
          ],
          'steam': [
              {'out': 'inj 1', 'rate': qf, 'enthalpy': hs},
