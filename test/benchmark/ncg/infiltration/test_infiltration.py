@@ -86,7 +86,7 @@ AUTOUGH2_result = T2ModelResult("AUTOUGH2", results_filename,
                                 fieldname_map = AUTOUGH2_FIELDMAP,
                                 ordering_map = map_out_bdy)
 for output_index in output_indices:
-    infiltration_test.addTestComp(run_index, "AUTOUGH2",
+    infiltration_test.addTestComp(run_index, "AUTOUGH2 %d" % output_index,
                                   FieldWithinTolTC(fieldsToTest = test_fields,
                                                    defFieldTol = 1.e-4,
                                                    expected = AUTOUGH2_result,
