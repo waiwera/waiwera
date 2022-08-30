@@ -45,14 +45,12 @@ model_name = 'reinjection'
 AUTOUGH2_FIELDMAP = {
     'Vapour saturation': 'Vapour saturation',
     'Temperature': 'Temperature',
-    'Rate': 'Generation rate',
-    'Enthalpy': 'Enthalpy'}
+    'Rate': 'Generation rate'}
 WAIWERA_FIELDMAP = {
     'Pressure': 'fluid_pressure',
     'Temperature': 'fluid_temperature',
     'Vapour saturation': 'fluid_vapour_saturation',
-    'Rate': 'source_rate',
-    'Enthalpy': 'source_enthalpy'}
+    'Rate': 'source_rate'}
 
 model_dir = './run'
 t2geo_filename = os.path.join(model_dir, 'g' + model_name + '.dat')
@@ -63,7 +61,7 @@ run_index = 0
 
 test_fields = ['Pressure', 'Temperature', 'Vapour saturation']
 plot_fields = test_fields
-test_source_fields = ['Rate', 'Enthalpy']
+test_source_fields = ['Rate']
 field_scale = {'Pressure': 1.e5, 'Temperature': 1., 'Vapour saturation': 1.,
                'Rate': 1.0, 'Enthalpy': 1.e3}
 field_unit = {'Pressure': 'bar', 'Temperature': '$^{\circ}$C', 'Vapour saturation': '',
