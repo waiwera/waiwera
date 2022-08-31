@@ -234,23 +234,22 @@ contains
     PetscReal :: rate, enthalpy
     PetscReal, parameter :: small = 1.e-6_dp
 
+    rate = water_rate + steam_rate
+    if (rate > small) then
+       enthalpy = (water_rate * water_enthalpy + &
+            steam_rate * steam_enthalpy) / rate
+    else
+       enthalpy = 0._dp
+    end if
+
+    self%rate = rate
+    self%enthalpy = enthalpy
+    self%water_rate = water_rate
+    self%water_enthalpy = water_enthalpy
+    self%steam_rate = steam_rate
+    self%steam_enthalpy = steam_enthalpy
+
     if (associated(self%out)) then
-
-       rate = water_rate + steam_rate
-       if (rate > small) then
-          enthalpy = (water_rate * water_enthalpy + &
-               steam_rate * steam_enthalpy) / rate
-       else
-          enthalpy = 0._dp
-       end if
-
-       self%rate = rate
-       self%enthalpy = enthalpy
-       self%water_rate = water_rate
-       self%water_enthalpy = water_enthalpy
-       self%steam_rate = steam_rate
-       self%steam_enthalpy = steam_enthalpy
-
        select type (n => self%out)
        class is (source_type)
           n%rate = rate
@@ -262,7 +261,6 @@ contains
              n%steam_enthalpy = steam_enthalpy
           end if
        end select
-
     end if
 
   end subroutine reinjector_output_update
@@ -295,6 +293,7 @@ contains
 
     self%reinjector => reinjector
     self%out => null()
+    self%link_index = -1
     self%flow_type = flow_type
 
     allocate(self%rate, self%enthalpy)
@@ -391,7 +390,6 @@ contains
     PetscReal :: node_rate
 
     if (associated(self%out)) then
-
        select type (n => self%out)
        class is (source_type)
           node_rate = n%specified_injection_rate()
@@ -404,7 +402,6 @@ contains
              call node_limit_rate(n%steam_rate, rate)
           end select
        end select
-
     end if
 
   end subroutine specified_reinjector_output_node_limit
@@ -644,16 +641,21 @@ contains
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (reinjector_output_type)
-         select type (n => output%out)
-         type is (source_type)
-            colour = 1
-            stopped = PETSC_TRUE
-         class is (source_network_reinjector_type)
-            if (n%rank >= 0) then
+         if (associated(output%out)) then
+            select type (n => output%out)
+            type is (source_type)
                colour = 1
                stopped = PETSC_TRUE
-            end if
-         end select
+            class is (source_network_reinjector_type)
+               if (n%rank >= 0) then
+                  colour = 1
+                  stopped = PETSC_TRUE
+               end if
+            end select
+         else if (output%link_index >= 0) then
+            colour = 1
+            stopped = PETSC_TRUE
+         end if
       end select
 
     end subroutine reinjector_comm_iterator
@@ -728,8 +730,14 @@ contains
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (reinjector_output_type)
-         if (output%out%link_index >= 0) then
-            self%local_gather_count = self%local_gather_count + 1
+         if (associated(output%out)) then
+            if (output%out%link_index >= 0) then
+               self%local_gather_count = self%local_gather_count + 1
+            end if
+         else ! unassociated outputs:
+            if (output%link_index >= 0) then
+               self%local_gather_count = self%local_gather_count + 1
+            end if
          end if
       end select
 
@@ -745,9 +753,16 @@ contains
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (reinjector_output_type)
-         if (output%out%link_index >= 0) then
-            local_index(i) = output%out%link_index
-            i = i + 1
+         if (associated(output%out)) then
+            if (output%out%link_index >= 0) then
+               local_index(i) = output%out%link_index
+               i = i + 1
+            end if
+         else ! unassociated outputs:
+            if (output%link_index >= 0) then
+               local_index(i) = output%link_index
+               i = i + 1
+            end if
          end if
       end select
 
@@ -956,24 +971,26 @@ contains
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (specified_reinjector_output_type)
-         if (output%out%link_index >= 0) then
-            select type (n => output%out)
-            class is (source_type)
-               node_rate = n%specified_injection_rate()
-               select case (output%flow_type)
-               case (SEPARATED_FLOW_TYPE_WATER)
-                  call update_capacity(node_rate, local_water_capacity)
-               case (SEPARATED_FLOW_TYPE_STEAM)
-                  call update_capacity(node_rate, local_steam_capacity)
+         if (associated(output%out)) then
+            if (output%out%link_index >= 0) then
+               select type (n => output%out)
+               class is (source_type)
+                  node_rate = n%specified_injection_rate()
+                  select case (output%flow_type)
+                  case (SEPARATED_FLOW_TYPE_WATER)
+                     call update_capacity(node_rate, local_water_capacity)
+                  case (SEPARATED_FLOW_TYPE_STEAM)
+                     call update_capacity(node_rate, local_steam_capacity)
+                  end select
+               class is (source_network_reinjector_type)
+                  select case (output%flow_type)
+                  case (SEPARATED_FLOW_TYPE_WATER)
+                     call update_capacity(n%water_rate, local_water_capacity)
+                  case (SEPARATED_FLOW_TYPE_STEAM)
+                     call update_capacity(n%steam_rate, local_steam_capacity)
+                  end select
                end select
-            class is (source_network_reinjector_type)
-               select case (output%flow_type)
-               case (SEPARATED_FLOW_TYPE_WATER)
-                  call update_capacity(n%water_rate, local_water_capacity)
-               case (SEPARATED_FLOW_TYPE_STEAM)
-                  call update_capacity(n%steam_rate, local_steam_capacity)
-               end select
-            end select
+            end if
          end if
       end select
 
@@ -1080,15 +1097,22 @@ contains
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (specified_reinjector_output_type)
-         if (output%out%link_index >= 0) then
-            call output%rates(local_qw(i), local_qs(i))
-            select case (output%flow_type)
-            case (SEPARATED_FLOW_TYPE_WATER)
-               call output%node_limit(local_qw(i))
-            case (SEPARATED_FLOW_TYPE_STEAM)
-               call output%node_limit(local_qs(i))
-            end select
-            i = i + 1
+         if (associated(output%out)) then
+            if (output%out%link_index >= 0) then
+               call output%rates(local_qw(i), local_qs(i))
+               select case (output%flow_type)
+               case (SEPARATED_FLOW_TYPE_WATER)
+                  call output%node_limit(local_qw(i))
+               case (SEPARATED_FLOW_TYPE_STEAM)
+                  call output%node_limit(local_qs(i))
+               end select
+               i = i + 1
+            end if
+         else
+            if (output%link_index >= 0) then
+               call output%rates(local_qw(i), local_qs(i))
+               i = i + 1
+            end if
          end if
       end select
 
@@ -1129,12 +1153,22 @@ contains
       stopped = PETSC_FALSE
       select type (output => node%data)
       class is (specified_reinjector_output_type)
-         if (output%out%link_index >= 0) then
-            call output%enthalpies(water_enthalpy, steam_enthalpy, &
-                 output_enthalpy_specified)
-            call output%update(local_qw(i), water_enthalpy, local_qs(i), &
-                 steam_enthalpy, output_enthalpy_specified)
-            i = i + 1
+         if (associated(output%out)) then
+            if (output%out%link_index >= 0) then
+               call output%enthalpies(water_enthalpy, steam_enthalpy, &
+                    output_enthalpy_specified)
+               call output%update(local_qw(i), water_enthalpy, local_qs(i), &
+                    steam_enthalpy, output_enthalpy_specified)
+               i = i + 1
+            end if
+         else
+            if (output%link_index >= 0) then
+               call output%enthalpies(water_enthalpy, steam_enthalpy, &
+                    output_enthalpy_specified)
+               call output%update(local_qw(i), water_enthalpy, local_qs(i), &
+                    steam_enthalpy, output_enthalpy_specified)
+               i = i + 1
+            end if
          end if
       end select
 

@@ -1249,7 +1249,9 @@ contains
       class(specified_reinjector_output_type), pointer :: output
       character(max_source_network_node_name_length) :: out_name
       type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
-      character(12) :: istr
+      PetscMPIInt :: rank
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
       if (fson_has_mpi(reinjector_json, flow_type_str)) then
 
@@ -1323,16 +1325,12 @@ contains
                   end if
                end if
             else
-               if (present(logfile)) then
-                  write(istr, '(i0)') i - 1
-                  call logfile%write(LOG_LEVEL_ERR, "input", &
-                       "reinjector output not assigned: " // &
-                       trim(reinjector%name) // "." // trim(flow_type_str) // &
-                       "[" // trim(istr) // "]")
+               ! Reinjector output with no source/reinjector assigned:
+               ! assign to global root rank and store index in output
+               if (rank == 0) then
+                  output%link_index = output_index
+                  call reinjector%out%append(output)
                end if
-               deallocate(output)
-               err = 1
-               exit
             end if
 
             call setup_source_reinjector_output_controls(output_json, output, &
