@@ -242,14 +242,15 @@ contains
        enthalpy = 0._dp
     end if
 
-    self%rate = rate
-    self%enthalpy = enthalpy
-    self%water_rate = water_rate
-    self%water_enthalpy = water_enthalpy
-    self%steam_rate = steam_rate
-    self%steam_enthalpy = steam_enthalpy
-
     if (associated(self%out)) then
+
+       self%rate = rate
+       self%enthalpy = enthalpy
+       self%water_rate = water_rate
+       self%water_enthalpy = water_enthalpy
+       self%steam_rate = steam_rate
+       self%steam_enthalpy = steam_enthalpy
+
        select type (n => self%out)
        class is (source_type)
           n%rate = rate
