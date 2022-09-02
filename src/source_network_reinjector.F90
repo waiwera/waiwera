@@ -571,12 +571,12 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! reinjector data array
     PetscInt, intent(in) :: offset  !! source array offset
 
-    self%water_rate => data(offset)
-    self%water_enthalpy => data(offset + 1)
-    self%steam_rate => data(offset + 2)
-    self%steam_enthalpy => data(offset + 3)
     self%rate => data(offset)
     self%enthalpy => data(offset + 1)
+    self%water_rate => data(offset + 2)
+    self%water_enthalpy => data(offset + 3)
+    self%steam_rate => data(offset + 4)
+    self%steam_enthalpy => data(offset + 5)
 
   end subroutine overflow_reinjector_output_assign
 
