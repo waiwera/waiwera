@@ -34,13 +34,14 @@ module source_network_reinjector_module
   private
 
   PetscInt, parameter, public :: num_source_network_reinjector_variables = &
-       num_source_network_node_variables + 8
+       num_source_network_node_variables + 10
   PetscInt, parameter, public :: max_source_network_reinjector_variable_name_length = 24
   character(max_source_network_reinjector_variable_name_length), parameter, public :: &
        source_network_reinjector_variable_names(num_source_network_reinjector_variables) = [ &
        source_network_variable_names,  ["reinjector_index        ", &
        "output_rate             ", &
        "output_water_rate       ", "output_steam_rate       ", &
+       "overflow_rate           ", "overflow_enthalpy       ", &
        "overflow_water_rate     ", "overflow_water_enthalpy ", &
        "overflow_steam_rate     ", "overflow_steam_enthalpy " ]]
   PetscInt, parameter, public :: num_source_network_reinjector_constant_integer_variables = 1
@@ -521,6 +522,8 @@ contains
     self%water_enthalpy => data(offset + 1)
     self%steam_rate => data(offset + 2)
     self%steam_enthalpy => data(offset + 3)
+    self%rate => data(offset)
+    self%enthalpy => data(offset + 1)
 
   end subroutine overflow_reinjector_output_assign
 
@@ -536,6 +539,8 @@ contains
     PetscReal, intent(in) :: steam_rate !! Separated steam mass flow rate
     PetscReal, intent(in) :: steam_enthalpy !! Separated steam enthalpy
 
+    self%rate = rate
+    self%enthalpy = enthalpy
     self%water_rate = water_rate
     self%water_enthalpy = water_enthalpy
     self%steam_rate = steam_rate
@@ -837,6 +842,8 @@ contains
     self%output_water_rate = 0._dp
     self%output_steam_rate = 0._dp
 
+    self%overflow%rate = 0._dp
+    self%overflow%enthalpy = 0._dp
     self%overflow%water_rate = 0._dp
     self%overflow%water_enthalpy = 0._dp
     self%overflow%steam_rate = 0._dp
