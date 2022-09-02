@@ -438,6 +438,12 @@ The available source network reinjector output fields are:
 |"output_steam_rate"      |total separated steam output   |
 |                         |rate (kg/s)                    |
 +-------------------------+-------------------------------+
+|"overflow_rate"          |total overflow rate (kg/s)     |
+|                         |                               |
++-------------------------+-------------------------------+
+|"overflow_enthalpy"      |total overflow enthalpy (J/kg) |
+|                         |                               |
++-------------------------+-------------------------------+
 |"overflow_water_rate"    |separated water overflow rate  |
 |                         |(kg/s)                         |
 +-------------------------+-------------------------------+

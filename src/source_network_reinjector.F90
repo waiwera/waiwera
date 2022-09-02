@@ -34,13 +34,14 @@ module source_network_reinjector_module
   private
 
   PetscInt, parameter, public :: num_source_network_reinjector_variables = &
-       num_source_network_node_variables + 8
+       num_source_network_node_variables + 10
   PetscInt, parameter, public :: max_source_network_reinjector_variable_name_length = 24
   character(max_source_network_reinjector_variable_name_length), parameter, public :: &
        source_network_reinjector_variable_names(num_source_network_reinjector_variables) = [ &
        source_network_variable_names,  ["reinjector_index        ", &
        "output_rate             ", &
        "output_water_rate       ", "output_steam_rate       ", &
+       "overflow_rate           ", "overflow_enthalpy       ", &
        "overflow_water_rate     ", "overflow_water_enthalpy ", &
        "overflow_steam_rate     ", "overflow_steam_enthalpy " ]]
   PetscInt, parameter, public :: num_source_network_reinjector_constant_integer_variables = 1
@@ -67,6 +68,8 @@ module source_network_reinjector_module
      class(source_network_node_type), pointer, public :: out !! Output network node
    contains
      private
+     procedure, public :: allocate_variables => reinjector_output_allocate_variables
+     procedure, public :: deallocate_variables => reinjector_output_deallocate_variables
      procedure, public :: node_limit => reinjector_output_node_limit
      procedure, public :: update => reinjector_output_update
      procedure, public :: destroy => reinjector_output_destroy
@@ -87,7 +90,6 @@ module source_network_reinjector_module
      procedure, public :: rates => specified_reinjector_output_rates
      procedure, public :: enthalpies => specified_reinjector_output_enthalpies
      procedure, public :: node_limit => specified_reinjector_output_node_limit
-     procedure, public :: destroy => specified_reinjector_destroy
   end type specified_reinjector_output_type
 
   type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
@@ -120,10 +122,11 @@ module source_network_reinjector_module
      private
      procedure, public :: init => overflow_reinjector_output_init
      procedure, public :: get_world_rank => overflow_reinjector_output_get_world_rank
+     procedure, public :: allocate_variables => overflow_reinjector_output_allocate_variables
+     procedure, public :: deallocate_variables => overflow_reinjector_output_deallocate_variables
      procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
      procedure, public :: node_limit => overflow_reinjector_output_node_limit
-     procedure, public :: destroy => overflow_reinjector_output_destroy
   end type overflow_reinjector_output_type
 
   type, public, extends(source_network_node_type) :: source_network_reinjector_type
@@ -205,7 +208,56 @@ contains
   end subroutine node_limit_rate
 
 !------------------------------------------------------------------------
+
+  subroutine get_total_rate_and_enthalpy(water_rate, water_enthalpy, &
+       steam_rate, steam_enthalpy, rate, enthalpy)
+    !! Returns total flow rate and enthalpy from separated flows and
+    !! enthalpies.
+
+    PetscReal, intent(in) :: water_rate, water_enthalpy
+    PetscReal, intent(in) :: steam_rate, steam_enthalpy
+    PetscReal, intent(out) :: rate, enthalpy
+    ! Locals:
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    rate = water_rate + steam_rate
+    if (rate > small) then
+       enthalpy = (water_rate * water_enthalpy + &
+            steam_rate * steam_enthalpy) / rate
+    else
+       enthalpy = 0._dp
+    end if
+
+  end subroutine get_total_rate_and_enthalpy
+
+!------------------------------------------------------------------------
 ! Reinjector output type
+!------------------------------------------------------------------------
+
+  subroutine reinjector_output_allocate_variables(self)
+    !! Allocates overflow rate, enthalpy etc. variables.
+
+    class(reinjector_output_type), intent(in out) :: self
+
+    allocate(self%rate, self%enthalpy)
+    allocate(self%water_rate, self%water_enthalpy)
+    allocate(self%steam_rate, self%steam_enthalpy)
+
+  end subroutine reinjector_output_allocate_variables
+
+!------------------------------------------------------------------------
+
+  subroutine reinjector_output_deallocate_variables(self)
+    !! Deallocates overflow rate, enthalpy etc. variables.
+
+    class(reinjector_output_type), intent(in out) :: self
+
+    deallocate(self%rate, self%enthalpy)
+    deallocate(self%water_rate, self%water_enthalpy)
+    deallocate(self%steam_rate, self%steam_enthalpy)
+
+  end subroutine reinjector_output_deallocate_variables
+
 !------------------------------------------------------------------------
 
   subroutine reinjector_output_node_limit(self, rate)
@@ -232,25 +284,18 @@ contains
     PetscBool, intent(in) :: enthalpy_specified
     ! Locals:
     PetscReal :: rate, enthalpy
-    PetscReal, parameter :: small = 1.e-6_dp
 
-    rate = water_rate + steam_rate
-    if (rate > small) then
-       enthalpy = (water_rate * water_enthalpy + &
-            steam_rate * steam_enthalpy) / rate
-    else
-       enthalpy = 0._dp
-    end if
+    call get_total_rate_and_enthalpy(water_rate, water_enthalpy, &
+         steam_rate, steam_enthalpy, rate, enthalpy)
+
+    self%rate = rate
+    self%enthalpy = enthalpy
+    self%water_rate = water_rate
+    self%water_enthalpy = water_enthalpy
+    self%steam_rate = steam_rate
+    self%steam_enthalpy = steam_enthalpy
 
     if (associated(self%out)) then
-
-       self%rate = rate
-       self%enthalpy = enthalpy
-       self%water_rate = water_rate
-       self%water_enthalpy = water_enthalpy
-       self%steam_rate = steam_rate
-       self%steam_enthalpy = steam_enthalpy
-
        select type (n => self%out)
        class is (source_type)
           n%rate = rate
@@ -273,8 +318,8 @@ contains
 
     class(reinjector_output_type), intent(in out) :: self
 
+    call self%deallocate_variables()
     call self%source_network_node_type%destroy()
-
     self%reinjector => null()
     self%out => null()
 
@@ -296,10 +341,7 @@ contains
     self%out => null()
     self%link_index = -1
     self%flow_type = flow_type
-
-    allocate(self%rate, self%enthalpy)
-    allocate(self%water_rate, self%water_enthalpy)
-    allocate(self%steam_rate, self%steam_enthalpy)
+    call self%allocate_variables()
 
   end subroutine specified_reinjector_output_init
 
@@ -408,21 +450,6 @@ contains
   end subroutine specified_reinjector_output_node_limit
 
 !------------------------------------------------------------------------
-
-  subroutine specified_reinjector_destroy(self)
-    !! Destroys a specified reinjector.
-
-    class(specified_reinjector_output_type), intent(in out) :: self
-
-    deallocate(self%rate, self%enthalpy)
-    deallocate(self%water_rate, self%water_enthalpy)
-    deallocate(self%steam_rate, self%steam_enthalpy)
-
-    call self%reinjector_output_type%destroy()
-
-  end subroutine specified_reinjector_destroy
-
-!------------------------------------------------------------------------
 ! Rate reinjector output type
 !------------------------------------------------------------------------
 
@@ -477,8 +504,6 @@ contains
     self%reinjector => reinjector
     self%out => null()
 
-    allocate(self%rate, self%enthalpy)
-
   end subroutine overflow_reinjector_output_init
 
 !------------------------------------------------------------------------
@@ -507,6 +532,35 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine overflow_reinjector_output_allocate_variables(self)
+    !! Allocates overflow rate, enthalpy etc. variables for ranks
+    !! other than the reinjector root rank (on which these are
+    !! pointers into the reinjection vector, for output purposes.)
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+
+    if (self%reinjector%rank > 0) then
+       call self%reinjector_output_type%allocate_variables()
+    end if
+
+  end subroutine overflow_reinjector_output_allocate_variables
+
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_deallocate_variables(self)
+    !! Deallocates overflow rate, enthalpy etc. variables for ranks
+    !! other than the reinjector root rank.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+
+    if (self%reinjector%rank > 0) then
+       call self%reinjector_output_type%deallocate_variables()
+    end if
+
+  end subroutine overflow_reinjector_output_deallocate_variables
+
+!------------------------------------------------------------------------
+
   subroutine overflow_reinjector_output_assign(self, data, offset)
     !! Assigns pointers in overflow reinjector output object to
     !! elements in the data array, starting from the specified offset.
@@ -515,10 +569,12 @@ contains
     PetscReal, pointer, contiguous, intent(in) :: data(:)  !! reinjector data array
     PetscInt, intent(in) :: offset  !! source array offset
 
-    self%water_rate => data(offset)
-    self%water_enthalpy => data(offset + 1)
-    self%steam_rate => data(offset + 2)
-    self%steam_enthalpy => data(offset + 3)
+    self%rate => data(offset)
+    self%enthalpy => data(offset + 1)
+    self%water_rate => data(offset + 2)
+    self%water_enthalpy => data(offset + 3)
+    self%steam_rate => data(offset + 4)
+    self%steam_enthalpy => data(offset + 5)
 
   end subroutine overflow_reinjector_output_assign
 
@@ -533,7 +589,14 @@ contains
     PetscReal, intent(in) :: water_enthalpy !! Separated water enthalpy
     PetscReal, intent(in) :: steam_rate !! Separated steam mass flow rate
     PetscReal, intent(in) :: steam_enthalpy !! Separated steam enthalpy
+    ! Locals:
+    PetscReal :: rate, enthalpy
 
+    call get_total_rate_and_enthalpy(water_rate, water_enthalpy, &
+         steam_rate, steam_enthalpy, rate, enthalpy)
+
+    self%rate = rate
+    self%enthalpy = enthalpy
     self%water_rate = water_rate
     self%water_enthalpy = water_enthalpy
     self%steam_rate = steam_rate
@@ -556,29 +619,14 @@ contains
     PetscReal :: node_rate
 
     if (associated(self%out)) then
-
        select type (n => self%out)
        class is (source_type)
           node_rate = n%specified_injection_rate()
           call node_limit_rate(node_rate, rate)
        end select
-
     end if
 
   end subroutine overflow_reinjector_output_node_limit
-
-!------------------------------------------------------------------------
-
-  subroutine overflow_reinjector_output_destroy(self)
-    !! Destroys overflow reinjector output.
-
-    class(overflow_reinjector_output_type), intent(in out) :: self
-
-    deallocate(self%rate, self%enthalpy)
-
-    call self%reinjector_output_type%destroy()
-
-  end subroutine overflow_reinjector_output_destroy
 
 !------------------------------------------------------------------------
 ! Reinjector type
@@ -853,6 +901,8 @@ contains
     self%output_water_rate = 0._dp
     self%output_steam_rate = 0._dp
 
+    self%overflow%rate = 0._dp
+    self%overflow%enthalpy = 0._dp
     self%overflow%water_rate = 0._dp
     self%overflow%water_enthalpy = 0._dp
     self%overflow%steam_rate = 0._dp
@@ -873,6 +923,8 @@ contains
     PetscReal, intent(in out) :: water_balance, water_enthalpy
     PetscReal, intent(in out) :: steam_balance, steam_enthalpy
     ! Locals:
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
     PetscBool, parameter :: output_enthalpy_specified = PETSC_FALSE
 
     if (self%rank == 0) then
@@ -891,8 +943,11 @@ contains
        call mpi_comm_send(PETSC_COMM_WORLD, steam_enthalpy, &
             self%root_world_rank, self%overflow%out_world_rank)
 
-       call self%overflow%update(water_balance, water_enthalpy, &
-            steam_balance, steam_enthalpy, output_enthalpy_specified)
+       call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+       if (rank == self%overflow%out_world_rank) then
+          call self%overflow%update(water_balance, water_enthalpy, &
+               steam_balance, steam_enthalpy, output_enthalpy_specified)
+       end if
 
     end if
 
@@ -1020,6 +1075,7 @@ contains
        self%in_steam_rate = abs(self%in%steam_rate)
        self%in_steam_enthalpy = self%in%steam_enthalpy
     end if
+
     if ((self%in_comm_rank >= 0) .and. (self%in_comm_input_rank >= 0)) then
        call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, &
             self%in_comm_input_rank, self%in_comm, ierr)
