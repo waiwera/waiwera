@@ -370,6 +370,8 @@ The reinjector outputs are specified in the Waiwera JSON input using two values,
 
 The **"out"** string value specifies the name of the output source or reinjector. Note that a source or reinjector cannot be specified as an output for more than one reinjector. If multiple reinjector outputs or reinjectors need to inject fluid to the same cell, individual injection sources (with the same cell) must be defined for each one.
 
+If no output source or reinjector is specified using the "out" value, the reinjector output will effectively reinject fluid outside the model. This can be used to represent, for example, disposal of separated geothermal water to a river, or losses of condensate to the atmosphere from a cooling tower.
+
 A reinjector output can specify its flow rate using either the **"rate"** or the **"proportion"** value. The "rate" value specifies an absolute flow rate, whereas the "proportion" value specifies the output flow rate as a proportion (between zero and one) of the input flow rate for the corresponding phase (separated water or steam).
 
 If neither a rate nor a proportion is specified, the flow rate for the output will be set to the capacity of the receiving source or reinjector, if this has been defined. If the output is an injection source, this means that a flow rate has been specified for that source, or it has a source control computing its flow rate (e.g. an :ref:`injectivity`). If the output is another reinjector, its capacity is determined by summing the capacities of its outputs. If any of its outputs are also reinjectors, then its capacity is calculated recursively.
