@@ -208,6 +208,29 @@ contains
   end subroutine node_limit_rate
 
 !------------------------------------------------------------------------
+
+  subroutine get_total_rate_and_enthalpy(water_rate, water_enthalpy, &
+       steam_rate, steam_enthalpy, rate, enthalpy)
+    !! Returns total flow rate and enthalpy from separated flows and
+    !! enthalpies.
+
+    PetscReal, intent(in) :: water_rate, water_enthalpy
+    PetscReal, intent(in) :: steam_rate, steam_enthalpy
+    PetscReal, intent(out) :: rate, enthalpy
+    ! Locals:
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    rate = water_rate + steam_rate
+    if (rate > small) then
+       enthalpy = (water_rate * water_enthalpy + &
+            steam_rate * steam_enthalpy) / rate
+    else
+       enthalpy = 0._dp
+    end if
+
+  end subroutine get_total_rate_and_enthalpy
+
+!------------------------------------------------------------------------
 ! Reinjector output type
 !------------------------------------------------------------------------
 
@@ -261,17 +284,9 @@ contains
     PetscBool, intent(in) :: enthalpy_specified
     ! Locals:
     PetscReal :: rate, enthalpy
-    PetscReal, parameter :: small = 1.e-6_dp
 
-    if (associated(self%out)) then
-
-       rate = water_rate + steam_rate
-       if (rate > small) then
-          enthalpy = (water_rate * water_enthalpy + &
-               steam_rate * steam_enthalpy) / rate
-       else
-          enthalpy = 0._dp
-       end if
+    call get_total_rate_and_enthalpy(water_rate, water_enthalpy, &
+         steam_rate, steam_enthalpy, rate, enthalpy)
 
        self%rate = rate
        self%enthalpy = enthalpy
@@ -576,6 +591,11 @@ contains
     PetscReal, intent(in) :: water_enthalpy !! Separated water enthalpy
     PetscReal, intent(in) :: steam_rate !! Separated steam mass flow rate
     PetscReal, intent(in) :: steam_enthalpy !! Separated steam enthalpy
+    ! Locals:
+    PetscReal :: rate, enthalpy
+
+    call get_total_rate_and_enthalpy(water_rate, water_enthalpy, &
+         steam_rate, steam_enthalpy, rate, enthalpy)
 
     self%rate = rate
     self%enthalpy = enthalpy
