@@ -1729,6 +1729,7 @@ contains
                  reinjector, err)
                if (err == 0) then
                   call reinjector%init_comm()
+                  call reinjector%overflow%allocate_variables()
                   if (reinjector%rank == 0) then
                      r = num_local_root_reinjectors
                      num_local_root_reinjectors = num_local_root_reinjectors + 1

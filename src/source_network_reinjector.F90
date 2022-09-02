@@ -68,6 +68,8 @@ module source_network_reinjector_module
      class(source_network_node_type), pointer, public :: out !! Output network node
    contains
      private
+     procedure, public :: allocate_variables => reinjector_output_allocate_variables
+     procedure, public :: deallocate_variables => reinjector_output_deallocate_variables
      procedure, public :: node_limit => reinjector_output_node_limit
      procedure, public :: update => reinjector_output_update
      procedure, public :: destroy => reinjector_output_destroy
@@ -121,6 +123,8 @@ module source_network_reinjector_module
      private
      procedure, public :: init => overflow_reinjector_output_init
      procedure, public :: get_world_rank => overflow_reinjector_output_get_world_rank
+     procedure, public :: allocate_variables => overflow_reinjector_output_allocate_variables
+     procedure, public :: deallocate_variables => overflow_reinjector_output_deallocate_variables
      procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
      procedure, public :: node_limit => overflow_reinjector_output_node_limit
@@ -209,6 +213,32 @@ contains
 ! Reinjector output type
 !------------------------------------------------------------------------
 
+  subroutine reinjector_output_allocate_variables(self)
+    !! Allocates overflow rate, enthalpy etc. variables.
+
+    class(reinjector_output_type), intent(in out) :: self
+
+    allocate(self%rate, self%enthalpy)
+    allocate(self%water_rate, self%water_enthalpy)
+    allocate(self%steam_rate, self%steam_enthalpy)
+
+  end subroutine reinjector_output_allocate_variables
+
+!------------------------------------------------------------------------
+
+  subroutine reinjector_output_deallocate_variables(self)
+    !! Deallocates overflow rate, enthalpy etc. variables.
+
+    class(reinjector_output_type), intent(in out) :: self
+
+    deallocate(self%rate, self%enthalpy)
+    deallocate(self%water_rate, self%water_enthalpy)
+    deallocate(self%steam_rate, self%steam_enthalpy)
+
+  end subroutine reinjector_output_deallocate_variables
+
+!------------------------------------------------------------------------
+
   subroutine reinjector_output_node_limit(self, rate)
     !! Limits injection rate to what can be injected into the output
     !! node. Derived types override this routine.
@@ -275,6 +305,7 @@ contains
 
     class(reinjector_output_type), intent(in out) :: self
 
+    call self%deallocate_variables()
     call self%source_network_node_type%destroy()
 
     self%reinjector => null()
@@ -297,10 +328,7 @@ contains
     self%reinjector => reinjector
     self%out => null()
     self%flow_type = flow_type
-
-    allocate(self%rate, self%enthalpy)
-    allocate(self%water_rate, self%water_enthalpy)
-    allocate(self%steam_rate, self%steam_enthalpy)
+    call self%allocate_variables()
 
   end subroutine specified_reinjector_output_init
 
@@ -411,21 +439,6 @@ contains
   end subroutine specified_reinjector_output_node_limit
 
 !------------------------------------------------------------------------
-
-  subroutine specified_reinjector_destroy(self)
-    !! Destroys a specified reinjector.
-
-    class(specified_reinjector_output_type), intent(in out) :: self
-
-    deallocate(self%rate, self%enthalpy)
-    deallocate(self%water_rate, self%water_enthalpy)
-    deallocate(self%steam_rate, self%steam_enthalpy)
-
-    call self%reinjector_output_type%destroy()
-
-  end subroutine specified_reinjector_destroy
-
-!------------------------------------------------------------------------
 ! Rate reinjector output type
 !------------------------------------------------------------------------
 
@@ -480,8 +493,6 @@ contains
     self%reinjector => reinjector
     self%out => null()
 
-    allocate(self%rate, self%enthalpy)
-
   end subroutine overflow_reinjector_output_init
 
 !------------------------------------------------------------------------
@@ -507,6 +518,35 @@ contains
     self%out_world_rank = max_overflow_world_rank
 
   end subroutine overflow_reinjector_output_get_world_rank
+
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_allocate_variables(self)
+    !! Allocates overflow rate, enthalpy etc. variables for ranks
+    !! other than the reinjector root rank (on which these are
+    !! pointers into the reinjection vector, for output purposes.)
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+
+    if (self%reinjector%rank > 0) then
+       call self%reinjector_output_type%allocate_variables()
+    end if
+
+  end subroutine overflow_reinjector_output_allocate_variables
+
+!------------------------------------------------------------------------
+
+  subroutine overflow_reinjector_output_deallocate_variables(self)
+    !! Deallocates overflow rate, enthalpy etc. variables for ranks
+    !! other than the reinjector root rank.
+
+    class(overflow_reinjector_output_type), intent(in out) :: self
+
+    if (self%reinjector%rank > 0) then
+       call self%reinjector_output_type%deallocate_variables()
+    end if
+
+  end subroutine overflow_reinjector_output_deallocate_variables
 
 !------------------------------------------------------------------------
 
@@ -573,19 +613,6 @@ contains
     end if
 
   end subroutine overflow_reinjector_output_node_limit
-
-!------------------------------------------------------------------------
-
-  subroutine overflow_reinjector_output_destroy(self)
-    !! Destroys overflow reinjector output.
-
-    class(overflow_reinjector_output_type), intent(in out) :: self
-
-    deallocate(self%rate, self%enthalpy)
-
-    call self%reinjector_output_type%destroy()
-
-  end subroutine overflow_reinjector_output_destroy
 
 !------------------------------------------------------------------------
 ! Reinjector type
