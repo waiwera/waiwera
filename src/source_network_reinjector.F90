@@ -288,13 +288,14 @@ contains
     call get_total_rate_and_enthalpy(water_rate, water_enthalpy, &
          steam_rate, steam_enthalpy, rate, enthalpy)
 
-       self%rate = rate
-       self%enthalpy = enthalpy
-       self%water_rate = water_rate
-       self%water_enthalpy = water_enthalpy
-       self%steam_rate = steam_rate
-       self%steam_enthalpy = steam_enthalpy
+    self%rate = rate
+    self%enthalpy = enthalpy
+    self%water_rate = water_rate
+    self%water_enthalpy = water_enthalpy
+    self%steam_rate = steam_rate
+    self%steam_enthalpy = steam_enthalpy
 
+    if (associated(self%out)) then
        select type (n => self%out)
        class is (source_type)
           n%rate = rate
@@ -306,7 +307,6 @@ contains
              n%steam_enthalpy = steam_enthalpy
           end if
        end select
-
     end if
 
   end subroutine reinjector_output_update
@@ -320,7 +320,6 @@ contains
 
     call self%deallocate_variables()
     call self%source_network_node_type%destroy()
-
     self%reinjector => null()
     self%out => null()
 
@@ -621,13 +620,11 @@ contains
     PetscReal :: node_rate
 
     if (associated(self%out)) then
-
        select type (n => self%out)
        class is (source_type)
           node_rate = n%specified_injection_rate()
           call node_limit_rate(node_rate, rate)
        end select
-
     end if
 
   end subroutine overflow_reinjector_output_node_limit
@@ -909,6 +906,8 @@ contains
     PetscReal, intent(in out) :: water_balance, water_enthalpy
     PetscReal, intent(in out) :: steam_balance, steam_enthalpy
     ! Locals:
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
     PetscBool, parameter :: output_enthalpy_specified = PETSC_FALSE
 
     if (self%rank == 0) then
@@ -927,8 +926,11 @@ contains
        call mpi_comm_send(PETSC_COMM_WORLD, steam_enthalpy, &
             self%root_world_rank, self%overflow%out_world_rank)
 
-       call self%overflow%update(water_balance, water_enthalpy, &
-            steam_balance, steam_enthalpy, output_enthalpy_specified)
+       call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+       if (rank == self%overflow%out_world_rank) then
+          call self%overflow%update(water_balance, water_enthalpy, &
+               steam_balance, steam_enthalpy, output_enthalpy_specified)
+       end if
 
     end if
 
@@ -1054,6 +1056,7 @@ contains
        self%in_steam_rate = abs(self%in%steam_rate)
        self%in_steam_enthalpy = self%in%steam_enthalpy
     end if
+
     if ((self%in_comm_rank >= 0) .and. (self%in_comm_input_rank >= 0)) then
        call MPI_bcast(self%in_water_rate, 1, MPI_DOUBLE_PRECISION, &
             self%in_comm_input_rank, self%in_comm, ierr)
