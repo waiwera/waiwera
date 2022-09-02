@@ -90,7 +90,6 @@ module source_network_reinjector_module
      procedure, public :: rates => specified_reinjector_output_rates
      procedure, public :: enthalpies => specified_reinjector_output_enthalpies
      procedure, public :: node_limit => specified_reinjector_output_node_limit
-     procedure, public :: destroy => specified_reinjector_destroy
   end type specified_reinjector_output_type
 
   type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
@@ -128,7 +127,6 @@ module source_network_reinjector_module
      procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
      procedure, public :: node_limit => overflow_reinjector_output_node_limit
-     procedure, public :: destroy => overflow_reinjector_output_destroy
   end type overflow_reinjector_output_type
 
   type, public, extends(source_network_node_type) :: source_network_reinjector_type
