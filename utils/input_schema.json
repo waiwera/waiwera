@@ -978,7 +978,9 @@
                                 "items": {"anyOf": [
                                     {"type": "object",
                                      "properties": {
-                                         "out": {"type": "string"},
+                                         "out": {"oneOf": [
+                                             {"type": "string"},
+                                             {"type": "null"}]},
                                          "rate":  {"oneOf": [
                                              {"type": "number", "minimum": 0},
                                              {"type": "array",
@@ -1000,7 +1002,9 @@
                                      }},
                                     {"type": "object",
                                      "properties": {
-                                         "out": {"type": "string"},
+                                         "out": {"oneOf": [
+                                             {"type": "string"},
+                                             {"type": "null"}]},
                                          "proportion":  {"oneOf": [
                                              {"type": "number", "minimum": 0},
                                              {"type": "array",
@@ -1028,7 +1032,9 @@
                                 "items": {"anyOf": [
                                     {"type": "object",
                                      "properties": {
-                                         "out": {"type": "string"},
+                                         "out": {"oneOf": [
+                                             {"type": "string"},
+                                             {"type": "null"}]},
                                          "rate":  {"oneOf": [
                                              {"type": "number", "minimum": 0},
                                              {"type": "array",
@@ -1050,7 +1056,9 @@
                                      }},
                                     {"type": "object",
                                      "properties": {
-                                         "out": {"type": "string"},
+                                         "out": {"oneOf": [
+                                             {"type": "string"},
+                                             {"type": "null"}]},
                                          "proportion":  {"oneOf": [
                                              {"type": "number", "minimum": 0},
                                              {"type": "array",

@@ -129,7 +129,8 @@
              "water": [
                  {"out": "i18", "proportion": 0.5},
                  {"out": "i19", "proportion": 0.3},
-                 {"out": "i20", "proportion": 0.2}
+                 {"out": "i20", "proportion": 0.2},
+                 {"out": null, "rate": 0}
              ],
              "overflow": "i21"
             },

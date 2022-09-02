@@ -1060,6 +1060,8 @@ contains
       !! dependencies. (Also populates reinjector_specs_array, for random
       !! access into reinjector JSON specifications.)
 
+      use fson_value_m, only : TYPE_STRING
+
       type(fson_value), pointer, intent(in out) :: reinjectors_json
       PetscInt, intent(in) :: num_reinjectors
       type(dictionary_type), intent(in out) :: reinjector_index_dict
@@ -1070,7 +1072,7 @@ contains
       character(5) :: key
       type(list_type) :: dep_list
       type(list_node_type), pointer :: dict_node
-      PetscInt :: reinjector_index, i, k, num_outputs, overflow_type
+      PetscInt :: reinjector_index, i, k, num_outputs, overflow_type, out_type
       character(max_source_network_node_name_length) :: node_name
       PetscInt, parameter :: num_keys = 2
       character(5), parameter :: keys(num_keys) = ["water", "steam"]
@@ -1091,14 +1093,17 @@ contains
                output_json => fson_value_children_mpi(outputs_json)
                do i = 1, num_outputs
                   if (fson_has_mpi(output_json, "out")) then
-                     call fson_get_mpi(output_json, "out", &
-                          val = node_name)
-                     dict_node => reinjector_index_dict%get(node_name)
-                     if (associated(dict_node)) then
-                        select type (idx => dict_node%data)
-                        type is (PetscInt)
-                           call dep_list%append(idx)
-                        end select
+                     out_type = fson_type_mpi(output_json, "out")
+                     if (out_type == TYPE_STRING) then
+                        call fson_get_mpi(output_json, "out", &
+                             val = node_name)
+                        dict_node => reinjector_index_dict%get(node_name)
+                        if (associated(dict_node)) then
+                           select type (idx => dict_node%data)
+                           type is (PetscInt)
+                              call dep_list%append(idx)
+                           end select
+                        end if
                      end if
                   end if
                   output_json => fson_value_next_mpi(output_json)
@@ -1234,6 +1239,7 @@ contains
       !! Initialises reinjector outputs of the given flow type.
 
       use mpi_utils_module, only: mpi_broadcast_error_flag
+      use fson_value_m, only : TYPE_NULL
 
       type(fson_value), pointer, intent(in out) :: reinjector_json
       character(*), intent(in) :: reinjector_str, flow_type_str
@@ -1244,7 +1250,7 @@ contains
       PetscInt, intent(in out) :: output_index
       PetscErrorCode, intent(in out) :: err
       ! Locals:
-      PetscInt :: flow_type, num_outputs, i
+      PetscInt :: flow_type, num_outputs, i, out_type
       type(fson_value), pointer :: outputs_json, output_json
       class(specified_reinjector_output_type), pointer :: output
       character(max_source_network_node_name_length) :: out_name
@@ -1274,53 +1280,63 @@ contains
             call get_initial_reinjector_output_enthalpy(output_json, output)
 
             if (fson_has_mpi(output_json, "out")) then
-               call fson_get_mpi(output_json, "out", val = out_name)
-               if (reinjector_output_dict%has(out_name)) then
-                  if (present(logfile)) then
-                     call logfile%write(LOG_LEVEL_ERR, "input", &
-                          "duplicate reinjector output: " // trim(out_name))
+               out_type = fson_type_mpi(output_json, "out")
+               if (out_type == TYPE_NULL) then
+                  ! Reinjector output with null source/reinjector:
+                  ! assign to global root rank and store index in output
+                  if (rank == 0) then
+                     output%link_index = output_index
+                     call reinjector%out%append(output)
                   end if
-                  err = 1
-                  deallocate(output)
-                  exit
                else
-                  if (source_dict_all%has(out_name)) then
-                     source_dict_node => source_dict%get(out_name)
-                     if (associated(source_dict_node)) then
-                        ! source is on this process:
-                        select type (source => source_dict_node%data)
-                        type is (source_type)
-                           output%out => source
-                           source%link_index = output_index
-                           call reinjector%out%append(output)
-                        end select
-                     else ! source is not on this process:
-                        deallocate(output)
+                  call fson_get_mpi(output_json, "out", val = out_name)
+                  if (reinjector_output_dict%has(out_name)) then
+                     if (present(logfile)) then
+                        call logfile%write(LOG_LEVEL_ERR, "input", &
+                             "duplicate reinjector output: " // trim(out_name))
                      end if
-                     call reinjector_output_dict%add(out_name)
+                     err = 1
+                     deallocate(output)
+                     exit
                   else
-                     reinjector_dict_node => reinjector_dict%get(out_name)
-                     if (associated(reinjector_dict_node)) then
-                        select type (out_reinjector => reinjector_dict_node%data)
-                        class is (source_network_reinjector_type)
-                           if (out_reinjector%rank == 0) then
-                              output%out => out_reinjector
-                              out_reinjector%in => output
-                              out_reinjector%link_index = output_index
+                     if (source_dict_all%has(out_name)) then
+                        source_dict_node => source_dict%get(out_name)
+                        if (associated(source_dict_node)) then
+                           ! source is on this process:
+                           select type (source => source_dict_node%data)
+                           type is (source_type)
+                              output%out => source
+                              source%link_index = output_index
                               call reinjector%out%append(output)
-                           else
-                              deallocate(output)
-                           end if
-                           call reinjector_output_dict%add(out_name)
-                        end select
-                     else
-                        if (present(logfile)) then
-                           call logfile%write(LOG_LEVEL_ERR, "input", &
-                                "unrecognised reinjector output: " // trim(out_name))
+                           end select
+                        else ! source is not on this process:
+                           deallocate(output)
                         end if
-                        err = 1
-                        deallocate(output)
-                        exit
+                        call reinjector_output_dict%add(out_name)
+                     else
+                        reinjector_dict_node => reinjector_dict%get(out_name)
+                        if (associated(reinjector_dict_node)) then
+                           select type (out_reinjector => reinjector_dict_node%data)
+                           class is (source_network_reinjector_type)
+                              if (out_reinjector%rank == 0) then
+                                 output%out => out_reinjector
+                                 out_reinjector%in => output
+                                 out_reinjector%link_index = output_index
+                                 call reinjector%out%append(output)
+                              else
+                                 deallocate(output)
+                              end if
+                              call reinjector_output_dict%add(out_name)
+                           end select
+                        else
+                           if (present(logfile)) then
+                              call logfile%write(LOG_LEVEL_ERR, "input", &
+                                   "unrecognised reinjector output: " // trim(out_name))
+                           end if
+                           err = 1
+                           deallocate(output)
+                           exit
+                        end if
                      end if
                   end if
                end if
