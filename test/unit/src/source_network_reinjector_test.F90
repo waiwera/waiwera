@@ -405,7 +405,7 @@ contains
             call flow_test(source, 3._dp, 3._dp, &
                  0._dp, 640.1853353633858e3_dp)
          case ("i13")
-            call flow_test(source, 1.94069064259_dp, 1.94069064259_dp, &
+            call flow_test(source, 1.44069064259_dp, 1.44069064259_dp, &
                  0._dp, 640.1853353633858e3_dp)
          case ("i14")
             call flow_test(source, 4._dp, 4._dp, 0._dp, 640.1853353633858e3_dp)
