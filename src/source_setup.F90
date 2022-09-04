@@ -1632,7 +1632,7 @@ contains
                   reinjector_dict_node => reinjector_dict%get(node_name)
                   if (associated(reinjector_dict_node)) then
                      select type (out_reinjector => reinjector_dict_node%data)
-                        class is (source_network_reinjector_type)
+                     class is (source_network_reinjector_type)
                         if (out_reinjector%rank == 0) then
                            reinjector%overflow%out => out_reinjector
                            out_reinjector%in => reinjector%overflow
