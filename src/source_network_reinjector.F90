@@ -927,6 +927,8 @@ contains
     PetscErrorCode :: ierr
     PetscBool, parameter :: output_enthalpy_specified = PETSC_FALSE
 
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+
     if (self%rank == 0) then
        call self%overflow%set_flows(water_balance, water_enthalpy, &
             steam_balance, steam_enthalpy)
@@ -943,7 +945,6 @@ contains
        call mpi_comm_send(PETSC_COMM_WORLD, steam_enthalpy, &
             self%root_world_rank, self%overflow%out_world_rank)
 
-       call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
        if (rank == self%overflow%out_world_rank) then
           call self%overflow%update(water_balance, water_enthalpy, &
                steam_balance, steam_enthalpy, output_enthalpy_specified)
