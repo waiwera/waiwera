@@ -539,7 +539,7 @@ contains
 
     class(overflow_reinjector_output_type), intent(in out) :: self
 
-    if (self%reinjector%rank > 0) then
+    if (self%reinjector%rank /= 0) then
        call self%reinjector_output_type%allocate_variables()
     end if
 
@@ -553,7 +553,7 @@ contains
 
     class(overflow_reinjector_output_type), intent(in out) :: self
 
-    if (self%reinjector%rank > 0) then
+    if (self%reinjector%rank /= 0) then
        call self%reinjector_output_type%deallocate_variables()
     end if
 
