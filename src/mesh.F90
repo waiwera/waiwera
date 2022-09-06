@@ -1907,14 +1907,13 @@ contains
       PetscInt, intent(in) :: source_index
       ! Locals:
       type(fson_value), pointer :: cell_json, cells_json
-      PetscInt :: cell, i, cell_type
+      PetscInt :: cell, i
       PetscInt, allocatable :: cells(:)
       PetscErrorCode :: ierr
 
       call fson_get(json, "cell", cell_json)
       if (associated(cell_json)) then
-         cell_type = fson_type_mpi(json, "cell")
-         if (cell_type /= TYPE_NULL) then
+         if (cell_json%value_type /= TYPE_NULL) then
             call fson_get(cell_json, ".", cell)
             cells = [cell]
          end if
