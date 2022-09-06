@@ -88,7 +88,7 @@ contains
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     type(tracer_type), allocatable :: tracers(:)
-    PetscInt, parameter :: expected_num_sources = 23
+    PetscInt, parameter :: expected_num_sources = 24
     PetscMPIInt :: rank, num_procs
     PetscInt, allocatable :: zone_source(:), isort(:)
     PetscInt, allocatable :: zone_source_sorted(:), zone_source_all(:)
@@ -237,21 +237,24 @@ contains
                  6, default_source_rate, 100.e3_dp, default_source_component, 2)
          case (16)
             call source_test(test, source_index, source, &
+                 -1, 2.5_dp, 95.e3_dp, default_source_component, 0)
+         case (17)
+            call source_test(test, source_index, source, &
                  1, 10._dp, 50.e3_dp, default_source_component, 0, &
                  [1.e-3_dp, 1.e-3_dp])
-         case (17)
+         case (18)
             call source_test(test, source_index, source, &
                  2, 5._dp, 40.e3_dp, default_source_component, 0, &
                  [2.e-3_dp, 3.e-3_dp])
-         case (18)
+         case (19)
             call source_test(test, source_index, source, &
                  3, 7.5_dp, 30.e3_dp, default_source_component, 0, &
                  [3.e-3_dp, 5.e-3_dp])
-         case (19)
+         case (20)
             call source_test(test, source_index, source, &
                  4, 3.5_dp, 60.e3_dp, default_source_component, 0, &
                  [0._dp, 2.e-3_dp])
-         case (20:)
+         case (21:)
             num_zone_sources = num_zone_sources + 1
             zone_source(num_zone_sources) = nint(source%natural_cell_index)
          end select

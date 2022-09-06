@@ -27,6 +27,7 @@
          "production_component": "energy", "enthalpy": 500e3},
         {"name": "production component 6", "cell": 6, "production_component": 2,
          "enthalpy": 100e3},
+        {"name": "null cell", "rate": 2.5, "enthalpy": 95e3},
         {"name": "tracer scalar", "cell": 1, "rate": 10.0, "enthalpy": 50e3, "tracer": 1.0e-3},
         {"name": "tracer array", "cell": 2, "rate": 5, "enthalpy": 40.0e3,
          "tracer": [2.0e-3, 3.0e-3]},

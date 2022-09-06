@@ -331,18 +331,20 @@ contains
       class is (source_type)
 
          c = source%local_cell_index
+         if (c >= 0) then
 
-         inflow_offset = global_section_offset(inflow_section, c, &
-              inflow_range_start)
-         inflow => inflow_data(inflow_offset : inflow_offset + &
-              eos%num_primary_variables - 1)
+            inflow_offset = global_section_offset(inflow_section, c, &
+                 inflow_range_start)
+            inflow => inflow_data(inflow_offset : inflow_offset + &
+                 eos%num_primary_variables - 1)
 
-         cell_geom_offset = section_offset(cell_geom_section, c)
-         call cell%assign_geometry(cell_geom_data, cell_geom_offset)
+            cell_geom_offset = section_offset(cell_geom_section, c)
+            call cell%assign_geometry(cell_geom_data, cell_geom_offset)
 
-         call source%update_flow(fluid_data, fluid_section)
-         inflow = inflow + source%flow / cell%volume
+            call source%update_flow(fluid_data, fluid_section)
+            inflow = inflow + source%flow / cell%volume
 
+         end if
       end select
 
     end subroutine source_assembly_iterator

@@ -24,7 +24,7 @@ module source_setup_module
   use kinds_module
   use fson
   use fson_value_m, only: TYPE_INTEGER, TYPE_REAL, TYPE_ARRAY, &
-       TYPE_STRING, TYPE_OBJECT, TYPE_LOGICAL
+       TYPE_STRING, TYPE_OBJECT, TYPE_LOGICAL, TYPE_NULL
   use fson_mpi_module
   use list_module
   use logfile_module
@@ -240,6 +240,36 @@ contains
 
 !........................................................................
 
+    PetscBool function null_cell_source(source_json)
+      !! Returns true if source specification does not specify any
+      !! cells (or zones).
+
+      type(fson_value), pointer, intent(in) :: source_json
+      ! Locals:
+      PetscInt :: cell_type
+      PetscInt, allocatable :: cells(:)
+
+      if (fson_has_mpi(source_json, "cell")) then
+         cell_type = fson_type_mpi(source_json, "cell")
+         null_cell_source = (cell_type == TYPE_NULL)
+      else if (fson_has_mpi(source_json, "cells")) then
+         cell_type = fson_type_mpi(source_json, "cells")
+         if (cell_type == TYPE_NULL) then
+            null_cell_source = PETSC_TRUE
+         else if (cell_type == TYPE_ARRAY) then
+            call fson_get_mpi(source_json, "cells", val = cells)
+            null_cell_source = (.not. allocated(cells))
+         end if
+      else if (fson_has_mpi(source_json, "zones")) then
+         null_cell_source = PETSC_FALSE
+      else
+         null_cell_source = PETSC_TRUE
+      end if
+
+    end function null_cell_source
+
+!........................................................................
+
     subroutine label_source_zones(json, num_local_sources, logfile, err)
       !! Set DM source label for cells defined on zones. Also returns
       !! total number of local sources.
@@ -257,16 +287,18 @@ contains
       PetscInt :: zones_type, num_zone_cells
       character(max_zone_name_length), allocatable :: zones(:)
       character(:), allocatable :: label_name
-      PetscBool :: has_label
+      PetscBool :: has_label, null_cell
       IS :: cell_IS
       PetscInt, pointer, contiguous :: zone_cells(:), cells(:)
       PetscInt, allocatable :: labelled_cells(:)
       DMLabel :: ghost_label, source_label
+      PetscMPIInt :: rank
       PetscErrorCode :: ierr
 
       num_local_sources = 0
       call DMGetLabel(dm, "ghost", ghost_label, ierr)
       call DMGetLabel(dm, source_label_name, source_label, ierr)
+      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
 
       if (fson_has_mpi(json, "source")) then
 
@@ -319,6 +351,12 @@ contains
                  end do
                end associate
                deallocate(zones)
+            else ! check for source with no cell:
+               null_cell = null_cell_source(source_json)
+               if ((null_cell) .and. (rank == 0)) then
+                  ! assign no-cell source to root rank:
+                  num_local_sources = num_local_sources + 1
+               end if
             end if
 
             call mpi_broadcast_error_flag(err)
@@ -464,7 +502,7 @@ contains
       ISLocalToGlobalMapping :: l2g
       PetscReal :: tracer_injection_rate(size(tracer_names))
       character(max_source_network_node_name_length) :: name
-      PetscBool :: rate_specified, enthalpy_specified
+      PetscBool :: rate_specified, enthalpy_specified, null_cell
       PetscReal :: specified_rate, specified_enthalpy
 
       err = 0
@@ -472,6 +510,7 @@ contains
       write(istr, '(i0)') source_spec_index
       srcstr = 'source[' // trim(istr) // '].'
 
+      null_cell = null_cell_source(source_json)
       call get_components(source_json, eos, &
            injection_component, production_component, logfile)
       call get_initial_rate(source_json, initial_rate, rate_specified, specified_rate)
@@ -489,21 +528,36 @@ contains
             name = ""
          end if
 
-         call DMGetStratumSize(dm, source_label_name, source_spec_index, &
-              num_cells, ierr); CHKERRQ(ierr)
+         if (null_cell) then
+            if (rank == 0) then
+               num_cells = 1
+            else
+               num_cells = 0
+            end if
+         else
+            call DMGetStratumSize(dm, source_label_name, source_spec_index, &
+                 num_cells, ierr); CHKERRQ(ierr)
+         end if
          call MPI_allreduce(num_cells, num_cells_all, 1, MPI_INTEGER, MPI_SUM, &
               PETSC_COMM_WORLD, ierr)
+
          if (num_cells > 0) then
-            call DMGetStratumIS(dm, source_label_name, source_spec_index, &
-                 cell_IS, ierr); CHKERRQ(ierr)
-            call ISGetIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
             allocate(natural_cell_index(num_cells))
-            natural_cell_index = local_to_natural_cell_index(ao, l2g, local_cell_index)
+            if (null_cell) then
+               allocate(local_cell_index(num_cells))
+               local_cell_index = -1
+               natural_cell_index = -1
+            else
+               call DMGetStratumIS(dm, source_label_name, source_spec_index, &
+                    cell_IS, ierr); CHKERRQ(ierr)
+               call ISGetIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
+               natural_cell_index = local_to_natural_cell_index(ao, l2g, local_cell_index)
+            end if
          else
             allocate(natural_cell_index(1))
          end if
          natural_source_index = get_natural_source_indices(num_cells, num_cells_all, &
-              natural_cell_index)
+              natural_cell_index, null_cell)
 
          call spec_sources%init(owner = PETSC_FALSE)
          if (num_cells > 0) then
@@ -525,7 +579,9 @@ contains
                end if
                local_source_index = local_source_index + 1
             end do
-            call ISRestoreIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
+            if (.not. null_cell) then
+               call ISRestoreIndicesF90(cell_IS, local_cell_index, ierr); CHKERRQ(ierr)
+            end if
             deallocate(natural_cell_index, natural_source_index)
          end if
          call setup_inline_source_controls(source_json, eos, thermo, &
@@ -539,10 +595,6 @@ contains
             if (num_cells == 1) then
                call source_dict%add(name, spec_sources%head%data)
             end if
-         else if (num_cells_all == 0) then
-            call logfile%write(LOG_LEVEL_WARN, 'input', 'source', &
-                 str_key = trim(srcstr), &
-                 str_value = "no cells found")
          end if
 
          call spec_sources%destroy()
@@ -555,7 +607,7 @@ contains
 !........................................................................
 
     function get_natural_source_indices(num_cells, num_cells_all, &
-         natural_cell_index) result(natural_source_index)
+         natural_cell_index, null_cell) result(natural_source_index)
       !! Gets natural source indices for the current source.
 
       use utils_module, only: array_cumulative_sum, array_indices_in_int_array
@@ -564,6 +616,7 @@ contains
       PetscInt, intent(in) :: num_cells !! Number of source cells on current process
       PetscInt, intent(in) :: num_cells_all !! Number of source cells on all processes
       PetscInt, intent(in) :: natural_cell_index(:) !! Natural cell indices on current process
+      PetscBool, intent(in) :: null_cell !! If no cells specified in source
       PetscInt, allocatable :: natural_source_index(:)
       ! Locals:
       PetscMPIInt :: rank, num_procs
@@ -599,7 +652,7 @@ contains
            natural_cell_index_all, cell_counts, cell_displacements, &
            MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
       ordered_natural_cell_index_all = get_source_cell_indices(source_json, &
-           natural_cell_index_all)
+           natural_cell_index_all, null_cell)
 
       if (rank == 0) then
          natural_source_index_all = array_indices_in_int_array( &
@@ -618,7 +671,8 @@ contains
 
 !........................................................................
 
-    function get_source_cell_indices(source_json, cells) result(ordered_cells)
+    function get_source_cell_indices(source_json, cells, null_cell) &
+         result(ordered_cells)
 
       !! Gets array of all natural cell indices for the source, in
       !! natural source order, on rank 0. For sources with the "cell"
@@ -628,6 +682,7 @@ contains
 
       type(fson_value), pointer, intent(in) :: source_json
       PetscInt, intent(in) :: cells(:)
+      PetscBool, intent(in) :: null_cell
       PetscInt, allocatable :: ordered_cells(:)
       ! Locals:
       type(fson_value), pointer :: cell_json, cells_json, zones_json
@@ -639,27 +694,33 @@ contains
 
       if (rank == 0) then
 
-         call fson_get(source_json, "cell", cell_json)
-         if (associated(cell_json)) then
-            call fson_get(cell_json, ".", c)
-            ordered_cells = [c]
-         end if
+         if (null_cell) then
+            ordered_cells = [-1]
+         else
 
-         call fson_get(source_json, "cells", cells_json)
-         if (associated(cells_json)) then
-            select case (cells_json%value_type)
-            case (TYPE_INTEGER)
-               call fson_get(cells_json, ".", c)
+            call fson_get(source_json, "cell", cell_json)
+            if (associated(cell_json)) then
+               call fson_get(cell_json, ".", c)
                ordered_cells = [c]
-            case (TYPE_ARRAY)
-               call fson_get(cells_json, ".", ordered_cells)
-            end select
-         end if
+            end if
 
-         call fson_get(source_json, "zones", zones_json)
-         if (associated(zones_json)) then
-            ordered_cells = cells
-            call PetscSortInt(size(cells), ordered_cells, ierr); CHKERRQ(ierr)
+            call fson_get(source_json, "cells", cells_json)
+            if (associated(cells_json)) then
+               select case (cells_json%value_type)
+               case (TYPE_INTEGER)
+                  call fson_get(cells_json, ".", c)
+                  ordered_cells = [c]
+               case (TYPE_ARRAY)
+                  call fson_get(cells_json, ".", ordered_cells)
+               end select
+            end if
+
+            call fson_get(source_json, "zones", zones_json)
+            if (associated(zones_json)) then
+               ordered_cells = cells
+               call PetscSortInt(size(cells), ordered_cells, ierr); CHKERRQ(ierr)
+            end if
+
          end if
 
       else
@@ -1239,7 +1300,6 @@ contains
       !! Initialises reinjector outputs of the given flow type.
 
       use mpi_utils_module, only: mpi_broadcast_error_flag
-      use fson_value_m, only : TYPE_NULL
 
       type(fson_value), pointer, intent(in out) :: reinjector_json
       character(*), intent(in) :: reinjector_str, flow_type_str

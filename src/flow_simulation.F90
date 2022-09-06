@@ -1711,33 +1711,36 @@ contains
               self%fluid_range_start)
          c = source%local_cell_index
 
-         cell_geom_offset = section_offset(cell_geom_section, c)
-         call cell%init(self%eos%num_components, self%eos%num_phases)
-         call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+         if (c >= 0) then
 
-         if (nint(source%component) < np) then
-            if (source%rate < 0._dp) then
-               phase_flow_fractions = source%fluid%phase_flow_fractions()
-               call PetscSectionGetOffset(local_tracer_section, c, &
-                    tracer_offset_i, ierr); CHKERRQ(ierr)
-               do it = 1, nt
-                  irow = tracer_offset_i + it - 1
-                  q = phase_flow_fractions(self%tracers(it)%phase_index) * &
-                       source%rate / cell%volume
-                  call MatSetValuesLocal(Ar, 1, irow, 1, irow, q, &
-                       ADD_VALUES, ierr); CHKERRQ(ierr)
-               end do
-            else ! injection:
-               qv = source%tracer_injection_rate / cell%volume
-               br_offset = global_section_offset(br_section, c, &
-                    self%aux_solution_range_start)
-               associate(br_cell => br_array(br_offset: br_offset + nt - 1))
-                 br_cell = br_cell + qv
-               end associate
+            cell_geom_offset = section_offset(cell_geom_section, c)
+            call cell%init(self%eos%num_components, self%eos%num_phases)
+            call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+
+            if (nint(source%component) < np) then
+               if (source%rate < 0._dp) then
+                  phase_flow_fractions = source%fluid%phase_flow_fractions()
+                  call PetscSectionGetOffset(local_tracer_section, c, &
+                       tracer_offset_i, ierr); CHKERRQ(ierr)
+                  do it = 1, nt
+                     irow = tracer_offset_i + it - 1
+                     q = phase_flow_fractions(self%tracers(it)%phase_index) * &
+                          source%rate / cell%volume
+                     call MatSetValuesLocal(Ar, 1, irow, 1, irow, q, &
+                          ADD_VALUES, ierr); CHKERRQ(ierr)
+                  end do
+               else ! injection:
+                  qv = source%tracer_injection_rate / cell%volume
+                  br_offset = global_section_offset(br_section, c, &
+                       self%aux_solution_range_start)
+                  associate(br_cell => br_array(br_offset: br_offset + nt - 1))
+                    br_cell = br_cell + qv
+                  end associate
+               end if
             end if
-         end if
-         call cell%destroy()
+            call cell%destroy()
 
+         end if
       end select
 
     end subroutine tracer_source_iterator

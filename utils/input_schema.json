@@ -602,11 +602,14 @@
                                           "items": {"type": "number"},
                                           "minItems": 2, "maxItems": 2}}
                            ]},
-                           "cell": {"type": "integer", "minimum": 0},
+                           "cell": {"oneOf": [
+                               {"type": "integer", "minimum": 0},
+                               {"type": "null"}]},
                            "cells": {"oneOf": [
                                {"type": "integer", "minimum": 0},
                                {"type": "array",
-                                "items": {"type": "integer", "minimum": 0}}
+                                "items": {"type": "integer", "minimum": 0}},
+                               {"type": "null"}
                            ]},
                            "zones": {"oneOf": [
                                      {"type": "string"},

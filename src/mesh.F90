@@ -1862,7 +1862,9 @@ contains
     !! (not zones).
 
     use source_module
-    use fson_value_m, only : fson_value_count, TYPE_INTEGER, TYPE_ARRAY
+    use fson_mpi_module, only: fson_type_mpi
+    use fson_value_m, only : fson_value_count, TYPE_INTEGER, &
+         TYPE_ARRAY, TYPE_NULL
     use dm_utils_module, only: dm_check_create_label
 
     class(mesh_type), intent(in out) :: self
@@ -1905,14 +1907,17 @@ contains
       PetscInt, intent(in) :: source_index
       ! Locals:
       type(fson_value), pointer :: cell_json, cells_json
-      PetscInt :: cell, i
+      PetscInt :: cell, i, cell_type
       PetscInt, allocatable :: cells(:)
       PetscErrorCode :: ierr
 
       call fson_get(json, "cell", cell_json)
       if (associated(cell_json)) then
-         call fson_get(cell_json, ".", cell)
-         cells = [cell]
+         cell_type = fson_type_mpi(json, "cell")
+         if (cell_type /= TYPE_NULL) then
+            call fson_get(cell_json, ".", cell)
+            cells = [cell]
+         end if
       end if
 
       call fson_get(json, "cells", cells_json)

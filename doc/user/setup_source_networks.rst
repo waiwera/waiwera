@@ -370,8 +370,6 @@ The reinjector outputs are specified in the Waiwera JSON input using two values,
 
 The **"out"** string value specifies the name of the output source or reinjector. Note that a source or reinjector cannot be specified as an output for more than one reinjector. If multiple reinjector outputs or reinjectors need to inject fluid to the same cell, individual injection sources (with the same cell) must be defined for each one.
 
-If no output source or reinjector is specified using the "out" value, or a ``null`` value is given, the reinjector output will effectively reinject fluid outside the model. This can be used to represent, for example, disposal of separated geothermal water to a river, or losses of condensate to the atmosphere from a cooling tower.
-
 A reinjector output can specify its flow rate using either the **"rate"** or the **"proportion"** value. The "rate" value specifies an absolute flow rate, whereas the "proportion" value specifies the output flow rate as a proportion (between zero and one) of the input flow rate for the corresponding phase (separated water or steam).
 
 If neither a rate nor a proportion is specified, the flow rate for the output will be set to the capacity of the receiving source or reinjector, if this has been defined. If the output is an injection source, this means that a flow rate has been specified for that source, or it has a source control computing its flow rate (e.g. an :ref:`injectivity`). If the output is another reinjector, its capacity is determined by summing the capacities of its outputs. If any of its outputs are also reinjectors, then its capacity is calculated recursively.
@@ -434,6 +432,36 @@ Here there are two production wells ("p1" and "p2") in a group called "g1", and 
    }}
 
 Here there are again two production wells and a group "g1", which feeds into the reinjector "r1". This has three outputs, the second of which is another reinjector, "r2". Note that the reinjector "r2" does not need to specify its input, as this is defined in the corresponding output of "r1". The reinjector "r2" outputs to two injection wells, the first of which has its flow rate determined by an injectivity control. There is no flow rate defined in this reinjector output.
+
+.. index:: reinjectors; outside model
+.. _reinjector_outside:
+
+Reinjecting outside the model
+-----------------------------
+
+If no output source or reinjector is specified using a reinjector output's "out" value, or a ``null`` value is given, the reinjector output will effectively reinject fluid outside the model. This can be used to represent, for example, disposal of separated geothermal water to a river, or losses of condensate to the atmosphere from a cooling tower.
+
+Another way of achieving the same result is to reinject into a source which is not associated with any cells. The source can simply not have any "cell", "cells" or "zones" values, or either of the "cell" or "cells" value can be set to ``null``. This method has the advantage that the amount reinjected will appear in the source simulation output.
+
+Example:
+
+.. code-block:: json
+
+   {"source": [
+     {"name": "p1", "cell": 234, "rate": -2.4, "separator": {"pressure": 5e5}},
+     {"name": "i1"},
+     {"name": "i2", "cell": 658}
+    ],
+    "network": {
+       "reinject": [{"name": "r1", "in": "p1",
+                     "water": [
+                       {"out": "i1", "proportion": 0.5, "enthalpy": 85e3},
+                       {"out": "i2", "rate": 12, "enthalpy": 85e3}
+                     ]}]
+       }
+   }
+
+Here separated water from a single production well is reinjected to two outputs. The first sends half of the water to a source with no cell, so it is reinjected outside the model (but the flow rate will be reported in the output for source "i1"). The second output reinjects some of the remaining water to a source inside the model at a fixed rate.
 
 .. index:: reinjectors; overflow
 .. _reinjector_overflow:
