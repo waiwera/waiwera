@@ -256,6 +256,8 @@ contains
          cell_type = fson_type_mpi(source_json, "cells")
          if (cell_type == TYPE_NULL) then
             null_cell_source = PETSC_TRUE
+         else if (cell_type == TYPE_INTEGER) then
+            null_cell_source = PETSC_FALSE
          else if (cell_type == TYPE_ARRAY) then
             call fson_get_mpi(source_json, "cells", val = cells)
             null_cell_source = (.not. allocated(cells))
