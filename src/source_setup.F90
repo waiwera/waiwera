@@ -2662,6 +2662,8 @@ contains
     PetscReal, parameter :: default_rate = 0._dp
     PetscReal, parameter :: default_threshold = -1._dp
 
+    err = 0
+
     if (fson_has_mpi(source_json, "deliverability")) then
 
        call fson_get_mpi(source_json, "deliverability", deliv_json)
