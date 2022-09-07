@@ -2262,6 +2262,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
 
+    err = 0
     call setup_rate_table_control()
     call setup_enthalpy_table_control()
     call setup_tracer_table_controls()
