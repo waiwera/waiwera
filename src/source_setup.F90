@@ -589,7 +589,7 @@ contains
          call setup_inline_source_controls(source_json, eos, thermo, &
               start_time, source_data, source_section, &
               fluid_data, fluid_section, fluid_range_start, srcstr, &
-              tracer_names, spec_sources, source_network, logfile, err)
+              tracer_names, null_cell, spec_sources, source_network, logfile, err)
 
          if ((name /= "") .and. (num_cells_all == 1)) then
             ! Uniquely named source- add to dictionaries:
@@ -2167,7 +2167,7 @@ contains
   subroutine setup_inline_source_controls(source_json, eos, thermo, &
        start_time, source_data, source_section, &
        fluid_data, fluid_section, fluid_range_start, &
-       srcstr, tracer_names, spec_sources, source_network, &
+       srcstr, tracer_names, null_cell, spec_sources, source_network, &
        logfile, err)
     !! Sets up any 'inline' source controls for the source specification,
     !! i.e. controls defined implicitly in the specification.
@@ -2188,6 +2188,7 @@ contains
     PetscInt, intent(in) :: fluid_range_start
     character(len = *), intent(in) :: srcstr
     character(len = *), intent(in) :: tracer_names(:)
+    PetscBool, intent(in) :: null_cell
     type(list_type), intent(in out) :: spec_sources
     type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
@@ -2215,7 +2216,7 @@ contains
             start_time, source_data, source_section, &
             fluid_data, fluid_section, fluid_range_start, &
             interpolation_type, averaging_type, spec_sources, eos, &
-            source_network, logfile, err)
+            null_cell, source_network, logfile, err)
 
        if (err == 0) then
 
@@ -2223,7 +2224,7 @@ contains
                source_data, source_section, &
                fluid_data, fluid_section, fluid_range_start, &
                interpolation_type, averaging_type, spec_sources, eos, &
-               source_network, logfile, err)
+               null_cell, source_network, logfile, err)
 
           if (err == 0) then
 
@@ -2232,12 +2233,13 @@ contains
                   source_network, logfile)
 
              call setup_direction_source_control(source_json, srcstr, thermo, &
-                  spec_sources, source_network, logfile)
+                  null_cell, spec_sources, source_network, logfile, err)
 
-             call setup_factor_source_control(source_json, srcstr, &
-                  interpolation_type, averaging_type, spec_sources, &
-                  source_network, logfile, err)
-
+             if (err == 0) then
+                call setup_factor_source_control(source_json, srcstr, &
+                     interpolation_type, averaging_type, spec_sources, &
+                     source_network, logfile, err)
+             end if
           end if
 
        end if
@@ -2627,7 +2629,7 @@ contains
   subroutine setup_deliverability_source_controls(source_json, srcstr, &
        start_time, source_data, source_section, &
        fluid_data, fluid_section, fluid_range_start, &
-       interpolation_type, averaging_type, spec_sources, eos, &
+       interpolation_type, averaging_type, spec_sources, eos, null_cell, &
        source_network, logfile, err)
     !! Set up deliverability source controls. Deliverability controls
     !! can control only one source, so if multiple cells are
@@ -2647,6 +2649,7 @@ contains
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: spec_sources
     class(eos_type), intent(in) :: eos
+    PetscBool, intent(in) :: null_cell
     type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -2666,23 +2669,33 @@ contains
 
     if (fson_has_mpi(source_json, "deliverability")) then
 
-       call fson_get_mpi(source_json, "deliverability", deliv_json)
+       if (null_cell) then
+          if (present(logfile) .and. logfile%active) then
+             call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
+                  str_key = trim(srcstr) // "deliverability", &
+                  str_value = "... (null cell)")
+          end if
+          err = 1
+       else
 
-       call fson_get_mpi(deliv_json, "threshold", default_threshold, threshold)
+          call fson_get_mpi(source_json, "deliverability", deliv_json)
 
-       if (threshold <= 0._dp) then
-          call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
+          call fson_get_mpi(deliv_json, "threshold", default_threshold, threshold)
+
+          if (threshold <= 0._dp) then
+             call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
+          end if
+
+          call get_reference_pressure(deliv_json, srcstr, "deliverability", &
+               reference_pressure_array, calculate_reference_pressure, &
+               pressure_table_coordinate, logfile)
+
+          call get_deliverability_productivity(deliv_json, source_json, &
+               srcstr, productivity_array, calculate_PI_from_rate, logfile)
+
+          call spec_sources%traverse(setup_deliverability_iterator)
+
        end if
-
-       call get_reference_pressure(deliv_json, srcstr, "deliverability", &
-            reference_pressure_array, calculate_reference_pressure, &
-            pressure_table_coordinate, logfile)
-
-       call get_deliverability_productivity(deliv_json, source_json, &
-            srcstr, productivity_array, calculate_PI_from_rate, logfile)
-
-       call spec_sources%traverse(setup_deliverability_iterator)
-
     end if
 
   contains
@@ -2790,7 +2803,7 @@ contains
        source_data, source_section, &
        fluid_data, fluid_section, fluid_range_start, &
        interpolation_type, averaging_type, spec_sources, eos, &
-       source_network, logfile, err)
+       null_cell, source_network, logfile, err)
     !! Set up recharge/injectivity source controls. These controls
     !! can control only one source, so if multiple cells are
     !! specified, multiple corresponding recharge controls are
@@ -2808,6 +2821,7 @@ contains
     PetscInt, intent(in) :: interpolation_type, averaging_type
     type(list_type), intent(in out) :: spec_sources
     class(eos_type), intent(in) :: eos
+    PetscBool, intent(in) :: null_cell
     type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
@@ -2826,28 +2840,40 @@ contains
        key = keys(k)
        if (fson_has_mpi(source_json, key)) then
 
-          call fson_get_mpi(source_json, key, recharge_json)
-
-          call get_reference_pressure(recharge_json, srcstr, key, &
-               reference_pressure_array, calculate_reference_pressure, &
-               pressure_table_coordinate, logfile)
-
-          if (pressure_table_coordinate == SRC_PRESSURE_TABLE_COORD_TIME) then
-
-             call get_recharge_coefficient(recharge_json, srcstr, key, &
-                  source_json, recharge_array, logfile)
-
-             call spec_sources%traverse(setup_recharge_iterator)
-
-          else
+          if (null_cell) then
              if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
-                     str_key = trim(srcstr) // trim(key) // ".pressure", &
-                     str_value = "...")
+                call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
+                     str_key = trim(srcstr) // key, &
+                     str_value = "... (null cell)")
              end if
+             err = 1
+             exit
+          else
+
+             call fson_get_mpi(source_json, key, recharge_json)
+
+             call get_reference_pressure(recharge_json, srcstr, key, &
+                  reference_pressure_array, calculate_reference_pressure, &
+                  pressure_table_coordinate, logfile)
+
+             if (pressure_table_coordinate == SRC_PRESSURE_TABLE_COORD_TIME) then
+
+                call get_recharge_coefficient(recharge_json, srcstr, key, &
+                     source_json, recharge_array, logfile)
+
+                call spec_sources%traverse(setup_recharge_iterator)
+
+             else
+                if (present(logfile) .and. logfile%active) then
+                   call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
+                        str_key = trim(srcstr) // trim(key) // ".pressure", &
+                        str_value = "...")
+                end if
+             end if
+
+             exit
           end if
 
-          exit
        end if
     end do
 
@@ -3078,7 +3104,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_direction_source_control(source_json, srcstr, &
-       thermo, spec_sources, source_network, logfile)
+       thermo, null_cell, spec_sources, source_network, logfile, err)
     !! Set up direction source control. This can control multiple
     !! sources, so only one is created.
 
@@ -3087,15 +3113,18 @@ contains
     type(fson_value), pointer, intent(in) :: source_json
     character(len=*) :: srcstr
     class(thermodynamics_type), intent(in) :: thermo
+    PetscBool, intent(in) :: null_cell
     type(list_type), intent(in out) :: spec_sources
     type(source_network_type), intent(in out) :: source_network
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: direction
     type(direction_source_control_type), pointer :: direction_control
     PetscInt, parameter :: max_direction_str_length = 16
     character(max_direction_str_length) :: direction_str
 
+    err = 0
     if (fson_has_mpi(source_json, "direction")) then
 
        call fson_get_mpi(source_json, "direction", val = direction_str)
@@ -3115,13 +3144,21 @@ contains
           direction = default_source_direction
        end select
 
-       if ((direction /= SRC_DIRECTION_BOTH) .and. &
-            spec_sources%count > 0) then
-         allocate(direction_control)
-         call direction_control%init(spec_sources%copy(), direction)
-         call source_network%source_controls%append(direction_control)
+       if (null_cell .and. (direction /= SRC_DIRECTION_INJECTION)) then
+          if (present(logfile) .and. logfile%active) then
+             call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
+                  str_key = trim(srcstr) // "direction", &
+                  str_value = trim(direction_str) // " (null cell)")
+          end if
+          err = 1
+       else
+          if ((direction /= SRC_DIRECTION_BOTH) .and. &
+               spec_sources%count > 0) then
+             allocate(direction_control)
+             call direction_control%init(spec_sources%copy(), direction)
+             call source_network%source_controls%append(direction_control)
+          end if
        end if
-
     end if
 
   end subroutine setup_direction_source_control
