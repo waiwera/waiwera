@@ -296,7 +296,7 @@ contains
                  1, primary, fluid, transition, err)
          else
             if (old_halite) then
-               solid_saturation = halite_solubility(fluid%temperature)
+               solid_saturation = primary(3)
             else
                solid_saturation = 0._dp
             end if
