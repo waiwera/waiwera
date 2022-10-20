@@ -34,7 +34,7 @@ module eos_module
 
   PetscInt, parameter, public :: max_eos_name_length = 8
   PetscInt, parameter, public :: max_eos_description_length = 80
-  PetscInt, parameter, public :: max_primary_variable_name_length = 32
+  PetscInt, parameter, public :: max_primary_variable_name_length = 36
   PetscInt, parameter, public :: max_phase_name_length = 13
   PetscInt, parameter, public :: max_component_name_length = 8
   character(max_component_name_length), parameter, public :: &

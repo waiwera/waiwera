@@ -1,4 +1,4 @@
-!   Copyright 2016 University of Auckland.
+!   Copyright 2022 University of Auckland.
 
 !   This file is part of Waiwera.
 
@@ -15,55 +15,53 @@
 !   You should have received a copy of the GNU Lesser General Public License
 !   along with Waiwera.  If not, see <http://www.gnu.org/licenses/>.
 
-module eos_we_module
-  !! Equation of state for non-isothermal pure water.
+module eos_wse_module
+  !! Equation of state for non-isothermal water/salt.
 
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
   use kinds_module
   use eos_module
+  use eos_we_module
   use root_finder_module
   use thermodynamics_module
+  use salt_thermodynamics_module
 
   implicit none
   private
 
-  type, public, extends(eos_type) :: eos_we_type
-     !! Pure water and energy equation of state type.
+  type, public, extends(eos_we_type) :: eos_wse_type
+     !! Water, salt and energy equation of state type.
      private
-     type(root_finder_type), public :: saturation_line_finder
-     type(primary_variable_interpolator_type), pointer, public :: &
-          primary_variable_interpolator
+     PetscInt, allocatable :: water_region(:) !! Water region from mixture region
+     PetscBool, allocatable :: halite(:) !! Halite presence from mixture region
    contains
      private
-     procedure, public :: init => eos_we_init
-     procedure, public :: destroy => eos_we_destroy
-     procedure, public :: transition => eos_we_transition
-     procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
-     procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
-     procedure, public :: bulk_properties => eos_we_bulk_properties
-     procedure, public :: phase_properties => eos_we_phase_properties
-     procedure, public :: primary_variables => eos_we_primary_variables
-     procedure, public :: phase_saturations => eos_we_phase_saturations
-     procedure, public :: check_primary_variables => eos_we_check_primary_variables
-  end type eos_we_type
-
-  public :: eos_we_saturation_difference
+     procedure, public :: init => eos_wse_init
+     procedure, public :: transition => eos_wse_transition
+     procedure, public :: transition_to_single_phase => eos_wse_transition_to_single_phase
+     procedure, public :: transition_to_two_phase => eos_wse_transition_to_two_phase
+     procedure, public :: bulk_properties => eos_wse_bulk_properties
+     procedure, public :: phase_properties => eos_wse_phase_properties
+     procedure, public :: primary_variables => eos_wse_primary_variables
+     procedure, public :: phase_saturations => eos_wse_phase_saturations
+     procedure, public :: check_primary_variables => eos_wse_check_primary_variables
+  end type eos_wse_type
 
 contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_init(self, json, thermo, logfile)
-    !! Initialise pure water and energy EOS.
+  subroutine eos_wse_init(self, json, thermo, logfile)
+    !! Initialise water, salt and energy EOS.
 
     use fson
     use fson_mpi_module, only: fson_get_mpi
     use logfile_module
     use thermodynamics_module
 
-    class(eos_we_type), intent(in out) :: self
+    class(eos_wse_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
@@ -74,40 +72,55 @@ contains
     PetscReal :: pressure_scale, temperature_scale
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
+    PetscReal, parameter :: default_salt_mass_fraction = 0._dp
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
 
-    self%name = "we"
-    self%description = "Pure water and energy"
-    self%primary_variable_names = ["pressure                     ", &
-         "temperature/vapour_saturation"]
+    self%name = "wse"
+    self%description = "Water, salt and energy"
+    self%primary_variable_names = [ &
+         "pressure                           ", &
+         "temperature/vapour_saturation      ", &
+         "salt_mass_fraction/solid_saturation"]
 
     self%num_primary_variables = size(self%primary_variable_names)
-    self%num_phases = 2
-    self%phase_names = ["liquid", "vapour"]
-    self%num_components = 1
-    self%component_names = ["water"]
+    self%num_phases = 3
+    self%phase_names = ["liquid", "vapour", "solid " ]
+    self%num_components = 2
+    self%component_names = ["water", "salt "]
 
-    self%default_primary = [default_pressure, default_temperature]
+    ! Mixture regions above 4 have halite present:
+    self%water_region = [1, 2, 0, 4, 1, 2, 0, 4]
+    self%halite = [PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, &
+         PETSC_TRUE, PETSC_TRUE, PETSC_FALSE, PETSC_TRUE]
+
+    self%default_primary = [default_pressure, default_temperature, default_salt_mass_fraction]
     self%default_region = 1
     self%default_tracer_phase = "liquid"
     self%required_output_fluid_fields = [ &
-         "pressure         ", "temperature      ", &
-         "region           ", "vapour_saturation"]
-    self%default_output_fluid_fields = [ &
-         "pressure              ", "temperature           ", &
-         "region                ", "vapour_saturation     "]
+         "pressure                 ", &
+         "temperature              ", &
+         "region                   ", &
+         "vapour_saturation        ", &
+         "liquid_salt_mass_fraction", &
+         "vapour_salt_mass_fraction", &
+         "solid_saturation         "]
+    self%default_output_fluid_fields = self%required_output_fluid_fields
 
     call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
          pressure_scale, logfile)
     call fson_get_mpi(json, "eos.primary.scale.temperature", default_temperature_scale, &
          temperature_scale, logfile)
-    allocate(self%primary_scale(2, 4))
+    allocate(self%primary_scale(3, 8))
     self%primary_scale = reshape([ &
-          pressure_scale, temperature_scale, &
-          pressure_scale, temperature_scale, &
-          0._dp, 0._dp, &
-          pressure_scale, 1._dp], [2, 4])
+          pressure_scale, temperature_scale, 1._dp, &
+          pressure_scale, temperature_scale, 1._dp, &
+          0._dp, 0._dp, 0._dp, &
+          pressure_scale, 1._dp, 1._dp, &
+          pressure_scale, temperature_scale, 1._dp, &
+          pressure_scale, temperature_scale, 1._dp, &
+          0._dp, 0._dp, 0._dp, &
+          pressure_scale, 1._dp, 1._dp], [3, 8])
 
     self%thermo => thermo
 
@@ -120,41 +133,22 @@ contains
     call self%primary_variable_interpolator%init(data)
     deallocate(data)
     self%primary_variable_interpolator%thermo => self%thermo
-    f => eos_we_saturation_difference
+    f => eos_wse_saturation_difference
     pinterp => self%primary_variable_interpolator
     call self%saturation_line_finder%init(f, context = pinterp)
 
-  end subroutine eos_we_init
+  end subroutine eos_wse_init
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_destroy(self)
-    !! Destroys pure water and energy EOS.
-
-    class(eos_we_type), intent(in out) :: self
-
-    deallocate(self%primary_variable_names)
-    deallocate(self%phase_names, self%component_names)
-    deallocate(self%default_primary)
-    deallocate(self%primary_scale)
-    self%thermo => null()
-
-    call self%saturation_line_finder%destroy()
-    call self%primary_variable_interpolator%destroy()
-    deallocate(self%primary_variable_interpolator)
-
-  end subroutine eos_we_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine eos_we_transition_to_single_phase(self, old_primary, old_fluid, &
+  subroutine eos_wse_transition_to_single_phase(self, old_primary, old_fluid, &
        new_region, primary, fluid, transition, err)
-    !! For eos_we, make transition from two-phase to single-phase with
+    !! For eos_wse, make transition from two-phase to single-phase with
     !! specified region.
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in out) :: self
+    class(eos_wse_type), intent(in out) :: self
     type(fluid_type), intent(in) :: old_fluid
     PetscInt, intent(in) :: new_region
     PetscReal, intent(in) :: old_primary(self%num_primary_variables)
@@ -213,17 +207,17 @@ contains
 
     end associate
 
-  end subroutine eos_we_transition_to_single_phase
+  end subroutine eos_wse_transition_to_single_phase
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_transition_to_two_phase(self, saturation_pressure, &
+  subroutine eos_wse_transition_to_two_phase(self, saturation_pressure, &
        old_primary, old_fluid, primary, fluid, transition, err)
     !! For eos_we, make transition from single-phase to two-phase.
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in out) :: self
+    class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: saturation_pressure
     type(fluid_type), intent(in) :: old_fluid
     PetscReal, intent(in) :: old_primary(self%num_primary_variables)
@@ -265,18 +259,18 @@ contains
 
     end associate
 
-  end subroutine eos_we_transition_to_two_phase
+  end subroutine eos_wse_transition_to_two_phase
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_transition(self, old_primary, primary, &
+  subroutine eos_wse_transition(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
-    !! For eos_we, check primary variables for a cell and make
+    !! For eos_wse, check primary variables for a cell and make
     !! thermodynamic region transitions if needed.
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in out) :: self
+    class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in) :: old_fluid
@@ -284,34 +278,45 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region
-    PetscReal :: saturation_pressure
+    PetscInt :: old_region, old_water_region
+    PetscBool :: old_halite
+    PetscReal :: solid_saturation, saturation_pressure
 
     err = 0
     transition = PETSC_FALSE
     old_region = nint(old_fluid%region)
+    old_water_region = self%water_region(old_region)
+    old_halite = self%halite(old_region)
 
-    if (old_region == 4) then  ! Two-phase
+    if (old_water_region == 4) then  ! Two-phase
        associate (vapour_saturation => primary(2))
 
          if (vapour_saturation < 0._dp) then
             call self%transition_to_single_phase(old_primary, old_fluid, &
                  1, primary, fluid, transition, err)
-         else if (vapour_saturation > 1._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 2, primary, fluid, transition, err)
+         else
+            if (old_halite) then
+               solid_saturation = halite_solubility(fluid%temperature)
+            else
+               solid_saturation = 0._dp
+            end if
+            if (vapour_saturation > 1._dp - solid_saturation) then
+               call self%transition_to_single_phase(old_primary, old_fluid, &
+                    2, primary, fluid, transition, err)
+            end if
          end if
 
      end associate
     else  ! Single-phase
        associate (pressure => primary(1), temperature => primary(2))
 
+         ! TODO: modify this to brine saturation pressure
          call self%thermo%saturation%pressure(temperature, &
               saturation_pressure, err)
 
          if (err == 0) then
-            if (((old_region == 1) .and. (pressure < saturation_pressure)) .or. &
-                 ((old_region == 2) .and. (pressure > saturation_pressure))) then
+            if (((old_water_region == 1) .and. (pressure < saturation_pressure)) .or. &
+                 ((old_water_region == 2) .and. (pressure > saturation_pressure))) then
                call self%transition_to_two_phase(saturation_pressure, &
                     old_primary, old_fluid, primary, fluid, transition, err)
             end if
@@ -320,17 +325,19 @@ contains
        end associate
     end if
 
-  end subroutine eos_we_transition
+    ! TODO: check halite dis/appearance
+
+  end subroutine eos_wse_transition
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_bulk_properties(self, primary, fluid, err)
+  subroutine eos_wse_bulk_properties(self, primary, fluid, err)
     !! Calculate fluid bulk properties from region and primary variables
-    !! for non-isothermal pure water.
+    !! for non-isothermal water/salt.
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in out) :: self
+    class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
@@ -358,15 +365,15 @@ contains
        end if
     end if
 
-  end subroutine eos_we_bulk_properties
+  end subroutine eos_wse_bulk_properties
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_phase_saturations(self, primary, fluid)
+  subroutine eos_wse_phase_saturations(self, primary, fluid)
     !! Assigns fluid phase saturations from fluid region and primary variables.
 
     use fluid_module, only: fluid_type
-    class(eos_we_type), intent(in out) :: self
+    class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
@@ -386,18 +393,18 @@ contains
        fluid%phase(2)%saturation = primary(2)
     end select
 
-  end subroutine eos_we_phase_saturations
+  end subroutine eos_wse_phase_saturations
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_phase_properties(self, primary, rock, fluid, err)
+  subroutine eos_wse_phase_properties(self, primary, rock, fluid, err)
     !! Calculate fluid phase properties from updated fluid region and primary variables.
     !! Bulk properties need to be calculated before calling this routine.
 
     use rock_module, only: rock_type
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in out) :: self
+    class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
@@ -454,16 +461,16 @@ contains
        end associate
     end do
 
-  end subroutine eos_we_phase_properties
+  end subroutine eos_wse_phase_properties
 
 !------------------------------------------------------------------------
 
-  subroutine eos_we_primary_variables(self, fluid, primary)
+  subroutine eos_wse_primary_variables(self, fluid, primary)
     !! Determine primary variables from fluid properties.
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in) :: self
+    class(eos_wse_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(out) :: primary(self%num_primary_variables)
     ! Locals:
@@ -478,18 +485,18 @@ contains
        primary(2) = fluid%temperature
     end if
 
-  end subroutine eos_we_primary_variables
+  end subroutine eos_wse_primary_variables
 
 !------------------------------------------------------------------------
 
-   subroutine eos_we_check_primary_variables(self, fluid, &
+   subroutine eos_wse_check_primary_variables(self, fluid, &
        primary, changed, err)
     !! Check if primary variables are in acceptable bounds, and return error
     !! code accordingly.
 
     use fluid_module, only: fluid_type
 
-    class(eos_we_type), intent(in) :: self
+    class(eos_wse_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     PetscBool, intent(out) :: changed
@@ -522,35 +529,22 @@ contains
       end if
     end associate
 
-  end subroutine eos_we_check_primary_variables
+  end subroutine eos_wse_check_primary_variables
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_we_saturation_difference(x, context) result(dp)
+  PetscReal function eos_wse_saturation_difference(x, context) result(dp)
     !! Returns difference between saturation pressure and pressure at
     !! normalised point 0 <= x <= 1 along line between start and end
     !! primary variables.
 
     PetscReal, intent(in) :: x
     class(*), pointer, intent(in out) :: context
-    ! Locals:
-    PetscReal, allocatable :: var(:)
-    PetscReal :: Ps
-    PetscInt :: err
 
-    select type (context)
-    type is (primary_variable_interpolator_type)
-       allocate(var(context%dim))
-       var = context%interpolate_at_index(x)
-       associate(P => var(1), T => var(2))
-         call context%thermo%saturation%pressure(T, Ps, err)
-         dp = P - Ps
-       end associate
-       deallocate(var)
-    end select
+    dp = eos_we_saturation_difference(x, context)
 
-  end function eos_we_saturation_difference
+  end function eos_wse_saturation_difference
 
 !------------------------------------------------------------------------
 
-end module eos_we_module
+end module eos_wse_module
