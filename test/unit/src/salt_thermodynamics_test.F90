@@ -51,30 +51,43 @@ contains
     PetscReal :: temperature, expected, s
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     if (rank == 0) then
 
+       temperature = -1._dp
+       call halite_solubility(temperature, s, err)
+       call test%assert(1, err, " -1 deg C error")
+
        temperature = 20._dp
        expected = 0.264044_dp
-       s = halite_solubility(temperature)
-       call test%assert(expected, s, " 20 deg C")
+       call halite_solubility(temperature, s, err)
+       call test%assert(expected, s, " 20 deg C value")
+       call test%assert(0, err, " 20 deg C error")
 
        temperature = 200._dp
        expected = 0.31898_dp
-       s = halite_solubility(temperature)
-       call test%assert(expected, s, " 200 deg C")
+       call halite_solubility(temperature, s, err)
+       call test%assert(expected, s, " 200 deg C value")
+       call test%assert(0, err, " 200 deg C error")
 
        temperature = 300._dp
        expected = 0.37918_dp
-       s = halite_solubility(temperature)
-       call test%assert(expected, s, " 300 deg C")
+       call halite_solubility(temperature, s, err)
+       call test%assert(expected, s, " 300 deg C value")
+       call test%assert(0, err, " 300 deg C error")
 
        temperature = 350._dp
        expected = 0.41723_dp
-       s = halite_solubility(temperature)
-       call test%assert(expected, s, " 350 deg C")
+       call halite_solubility(temperature, s, err)
+       call test%assert(expected, s, " 350 deg C value")
+       call test%assert(0, err, " 350 deg C error")
+
+       temperature = 400._dp
+       call halite_solubility(temperature, s, err)
+       call test%assert(1, err, " 400 deg C error")
 
     end if
 

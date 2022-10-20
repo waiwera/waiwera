@@ -18,15 +18,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function halite_solubility(temperature)
+  subroutine halite_solubility(temperature, solubility, err)
     !! Equilibrium solubility of salt in water as a function of
     !! temperature. From Chou, I.M. (1987).
 
     PetscReal, intent(in) :: temperature
+    PetscReal, intent(out) :: solubility
+    PetscErrorCode, intent(out) :: err
 
-    halite_solubility = polynomial(halite_solubility_data, temperature / 1.e3_dp)
+    if ((0._dp <= temperature) .and. (temperature <= 382._dp)) then
+       solubility = polynomial(halite_solubility_data, temperature / 1.e3_dp)
+       err = 0
+    else
+       solubility = 0._dp
+       err = 1
+    end if
 
-  end function halite_solubility
+  end subroutine halite_solubility
 
 !------------------------------------------------------------------------
 
