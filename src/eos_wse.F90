@@ -280,7 +280,7 @@ contains
     ! Locals:
     PetscInt :: old_region, old_water_region
     PetscBool :: old_halite
-    PetscReal :: solid_saturation, saturation_pressure
+    PetscReal :: solid_saturation, salt_mass_fraction, saturation_pressure
 
     err = 0
     transition = PETSC_FALSE
@@ -310,16 +310,25 @@ contains
     else  ! Single-phase
        associate (pressure => primary(1), temperature => primary(2))
 
-         ! TODO: modify this to brine saturation pressure
-         call self%thermo%saturation%pressure(temperature, &
-              saturation_pressure, err)
+         if (old_halite) then
+            call halite_solubility(temperature, salt_mass_fraction, err)
+         else
+            salt_mass_fraction = primary(3)
+         end if
 
          if (err == 0) then
-            if (((old_water_region == 1) .and. (pressure < saturation_pressure)) .or. &
-                 ((old_water_region == 2) .and. (pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, &
-                    old_primary, old_fluid, primary, fluid, transition, err)
+
+            call brine_saturation_pressure(temperature, salt_mass_fraction, &
+                 self%thermo, saturation_pressure, err)
+
+            if (err == 0) then
+               if (((old_water_region == 1) .and. (pressure < saturation_pressure)) .or. &
+                    ((old_water_region == 2) .and. (pressure > saturation_pressure))) then
+                  call self%transition_to_two_phase(saturation_pressure, &
+                       old_primary, old_fluid, primary, fluid, transition, err)
+               end if
             end if
+
          end if
 
        end associate
