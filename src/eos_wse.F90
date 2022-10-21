@@ -49,6 +49,13 @@ module eos_wse_module
      procedure, public :: check_primary_variables => eos_wse_check_primary_variables
   end type eos_wse_type
 
+  type, extends(primary_variable_interpolator_type) :: &
+       eos_wse_primary_variable_interpolator_type
+     !! Interpolator with flag for the presence of halite.
+     private
+     PetscBool :: halite
+  end type eos_wse_primary_variable_interpolator_type
+
 contains
 
 !------------------------------------------------------------------------
@@ -125,7 +132,7 @@ contains
     self%thermo => thermo
 
     ! Set up saturation line finder:
-    allocate(primary_variable_interpolator_type :: &
+    allocate(eos_wse_primary_variable_interpolator_type :: &
          self%primary_variable_interpolator)
     allocate(data(2, 1 + self%num_primary_variables))
     data = 0._dp
@@ -157,6 +164,7 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
+    PetscInt :: old_region
     PetscReal :: old_saturation_pressure, pressure_factor
     PetscReal :: saturation_bound, xi
     PetscReal :: interpolated_primary(self%num_primary_variables)
@@ -175,7 +183,12 @@ contains
 
     self%primary_variable_interpolator%val(:, 1) = old_primary
     self%primary_variable_interpolator%val(:, 2) = primary
-    call self%primary_variable_interpolator%find_component_at_index(&
+    old_region = nint(old_fluid%region)
+    select type (interpolator => self%primary_variable_interpolator)
+    type is (eos_wse_primary_variable_interpolator_type)
+       interpolator%halite = self%halite(old_region)
+    end select
+    call self%primary_variable_interpolator%find_component_at_index( &
          saturation_bound, 2, xi, err)
 
     associate (pressure => primary(1), temperature => primary(2), &
@@ -543,14 +556,34 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function eos_wse_saturation_difference(x, context) result(dp)
-    !! Returns difference between saturation pressure and pressure at
-    !! normalised point 0 <= x <= 1 along line between start and end
-    !! primary variables.
+    !! Returns difference between brine saturation pressure and
+    !! pressure at normalised point 0 <= x <= 1 along line between
+    !! start and end primary variables.
 
     PetscReal, intent(in) :: x
     class(*), pointer, intent(in out) :: context
 
-    dp = eos_we_saturation_difference(x, context)
+    ! Locals:
+    PetscReal, allocatable :: var(:)
+    PetscReal :: salt_mass_fraction, Ps
+    PetscInt :: err
+
+    select type (context)
+    type is (eos_wse_primary_variable_interpolator_type)
+       allocate(var(context%dim))
+       var = context%interpolate_at_index(x)
+       associate(P => var(1), T => var(2))
+         if (context%halite) then
+            call halite_solubility(T, salt_mass_fraction, err)
+         else
+            salt_mass_fraction = var(3)
+         end if
+         call brine_saturation_pressure(T, salt_mass_fraction, &
+              context%thermo, Ps, err)
+         dp = P - Ps
+       end associate
+       deallocate(var)
+    end select
 
   end function eos_wse_saturation_difference
 

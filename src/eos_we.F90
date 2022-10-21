@@ -33,7 +33,7 @@ module eos_we_module
      !! Pure water and energy equation of state type.
      private
      type(root_finder_type), public :: saturation_line_finder
-     type(primary_variable_interpolator_type), pointer, public :: &
+     class(primary_variable_interpolator_type), pointer, public :: &
           primary_variable_interpolator
    contains
      private
@@ -48,8 +48,6 @@ module eos_we_module
      procedure, public :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
   end type eos_we_type
-
-  public :: eos_we_saturation_difference
 
 contains
 
