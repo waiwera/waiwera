@@ -7,13 +7,14 @@ module salt_thermodynamics_test
   use petscsys
   use kinds_module
   use salt_thermodynamics_module
+  use IFC67_module
   use zofu
 
   implicit none
   private
 
   public :: setup, teardown
-  public :: test_halite_solubility
+  public :: test_halite_solubility, test_brine_saturation_pressure
 
 contains
 
@@ -48,50 +49,113 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscReal :: temperature, expected, s
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+       call solubility_case("-1 deg C", -1._dp, 0._dp, 1)
+       call solubility_case("20 deg C", 20._dp, 0.264044_dp, 0)
+       call solubility_case("100 deg C", 100._dp, 0.27998_dp, 0)
+       call solubility_case("200 deg C", 200._dp, 0.31898_dp, 0)
+       call solubility_case("300 deg C", 300._dp, 0.37918_dp, 0)
+       call solubility_case("350 deg C", 350._dp, 0.41723_dp, 0)
+       call solubility_case("400 deg C", 400._dp, 0._dp, 1)
+    end if
+
+  contains
+
+    subroutine solubility_case(name, temperature, &
+         expected_val, expected_err)
+
+      character(*), intent(in) :: name
+      PetscReal, intent(in) :: temperature
+      PetscReal, intent(in) :: expected_val
+      PetscErrorCode, intent(in) :: expected_err
+      ! Locals:
+      PetscReal :: s
+      PetscErrorCode :: err
+
+      call halite_solubility(temperature, s, err)
+      if (expected_err == 0) then
+         call test%assert(expected_val, s, trim(name) // " value")
+      end if
+      call test%assert(expected_err, err, trim(name) // " error")
+
+    end subroutine solubility_case
+
+  end subroutine test_halite_solubility
+
+!------------------------------------------------------------------------
+
+  subroutine test_brine_saturation_pressure(test)
+    ! Brine saturation pressure
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(IFC67_type) :: thermo
+    PetscMPIInt :: rank
+    PetscInt :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     if (rank == 0) then
 
-       temperature = -1._dp
-       call halite_solubility(temperature, s, err)
-       call test%assert(1, err, " -1 deg C error")
+       call thermo%init()
 
-       temperature = 20._dp
-       expected = 0.264044_dp
-       call halite_solubility(temperature, s, err)
-       call test%assert(expected, s, " 20 deg C value")
-       call test%assert(0, err, " 20 deg C error")
+       call sat_case("20, 0",   20._dp, 0._dp, 2.33656155e3_dp, 0)
+       call sat_case("100, 0", 100._dp, 0._dp, 1.01325262e5_dp, 0)
+       call sat_case("200, 0", 200._dp, 0._dp, 1.55488024e6_dp, 0)
+       call sat_case("300, 0", 300._dp, 0._dp,  8.59269200e6_dp, 0)
+       call sat_case("350, 0", 350._dp, 0._dp, 1.65351241e7_dp, 0)
 
-       temperature = 200._dp
-       expected = 0.31898_dp
-       call halite_solubility(temperature, s, err)
-       call test%assert(expected, s, " 200 deg C value")
-       call test%assert(0, err, " 200 deg C error")
+       call sat_case("20, 0.1",    20._dp, 0.1_dp, 2.18333836e3_dp, 0)
+       call sat_case("100, 0.1",  100._dp, 0.1_dp, 9.46576988e4_dp, 0)
+       call sat_case("200, 0.1",  200._dp, 0.1_dp, 1.45230253e6_dp, 0)
+       call sat_case("300, 0.1",  300._dp, 0.1_dp, 8.00790120e6_dp, 0)
+       call sat_case("350, 0.1",  350._dp, 0.1_dp, 1.53587484e7_dp, 0)
 
-       temperature = 300._dp
-       expected = 0.37918_dp
-       call halite_solubility(temperature, s, err)
-       call test%assert(expected, s, " 300 deg C value")
-       call test%assert(0, err, " 300 deg C error")
+       call sat_case("20, 0.2",    20._dp, 0.2_dp, 1.96358923e3_dp, 0)
+       call sat_case("100, 0.2",  100._dp, 0.2_dp, 8.55903276e4_dp, 0)
+       call sat_case("200, 0.2",  200._dp, 0.2_dp, 1.31845596e6_dp, 0)
+       call sat_case("300, 0.2",  300._dp, 0.2_dp, 7.26818306e6_dp, 0)
+       call sat_case("350, 0.2",  350._dp, 0.2_dp, 1.38995352e7_dp, 0)
 
-       temperature = 350._dp
-       expected = 0.41723_dp
-       call halite_solubility(temperature, s, err)
-       call test%assert(expected, s, " 350 deg C value")
-       call test%assert(0, err, " 350 deg C error")
+       call sat_case("20, 0.3",    20._dp, 0.3_dp, 1.57331654e3_dp, 0)
+       call sat_case("100, 0.3",  100._dp, 0.3_dp, 7.21180799e4_dp, 0)
+       call sat_case("200, 0.3",  200._dp, 0.3_dp, 1.15342823e6_dp, 0)
+       call sat_case("300, 0.3",  300._dp, 0.3_dp, 6.49165260e6_dp, 0)
+       call sat_case("350, 0.3",  350._dp, 0.3_dp, 1.24828644e7_dp, 0)
 
-       temperature = 400._dp
-       call halite_solubility(temperature, s, err)
-       call test%assert(1, err, " 400 deg C error")
+       call thermo%destroy()
 
     end if
 
-  end subroutine test_halite_solubility
+  contains
+
+    subroutine sat_case(name, temperature, salt_mass_fraction, &
+         expected_val, expected_err)
+
+      character(*), intent(in) :: name
+      PetscReal, intent(in) :: temperature
+      PetscReal, intent(in) :: salt_mass_fraction
+      PetscReal, intent(in) :: expected_val
+      PetscErrorCode, intent(in) :: expected_err
+      ! Locals:
+      PetscReal :: Ps
+      PetscErrorCode :: err
+
+      call brine_saturation_pressure(temperature, salt_mass_fraction, &
+           thermo, Ps, err)
+      if (expected_err == 0) then
+         call test%assert(expected_val, Ps, trim(name) // " value")
+      end if
+      call test%assert(expected_err, err, trim(name) // " error")
+
+    end subroutine sat_case
+
+  end subroutine test_brine_saturation_pressure
 
 !------------------------------------------------------------------------
 
