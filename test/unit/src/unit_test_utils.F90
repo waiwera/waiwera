@@ -33,7 +33,7 @@ contains
     character(60), intent(in) :: message
 
     call test%assert(expected_primary, primary, &
-         trim(message) // "primary")
+         trim(message) // " primary")
     call test%assert(expected_region, nint(fluid%region), &
          trim(message) // " region")
     call test%assert(expected_transition, transition, &
