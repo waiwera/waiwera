@@ -42,6 +42,7 @@ module eos_wse_module
      procedure, public :: transition => eos_wse_transition
      procedure, public :: transition_to_single_phase => eos_wse_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wse_transition_to_two_phase
+     procedure, public :: halite_transition => eos_wse_halite_transition
      procedure, public :: bulk_properties => eos_wse_bulk_properties
      procedure, public :: phase_properties => eos_wse_phase_properties
      procedure, public :: primary_variables => eos_wse_primary_variables
@@ -276,6 +277,76 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_wse_halite_transition(self, primary, fluid, transition, err)
+    !! For eos_wse, check for halite transitions (e.g. precipitation,
+    !! dissolution).
+
+    use fluid_module, only: fluid_type
+
+    class(eos_wse_type), intent(in out) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: region
+    PetscReal :: solubility, solid_saturation, salt_mass_fraction
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    err = 0
+    transition = PETSC_FALSE
+    region = nint(fluid%region)
+
+    select case (region)
+
+    case (1, 4) ! Liquid phase present without halite
+       associate (temperature => primary(2))
+         salt_mass_fraction = primary(3)
+         call halite_solubility(temperature, solubility, err)
+         if (salt_mass_fraction > solubility) then
+            ! halite precipitates out of liquid:
+            solid_saturation = small
+            primary(3) = solid_saturation
+            fluid%region = dble(region + 4)
+         end if
+       end associate
+
+    case (5, 8) ! Liquid phase present with halite
+       associate (temperature => primary(2))
+         solid_saturation = primary(3)
+         if (solid_saturation < 0._dp) then
+            ! halite dissolves into liquid:
+            call halite_solubility(temperature, solubility, err)
+            salt_mass_fraction = solubility - small
+            primary(3) = salt_mass_fraction
+            fluid%region = dble(region - 4)
+         end if
+       end associate
+
+    case (2) ! Vapour phase only without halite
+       salt_mass_fraction = primary(3)
+       if (salt_mass_fraction > 0._dp) then
+          ! halite precipitates out of vapour:
+          solid_saturation = small
+          primary(3) = solid_saturation
+          fluid%region = dble(6)
+       end if
+
+    case (6) ! Vapour phase only with halite
+       solid_saturation = primary(3)
+       if (solid_saturation < 0._dp) then
+          ! halite disappears (can't dissolve into vapour phase):
+          salt_mass_fraction = 0._dp
+          primary(3) = salt_mass_fraction
+          fluid%region = dble(2)
+       end if
+
+    end select
+
+  end subroutine eos_wse_halite_transition
+
+!------------------------------------------------------------------------
+
   subroutine eos_wse_transition(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
     !! For eos_wse, check primary variables for a cell and make
@@ -347,7 +418,7 @@ contains
        end associate
     end if
 
-    ! TODO: check halite dis/appearance
+    call self%halite_transition(primary, fluid, transition, err)
 
   end subroutine eos_wse_transition
 
