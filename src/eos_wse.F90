@@ -366,7 +366,7 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region, old_water_region
+    PetscInt :: old_region, old_water_region, region_offset, new_region
     PetscBool :: old_halite
     PetscReal :: solid_saturation, salt_mass_fraction, saturation_pressure
 
@@ -377,11 +377,17 @@ contains
     old_halite = self%halite(old_region)
 
     if (old_water_region == 4) then  ! Two-phase
+       if (old_halite) then
+          region_offset = 4
+       else
+          region_offset = 0
+       end if
        associate (vapour_saturation => primary(2))
 
          if (vapour_saturation < 0._dp) then
+            new_region = region_offset + 1
             call self%transition_to_single_phase(old_primary, old_fluid, &
-                 1, primary, fluid, transition, err)
+                 new_region, primary, fluid, transition, err)
          else
             if (old_halite) then
                solid_saturation = primary(3)
@@ -389,8 +395,9 @@ contains
                solid_saturation = 0._dp
             end if
             if (vapour_saturation > 1._dp - solid_saturation) then
+               new_region = region_offset + 2
                call self%transition_to_single_phase(old_primary, old_fluid, &
-                    2, primary, fluid, transition, err)
+                    new_region, primary, fluid, transition, err)
             end if
          end if
 
