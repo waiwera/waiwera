@@ -233,7 +233,7 @@ contains
 
   subroutine eos_wse_transition_to_two_phase(self, saturation_pressure, &
        old_primary, old_fluid, primary, fluid, transition, err)
-    !! For eos_we, make transition from single-phase to two-phase.
+    !! For eos_wse, make transition from single-phase to two-phase.
 
     use fluid_module, only: fluid_type
 
@@ -246,9 +246,10 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region
+    PetscInt :: old_region, old_water_region, new_region
+    PetscBool :: old_halite
     PetscReal :: interpolated_primary(self%num_primary_variables)
-    PetscReal :: xi
+    PetscReal :: xi, solid_saturation
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
