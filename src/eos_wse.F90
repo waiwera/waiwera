@@ -165,29 +165,37 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region
+    PetscInt :: old_region, new_water_region
+    PetscBool :: old_halite
     PetscReal :: old_saturation_pressure, pressure_factor
-    PetscReal :: saturation_bound, xi
+    PetscReal :: saturation_bound, xi, solid_saturation, salt_mass_fraction
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
     transition = PETSC_FALSE
 
-    if (new_region == 1) then
+    old_region = nint(old_fluid%region)
+    old_halite = self%halite(old_region)
+    if (old_halite) then
+       solid_saturation = primary(3)
+    else
+       solid_saturation = 0._dp
+    end if
+    new_water_region = self%water_region(new_region)
+    if (new_water_region == 1) then
        saturation_bound = 0._dp
        pressure_factor = 1._dp + small
     else
-       saturation_bound = 1._dp
+       saturation_bound = 1._dp - solid_saturation
        pressure_factor = 1._dp - small
     end if
 
     self%primary_variable_interpolator%val(:, 1) = old_primary
     self%primary_variable_interpolator%val(:, 2) = primary
-    old_region = nint(old_fluid%region)
     select type (interpolator => self%primary_variable_interpolator)
     type is (eos_wse_primary_variable_interpolator_type)
-       interpolator%halite = self%halite(old_region)
+       interpolator%halite = old_halite
     end select
     call self%primary_variable_interpolator%find_component_at_index( &
          saturation_bound, 2, xi, err)
