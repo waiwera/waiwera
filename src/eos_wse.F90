@@ -262,13 +262,22 @@ contains
       end if
 
       old_region = nint(old_fluid%region)
-      if (old_region == 1) then
+      old_water_region = self%water_region(old_region)
+      old_halite = self%halite(old_region)
+      if (old_halite) then
+         solid_saturation = primary(3)
+         new_region = 8
+      else
+         solid_saturation = 0._dp
+         new_region = 4
+      end if
+      if (old_water_region == 1) then
          vapour_saturation = small
       else
-         vapour_saturation = 1._dp - small
+         vapour_saturation = 1._dp - solid_saturation - small
       end if
 
-      fluid%region = dble(4)
+      fluid%region = dble(new_region)
       transition = PETSC_TRUE
 
     end associate
