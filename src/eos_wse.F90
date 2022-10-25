@@ -208,15 +208,21 @@ contains
 
       else
 
-         call self%thermo%saturation%pressure(old_fluid%temperature, &
-              old_saturation_pressure, err)
-         if (err == 0) then
-            pressure = pressure_factor * old_saturation_pressure
-            temperature = old_fluid%temperature
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
+         if (old_halite) then
+            call halite_solubility(old_fluid%temperature, salt_mass_fraction, err)
+         else
+            salt_mass_fraction = old_primary(3)
          end if
-
+         if (err == 0) then
+            call brine_saturation_pressure(old_fluid%temperature, salt_mass_fraction, &
+                 self%thermo, old_saturation_pressure, err)
+            if (err == 0) then
+               pressure = pressure_factor * old_saturation_pressure
+               temperature = old_fluid%temperature
+               fluid%region = dble(new_region)
+               transition = PETSC_TRUE
+            end if
+         end if
       end if
 
     end associate
