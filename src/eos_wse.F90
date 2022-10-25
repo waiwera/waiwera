@@ -321,6 +321,7 @@ contains
             salt_mass_fraction = solubility - small
             primary(3) = salt_mass_fraction
             fluid%region = dble(region - 4)
+            transition = PETSC_TRUE
          end if
        end associate
 
