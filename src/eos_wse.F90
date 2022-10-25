@@ -308,6 +308,7 @@ contains
             solid_saturation = small
             primary(3) = solid_saturation
             fluid%region = dble(region + 4)
+            transition = PETSC_TRUE
          end if
        end associate
 
@@ -330,6 +331,7 @@ contains
           solid_saturation = small
           primary(3) = solid_saturation
           fluid%region = dble(6)
+          transition = PETSC_TRUE
        end if
 
     case (6) ! Vapour phase only with halite
@@ -339,6 +341,7 @@ contains
           salt_mass_fraction = 0._dp
           primary(3) = salt_mass_fraction
           fluid%region = dble(2)
+          transition = PETSC_TRUE
        end if
 
     end select
