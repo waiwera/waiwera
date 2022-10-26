@@ -310,7 +310,7 @@ contains
     class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
+    PetscBool, intent(in out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
@@ -318,7 +318,6 @@ contains
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
-    transition = PETSC_FALSE
     region = nint(fluid%region)
 
     select case (region)
