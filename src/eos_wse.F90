@@ -311,13 +311,12 @@ contains
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(in out) :: transition
-    PetscErrorCode, intent(out) :: err
+    PetscErrorCode, intent(in out) :: err
     ! Locals:
     PetscInt :: region
     PetscReal :: solubility, solid_saturation, salt_mass_fraction
     PetscReal, parameter :: small = 1.e-6_dp
 
-    err = 0
     region = nint(fluid%region)
 
     select case (region)
@@ -452,7 +451,9 @@ contains
        end associate
     end if
 
-    call self%halite_transition(primary, fluid, transition, err)
+    if (err == 0) then
+       call self%halite_transition(primary, fluid, transition, err)
+    end if
 
   end subroutine eos_wse_transition
 
