@@ -99,7 +99,7 @@ contains
 
     if (rank == 0) then
 
-       title = "Region 1 null transition"
+       title = "Region 1 null transition Xs = 0"
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
        expected_region = 1
@@ -111,7 +111,7 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
-       title = "Region 1 to 4"
+       title = "Region 1 to 4 Xs = 0"
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
        expected_region = 4
@@ -123,69 +123,69 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, primary, fluid, transition, err, title)
 
-       ! title = "Region 2 null transition"
-       ! old_fluid%region = dble(2)
-       ! fluid%region = old_fluid%region
-       ! expected_region = 2
-       ! expected_primary = [1.e5_dp, 120._dp]
-       ! old_primary = expected_primary
-       ! primary = expected_primary
-       ! expected_transition = PETSC_FALSE
-       ! call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       ! call transition_compare(test, expected_primary, expected_region, &
-       !      expected_transition, primary, fluid, transition, err, title)
+       title = "Region 2 null transition Xs = 0"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [1.e5_dp, 120._dp, 0._dp]
+       old_primary = expected_primary
+       primary = expected_primary
+       expected_transition = PETSC_FALSE
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, primary, fluid, transition, err, title)
 
-       ! title = "Region 2 to 4"
-       ! old_fluid%region = dble(2)
-       ! fluid%region = old_fluid%region
-       ! expected_region = 4
-       ! expected_primary = [85.621455812056474e5_dp, 1._dp - small]
-       ! expected_transition = PETSC_TRUE
-       ! old_primary = [84.0e5_dp, 302._dp]
-       ! primary = [86.e5_dp, 299.27215502281706_dp]
-       ! call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       ! call transition_compare(test, expected_primary, expected_region, &
-       !      expected_transition, primary, fluid, transition, err, title)
+       title = "Region 2 to 4 Xs = 0"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 4
+       expected_primary = [85.621455812056474e5_dp, 1._dp - small, 0._dp]
+       expected_transition = PETSC_TRUE
+       old_primary = [84.0e5_dp, 302._dp, 0._dp]
+       primary = [86.e5_dp, 299.27215502281706_dp, 0._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, primary, fluid, transition, err, title)
 
-       ! title = "Region 4 null transition"
-       ! old_fluid%region = dble(4)
-       ! fluid%region = old_fluid%region
-       ! expected_region = 4
-       ! expected_primary = [1.e5_dp, 0.5_dp]
-       ! old_primary = expected_primary
-       ! primary = expected_primary
-       ! expected_transition = PETSC_FALSE
-       ! call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       ! call transition_compare(test, expected_primary, expected_region, &
-       !      expected_transition, primary, fluid, transition, err, title)
+       title = "Region 4 null transition Xs = 0"
+       old_fluid%region = dble(4)
+       fluid%region = old_fluid%region
+       expected_region = 4
+       expected_primary = [1.e5_dp, 0.5_dp, 0._dp]
+       old_primary = expected_primary
+       primary = expected_primary
+       expected_transition = PETSC_FALSE
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, primary, fluid, transition, err, title)
 
-       ! title = "Region 4 to 1"
-       ! temperature = 299.27215502281706_dp
-       ! old_fluid%region = dble(4)
-       ! old_fluid%temperature = temperature
-       ! fluid%region = old_fluid%region
-       ! expected_region = 1
-       ! expected_primary = [85.90917681818182e5_dp, 300.02645326107097_dp]
-       ! expected_transition = PETSC_TRUE
-       ! old_primary = [85.e5_dp, 0.1_dp]
-       ! primary = [86.e5_dp, -0.01_dp]
-       ! call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       ! call transition_compare(test, expected_primary, expected_region, &
-       !      expected_transition, primary, fluid, transition, err, title)
+       title = "Region 4 to 1 Xs = 0"
+       temperature = 299.27215502281706_dp
+       old_fluid%region = dble(4)
+       old_fluid%temperature = temperature
+       fluid%region = old_fluid%region
+       expected_region = 1
+       expected_primary = [85.90917681818182e5_dp, 300.02645326107097_dp, 0._dp]
+       expected_transition = PETSC_TRUE
+       old_primary = [85.e5_dp, 0.1_dp, 0._dp]
+       primary = [86.e5_dp, -0.01_dp, 0._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, primary, fluid, transition, err, title)
 
-       ! title = "Region 4 to 2"
-       ! temperature = 212.38453531849041_dp
-       ! old_fluid%region = dble(4)
-       ! old_fluid%temperature = temperature
-       ! fluid%region = old_fluid%region
-       ! expected_region = 2
-       ! expected_primary = [20.08331325e5_dp, 212.59487472987195_dp]
-       ! expected_transition = PETSC_TRUE
-       ! old_primary = [20.e5_dp, 0.9_dp]
-       ! primary = [20.1e5_dp, 1.02_dp]
-       ! call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       ! call transition_compare(test, expected_primary, expected_region, &
-       !      expected_transition, primary, fluid, transition, err, title)
+       title = "Region 4 to 2 Xs = 0"
+       temperature = 212.38453531849041_dp
+       old_fluid%region = dble(4)
+       old_fluid%temperature = temperature
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [20.08331325e5_dp, 212.59487472987195_dp, 0._dp]
+       expected_transition = PETSC_TRUE
+       old_primary = [20.e5_dp, 0.9_dp, 0._dp]
+       primary = [20.1e5_dp, 1.02_dp, 0._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, primary, fluid, transition, err, title)
 
     end if
 
