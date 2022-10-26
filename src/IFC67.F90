@@ -635,6 +635,8 @@ subroutine saturation_temperature(self, p, t, err)
   !! Calculates saturation temperature (deg C) as a function of pressure.
   !! Returns err = 1 if called outside its operating range (611.213 Pa <= p <= critical pressure).
 
+  use utils_module, only: newton1d
+
   class(IFC67_saturation_type), intent(in) :: self
   PetscReal, intent(in) :: p  !! Fluid pressure (\(kg. m. s^{-1}\))
   PetscReal, intent(out):: t  !! Fluid temperature (\(^\circ C\))
@@ -642,46 +644,31 @@ subroutine saturation_temperature(self, p, t, err)
   ! Locals:
   PetscInt, parameter :: maxit = 200
   PetscReal, parameter :: tol = 1.e-10_dp
-  PetscReal ::  dt, ps, psd, tsd
-  PetscInt :: i
-  PetscBool :: found
+  PetscReal, parameter :: inc = 1.e-8_dp
 
   if ((p >= 0.0061e5_dp) .and. (p <= pcritical67)) then
 
      ! Initial estimate:
      t = max(4606.0_dp / (24.02_dp - dlog(p)) - tc_k, 5._dp)
-     dt = t * 1.0e-8_dp
-     tsd = t + dt
-     found = PETSC_FALSE
 
-     ! Newton iteration:
-     do i = 1, maxit
-        call self%pressure(t, ps, err)
-        if (err == 0) then
-           if ((abs((p - ps) / p) <= tol) .and. (i > 1)) then
-              found = PETSC_TRUE
-              exit
-           else
-              tsd = t + dt
-              call self%pressure(tsd, psd, err)
-              if (err == 0) then
-                 t = t + (p - ps) * dt / (psd - ps)
-              else
-                 exit
-              end if
-           end if
-        else
-           exit
-        end if
-     end do
-
-     if ((err == 0).and.(.not.(found))) then
-        err = 1
-     end if
+     call newton1d(f, t, inc, tol * p, maxit, err)
 
   else
      err = 1
   end if
+
+contains
+
+  PetscReal function f(x, err)
+    PetscReal, intent(in) :: x
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: ps
+
+    call self%pressure(x, ps, err)
+    f = p - ps
+
+  end function f
 
 end subroutine saturation_temperature
 
