@@ -264,8 +264,16 @@ contains
     associate (pressure => primary(1), vapour_saturation => primary(2), &
       interpolated_pressure => interpolated_primary(1))
 
+      old_region = nint(old_fluid%region)
+      old_water_region = self%water_region(old_region)
+      old_halite = self%halite(old_region)
+
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
+      select type (interpolator => self%primary_variable_interpolator)
+      type is (eos_wse_primary_variable_interpolator_type)
+         interpolator%halite = old_halite
+      end select
       call self%saturation_line_finder%find()
 
       if (self%saturation_line_finder%err == 0) then
@@ -276,9 +284,6 @@ contains
          pressure = saturation_pressure
       end if
 
-      old_region = nint(old_fluid%region)
-      old_water_region = self%water_region(old_region)
-      old_halite = self%halite(old_region)
       if (old_halite) then
          solid_saturation = primary(3)
          new_region = 8
