@@ -143,15 +143,20 @@ contains
       PetscReal, intent(in) :: expected_val
       PetscErrorCode, intent(in) :: expected_err
       ! Locals:
-      PetscReal :: Ps
+      PetscReal :: Ps, Ts
       PetscErrorCode :: err
 
       call brine_saturation_pressure(temperature, salt_mass_fraction, &
            thermo, Ps, err)
+      call test%assert(expected_err, err, trim(name) // " error")
       if (expected_err == 0) then
          call test%assert(expected_val, Ps, trim(name) // " value")
+         if (err == 0) then
+            call brine_saturation_temperature(Ps, salt_mass_fraction, &
+                 thermo, Ts, err)
+            call test%assert(temperature, Ts, trim(name) // " inverse value")
+         end if
       end if
-      call test%assert(expected_err, err, trim(name) // " error")
 
     end subroutine sat_case
 

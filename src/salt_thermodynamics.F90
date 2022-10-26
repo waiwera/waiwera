@@ -19,7 +19,8 @@ module salt_thermodynamics_module
        [0._dp, 1.15420_dp, 1.41254_dp, -1.92476_dp, &
        -1.70717_dp, 1.05390_dp]
 
-  public :: halite_solubility, brine_saturation_pressure
+  public :: halite_solubility
+  public :: brine_saturation_pressure, brine_saturation_temperature
 
 contains
 
@@ -71,6 +72,49 @@ contains
     call thermo%saturation%pressure(t_effective, saturation_pressure, err)
 
   end subroutine brine_saturation_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine brine_saturation_temperature(pressure, salt_mass_fraction, &
+       thermo, saturation_temperature, err)
+    !! Saturation temperature of brine at given pressure and salt mass
+    !! fraction, using the specified water thermodynamics.
+
+    use utils_module, only: newton1d
+
+    PetscReal, intent(in) :: pressure !! Pressure (Pa)
+    PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
+    class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
+    PetscReal, intent(out) :: saturation_temperature !! Saturation temperature
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: t
+    PetscInt, parameter :: maxit = 100
+    PetscReal, parameter :: tol = 1.e-10_dp
+    PetscReal, parameter :: inc = 1.e-8_dp
+
+    ! Initial estimate from pure water thermodynamics:
+    call thermo%saturation%temperature(pressure, t, err)
+    if (err == 0) then
+       call newton1d(f, t, inc, tol * pressure, maxit, err)
+       saturation_temperature = t
+    end if
+
+  contains
+
+    PetscReal function f(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: saturation_pressure
+
+      call brine_saturation_pressure(x, salt_mass_fraction, thermo, &
+          saturation_pressure, err)
+      f = pressure - saturation_pressure
+
+    end function f
+
+  end subroutine brine_saturation_temperature
 
 !------------------------------------------------------------------------
 
