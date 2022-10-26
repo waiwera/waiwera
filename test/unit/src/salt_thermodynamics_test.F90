@@ -104,6 +104,12 @@ contains
 
        call thermo%init()
 
+       call zero_salt_case("20", 20._dp)
+       call zero_salt_case("100", 100._dp)
+       call zero_salt_case("200", 200._dp)
+       call zero_salt_case("300", 300._dp)
+       call zero_salt_case("350", 350._dp)
+
        call sat_case("20, 0",   20._dp, 0._dp, 2.33656155e3_dp, 0)
        call sat_case("100, 0", 100._dp, 0._dp, 1.01325262e5_dp, 0)
        call sat_case("200, 0", 200._dp, 0._dp, 1.55488024e6_dp, 0)
@@ -159,6 +165,22 @@ contains
       end if
 
     end subroutine sat_case
+
+    subroutine zero_salt_case(name, temperature)
+
+      character(*), intent(in) :: name
+      PetscReal, intent(in) :: temperature
+      ! Locals:
+      PetscReal :: Ps, Ps0
+      PetscReal, parameter :: salt_mass_fraction = 0._dp
+      PetscErrorCode :: err
+
+      call thermo%saturation%pressure(temperature, Ps0, err)
+      call brine_saturation_pressure(temperature, salt_mass_fraction, &
+           thermo, Ps, err)
+      call test%assert(Ps0, Ps, trim(name) // " zero salt value")
+
+    end subroutine zero_salt_case
 
   end subroutine test_brine_saturation_pressure
 
