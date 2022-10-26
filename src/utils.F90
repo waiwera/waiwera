@@ -58,7 +58,7 @@ module utils_module
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
        array_is_permutation, invert_indices, &
-       array_progressive_limit
+       array_progressive_limit, newton1d
 
 contains
 
@@ -603,6 +603,61 @@ contains
     end associate
 
   end function array_progressive_limit
+
+!------------------------------------------------------------------------
+
+  subroutine newton1d(f, x, x_increment, tolerance, max_iterations, err)
+    !! 1-D Newton solve to find f(x) = 0, for the specified relative
+    !! variable increment, function tolerance and maximum number of
+    !! iterations. The error flag returns nonzero if there were any
+    !! errors in function evaluation or the iteration limit was
+    !! exceeded.
+
+    interface
+       PetscReal function f(x, err)
+         PetscReal, intent(in) :: x
+         PetscErrorCode, intent(out) :: err
+       end function f
+    end interface
+
+    PetscReal, intent(in out) :: x !! Starting and final variable value
+    PetscReal, intent(in) :: x_increment !! Relative variable increment
+    PetscReal, intent(in) :: tolerance !! Function tolerance
+    PetscInt, intent(in) :: max_iterations !! Maximum number of iterations
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: dx, fx, fxd, df
+    PetscInt :: i
+    PetscBool :: found
+
+    dx = x_increment * x
+    found = PETSC_FALSE
+
+    do i = 1, max_iterations
+       fx = f(x, err)
+       if (err == 0) then
+          if (abs(fx) <= tolerance) then
+             found = PETSC_TRUE
+             exit
+          else
+             fxd = f(x + dx, err)
+             if (err == 0) then
+                df = (fxd - fx) / dx
+                x = x - fx / df
+             else
+                exit
+             end if
+          end if
+       else
+          exit
+       end if
+    end do
+
+    if ((err == 0) .and. (.not.(found))) then
+       err = 1
+    end if
+
+  end subroutine newton1d
 
 !------------------------------------------------------------------------
 

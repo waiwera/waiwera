@@ -21,7 +21,7 @@ module utils_test
        test_array_pair_sum, test_array_cumulative_sum, &
        test_array_exclusive_products, test_array_sorted, &
        test_array_indices_in_int_array, test_is_permutation, &
-       test_array_progressive_limit
+       test_array_progressive_limit, test_newton1d
 
 contains
 
@@ -586,6 +586,57 @@ contains
     end if
 
   end subroutine test_array_progressive_limit
+
+!------------------------------------------------------------------------
+
+  subroutine test_newton1d(test)
+    ! Test newton1d
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: x
+    PetscReal, parameter :: inc = 1.e-8_dp, tol = 1.e-10_dp
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       x = 0._dp
+       call newton1d(f1, x, inc, tol, 1, err)
+       call test%assert(0._dp, x, 'case 1 value')
+       call test%assert(0, err, 'case 1 error')
+
+       x = 1._dp
+       call newton1d(f1, x, inc, tol, 3, err)
+       call test%assert(0._dp, x, 'case 2 value')
+       call test%assert(0, err, 'case 2 error')
+
+       x = 1._dp
+       call newton1d(f2, x, inc, tol, 5, err)
+       call test%assert(sqrt(2._dp), x, 'case 3 value')
+       call test%assert(0, err, 'case 3 error')
+
+    end if
+
+  contains
+
+    PetscReal function f1(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      f1 = x
+      err = 0
+    end function f1
+
+    PetscReal function f2(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      f2 = x * x - 2._dp
+      err = 0
+    end function f2
+
+  end subroutine test_newton1d
 
 !------------------------------------------------------------------------
 
