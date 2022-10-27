@@ -201,12 +201,15 @@ contains
          saturation_bound, 2, xi, err)
 
     associate (pressure => primary(1), temperature => primary(2), &
-         interpolated_pressure => interpolated_primary(1))
+         salt => primary(3), &
+         interpolated_pressure => interpolated_primary(1), &
+         interpolated_salt => interpolated_primary(3))
 
       if (err == 0) then
 
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
          pressure = pressure_factor * interpolated_pressure
+         salt = interpolated_salt
          call brine_saturation_temperature(interpolated_pressure, salt_mass_fraction, &
               self%thermo, temperature, err)
          if (err == 0) then
@@ -262,7 +265,9 @@ contains
 
     err = 0
     associate (pressure => primary(1), vapour_saturation => primary(2), &
-      interpolated_pressure => interpolated_primary(1))
+         salt => primary(3), &
+         interpolated_pressure => interpolated_primary(1), &
+         interpolated_salt => interpolated_primary(3))
 
       old_region = nint(old_fluid%region)
       old_water_region = self%water_region(old_region)
@@ -280,6 +285,7 @@ contains
          xi = self%saturation_line_finder%root
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
          pressure = interpolated_pressure
+         salt = interpolated_salt
       else
          pressure = saturation_pressure
       end if
