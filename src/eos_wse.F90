@@ -494,6 +494,33 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_wse_phase_composition(self, fluid, err)
+    !! Determines fluid phase composition from bulk properties and
+    !! thermodynamic region for non-isothermal water/salt.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_wse_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: region, water_region, phases
+
+    region = nint(fluid%region)
+    water_region = self%water_region(region)
+    phases = self%thermo%phase_composition(water_region, fluid%pressure, &
+         fluid%temperature)
+    if (phases > 0) then
+       fluid%phase_composition = dble(phases)
+       err = 0
+    else
+       err = 1
+    end if
+
+  end subroutine eos_wse_phase_composition
+
+!------------------------------------------------------------------------
+
   subroutine eos_wse_bulk_properties(self, primary, fluid, err)
     !! Calculate fluid bulk properties from region and primary variables
     !! for non-isothermal water/salt.
