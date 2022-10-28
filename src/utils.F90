@@ -606,7 +606,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine newton1d(f, x, x_increment, tolerance, max_iterations, err)
+  recursive subroutine newton1d(f, x, x_increment, tolerance, &
+       max_iterations, err)
     !! 1-D Newton solve to find f(x) = 0, for the specified relative
     !! variable increment, function tolerance and maximum number of
     !! iterations. The error flag returns nonzero if there were any
