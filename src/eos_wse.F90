@@ -546,21 +546,34 @@ contains
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscInt :: region
+    PetscInt :: region, water_region
+    PetscBool :: halite
+    PetscReal :: solid_saturation, fluid_saturation
 
     region = nint(fluid%region)
+    water_region = self%water_region(region)
+    halite = self%halite(region)
 
-    select case (region)
+    if (halite) then
+       solid_saturation = primary(3)
+    else
+       solid_saturation = 0._dp
+    end if
+    fluid_saturation = 1._dp - solid_saturation
+
+    select case (water_region)
     case (1)
-       fluid%phase(1)%saturation = 1._dp
+       fluid%phase(1)%saturation = fluid_saturation
        fluid%phase(2)%saturation = 0._dp
     case (2)
        fluid%phase(1)%saturation = 0._dp
-       fluid%phase(2)%saturation = 1._dp
+       fluid%phase(2)%saturation = fluid_saturation
     case (4)
-       fluid%phase(1)%saturation = 1._dp - primary(2)
+       fluid%phase(1)%saturation = fluid_saturation - primary(2)
        fluid%phase(2)%saturation = primary(2)
     end select
+
+    fluid%phase(3)%saturation = solid_saturation
 
   end subroutine eos_wse_phase_saturations
 
