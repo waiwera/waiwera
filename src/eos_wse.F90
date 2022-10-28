@@ -505,18 +505,24 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: region
+    PetscInt :: region, water_region
+    PetscReal :: salt_mass_fraction
 
     err = 0
     fluid%pressure = primary(1)
     region = nint(fluid%region)
+    water_region = self%water_region(region)
 
-    if (region == 4) then
-       ! Two-phase
-       call self%thermo%saturation%temperature(fluid%pressure, &
-            fluid%temperature, err)
-    else
-       ! Single-phase
+    if (water_region == 4) then ! two-phase
+       if (region == 4) then ! without halite
+          salt_mass_fraction = primary(3)
+       else ! with halite
+          call halite_solubility_two_phase(fluid%pressure, self%thermo, &
+               salt_mass_fraction, err)
+       end if
+       call brine_saturation_temperature(fluid%pressure, salt_mass_fraction, &
+            self%thermo, fluid%temperature, err)
+    else ! single-phase
        fluid%temperature = primary(2)
     end if
 
