@@ -336,9 +336,9 @@ contains
     case (1, 4) ! Liquid phase present without halite
 
        salt_mass_fraction = primary(3)
-       if (region == 1) then
+       if (region == 1) then ! liquid
           temperature = primary(2)
-       else
+       else ! two-phase
           associate (pressure => primary(1))
             call brine_saturation_temperature(pressure, salt_mass_fraction, &
                  self%thermo, temperature, err)
@@ -356,16 +356,27 @@ contains
           end if
        end if
 
+    case (2) ! Vapour phase only without halite
+
+       salt_mass_fraction = primary(3)
+       if (salt_mass_fraction > 0._dp) then
+          ! halite precipitates out of vapour:
+          solid_saturation = small
+          primary(3) = solid_saturation
+          fluid%region = dble(6)
+          transition = PETSC_TRUE
+       end if
+
     case (5, 8) ! Liquid phase present with halite
 
        solid_saturation = primary(3)
        if (solid_saturation < 0._dp) then
           ! halite dissolves into liquid:
 
-          if (region == 5) then
+          if (region == 5) then ! liquid
              temperature = primary(2)
              call halite_solubility(temperature, solubility, err)
-          else
+          else ! two-phase
              associate(pressure => primary(1))
                call halite_solubility_two_phase(pressure, self%thermo, &
                     solubility, err)
@@ -378,17 +389,6 @@ contains
              fluid%region = dble(region - 4)
              transition = PETSC_TRUE
           end if
-       end if
-
-    case (2) ! Vapour phase only without halite
-
-       salt_mass_fraction = primary(3)
-       if (salt_mass_fraction > 0._dp) then
-          ! halite precipitates out of vapour:
-          solid_saturation = small
-          primary(3) = solid_saturation
-          fluid%region = dble(6)
-          transition = PETSC_TRUE
        end if
 
     case (6) ! Vapour phase only with halite
