@@ -325,7 +325,8 @@ contains
     PetscErrorCode, intent(in out) :: err
     ! Locals:
     PetscInt :: region
-    PetscReal :: solubility, solid_saturation, salt_mass_fraction
+    PetscReal :: temperature, solubility
+    PetscReal :: solid_saturation, salt_mass_fraction
     PetscReal, parameter :: small = 1.e-6_dp
 
     region = nint(fluid%region)
@@ -333,32 +334,54 @@ contains
     select case (region)
 
     case (1, 4) ! Liquid phase present without halite
-       associate (temperature => primary(2))
-         salt_mass_fraction = primary(3)
-         call halite_solubility(temperature, solubility, err)
-         if (salt_mass_fraction > solubility) then
-            ! halite precipitates out of liquid:
-            solid_saturation = small
-            primary(3) = solid_saturation
-            fluid%region = dble(region + 4)
-            transition = PETSC_TRUE
-         end if
-       end associate
+
+       salt_mass_fraction = primary(3)
+       if (region == 1) then
+          temperature = primary(2)
+       else
+          associate (pressure => primary(1))
+            call brine_saturation_temperature(pressure, salt_mass_fraction, &
+                 self%thermo, temperature, err)
+          end associate
+       end if
+
+       if (err == 0) then
+          call halite_solubility(temperature, solubility, err)
+          if (salt_mass_fraction > solubility) then
+             ! halite precipitates out of liquid:
+             solid_saturation = small
+             primary(3) = solid_saturation
+             fluid%region = dble(region + 4)
+             transition = PETSC_TRUE
+          end if
+       end if
 
     case (5, 8) ! Liquid phase present with halite
-       associate (temperature => primary(2))
-         solid_saturation = primary(3)
-         if (solid_saturation < 0._dp) then
-            ! halite dissolves into liquid:
-            call halite_solubility(temperature, solubility, err)
-            salt_mass_fraction = solubility - small
-            primary(3) = salt_mass_fraction
-            fluid%region = dble(region - 4)
-            transition = PETSC_TRUE
-         end if
-       end associate
+
+       solid_saturation = primary(3)
+       if (solid_saturation < 0._dp) then
+          ! halite dissolves into liquid:
+
+          if (region == 5) then
+             temperature = primary(2)
+             call halite_solubility(temperature, solubility, err)
+          else
+             associate(pressure => primary(1))
+               call halite_solubility_two_phase(pressure, self%thermo, &
+                    solubility, err)
+             end associate
+          end if
+
+          if (err == 0) then
+             salt_mass_fraction = solubility - small
+             primary(3) = salt_mass_fraction
+             fluid%region = dble(region - 4)
+             transition = PETSC_TRUE
+          end if
+       end if
 
     case (2) ! Vapour phase only without halite
+
        salt_mass_fraction = primary(3)
        if (salt_mass_fraction > 0._dp) then
           ! halite precipitates out of vapour:
@@ -369,6 +392,7 @@ contains
        end if
 
     case (6) ! Vapour phase only with halite
+
        solid_saturation = primary(3)
        if (solid_saturation < 0._dp) then
           ! halite disappears (can't dissolve into vapour phase):
