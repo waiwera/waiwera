@@ -685,15 +685,25 @@ contains
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(out) :: primary(self%num_primary_variables)
     ! Locals:
-    PetscInt :: region
+    PetscInt :: region, water_region
+    PetscBool :: halite
+
+    region = nint(fluid%region)
+    water_region = self%water_region(region)
+    halite = self%halite(region)
 
     primary(1) = fluid%pressure
 
-    region = nint(fluid%region)
-    if (region == 4) then
+    if (water_region == 4) then
        primary(2) = fluid%phase(2)%saturation
     else
        primary(2) = fluid%temperature
+    end if
+
+    if (halite) then
+       primary(3) = fluid%phase(3)%saturation
+    else
+       primary(3) = fluid%component_mass_fraction(2)
     end if
 
   end subroutine eos_wse_primary_variables
