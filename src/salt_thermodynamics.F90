@@ -15,6 +15,8 @@ module salt_thermodynamics_module
        [2.6218e-1_dp, 7.2e-2_dp, 1.06_dp]
   PetscReal, parameter :: halite_solubility_two_phase_data(5) = &
        [0.2876823_dp, 0.30122157_dp, -0.39877656_dp, 0.31352381_dp, -0.09062578_dp]
+  PetscReal, parameter :: halite_enthalpy_data(3) = &
+       [-0.120453_dp, 12.0453_dp, 1.95e-3_dp]
   PetscReal, parameter :: brine_sat_pressure_a_data(4) = &
        [0._dp, 5.93582e-1_dp, -5.19386_dp, 1.23156_dp]
   PetscReal, parameter :: brine_sat_pressure_b_data(6) = &
@@ -22,10 +24,13 @@ module salt_thermodynamics_module
        -1.70717_dp, 1.05390_dp]
 
   public :: halite_solubility, halite_solubility_two_phase
+  public :: halite_density, halite_enthalpy
   public :: brine_saturation_pressure, brine_saturation_temperature
 
 contains
 
+!------------------------------------------------------------------------
+! Halite
 !------------------------------------------------------------------------
 
   subroutine halite_solubility(temperature, solubility, err)
@@ -89,6 +94,40 @@ contains
 
   end subroutine halite_solubility_two_phase
 
+!------------------------------------------------------------------------
+
+  subroutine halite_density(pressure, temperature, density, err)
+    !! Returns density of halite as a function of pressure and
+    !! temperature. From Silvester and Pitzer (1976).
+
+    PetscReal, intent(in):: pressure !! Pressure
+    PetscReal, intent(in):: temperature !! Temperature
+    PetscReal, intent(out) :: density !! Halite density
+    PetscErrorCode, intent(out) :: err !! Error code
+
+    err = 0
+    density = 2165._dp * exp(4.e-11_dp * pressure - 1.2e-4_dp * temperature)
+
+  end subroutine halite_density
+
+!------------------------------------------------------------------------
+
+  subroutine halite_enthalpy(temperature, enthalpy, err)
+    !! Returns enthalpy of halite as a function of temperature. From
+    !! Silvester and Pitzer (1976).
+
+    PetscReal, intent(in):: temperature !! Temperature
+    PetscReal, intent(out) :: enthalpy !! Halite enthalpy
+    PetscErrorCode, intent(out) :: err !! Error code
+
+    err = 0
+    enthalpy = 4184._dp *  polynomial(halite_enthalpy_data, temperature) / &
+         salt_molecular_weight
+
+  end subroutine halite_enthalpy
+
+!------------------------------------------------------------------------
+! Brine
 !------------------------------------------------------------------------
 
   subroutine brine_saturation_pressure(temperature, salt_mass_fraction, &
