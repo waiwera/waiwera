@@ -167,7 +167,7 @@ contains
     DMLabel, allocatable :: labels(:)
     PetscErrorCode :: ierr
 
-    num_variables = self%eos%num_primary_variables + self%eos%num_phases
+    num_variables = self%eos%num_primary_variables + self%eos%num_mobile_phases
     allocate(flux_variable_num_components(num_variables), &
          flux_variable_dim(num_variables), flux_variable_names(num_variables), &
          labels(num_variables))
@@ -181,7 +181,8 @@ contains
        flux_variable_names(self%eos%num_primary_variables) = energy_component_name
     end if
     flux_variable_names(self%eos%num_primary_variables + 1: &
-         self%eos%num_primary_variables + self%eos%num_phases) = self%eos%phase_names
+         self%eos%num_primary_variables + self%eos%num_mobile_phases) = &
+         self%eos%phase_names(1: self%eos%num_mobile_phases)
     call DMGetLabel(dm_flux, flux_face_label_name, flux_face_label, &
          ierr); CHKERRQ(ierr)
     labels = flux_face_label
@@ -1353,7 +1354,7 @@ contains
     call PetscLogEventBegin(cell_inflows_event, ierr); CHKERRQ(ierr)
     err = 0
     np = self%eos%num_primary_variables
-    nf = np + self%eos%num_phases ! total number of fluxes stored
+    nf = np + self%eos%num_mobile_phases ! total number of fluxes stored
     allocate(face_flux(nf), face_component_flow(np))
 
     call global_vec_section(rhs, rhs_section)
@@ -1381,7 +1382,7 @@ contains
     call local_vec_section(self%flux, flux_section)
     call VecGetArrayF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
 
-    call face%init(self%eos%num_components, self%eos%num_phases)
+    call face%init(self%eos%num_components, self%eos%num_mobile_phases)
     call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
     end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
@@ -1573,7 +1574,7 @@ contains
     err = 0
 
     np = self%eos%num_primary_variables
-    nf = np + self%eos%num_phases ! total number of fluxes stored
+    nf = np + self%eos%num_mobile_phases ! total number of fluxes stored
     nt = size(self%tracers)
 
     call MatZeroEntries(Ar, ierr); CHKERRQ(ierr)
@@ -1585,7 +1586,7 @@ contains
     call local_vec_section(self%mesh%face_geom, face_geom_section)
     call VecGetArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
-    call face%init(self%eos%num_components, self%eos%num_phases)
+    call face%init(self%eos%num_components, self%eos%num_mobile_phases)
 
     call local_vec_section(self%flux, flux_section)
     call VecGetArrayReadF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
@@ -1696,7 +1697,7 @@ contains
       ! Locals:
       PetscInt :: s, source_offset, c, cell_geom_offset
       PetscInt :: br_offset, tracer_offset_i, it, irow
-      PetscReal :: q, phase_flow_fractions(self%eos%num_phases), qv(nt)
+      PetscReal :: q, phase_flow_fractions(self%eos%num_mobile_phases), qv(nt)
       type(cell_type) :: cell
 
       stopped = PETSC_FALSE
@@ -1714,7 +1715,7 @@ contains
          if (c >= 0) then
 
             cell_geom_offset = section_offset(cell_geom_section, c)
-            call cell%init(self%eos%num_components, self%eos%num_phases)
+            call cell%init(self%eos%num_components, self%eos%num_mobile_phases)
             call cell%assign_geometry(cell_geom_array, cell_geom_offset)
 
             if (nint(source%component) < np) then

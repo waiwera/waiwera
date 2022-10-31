@@ -93,6 +93,7 @@ contains
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 3
+    self%num_mobile_phases = 2
     self%phase_names = ["liquid", "vapour", "solid " ]
     self%num_components = 2
     self%component_names = ["water", "salt "]
@@ -631,7 +632,7 @@ contains
     capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
          0._dp]
 
-    do p = 1, self%num_phases
+    do p = 1, self%num_mobile_phases
        associate(phase => fluid%phase(p), &
             region => self%thermo%region(p)%ptr)
 

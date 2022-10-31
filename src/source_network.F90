@@ -311,7 +311,7 @@ contains
     ! Locals:
     type(cell_type) :: cell
 
-    call cell%init(eos%num_components, eos%num_phases)
+    call cell%init(eos%num_components, eos%num_mobile_phases)
     call self%sources%traverse(source_assembly_iterator)
     call cell%destroy()
 

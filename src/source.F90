@@ -139,7 +139,7 @@ contains
 
     self%name = name
     self%num_primary_variables = eos%num_primary_variables
-    call self%fluid%init(eos%num_components, eos%num_phases)
+    call self%fluid%init(eos%num_components, eos%num_mobile_phases)
     self%local_source_index = local_source_index
     self%local_cell_index = local_cell_index
     self%injection_enthalpy = injection_enthalpy

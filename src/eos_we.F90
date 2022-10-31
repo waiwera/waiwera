@@ -82,6 +82,7 @@ contains
 
     self%num_primary_variables = size(self%primary_variable_names)
     self%num_phases = 2
+    self%num_mobile_phases = 2
     self%phase_names = ["liquid", "vapour"]
     self%num_components = 1
     self%component_names = ["water"]

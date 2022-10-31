@@ -448,7 +448,7 @@ contains
 
     class(face_type), intent(in) :: self
     class(eos_type), intent(in) :: eos
-    PetscReal :: flux(eos%num_primary_variables + eos%num_phases)
+    PetscReal :: flux(eos%num_primary_variables + eos%num_mobile_phases)
     ! Locals:
     PetscInt :: nc, np
     PetscInt :: i, p, up
@@ -473,9 +473,9 @@ contains
     end do
     phase_present = ior(phases(1), phases(2))
 
-    associate (phase_flux => flux(np + 1: np + eos%num_phases))
+    associate (phase_flux => flux(np + 1: np + eos%num_mobile_phases))
 
-      do p = 1, eos%num_phases
+      do p = 1, eos%num_mobile_phases
 
          if (btest(phase_present, p - 1)) then
 

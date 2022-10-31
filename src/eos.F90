@@ -51,6 +51,7 @@ module eos_module
      character(max_component_name_length), allocatable, public :: component_names(:) !! Names of mass components
      PetscInt, public :: num_primary_variables !! Number of primary variables
      PetscInt, public :: num_phases !! Number of possible phases
+     PetscInt, public :: num_mobile_phases !! Number of mobile fluid phases
      PetscInt, public :: num_components !! Number of mass components
      PetscReal, allocatable, public :: default_primary(:) !! Default primary variable values
      PetscInt, public :: default_region !! Default thermodynamic region
