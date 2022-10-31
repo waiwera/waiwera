@@ -723,29 +723,34 @@ contains
     PetscBool, intent(out) :: changed
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: region
+    PetscInt :: region, water_region
 
     changed = PETSC_FALSE
     err = 0
 
-    associate (p => primary(1))
+    associate (p => primary(1), salt => primary(3))
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
       else
-         region = nint(fluid%region)
-         if (region == 4) then
-            associate (vapour_saturation => primary(2))
-              if ((vapour_saturation < -1._dp) .or. &
-                   (vapour_saturation > 2._dp)) then
-                 err = 1
-              end if
-            end associate
+         if ((salt < -1._dp) .or. (salt > 2._dp)) then
+            err = 1
          else
-            associate (t => primary(2))
-              if ((t < 0._dp) .or. (t > 800._dp)) then
-                 err = 1
-              end if
-            end associate
+            region = nint(fluid%region)
+            water_region = self%water_region(region)
+            if (water_region == 4) then
+               associate (vapour_saturation => primary(2))
+                 if ((vapour_saturation < -1._dp) .or. &
+                      (vapour_saturation > 2._dp)) then
+                    err = 1
+                 end if
+               end associate
+            else
+               associate (t => primary(2))
+                 if ((t < 0._dp) .or. (t > 800._dp)) then
+                    err = 1
+                 end if
+               end associate
+            end if
          end if
       end if
     end associate
