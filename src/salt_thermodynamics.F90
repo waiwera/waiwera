@@ -22,10 +22,13 @@ module salt_thermodynamics_module
   PetscReal, parameter :: brine_sat_pressure_b_data(6) = &
        [0._dp, 1.15420_dp, 1.41254_dp, -1.92476_dp, &
        -1.70717_dp, 1.05390_dp]
+  PetscReal, parameter :: brine_viscosity_data(4) = &
+       [1._dp, 0.0816_dp, 0.0122_dp, 1.28e-4_dp]
 
   public :: halite_solubility, halite_solubility_two_phase
   public :: halite_density, halite_enthalpy
   public :: brine_saturation_pressure, brine_saturation_temperature
+  public :: brine_viscosity
 
 contains
 
@@ -197,6 +200,37 @@ contains
     end function f
 
   end subroutine brine_saturation_temperature
+
+!------------------------------------------------------------------------
+
+  subroutine brine_viscosity(pressure, temperature, density, &
+       salt_mass_fraction, thermo, viscosity, err)
+    !! Viscosity of brine as a function of pressure, temperature,
+    !! density and salt mass fraction. Pure water viscosity is
+    !! calculated using the specified thermodynamics. From Phillips,
+    !! Igbene, Fair, Ozbek and Tavana (1981).
+
+    PetscReal, intent(in) :: pressure !! Pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: density !! Density
+    PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
+    class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
+    PetscReal, intent(out) :: viscosity !! Brine viscosity
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: smol, factor
+    PetscReal :: water_viscosity
+
+    err = 0
+    smol = 1.e3_dp * salt_mass_fraction / (salt_molecular_weight * &
+         (1._dp - salt_mass_fraction))
+    factor = polynomial(brine_viscosity_data, smol) + &
+         6.29e-4_dp * temperature * (1._dp - exp(-0.7_dp * smol))
+    call thermo%water%viscosity(temperature, pressure, &
+         density, water_viscosity)
+    viscosity = factor * water_viscosity
+
+  end subroutine brine_viscosity
 
 !------------------------------------------------------------------------
 
