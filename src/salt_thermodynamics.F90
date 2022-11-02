@@ -24,6 +24,9 @@ module salt_thermodynamics_module
        -1.70717_dp, 1.05390_dp]
   PetscReal, parameter :: brine_viscosity_data(4) = &
        [1._dp, 0.0816_dp, 0.0122_dp, 1.28e-4_dp]
+  PetscReal, parameter :: brine_critical_data(4) = &
+       [-92.6824818148_dp, 0.43077335_dp, &
+       -6.2561155e-4_dp, 3.6441625e-7_dp]
 
   public :: halite_solubility, halite_solubility_two_phase
   public :: halite_density, halite_enthalpy
@@ -211,6 +214,30 @@ contains
     end function f
 
   end subroutine brine_saturation_temperature
+
+!------------------------------------------------------------------------
+
+  subroutine brine_critical_temperature(salt_mass_fraction, &
+       critical_temperature, err)
+    !! Returns critical temperature of brine for given salt mass
+    !! fraction.
+
+    PetscReal, intent(in) :: salt_mass_fraction
+    PetscReal, intent(out) :: critical_temperature
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: t
+    PetscReal :: poly(size(brine_critical_data))
+    PetscInt, parameter :: maxit = 30
+    PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
+
+    poly = brine_critical_data
+    poly(1) = poly(1) - salt_mass_fraction * 100._dp
+    t = tcritical
+    call newton1d(poly, t, ftol, xtol, maxit, err)
+    critical_temperature = max(t, tcritical)
+
+  end subroutine brine_critical_temperature
 
 !------------------------------------------------------------------------
 
