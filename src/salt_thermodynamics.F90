@@ -27,11 +27,13 @@ module salt_thermodynamics_module
   PetscReal, parameter :: brine_critical_data(4) = &
        [-92.6824818148_dp, 0.43077335_dp, &
        -6.2561155e-4_dp, 3.6441625e-7_dp]
+  PetscReal, parameter :: brine_critical_initial_data(4) = &
+       [374.15000416_dp, 762.09488272_dp, 3391.76173286_dp, -6629.23422183_dp]
 
   public :: halite_solubility, halite_solubility_two_phase
   public :: halite_density, halite_enthalpy
   public :: brine_saturation_pressure, brine_saturation_temperature
-  public :: brine_viscosity
+  public :: brine_viscosity, brine_critical_temperature
 
 contains
 
@@ -217,10 +219,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine brine_critical_temperature(salt_mass_fraction, &
-       critical_temperature, err)
-    !! Returns critical temperature of brine for given salt mass
-    !! fraction.
 
     PetscReal, intent(in) :: salt_mass_fraction
     PetscReal, intent(out) :: critical_temperature
@@ -231,13 +229,7 @@ contains
     PetscInt, parameter :: maxit = 30
     PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
 
-    poly = brine_critical_data
-    poly(1) = poly(1) - salt_mass_fraction * 100._dp
-    t = tcritical
-    call newton1d(poly, t, ftol, xtol, maxit, err)
-    critical_temperature = max(t, tcritical)
 
-  end subroutine brine_critical_temperature
 
 !------------------------------------------------------------------------
 
@@ -268,6 +260,30 @@ contains
     viscosity = factor * water_viscosity
 
   end subroutine brine_viscosity
+
+!------------------------------------------------------------------------
+
+  subroutine brine_critical_temperature(salt_mass_fraction, &
+       critical_temperature, err)
+    !! Returns critical temperature of brine for given salt mass
+    !! fraction.
+
+    PetscReal, intent(in) :: salt_mass_fraction
+    PetscReal, intent(out) :: critical_temperature
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: t
+    PetscReal :: poly(size(brine_critical_data))
+    PetscInt, parameter :: maxit = 30
+    PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
+
+    poly = brine_critical_data
+    poly(1) = poly(1) - salt_mass_fraction * 100._dp
+    t = polynomial(brine_critical_initial_data, salt_mass_fraction)
+    call newton1d(poly, t, ftol, xtol, maxit, err)
+    critical_temperature = max(t, 374.15_dp)
+
+  end subroutine brine_critical_temperature
 
 !------------------------------------------------------------------------
 
