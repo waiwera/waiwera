@@ -259,7 +259,7 @@ contains
   subroutine brine_critical_temperature(salt_mass_fraction, &
        critical_temperature, err)
     !! Returns critical temperature of brine for given salt mass
-    !! fraction.
+    !! fraction. From Sourirayan and Kennedy (1962).
 
     PetscReal, intent(in) :: salt_mass_fraction
     PetscReal, intent(out) :: critical_temperature
