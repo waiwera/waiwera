@@ -133,6 +133,18 @@ contains
 ! Brine
 !------------------------------------------------------------------------
 
+  PetscReal function salt_mole_fraction(salt_mass_fraction)
+    !! Returns salt mole fraction for given salt mass fraction.
+
+    PetscReal, intent(in) :: salt_mass_fraction
+
+    salt_mole_fraction = 1.e3_dp * salt_mass_fraction / (salt_molecular_weight * &
+         (1._dp - salt_mass_fraction))
+
+  end function salt_mole_fraction
+
+!------------------------------------------------------------------------
+
   subroutine brine_saturation_pressure(temperature, salt_mass_fraction, &
        thermo, saturation_pressure, err)
     !! Saturation pressure of brine at given temperature and salt mass
@@ -148,8 +160,7 @@ contains
     PetscReal :: smol
     PetscReal :: a, b, tk, t_effective
 
-    smol = 1.e3_dp * salt_mass_fraction / (salt_molecular_weight * &
-         (1._dp - salt_mass_fraction))
+    smol = salt_mole_fraction(salt_mass_fraction)
     a = 1._dp + 1.e-5_dp * polynomial(brine_sat_pressure_a_data, smol)
     b = 1.e-5_dp * polynomial(brine_sat_pressure_b_data, 0.1_dp * smol)
 
@@ -222,8 +233,7 @@ contains
     PetscReal :: water_viscosity
 
     err = 0
-    smol = 1.e3_dp * salt_mass_fraction / (salt_molecular_weight * &
-         (1._dp - salt_mass_fraction))
+    smol = salt_mole_fraction(salt_mass_fraction)
     factor = polynomial(brine_viscosity_data, smol) + &
          6.29e-4_dp * temperature * (1._dp - exp(-0.7_dp * smol))
     call thermo%water%viscosity(temperature, pressure, &
