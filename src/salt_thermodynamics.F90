@@ -186,13 +186,13 @@ contains
     ! Locals:
     PetscReal :: t
     PetscInt, parameter :: maxit = 100
-    PetscReal, parameter :: tol = 1.e-10_dp
+    PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
     PetscReal, parameter :: inc = 1.e-8_dp
 
     ! Initial estimate from pure water thermodynamics:
     call thermo%saturation%temperature(pressure, t, err)
     if (err == 0) then
-       call newton1d(f, t, inc, tol * pressure, maxit, err)
+       call newton1d(f, t, inc, ftol * pressure, xtol, maxit, err)
        saturation_temperature = t
     end if
 
