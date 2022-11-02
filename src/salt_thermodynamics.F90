@@ -73,7 +73,7 @@ contains
     ! initial estimate from polynomial fit:
     xs = polynomial(halite_solubility_two_phase_data, pressure / 1.e7_dp)
 
-    call newton1d(f, xs, inc, ftol, xtol, maxit, err)
+    call newton1d(f, xs, ftol, xtol, maxit, inc, err)
     solubility = xs
 
   contains
@@ -192,7 +192,7 @@ contains
     ! Initial estimate from pure water thermodynamics:
     call thermo%saturation%temperature(pressure, t, err)
     if (err == 0) then
-       call newton1d(f, t, inc, ftol * pressure, xtol, maxit, err)
+       call newton1d(f, t, ftol * pressure, xtol, maxit, inc, err)
        saturation_temperature = t
     end if
 

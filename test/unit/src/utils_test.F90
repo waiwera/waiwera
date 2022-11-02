@@ -597,6 +597,7 @@ contains
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal :: x
+    PetscReal, parameter :: poly(3) = [-15._dp, 2._dp, 1._dp]
     PetscReal, parameter :: inc = 1.e-8_dp
     PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
     PetscErrorCode :: err
@@ -605,19 +606,24 @@ contains
     if (rank == 0) then
 
        x = 0._dp
-       call newton1d(f1, x, inc, ftol, xtol, 1, err)
+       call newton1d(f1, x, ftol, xtol, 1, inc, err)
        call test%assert(0._dp, x, 'case 1 value')
        call test%assert(0, err, 'case 1 error')
 
        x = 1._dp
-       call newton1d(f1, x, inc, ftol, xtol, 3, err)
+       call newton1d(f1, x, ftol, xtol, 3, inc, err)
        call test%assert(0._dp, x, 'case 2 value')
        call test%assert(0, err, 'case 2 error')
 
        x = 1._dp
-       call newton1d(f2, x, inc, ftol, xtol, 5, err)
+       call newton1d(f2, x, ftol, xtol, 5, inc, err)
        call test%assert(sqrt(2._dp), x, 'case 3 value')
        call test%assert(0, err, 'case 3 error')
+
+       x = 1._dp
+       call newton1d(poly, x, ftol, xtol, 6, err)
+       call test%assert(3._dp, x, 'case 4 value')
+       call test%assert(0, err, 'case 4 error')
 
     end if
 

@@ -651,7 +651,7 @@ subroutine saturation_temperature(self, p, t, err)
      ! Initial estimate:
      t = max(4606.0_dp / (24.02_dp - dlog(p)) - tc_k, 5._dp)
 
-     call newton1d(f, t, inc, ftol * p, xtol, maxit, err)
+     call newton1d(f, t, ftol * p, xtol, maxit, inc, err)
 
   else
      err = 1
