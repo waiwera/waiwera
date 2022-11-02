@@ -17,7 +17,7 @@ module salt_thermodynamics_test
   public :: test_halite_solubility
   public :: test_halite_density, test_halite_enthalpy
   public :: test_brine_saturation_pressure
-  public :: test_brine_viscosity
+  public :: test_brine_viscosity, test_brine_critical_temperature
 
 contains
 
@@ -354,4 +354,48 @@ contains
 
 !------------------------------------------------------------------------
 
-  end module salt_thermodynamics_test
+  subroutine test_brine_critical_temperature(test)
+    ! Brine critical temperature
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+       call critical_temperature_case("0",      0._dp, 374.15_dp, 0)
+       call critical_temperature_case("0.05", 0.05_dp, 421.191707134445_dp, 0)
+       call critical_temperature_case("0.1",   0.1_dp, 476.973186669071_dp, 0)
+       call critical_temperature_case("0.15", 0.15_dp, 541.4997586262932_dp, 0)
+       call critical_temperature_case("0.2",   0.2_dp, 609.8012731271594_dp, 0)
+       call critical_temperature_case("0.25", 0.25_dp, 673.5698534299003_dp, 0)
+       call critical_temperature_case("0.3",   0.3_dp, 728.4174135605035_dp, 0)
+    end if
+  contains
+
+    subroutine critical_temperature_case(name, salt_mass_fraction, &
+         expected_val, expected_err)
+
+      character(*), intent(in) :: name
+      PetscReal, intent(in) :: salt_mass_fraction
+      PetscReal, intent(in) :: expected_val
+      PetscErrorCode, intent(in) :: expected_err
+      ! Locals:
+      PetscReal :: tc
+      PetscErrorCode :: err
+
+      call brine_critical_temperature(salt_mass_fraction, tc, err)
+      call test%assert(expected_err, err, trim(name) // " error")
+      if (expected_err == 0) then
+         call test%assert(expected_val, tc, trim(name) // " value")
+      end if
+
+    end subroutine critical_temperature_case
+
+  end subroutine test_brine_critical_temperature
+
+!------------------------------------------------------------------------
+
+end module salt_thermodynamics_test
