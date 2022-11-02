@@ -67,13 +67,13 @@ contains
     ! Locals:
     PetscReal :: xs
     PetscInt, parameter :: maxit = 100
-    PetscReal, parameter :: tol = 1.e-10_dp
+    PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
     PetscReal, parameter :: inc = 1.e-8_dp
 
     ! initial estimate from polynomial fit:
     xs = polynomial(halite_solubility_two_phase_data, pressure / 1.e7_dp)
 
-    call newton1d(f, xs, inc, tol, maxit, err)
+    call newton1d(f, xs, inc, ftol, xtol, maxit, err)
     solubility = xs
 
   contains

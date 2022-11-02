@@ -643,7 +643,7 @@ subroutine saturation_temperature(self, p, t, err)
   PetscInt, intent(out) :: err !! Error code
   ! Locals:
   PetscInt, parameter :: maxit = 200
-  PetscReal, parameter :: tol = 1.e-10_dp
+  PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
   PetscReal, parameter :: inc = 1.e-8_dp
 
   if ((p >= 0.0061e5_dp) .and. (p <= pcritical67)) then
@@ -651,7 +651,7 @@ subroutine saturation_temperature(self, p, t, err)
      ! Initial estimate:
      t = max(4606.0_dp / (24.02_dp - dlog(p)) - tc_k, 5._dp)
 
-     call newton1d(f, t, inc, tol * p, maxit, err)
+     call newton1d(f, t, inc, ftol * p, xtol, maxit, err)
 
   else
      err = 1
