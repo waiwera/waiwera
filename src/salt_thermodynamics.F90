@@ -220,14 +220,7 @@ contains
 !------------------------------------------------------------------------
 
 
-    PetscReal, intent(in) :: salt_mass_fraction
-    PetscReal, intent(out) :: critical_temperature
-    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: t
-    PetscReal :: poly(size(brine_critical_data))
-    PetscInt, parameter :: maxit = 30
-    PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
 
 
 
