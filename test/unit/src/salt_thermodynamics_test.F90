@@ -18,6 +18,7 @@ module salt_thermodynamics_test
   public :: test_halite_density, test_halite_enthalpy
   public :: test_brine_saturation_pressure
   public :: test_brine_viscosity, test_brine_critical_temperature
+  public :: test_brine_properties
 
 contains
 
@@ -395,6 +396,86 @@ contains
     end subroutine critical_temperature_case
 
   end subroutine test_brine_critical_temperature
+
+!------------------------------------------------------------------------
+
+  subroutine test_brine_properties(test)
+    ! Brine properties
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr, i, j, k
+    type(IFC67_type) :: thermo
+    character(3) :: name
+    PetscReal, parameter ::  p(3) = [1.e5_dp, 10.e5_dp, 100.e5_dp]
+    PetscReal, parameter :: t(3) = [100._dp, 200._dp, 300._dp]
+    PetscReal, parameter :: xs(4) = [0._dp, 0.1_dp, 0.2_dp, 0.3_dp]
+    PetscReal, parameter :: expected_density(4, 3, 3) = reshape([ &
+         0.95812163E+03_dp, 0.10282636E+04_dp, 0.11035250E+04_dp, 0.11845521E+04_dp, &
+         0.86363535E+03_dp, 0.94310446E+03_dp, 0.10229377E+04_dp, 0.11013288E+04_dp, &
+         0.69852800E+03_dp, 0.81231985E+03_dp, 0.92003650E+03_dp, 0.10128337E+04_dp, &
+         0.95853309E+03_dp, 0.10286517E+04_dp, 0.11039345E+04_dp, 0.11850704E+04_dp, &
+         0.86428163E+03_dp, 0.94364599E+03_dp, 0.10234795E+04_dp, 0.11020369E+04_dp, &
+         0.69995391E+03_dp, 0.81320323E+03_dp, 0.92084705E+03_dp, 0.10140055E+04_dp, &
+         0.96266716E+03_dp, 0.10325492E+04_dp, 0.11080466E+04_dp, 0.11902792E+04_dp, &
+         0.87079804E+03_dp, 0.94909575E+03_dp, 0.10289289E+04_dp, 0.11091680E+04_dp, &
+         0.71453985E+03_dp, 0.82214387E+03_dp, 0.92903176E+03_dp, 0.10258747E+04_dp], &
+         [4, 3, 3])
+    PetscReal, parameter :: expected_enthalpy(4, 3, 3) = reshape([ &
+         0.41906369E+06_dp, 0.36102859E+06_dp, 0.30161341E+06_dp, 0.24685456E+06_dp, &
+         0.85178076E+06_dp, 0.75114204E+06_dp, 0.66777960E+06_dp, 0.59343873E+06_dp, &
+         0.13556369E+07_dp, 0.11964168E+07_dp, 0.11000645E+07_dp, 0.10235516E+07_dp, &
+         0.41973864E+06_dp, 0.36161006E+06_dp, 0.30209918E+06_dp, 0.24725213E+06_dp, &
+         0.85214586E+06_dp, 0.75146399E+06_dp, 0.66806580E+06_dp, 0.59369305E+06_dp, &
+         0.13545154E+07_dp, 0.11954264E+07_dp, 0.10991533E+07_dp, 0.10227032E+07_dp, &
+         0.42650354E+06_dp, 0.36743804E+06_dp, 0.30696797E+06_dp, 0.25123689E+06_dp, &
+         0.85592476E+06_dp, 0.75479761E+06_dp, 0.67103086E+06_dp, 0.59632955E+06_dp, &
+         0.13433636E+07_dp, 0.11856024E+07_dp, 0.10901413E+07_dp, 0.10143385E+07_dp], &
+         [4, 3, 3])
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+
+       call thermo%init()
+
+       do i = 1, 3
+          do j = 1, 3
+             do k = 1, 4
+                write(name, '(i1, i1, i1)') i, j, k
+                call props_case(name, p(i), t(j), xs(k), &
+                     [expected_density(k, j, i), expected_enthalpy(k, j, i)], 0)
+             end do
+          end do
+       end do
+
+       call thermo%destroy()
+
+    end if
+  contains
+
+    subroutine props_case(name, p, t, salt_mass_fraction, &
+         expected_props, expected_err)
+
+      character(*), intent(in) :: name
+      PetscReal, intent(in) :: p, t
+      PetscReal, intent(in) :: salt_mass_fraction
+      PetscReal, intent(in) :: expected_props(2)
+      PetscErrorCode, intent(in) :: expected_err
+      ! Locals:
+      PetscReal :: props(2)
+      PetscErrorCode :: err
+
+      call brine_properties(p, t, salt_mass_fraction, thermo, props, err)
+      call test%assert(expected_err, err, trim(name) // " error")
+      if (expected_err == 0) then
+         call test%assert(expected_props, props, trim(name) // " value")
+      end if
+
+    end subroutine props_case
+
+  end subroutine test_brine_properties
 
 !------------------------------------------------------------------------
 
