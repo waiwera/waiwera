@@ -29,11 +29,20 @@ module salt_thermodynamics_module
        -6.2561155e-4_dp, 3.6441625e-7_dp]
   PetscReal, parameter :: brine_critical_initial_data(4) = &
        [374.15000416_dp, 762.09488272_dp, 3391.76173286_dp, -6629.23422183_dp]
+  PetscReal, parameter :: brine_enthalpy_data(4) = &
+       [0._dp, -25.9293_dp, 0.16792_dp, -8.3624e-4_dp]
+  PetscReal, parameter :: brine_enthalpy_data2(3,4) = &
+       reshape([ &
+       -9.6336e3_dp, -4.0800e3_dp, 2.8649e2_dp, &
+       1.6658e2_dp, 6.8577e1_dp, -4.6856_dp, &
+       -0.90963_dp, -0.36524_dp, 2.49667e-2_dp, &
+       1.7965e-3_dp, 7.1924e-4_dp, -4.900e-5_dp], [3,4])
 
   public :: halite_solubility, halite_solubility_two_phase
   public :: halite_density, halite_enthalpy
   public :: brine_saturation_pressure, brine_saturation_temperature
   public :: brine_viscosity, brine_critical_temperature
+  public :: brine_properties
 
 contains
 
@@ -219,10 +228,92 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine brine_properties(pressure, temperature, salt_mass_fraction, &
+       thermo, props, err)
+    !! Returns properties (density and enthalpy) of brine at the given
+    !! pressure, temperature and salt mass fraction, using the
+    !! specified pure water thermodynamics.
 
+    PetscReal, intent(in) :: pressure !! Pressure
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
+    class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
+    PetscReal, intent(out):: props(:) !! Properties (density and enthalpy)
+    PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
+    PetscReal :: Pws, Ps, smol, v0, sk, fi, sat_brine_density
+    PetscReal :: hws, delp, Ps1, hws1, factor, tc, hbs
+    PetscReal :: tau, xmol, c, hsalt, dhsalt, dppsi
+    PetscReal :: sat_water_props(2), sat_water_props1(2)
+    PetscReal :: b(4)
+    PetscInt :: i
 
+    err = 0
 
+    associate(brine_density => props(1), brine_enthalpy => props(2))
+
+      call thermo%saturation%pressure(temperature, Pws, err)
+      if (err == 0) then
+         call thermo%water%properties([Pws, temperature], sat_water_props, err)
+         if (err == 0) then
+            associate(dws => sat_water_props(1), uws => sat_water_props(2))
+
+              hws = uws + Pws / dws
+
+              ! From Haas (1976):
+              smol = salt_mole_fraction(salt_mass_fraction)
+              v0 = 1.e3_dp / dws
+              sk = (-13.644_dp + 13.97_dp * v0) * (3.1975_dp / (3.1975_dp - v0))**2
+              fi = -167.219_dp + 448.55_dp * v0 - 261.07_dp * v0 * v0 + sk*sqrt(smol)
+              sat_brine_density = (1.e3_dp + smol * salt_molecular_weight) / &
+                   (1000._dp * v0 + smol * fi) * 1.e3_dp
+
+              call brine_saturation_pressure(temperature, salt_mass_fraction, &
+                   thermo, Ps, err)
+              if (err == 0) then
+
+                 ! Compressibility from Andersen et al. (1992)
+                 call brine_critical_temperature(salt_mass_fraction, tc, err)
+                 if (err == 0) then
+
+                    tau = 1._dp - (temperature + 273.15_dp) / (tc + 273.15_dp)
+                    xmol = smol / (1.e3_dp / water_molecular_weight + smol)
+                    c = -1.14e-6_dp / (tau**1.25_dp - 5.6_dp * xmol**1.5_dp + 0.005_dp)
+                    dppsi = 14.50377e-5_dp * (pressure - Ps)
+                    brine_density = sat_brine_density / (1._dp + c * dppsi)
+
+                    ! Enthalpy of vapour saturated brine, from Michaelides (1982):
+                    hsalt = 4.184_dp  * polynomial(brine_enthalpy_data, temperature) / &
+                         salt_molecular_weight
+                    do i = 1, 4
+                       b(i) = polynomial(brine_enthalpy_data2(:, i), smol)
+                    end do
+                    dhsalt = polynomial(b, temperature) * (4.184_dp / &
+                         (1.e3_dp + salt_molecular_weight *smol))
+                    hbs = (1._dp - salt_mass_fraction) * hws + &
+                         1.e3_dp * (salt_mass_fraction * hsalt + smol * dhsalt)
+
+                    ! Compressed brine enthalpy:
+                    delp = max(pressure - Pws, 1.e3_dp)
+                    Ps1 = Pws + delp
+                    call thermo%water%properties([Ps1, temperature], sat_water_props1, err)
+                    if (err == 0) then
+                       associate(dws1 => sat_water_props1(1), uws1 => sat_water_props1(2))
+                         hws1 = uws1 + Ps1 / dws1
+                         factor = (hws1 - hws) / hws / delp
+                         brine_enthalpy = hbs * (1._dp + factor * (pressure - Ps))
+                       end associate
+                    end if
+
+                 end if
+
+              end if
+            end associate
+         end if
+      end if
+    end associate
+
+  end subroutine brine_properties
 
 !------------------------------------------------------------------------
 
