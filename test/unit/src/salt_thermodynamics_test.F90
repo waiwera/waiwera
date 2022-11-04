@@ -464,13 +464,16 @@ contains
       PetscReal, intent(in) :: expected_props(2)
       PetscErrorCode, intent(in) :: expected_err
       ! Locals:
-      PetscReal :: props(2)
+      PetscReal :: props(2), h
       PetscErrorCode :: err
 
       call brine_properties(p, t, salt_mass_fraction, thermo, props, err)
       call test%assert(expected_err, err, trim(name) // " error")
       if (expected_err == 0) then
-         call test%assert(expected_props, props, trim(name) // " value")
+         associate(d => props(1), u => props(2))
+           h = u + p / d
+           call test%assert(expected_props, [d, h], trim(name) // " value")
+         end associate
       end if
 
     end subroutine props_case

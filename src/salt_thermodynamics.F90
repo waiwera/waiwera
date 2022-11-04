@@ -230,9 +230,9 @@ contains
 
   subroutine brine_properties(pressure, temperature, salt_mass_fraction, &
        thermo, props, err)
-    !! Returns properties (density and enthalpy) of brine at the given
-    !! pressure, temperature and salt mass fraction, using the
-    !! specified pure water thermodynamics.
+    !! Returns properties (density and internal energy) of brine at
+    !! the given pressure, temperature and salt mass fraction, using
+    !! the specified pure water thermodynamics.
 
     PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: temperature !! Temperature
@@ -245,12 +245,12 @@ contains
     PetscReal :: hws, delp, Ps1, hws1, factor, tc, hbs
     PetscReal :: tau, xmol, c, hsalt, dhsalt, dppsi
     PetscReal :: sat_water_props(2), sat_water_props1(2)
-    PetscReal :: b(4)
+    PetscReal :: b(4), brine_enthalpy
     PetscInt :: i
 
     err = 0
 
-    associate(brine_density => props(1), brine_enthalpy => props(2))
+    associate(brine_density => props(1), brine_internal_energy => props(2))
 
       call thermo%saturation%pressure(temperature, Pws, err)
       if (err == 0) then
@@ -302,6 +302,7 @@ contains
                          hws1 = uws1 + Ps1 / dws1
                          factor = (hws1 - hws) / hws / delp
                          brine_enthalpy = hbs * (1._dp + factor * (pressure - Ps))
+                         brine_internal_energy = brine_enthalpy - pressure / brine_density
                        end associate
                     end if
 
