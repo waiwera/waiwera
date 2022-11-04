@@ -15,7 +15,7 @@ module salt_thermodynamics_test
 
   public :: setup, teardown
   public :: test_halite_solubility
-  public :: test_halite_density, test_halite_enthalpy
+  public :: test_halite_properties
   public :: test_brine_saturation_pressure
   public :: test_brine_viscosity, test_brine_critical_temperature
   public :: test_brine_properties
@@ -93,8 +93,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_halite_density(test)
-    ! Halite density
+  subroutine test_halite_properties(test)
+    ! Halite properties
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -106,83 +106,37 @@ contains
 
     if (rank == 0) then
        call thermo%init()
-       call density_case("20 deg C",   20._dp, 2.15981043e+03_dp, 0)
-       call density_case("100 deg C", 100._dp, 2.13918393e+03_dp, 0)
-       call density_case("200 deg C", 200._dp, 2.11379003e+03_dp, 0)
-       call density_case("300 deg C", 300._dp, 2.08916417e+03_dp, 0)
-       call density_case("350 deg C", 350._dp, 2.07732657e+03_dp, 0)
+       call properties_case("20 deg C",   20._dp, [2.15981043e3_dp, 1.72913875e4_dp], 0)
+       call properties_case("100 deg C", 100._dp, [2.13918393e3_dp, 8.75661969e4_dp], 0)
+       call properties_case("200 deg C", 200._dp, [2.11379003e3_dp, 1.77291975e5_dp], 0)
+       call properties_case("300 deg C", 300._dp, [2.08916417e3_dp, 2.67120399e5_dp], 0)
+       call properties_case("350 deg C", 350._dp, [2.07732657e3_dp, 3.10923409e5_dp], 0)
        call thermo%destroy()
     end if
 
   contains
 
-    subroutine density_case(name, temperature, &
-         expected_val, expected_err)
+    subroutine properties_case(name, temperature, &
+         expected_props, expected_err)
 
       character(*), intent(in) :: name
       PetscReal, intent(in) :: temperature
-      PetscReal, intent(in) :: expected_val
+      PetscReal, intent(in) :: expected_props(2)
       PetscErrorCode, intent(in) :: expected_err
       ! Locals:
-      PetscReal :: Ps, density
+      PetscReal :: Ps, props(2)
       PetscErrorCode :: err
 
       call thermo%saturation%pressure(temperature, Ps, err)
-      call halite_density(Ps, temperature, density, err)
+      call halite_properties(Ps, temperature, props, err)
       if (expected_err == 0) then
-         call test%assert(expected_val, density, trim(name) // " value")
+         call test%assert(expected_props, props, trim(name) // " value")
       end if
       call test%assert(expected_err, err, trim(name) // " error")
 
-    end subroutine density_case
+    end subroutine properties_case
 
-  end subroutine test_halite_density
-
-!------------------------------------------------------------------------
-
-  subroutine test_halite_enthalpy(test)
-    ! Halite enthalpy
-
-    class(unit_test_type), intent(in out) :: test
-    ! Locals:
-    PetscMPIInt :: rank
-    PetscInt :: ierr
-    type(IFC67_type) :: thermo
-
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-
-    if (rank == 0) then
-       call thermo%init()
-       call enthalpy_case("20 deg C",   20._dp, 1.72924694e+04_dp, 0)
-       call enthalpy_case("100 deg C", 100._dp, 8.76135632e+04_dp, 0)
-       call enthalpy_case("200 deg C", 200._dp, 1.78027564e+05_dp, 0)
-       call enthalpy_case("300 deg C", 300._dp, 2.71233380e+05_dp, 0)
-       call enthalpy_case("350 deg C", 350._dp, 3.18883218e+05_dp, 0)
-       call thermo%destroy()
-    end if
-
-  contains
-
-    subroutine enthalpy_case(name, temperature, &
-         expected_val, expected_err)
-
-      character(*), intent(in) :: name
-      PetscReal, intent(in) :: temperature
-      PetscReal, intent(in) :: expected_val
-      PetscErrorCode, intent(in) :: expected_err
-      ! Locals:
-      PetscReal :: h
-      PetscErrorCode :: err
-
-      call halite_enthalpy(temperature, h, err)
-      if (expected_err == 0) then
-         call test%assert(expected_val, h, trim(name) // " value")
-      end if
-      call test%assert(expected_err, err, trim(name) // " error")
-
-    end subroutine enthalpy_case
-
-  end subroutine test_halite_enthalpy
+  end subroutine test_halite_properties
 
 !------------------------------------------------------------------------
 
