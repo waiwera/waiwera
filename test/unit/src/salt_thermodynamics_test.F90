@@ -342,7 +342,7 @@ contains
 
       d = 0._dp
       call thermo%saturation%pressure(temperature, Ps, err)
-      call brine_viscosity(Ps, temperature, d, salt_mass_fraction, &
+      call brine_viscosity(temperature, Ps, d, salt_mass_fraction, &
            thermo, visc, err)
       call test%assert(expected_err, err, trim(name) // " error")
       if (expected_err == 0) then

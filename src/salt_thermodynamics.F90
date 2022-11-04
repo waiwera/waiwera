@@ -317,15 +317,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine brine_viscosity(pressure, temperature, density, &
+  subroutine brine_viscosity(temperature, pressure, density, &
        salt_mass_fraction, thermo, viscosity, err)
-    !! Viscosity of brine as a function of pressure, temperature,
+    !! Viscosity of brine as a function of temperature, pressure,
     !! density and salt mass fraction. Pure water viscosity is
     !! calculated using the specified thermodynamics. From Phillips,
     !! Igbene, Fair, Ozbek and Tavana (1981).
 
-    PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: density !! Density
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
