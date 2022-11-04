@@ -621,56 +621,103 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: p, phases
-    PetscReal :: properties(2), sl, relative_permeability(2), capillary_pressure(2)
+    PetscInt :: p, phases, region
+    PetscBool :: halite
+    PetscReal :: properties(2), sl, salt_mass_fraction, phase_salt_mass_fraction
+    PetscReal :: relative_permeability(2), capillary_pressure(2)
 
     err = 0
     phases = nint(fluid%phase_composition)
+    region = nint(fluid%region)
+    halite = self%halite(region)
+    if (halite) then
+       call halite_solubility(fluid%temperature, salt_mass_fraction, err)
+    else
+       salt_mass_fraction = primary(3)
+    end if
 
-    sl = fluid%phase(1)%saturation
-    relative_permeability = rock%relative_permeability%values(sl)
-    capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
-         0._dp]
+    if (err == 0) then
 
-    do p = 1, self%num_mobile_phases
-       associate(phase => fluid%phase(p), &
-            region => self%thermo%region(p)%ptr)
+       sl = fluid%phase(1)%saturation
+       relative_permeability = rock%relative_permeability%values(sl)
+       capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
+            0._dp]
 
-         if (btest(phases, p - 1)) then
+       do p = 1, self%num_mobile_phases
+          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
 
-            call region%properties([fluid%pressure, fluid%temperature], &
-                 properties, err)
+            if (btest(phases, p - 1)) then
 
-            if (err == 0) then
+               if (p == 1) then
+                  call brine_properties(fluid%pressure, fluid%temperature, &
+                       salt_mass_fraction, self%thermo, properties, err)
+                  phase_salt_mass_fraction = salt_mass_fraction
+               else
+                  call region%properties([fluid%pressure, fluid%temperature], &
+                       properties, err)
+                  phase_salt_mass_fraction = 0._dp
+               end if
 
-               phase%density = properties(1)
-               phase%internal_energy = properties(2)
-               phase%specific_enthalpy = phase%internal_energy + &
-                    fluid%pressure / phase%density
+               if (err == 0) then
 
-               phase%mass_fraction(1) = 1._dp
-               phase%relative_permeability = relative_permeability(p)
-               phase%capillary_pressure =  capillary_pressure(p)
+                  phase%density = properties(1)
+                  phase%internal_energy = properties(2)
+                  phase%specific_enthalpy = phase%internal_energy + &
+                       fluid%pressure / phase%density
 
-               call region%viscosity(fluid%temperature, fluid%pressure, &
-                    phase%density, phase%viscosity)
+                  phase%mass_fraction = [1._dp - phase_salt_mass_fraction, &
+                       phase_salt_mass_fraction]
+                  phase%relative_permeability = relative_permeability(p)
+                  phase%capillary_pressure =  capillary_pressure(p)
+
+                  if (p == 1) then
+                     call brine_viscosity(fluid%temperature, fluid%pressure, &
+                          phase%density, salt_mass_fraction, self%thermo, &
+                          phase%viscosity, err)
+                  else
+                     call region%viscosity(fluid%temperature, fluid%pressure, &
+                          phase%density, phase%viscosity)
+                  end if
+
+               else
+                  exit
+               end if
 
             else
-               exit
+               phase%density = 0._dp
+               phase%internal_energy = 0._dp
+               phase%specific_enthalpy = 0._dp
+               phase%relative_permeability = 0._dp
+               phase%capillary_pressure = 0._dp
+               phase%viscosity = 0._dp
+               phase%mass_fraction = 0._dp
             end if
 
-         else
-            phase%density = 0._dp
-            phase%internal_energy = 0._dp
-            phase%specific_enthalpy = 0._dp
-            phase%relative_permeability = 0._dp
-            phase%capillary_pressure = 0._dp
-            phase%viscosity = 0._dp
-            phase%mass_fraction(1) = 0._dp
-         end if
+          end associate
+       end do
 
-       end associate
-    end do
+       if (err == 0) then
+          associate(solid_phase => fluid%phase(3))
+
+            call halite_density(fluid%pressure, fluid%temperature, &
+                 solid_phase%density, err)
+            if (err == 0) then
+               call halite_enthalpy(fluid%temperature, &
+                    solid_phase%specific_enthalpy, err)
+               if (err == 0) then
+                  solid_phase%internal_energy = solid_phase%specific_enthalpy - &
+                       fluid%pressure / solid_phase%density
+                  solid_phase%relative_permeability = 0._dp
+                  solid_phase%capillary_pressure = 0._dp
+                  solid_phase%viscosity = 0._dp
+                  solid_phase%mass_fraction = [0._dp, 1._dp]
+               end if
+            end if
+
+          end associate
+       end if
+
+    end if
 
   end subroutine eos_wse_phase_properties
 
