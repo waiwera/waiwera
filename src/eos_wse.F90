@@ -112,7 +112,6 @@ contains
          "region                   ", &
          "vapour_saturation        ", &
          "liquid_salt_mass_fraction", &
-         "vapour_salt_mass_fraction", &
          "solid_saturation         "]
     self%default_output_fluid_fields = self%required_output_fluid_fields
 
