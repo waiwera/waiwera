@@ -547,8 +547,10 @@ contains
           call halite_solubility_two_phase(fluid%pressure, self%thermo, &
                salt_mass_fraction, err)
        end if
-       call brine_saturation_temperature(fluid%pressure, salt_mass_fraction, &
-            self%thermo, fluid%temperature, err)
+       if (err == 0) then
+          call brine_saturation_temperature(fluid%pressure, salt_mass_fraction, &
+               self%thermo, fluid%temperature, err)
+       end if
     else ! single-phase
        fluid%temperature = primary(2)
     end if
