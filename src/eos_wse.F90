@@ -43,6 +43,7 @@ module eos_wse_module
      procedure, public :: transition_to_single_phase => eos_wse_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wse_transition_to_two_phase
      procedure, public :: halite_transition => eos_wse_halite_transition
+     procedure, public :: phase_composition => eos_wse_phase_composition
      procedure, public :: bulk_properties => eos_wse_bulk_properties
      procedure, public :: phase_properties => eos_wse_phase_properties
      procedure, public :: primary_variables => eos_wse_primary_variables
