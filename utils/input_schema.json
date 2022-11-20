@@ -103,14 +103,16 @@
                            "enum": ["w", "W",
                                     "we", "WE",
                                     "wce", "WCE",
-                                    "wae", "WAE"]},
+                                    "wae", "WAE",
+                                    "wse", "WSE"]},
                           {"type": "object",
                            "properties": {
                                "name": {"type": "string",
                                         "enum": ["w", "W",
                                                  "we", "WE",
                                                  "wce", "WCE",
-                                                 "wae", "WAE"]},
+                                                 "wae", "WAE",
+                                                 "wse", "WSE"]},
                                "primary": {"type": "object",
                                            "properties": {
                                                "scale": {
