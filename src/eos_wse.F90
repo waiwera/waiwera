@@ -625,7 +625,8 @@ contains
     ! Locals:
     PetscInt :: p, phases, region
     PetscBool :: halite
-    PetscReal :: properties(2), sl, salt_mass_fraction, phase_salt_mass_fraction
+    PetscReal :: properties(2), sl, ss, sl_effective
+    PetscReal :: salt_mass_fraction, phase_salt_mass_fraction
     PetscReal :: relative_permeability(2), capillary_pressure(2)
 
     err = 0
@@ -641,9 +642,11 @@ contains
     if (err == 0) then
 
        sl = fluid%phase(1)%saturation
-       relative_permeability = rock%relative_permeability%values(sl)
-       capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
-            0._dp]
+       ss = fluid%phase(3)%saturation
+       sl_effective = sl / (1._dp - ss)
+       relative_permeability = rock%relative_permeability%values(sl_effective)
+       capillary_pressure = [rock%capillary_pressure%value(sl_effective, &
+            fluid%temperature), 0._dp]
 
        do p = 1, self%num_mobile_phases
           associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
