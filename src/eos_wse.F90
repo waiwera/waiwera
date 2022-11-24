@@ -633,7 +633,7 @@ contains
     ! Locals:
     PetscInt :: p, phases, region
     PetscBool :: halite
-    PetscReal :: properties(2), sl, ss, sl_effective
+    PetscReal :: properties(2), sl, ss, sl_effective, water_density
     PetscReal :: salt_mass_fraction, phase_salt_mass_fraction
     PetscReal :: relative_permeability(2), capillary_pressure(2)
 
@@ -663,7 +663,7 @@ contains
 
                if (p == 1) then
                   call brine_properties(fluid%pressure, fluid%temperature, &
-                       salt_mass_fraction, self%thermo, properties, err)
+                       salt_mass_fraction, self%thermo, properties, water_density, err)
                   phase_salt_mass_fraction = salt_mass_fraction
                else
                   call region%properties([fluid%pressure, fluid%temperature], &
@@ -685,7 +685,7 @@ contains
 
                   if (p == 1) then
                      call brine_viscosity(fluid%temperature, fluid%pressure, &
-                          phase%density, salt_mass_fraction, self%thermo, &
+                          water_density, salt_mass_fraction, self%thermo, &
                           phase%viscosity, err)
                   else
                      call region%viscosity(fluid%temperature, fluid%pressure, &

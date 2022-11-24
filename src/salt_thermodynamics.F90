@@ -223,16 +223,18 @@ contains
 !------------------------------------------------------------------------
 
   subroutine brine_properties(pressure, temperature, salt_mass_fraction, &
-       thermo, props, err)
+       thermo, props, water_density, err)
     !! Returns properties (density and internal energy) of brine at
     !! the given pressure, temperature and salt mass fraction, using
-    !! the specified pure water thermodynamics.
+    !! the specified pure water thermodynamics. Also returns density
+    !! of pure water.
 
     PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
     PetscReal, intent(out):: props(:) !! Properties (density and internal energy)
+    PetscReal, intent(out):: water_density !! Pure water density
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscReal :: Pws, Ps, smol, v0, sk, fi, sat_brine_density
@@ -292,8 +294,9 @@ contains
                     Ps1 = Pws + delp
                     call thermo%water%properties([Ps1, temperature], sat_water_props1, err)
                     if (err == 0) then
-                       associate(dws1 => sat_water_props1(1), uws1 => sat_water_props1(2))
-                         hws1 = uws1 + Ps1 / dws1
+                       water_density = sat_water_props1(1)
+                       associate(uws1 => sat_water_props1(2))
+                         hws1 = uws1 + Ps1 / water_density
                          factor = (hws1 - hws) / hws / delp
                          brine_enthalpy = hbs * (1._dp + factor * (pressure - Ps))
                          brine_internal_energy = brine_enthalpy - pressure / brine_density
@@ -312,16 +315,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine brine_viscosity(temperature, pressure, density, &
+  subroutine brine_viscosity(temperature, pressure, water_density, &
        salt_mass_fraction, thermo, viscosity, err)
     !! Viscosity of brine as a function of temperature, pressure,
-    !! density and salt mass fraction. Pure water viscosity is
+    !! water density and salt mass fraction. Pure water viscosity is
     !! calculated using the specified thermodynamics. From Phillips,
     !! Igbene, Fair, Ozbek and Tavana (1981).
 
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: pressure !! Pressure
-    PetscReal, intent(in) :: density !! Density
+    PetscReal, intent(in) :: water_density !! Density of pure water
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
     PetscReal, intent(out) :: viscosity !! Brine viscosity
@@ -335,7 +338,7 @@ contains
     factor = polynomial(brine_viscosity_data, smol) + &
          6.29e-4_dp * temperature * (1._dp - exp(-0.7_dp * smol))
     call thermo%water%viscosity(temperature, pressure, &
-         density, water_viscosity)
+         water_density, water_viscosity)
     viscosity = factor * water_viscosity
 
   end subroutine brine_viscosity
