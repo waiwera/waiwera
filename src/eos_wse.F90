@@ -211,6 +211,12 @@ contains
          interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
          pressure = pressure_factor * interpolated_pressure
          salt = interpolated_salt
+         if (old_halite) then
+            call halite_solubility_two_phase(interpolated_pressure, self%thermo, &
+                 salt_mass_fraction, err)
+         else
+            salt_mass_fraction = salt
+         end if
          call brine_saturation_temperature(interpolated_pressure, salt_mass_fraction, &
               self%thermo, temperature, err)
          if (err == 0) then

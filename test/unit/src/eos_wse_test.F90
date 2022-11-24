@@ -400,7 +400,7 @@ contains
        old_fluid%temperature = temperature
        fluid%region = old_fluid%region
        expected_region = 1
-       expected_primary = [85.90917681818182e5_dp, 300.02645326107097_dp, &
+       expected_primary = [85.90917681818182e5_dp, 301.26248746444287_dp, &
             0.028181818181818_dp]
        expected_transition = PETSC_TRUE
        old_primary = [85.e5_dp, 0.1_dp, 0.01_dp]
