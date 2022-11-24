@@ -217,11 +217,13 @@ contains
          else
             salt_mass_fraction = salt
          end if
-         call brine_saturation_temperature(interpolated_pressure, salt_mass_fraction, &
-              self%thermo, temperature, err)
          if (err == 0) then
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
+            call brine_saturation_temperature(interpolated_pressure, salt_mass_fraction, &
+                 self%thermo, temperature, err)
+            if (err == 0) then
+               fluid%region = dble(new_region)
+               transition = PETSC_TRUE
+            end if
          end if
 
       else
