@@ -11,6 +11,7 @@ module eos_wse_test_module
   use rock_module
   use relative_permeability_module
   use capillary_pressure_module
+  use IFC67_module
   use IAPWS_module
   use fson
   use fson_mpi_module
@@ -21,7 +22,7 @@ module eos_wse_test_module
   private
 
   public :: setup, teardown, setup_test
-  public :: test_eos_wse_transition
+  public :: test_eos_wse_fluid_properties, test_eos_wse_transition
 
 contains
 
@@ -58,6 +59,147 @@ contains
     test%tolerance = 1.e-9
 
   end subroutine setup_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_wse_fluid_properties(test)
+
+    ! eos_wse fluid_properties() test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fluid_type) :: fluid
+    type(rock_type) :: rock
+    PetscInt,  parameter :: offset = 1, region = 8, phase_composition = b'011'
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscReal, allocatable:: primary(:), primary2(:)
+    type(eos_wse_type) :: eos
+    type(IFC67_type) :: thermo
+    class(relative_permeability_type), allocatable :: rp
+    class(capillary_pressure_type), allocatable :: cp
+    type(fson_value), pointer :: json
+    character(120) :: json_str = &
+         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.35, 1.0], "vapour": [0.0, 0.7]}}}'
+    PetscErrorCode :: err
+    PetscReal, parameter :: pressure = 33.7726e5_dp
+    PetscReal, parameter :: temperature = 262.133_dp
+    PetscReal, parameter :: vapour_saturation = 0.375914_dp
+    PetscReal, parameter :: solid_saturation = 0.321895_dp
+    PetscReal, parameter :: expected_liquid_density = 1087.30_dp
+    PetscReal, parameter :: expected_liquid_saturation = 1._dp - solid_saturation &
+         - vapour_saturation
+    PetscReal, parameter :: expected_liquid_specific_enthalpy = 0.751611e6_dp
+    PetscReal, parameter :: expected_liquid_viscosity = 0.316435e-3_dp
+    PetscReal, parameter :: expected_liquid_relative_permeability = 0.147138_dp
+    PetscReal, parameter :: expected_liquid_capillary_pressure = 0._dp
+    PetscReal, parameter :: expected_liquid_salt_mass_fraction = 0.35389010827034_dp
+    PetscReal, parameter :: expected_vapour_density = 15.6514_dp
+    PetscReal, parameter :: expected_vapour_specific_enthalpy = 0.287400e7_dp
+    PetscReal, parameter :: expected_vapour_viscosity = 0.18221406e-4_dp
+    PetscReal, parameter :: expected_vapour_relative_permeability = 0.791943_dp
+    PetscReal, parameter :: expected_vapour_capillary_pressure = 0._dp
+    PetscReal, parameter :: expected_solid_density = 2098.24_dp
+    PetscReal, parameter :: expected_solid_specific_enthalpy = 0.235611e6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: tol = 1.e-5_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
+    call setup_relative_permeabilities(json, rp)
+    call setup_capillary_pressures(json, cp)
+
+    call fluid%init(eos%num_components, eos%num_phases)
+    call rock%init()
+    allocate(primary(eos%num_primary_variables), primary2(eos%num_primary_variables))
+    allocate(fluid_data(fluid%dof))
+    fluid_data = 0._dp
+    call fluid%assign(fluid_data, offset)
+
+    call rock%assign_relative_permeability(rp)
+    call rock%assign_capillary_pressure(cp)
+
+    primary = [pressure, vapour_saturation, solid_saturation]
+    fluid%region = dble(region)
+    call eos%bulk_properties(primary, fluid, err)
+    call eos%phase_composition(fluid, err)
+    call eos%phase_properties(primary, rock, fluid, err)
+    call eos%primary_variables(fluid, primary2)
+
+    if (rank == 0) then
+
+       call test%assert(pressure, fluid%pressure, "Pressure", tol = tol)
+       call test%assert(temperature, fluid%temperature, "Temperature", tol = tol)
+       call test%assert(phase_composition, nint(fluid%phase_composition), "Phase composition")
+
+       call test%assert(expected_liquid_density, fluid%phase(1)%density, &
+            "Liquid density", tol = tol)
+       call test%assert(expected_liquid_specific_enthalpy, &
+            fluid%phase(1)%specific_enthalpy, "Liquid specific enthalpy", tol = tol)
+       call test%assert(expected_liquid_viscosity, fluid%phase(1)%viscosity, &
+            "Liquid viscosity", tol = tol)
+       call test%assert(expected_liquid_saturation, &
+            fluid%phase(1)%saturation, "Liquid saturation", tol = tol)
+       call test%assert(expected_liquid_relative_permeability, &
+            fluid%phase(1)%relative_permeability, &
+            "Liquid relative permeability", tol = tol)
+       call test%assert(expected_liquid_capillary_pressure, &
+            fluid%phase(1)%capillary_pressure, &
+            "Liquid capillary pressure", tol = tol)
+       call test%assert(1._dp - expected_liquid_salt_mass_fraction, &
+            fluid%phase(1)%mass_fraction(1), "Liquid water mass fraction", tol = tol)
+       call test%assert(expected_liquid_salt_mass_fraction, &
+            fluid%phase(1)%mass_fraction(2), "Liquid salt mass fraction", tol = tol)
+
+       call test%assert(expected_vapour_density, fluid%phase(2)%density, &
+            "Vapour density", tol = tol)
+       call test%assert(expected_vapour_specific_enthalpy, &
+            fluid%phase(2)%specific_enthalpy, "Vapour specific enthalpy", tol = tol)
+       call test%assert(expected_vapour_viscosity, fluid%phase(2)%viscosity, &
+            "Vapour viscosity", tol = tol)
+       call test%assert(vapour_saturation, fluid%phase(2)%saturation, &
+            "Vapour saturation", tol = tol)
+       call test%assert(expected_vapour_relative_permeability, &
+            fluid%phase(2)%relative_permeability, &
+            "Vapour relative permeability", tol = tol)
+       call test%assert(expected_vapour_capillary_pressure, &
+            fluid%phase(2)%capillary_pressure, &
+            "Vapour capillary pressure", tol = tol)
+       call test%assert(1._dp, fluid%phase(2)%mass_fraction(1), &
+            "Vapour water mass fraction", tol = tol)
+       call test%assert(0._dp, fluid%phase(2)%mass_fraction(2), &
+            "Vapour salt mass fraction", tol = tol)
+
+       call test%assert(solid_saturation, fluid%phase(3)%saturation, &
+            "Solid saturation", tol = tol)
+       call test%assert(expected_solid_density, fluid%phase(3)%density, &
+            "Solid density", tol = tol)
+       call test%assert(expected_solid_specific_enthalpy, &
+            fluid%phase(3)%specific_enthalpy, "Solid specific enthalpy", tol = tol)
+       call test%assert(0._dp, fluid%phase(3)%mass_fraction(1), &
+            "Solid water mass fraction", tol = tol)
+       call test%assert(1._dp, fluid%phase(3)%mass_fraction(2), &
+            "Solid salt mass fraction", tol = tol)
+
+       call test%assert(pressure, primary2(1), "Primary 1")
+       call test%assert(vapour_saturation, primary2(2), "Primary 2")
+       call test%assert(solid_saturation, primary2(3), "Primary 3")
+
+    end if
+
+    call fluid%destroy()
+    call rock%destroy()
+    deallocate(primary, primary2, fluid_data)
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(rp)
+    deallocate(cp)
+
+  end subroutine test_eos_wse_fluid_properties
 
 !------------------------------------------------------------------------
 
