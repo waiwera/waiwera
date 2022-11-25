@@ -787,28 +787,32 @@ contains
     err = 0
 
     associate (p => primary(1), salt => primary(3))
+
+      if (salt < 0._dp) then
+         salt = 0._dp
+         changed = PETSC_TRUE
+      else if (salt > 1._dp) then
+         err = 1
+      end if
+
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
       else
-         if ((salt < -1._dp) .or. (salt > 2._dp)) then
-            err = 1
+         region = nint(fluid%region)
+         water_region = self%water_region(region)
+         if (water_region == 4) then
+            associate (vapour_saturation => primary(2))
+              if ((vapour_saturation < -1._dp) .or. &
+                   (vapour_saturation > 2._dp)) then
+                 err = 1
+              end if
+            end associate
          else
-            region = nint(fluid%region)
-            water_region = self%water_region(region)
-            if (water_region == 4) then
-               associate (vapour_saturation => primary(2))
-                 if ((vapour_saturation < -1._dp) .or. &
-                      (vapour_saturation > 2._dp)) then
-                    err = 1
-                 end if
-               end associate
-            else
-               associate (t => primary(2))
-                 if ((t < 0._dp) .or. (t > 800._dp)) then
-                    err = 1
-                 end if
-               end associate
-            end if
+            associate (t => primary(2))
+              if ((t < 0._dp) .or. (t > 800._dp)) then
+                 err = 1
+              end if
+            end associate
          end if
       end if
     end associate
