@@ -10,7 +10,7 @@ module salt_thermodynamics_module
 
   implicit none
   private
-  PetscReal, parameter :: salt_molecular_weight = 58.448_dp ! g/mol
+  PetscReal, parameter :: salt_molecular_weight = 58.443_dp ! g/mol
   PetscReal, parameter :: halite_solubility_data(3) = &
        [2.6218e-1_dp, 7.2e-2_dp, 1.06_dp]
   PetscReal, parameter :: halite_solubility_two_phase_data(5) = &
