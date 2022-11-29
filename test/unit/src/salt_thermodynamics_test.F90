@@ -106,11 +106,11 @@ contains
 
     if (rank == 0) then
        call thermo%init()
-       call properties_case("20 deg C",   20._dp, [2.15981043e3_dp, 1.72913875e4_dp], 0)
-       call properties_case("100 deg C", 100._dp, [2.13918393e3_dp, 8.75661969e4_dp], 0)
-       call properties_case("200 deg C", 200._dp, [2.11379003e3_dp, 1.77291975e5_dp], 0)
-       call properties_case("300 deg C", 300._dp, [2.08916417e3_dp, 2.67120399e5_dp], 0)
-       call properties_case("350 deg C", 350._dp, [2.07732657e3_dp, 3.10923409e5_dp], 0)
+       call properties_case("20 deg C",   20._dp, [2.16544208e3_dp, -5.44002467e5_dp], 0)
+       call properties_case("100 deg C", 100._dp, [2.14485199e3_dp, -4.73170767e5_dp], 0)
+       call properties_case("200 deg C", 200._dp, [2.11751462e3_dp, -3.83011549e5_dp], 0)
+       call properties_case("300 deg C", 300._dp, [2.08882457e3_dp, -2.90739752e5_dp], 0)
+       call properties_case("350 deg C", 350._dp, [2.07423883e3_dp, -2.43776955e5_dp], 0)
        call thermo%destroy()
     end if
 

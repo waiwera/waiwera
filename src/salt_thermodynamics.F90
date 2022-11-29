@@ -11,12 +11,14 @@ module salt_thermodynamics_module
   implicit none
   private
   PetscReal, parameter :: salt_molecular_weight = 58.443_dp ! g/mol
+  PetscReal, parameter :: halite_density_data(3) = &
+       [2.1704e3_dp, -2.4599e-1_dp, -9.5797e-5_dp]
+  PetscReal, parameter :: halite_enthalpy_data(4) = &
+       [-5.615174e5_dp, 8.766380e2_dp, 6.413881e-2_dp, 8.810112e-5_dp]
   PetscReal, parameter :: halite_solubility_data(3) = &
        [2.6218e-1_dp, 7.2e-2_dp, 1.06_dp]
   PetscReal, parameter :: halite_solubility_two_phase_data(5) = &
        [0.2876823_dp, 0.30122157_dp, -0.39877656_dp, 0.31352381_dp, -0.09062578_dp]
-  PetscReal, parameter :: halite_enthalpy_data(3) = &
-       [-0.120453_dp, 12.0453_dp, 1.95e-3_dp]
   PetscReal, parameter :: brine_sat_pressure_a_data(4) = &
        [0._dp, 5.93582e-1_dp, -5.19386_dp, 1.23156_dp]
   PetscReal, parameter :: brine_sat_pressure_b_data(6) = &
@@ -115,22 +117,26 @@ contains
 
   subroutine halite_properties(pressure, temperature, props, err)
     !! Returns properties (density and internal energy) of halite as a
-    !! function of pressure and temperature. From Silvester and Pitzer
-    !! (1976).
+    !! function of pressure and temperature. From Driesner (2007).
 
     PetscReal, intent(in):: pressure !! Pressure
     PetscReal, intent(in):: temperature !! Temperature
     PetscReal, intent(out):: props(:) !! Properties (density and internal energy)
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: enthalpy
+    PetscReal, parameter :: l3 = 5.727e-3_dp, l4 = 2.715e-3_dp, l5 = 733.4_dp
+    PetscReal :: density0, l, enthalpy_1bar, enthalpy
 
     err = 0
-    associate(density => props(1), internal_energy => props(2))
+    associate(pbar => pressure / 1.e5_dp, &
+         density => props(1), internal_energy => props(2))
 
-      density = 2165._dp * exp(4.e-11_dp * pressure - 1.2e-4_dp * temperature)
-      enthalpy = 4184._dp *  polynomial(halite_enthalpy_data, temperature) / &
-           salt_molecular_weight
+      density0 = polynomial(halite_density_data, temperature)
+      l = l3 + l4 * exp(temperature / l5)
+      density = density0 + l * pbar
+
+      enthalpy_1bar = polynomial(halite_enthalpy_data, temperature)
+      enthalpy = enthalpy_1bar + 44.14_dp * (pbar - 1._dp)
       internal_energy = enthalpy - pressure / density
 
     end associate
