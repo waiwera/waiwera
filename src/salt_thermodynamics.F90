@@ -15,8 +15,10 @@ module salt_thermodynamics_module
        [2.1704e3_dp, -2.4599e-1_dp, -9.5797e-5_dp]
   PetscReal, parameter :: halite_enthalpy_data(4) = &
        [-5.615174e5_dp, 8.766380e2_dp, 6.413881e-2_dp, 8.810112e-5_dp]
-  PetscReal, parameter :: halite_solubility_data(3) = &
-       [2.6218e-1_dp, 7.2e-2_dp, 1.06_dp]
+  PetscReal, parameter :: halite_solubility_data(7) = &
+       [0.2627980_dp, 3.130833e-2_dp, 2.136495_dp, &
+       -9.371763_dp, 3.083588e1_dp, -3.959050e1_dp, &
+       1.711302e1_dp]
   PetscReal, parameter :: halite_solubility_two_phase_data(5) = &
        [0.2876823_dp, 0.30122157_dp, -0.39877656_dp, 0.31352381_dp, -0.09062578_dp]
   PetscReal, parameter :: brine_sat_pressure_a_data(4) = &
@@ -54,14 +56,15 @@ contains
 
   subroutine halite_solubility(temperature, solubility, err)
     !! Equilibrium solubility of salt in water as a function of
-    !! temperature. From Chou, I.M. (1987).
+    !! temperature. From the regression given by Battistelli (2012),
+    !! based on Driesner (2007).
 
     PetscReal, intent(in) :: temperature
     PetscReal, intent(out) :: solubility
     PetscErrorCode, intent(out) :: err
 
-    if ((0._dp <= temperature) .and. (temperature <= 382._dp)) then
-       solubility = polynomial(halite_solubility_data, temperature / 1.e3_dp)
+    if (0._dp <= temperature) then
+       solubility = polynomial(halite_solubility_data, temperature * 1.e-3_dp)
        err = 0
     else
        solubility = 0._dp

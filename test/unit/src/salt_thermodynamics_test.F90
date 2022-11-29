@@ -59,13 +59,12 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     if (rank == 0) then
-       call solubility_case("-1 deg C", -1._dp, 0._dp, 1)
-       call solubility_case("20 deg C", 20._dp, 0.264044_dp, 0)
-       call solubility_case("100 deg C", 100._dp, 0.27998_dp, 0)
-       call solubility_case("200 deg C", 200._dp, 0.31898_dp, 0)
-       call solubility_case("300 deg C", 300._dp, 0.37918_dp, 0)
-       call solubility_case("350 deg C", 350._dp, 0.41723_dp, 0)
-       call solubility_case("400 deg C", 400._dp, 0._dp, 1)
+       call solubility_case("-1 deg C",   -1._dp, 0._dp, 1)
+       call solubility_case("20 deg C",   20._dp, 0.26420860_dp, 0)
+       call solubility_case("100 deg C", 100._dp, 0.28062682_dp, 0)
+       call solubility_case("200 deg C", 200._dp, 0.31730904_dp, 0)
+       call solubility_case("300 deg C", 300._dp, 0.37747855_dp, 0)
+       call solubility_case("400 deg C", 400._dp, 0.47145444_dp, 0)
     end if
 
   contains
