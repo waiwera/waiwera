@@ -28,24 +28,11 @@ module salt_thermodynamics_module
        -1.70717_dp, 1.05390_dp]
   PetscReal, parameter :: brine_viscosity_data(4) = &
        [1._dp, 0.0816_dp, 0.0122_dp, 1.28e-4_dp]
-  PetscReal, parameter :: brine_critical_data(4) = &
-       [-92.6824818148_dp, 0.43077335_dp, &
-       -6.2561155e-4_dp, 3.6441625e-7_dp]
-  PetscReal, parameter :: brine_critical_initial_data(4) = &
-       [374.15000416_dp, 762.09488272_dp, 3391.76173286_dp, -6629.23422183_dp]
-  PetscReal, parameter :: brine_enthalpy_data(4) = &
-       [0._dp, -25.9293_dp, 0.16792_dp, -8.3624e-4_dp]
-  PetscReal, parameter :: brine_enthalpy_data2(3,4) = &
-       reshape([ &
-       -9.6336e3_dp, -4.0800e3_dp, 2.8649e2_dp, &
-       1.6658e2_dp, 6.8577e1_dp, -4.6856_dp, &
-       -0.90963_dp, -0.36524_dp, 2.49667e-2_dp, &
-       1.7965e-3_dp, 7.1924e-4_dp, -4.900e-5_dp], [3,4])
 
   public :: halite_solubility, halite_solubility_two_phase
   public :: halite_properties
   public :: brine_saturation_pressure, brine_saturation_temperature
-  public :: brine_viscosity, brine_critical_temperature
+  public :: brine_viscosity
   public :: brine_properties
 
 contains
@@ -232,149 +219,201 @@ contains
 !------------------------------------------------------------------------
 
   subroutine brine_properties(pressure, temperature, salt_mass_fraction, &
-       thermo, props, water_density, err)
+       thermo, props, err)
     !! Returns properties (density and internal energy) of brine at
     !! the given pressure, temperature and salt mass fraction, using
-    !! the specified pure water thermodynamics. Also returns density
-    !! of pure water.
+    !! the specified pure water thermodynamics. From Driesner (2007).
 
     PetscReal, intent(in) :: pressure !! Pressure
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
     PetscReal, intent(out):: props(:) !! Properties (density and internal energy)
-    PetscReal, intent(out):: water_density !! Pure water density
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: Pws, Ps, smol, v0, sk, fi, sat_brine_density
-    PetscReal :: hws, delp, Ps1, hws1, factor, tc, hbs
-    PetscReal :: tau, xmol, c, hsalt, dhsalt, dppsi
-    PetscReal :: sat_water_props(2), sat_water_props1(2)
-    PetscReal :: b(4), brine_enthalpy
-    PetscInt :: i
+    PetscReal :: brine_molecular_weight
+    PetscReal :: f, xmol, xmol1, xmol12, tstar_v, ts
+    PetscReal :: n1, n2, n10, n11, n12, n20, n21, n22, n23
+    PetscReal :: n1x1, n2x1
+    PetscReal :: props_star(2)
+    PetscReal :: q1, q2, q10, q11, q12, q20, q21, q22, q23
+    PetscReal :: q1x1, q2x1
+    PetscReal :: tstar_h, hb
 
     err = 0
 
-    associate(brine_density => props(1), brine_internal_energy => props(2))
+    associate(brine_density => props(1), brine_internal_energy => props(2), &
+         pbar => pressure / 1.e5_dp)
 
-      call thermo%saturation%pressure(temperature, Pws, err)
+      f = 1._dp / (salt_mass_fraction + (1._dp - salt_mass_fraction) * &
+           salt_molecular_weight / water_molecular_weight)
+      xmol = salt_mass_fraction * f
+      xmol1 = 1._dp - xmol
+      xmol12 = xmol1 * xmol1
+      brine_molecular_weight = salt_molecular_weight * f
+
+      ! density:
+      n11 = -54.2958_dp - 45.7623_dp * exp(-9.44785e-4_dp * pbar)
+      n21 = -2.6142_dp - 0.000239092_dp * pbar
+      n22 = polynomial([0.0356828_dp, 4.37235e-6_dp, 2.0566e-9_dp], pbar)
+
+      n1x1 = polynomial([330.47_dp + 0.942876_dp * sqrt(pbar), 0.0817193_dp, &
+           -2.47556e-8_dp, 3.45052e-10_dp], pbar)
+      n2x1 = polynomial([-0.0370751_dp + 0.00237723_dp * sqrt(pbar), 5.42049e-5_dp, &
+           5.84709e-9_dp, -5.99373e-13_dp], pbar)
+
+      n10 = n1x1
+      n20 = 1._dp - n21 * sqrt(n22)
+      n12 = -n11 - n10
+      n23 = n2x1 - n20 - n21 * sqrt(1._dp + n22)
+
+      n1 = n10 + n11 * xmol1 + n12 * xmol12
+      n2 = n20 + n21 * sqrt(xmol + n22) + n23 * xmol
+
+      tstar_v = n1 + n2 * temperature + deviation(pbar, temperature, xmol)
+      call thermo%saturation%temperature(pressure, ts, err)
       if (err == 0) then
-         call thermo%water%properties([Pws, temperature], sat_water_props, err)
-         if (err == 0) then
-            associate(dws => sat_water_props(1), uws => sat_water_props(2))
-
-              hws = uws + Pws / dws
-
-              ! From Haas (1976):
-              smol = salt_mole_fraction(salt_mass_fraction)
-              v0 = 1.e3_dp / dws
-              sk = (-13.644_dp + 13.97_dp * v0) * (3.1975_dp / (3.1975_dp - v0))**2
-              fi = -167.219_dp + 448.55_dp * v0 - 261.07_dp * v0 * v0 + sk*sqrt(smol)
-              sat_brine_density = (1.e3_dp + smol * salt_molecular_weight) / &
-                   (1000._dp * v0 + smol * fi) * 1.e3_dp
-
-              call brine_saturation_pressure(temperature, salt_mass_fraction, &
-                   thermo, Ps, err)
-              if (err == 0) then
-
-                 ! Compressibility from Andersen et al. (1992)
-                 call brine_critical_temperature(salt_mass_fraction, tc, err)
-                 if (err == 0) then
-
-                    tau = 1._dp - (temperature + 273.15_dp) / (tc + 273.15_dp)
-                    xmol = smol / (1.e3_dp / water_molecular_weight + smol)
-                    c = -1.14e-6_dp / (tau**1.25_dp - 5.6_dp * xmol**1.5_dp + 0.005_dp)
-                    dppsi = 14.50377e-5_dp * (pressure - Ps)
-                    brine_density = sat_brine_density / (1._dp + c * dppsi)
-
-                    ! Enthalpy of vapour saturated brine, from Michaelides (1982):
-                    hsalt = 4.184_dp  * polynomial(brine_enthalpy_data, temperature) / &
-                         salt_molecular_weight
-                    do i = 1, 4
-                       b(i) = polynomial(brine_enthalpy_data2(:, i), smol)
-                    end do
-                    dhsalt = polynomial(b, temperature) * (4.184_dp / &
-                         (1.e3_dp + salt_molecular_weight *smol))
-                    hbs = (1._dp - salt_mass_fraction) * hws + &
-                         1.e3_dp * (salt_mass_fraction * hsalt + smol * dhsalt)
-
-                    ! Compressed brine enthalpy:
-                    delp = max(pressure - Pws, 1.e3_dp)
-                    Ps1 = Pws + delp
-                    call thermo%water%properties([Ps1, temperature], sat_water_props1, err)
-                    if (err == 0) then
-                       water_density = sat_water_props1(1)
-                       associate(uws1 => sat_water_props1(2))
-                         hws1 = uws1 + Ps1 / water_density
-                         factor = (hws1 - hws) / hws / delp
-                         brine_enthalpy = hbs * (1._dp + factor * (pressure - Ps))
-                         brine_internal_energy = brine_enthalpy - pressure / brine_density
-                       end associate
-                    end if
-
-                 end if
-
-              end if
-            end associate
+         if (tstar_v <= ts) then
+            call thermo%water%properties([pressure, tstar_v], props_star, err)
+            if (err == 0) then
+               brine_density = props_star(1) * &
+                    brine_molecular_weight / water_molecular_weight
+            end if
+         else
+            brine_density = extrapolation(pressure, pbar, ts, tstar_v, &
+                 brine_molecular_weight, err)
          end if
       end if
+
+      if (err == 0) then
+         ! internal energy:
+
+         q11 = -32.1724_dp + 0.0621255_dp * pbar
+         q21 = -1.69513 - 4.52781e-4 * pbar - 6.04279e-8 * pbar ** 2
+         q21 = polynomial([-1.69513_dp, -4.52781e-4_dp, -6.04279e-8_dp], pbar)
+         q22 = 0.0612567_dp + 1.88082e-5_dp * pbar
+
+         q1x1 = polynomial([47.9048_dp, -9.36994e-3_dp, 6.51059e-6_dp], pbar)
+         q2x1 = polynomial([0.241022_dp, 3.45087e-5_dp, -4.28356e-9_dp], pbar)
+
+         q10 = q1x1
+         q20 = 1._dp - q21 * sqrt(q22)
+         q12 = -q11 - q10
+         q23 = q2x1 - q20 - q21 * sqrt(1._dp + q22)
+
+         q1 = q10 + q11 * xmol1 + q12 * xmol12
+         q2 = q20 + q21 * sqrt(xmol + q22) + q23 * xmol
+
+         tstar_h = q1 + q2 * temperature
+         call thermo%water%properties([pressure, tstar_h], props_star, err)
+         if (err == 0) then
+            associate(dw => props_star(1), uw => props_star(2))
+              hb = uw + pressure / dw
+              brine_internal_energy = hb - pressure / brine_density
+            end associate
+         end if
+
+      end if
+
     end associate
+
+  contains
+
+    PetscReal function deviation(pbar, temperature, xmol)
+      !! Temperature deviation from eq. 14
+
+      PetscReal, intent(in) :: pbar, temperature, xmol
+      ! Locals:
+      PetscReal :: pp
+      PetscReal :: n30, n31, n300, n301, n302, n310, n311, n312
+
+      pp = pbar + 472.051_dp
+      n300 = 7.60664e6 / (pp * pp)
+      n301 = -50.0_dp - 86.1446_dp * exp(-6.21128e-4_dp * pbar)
+      n302 = 294.318_dp * exp(-5.66735e-3_dp * pbar)
+      n310 = -0.0732761_dp * exp(-2.3772e-3_dp * pbar) - 5.2948e-5_dp * pbar
+      n311 = -47.2747_dp + 24.3653_dp * exp(-1.25533e-3_dp * pbar)
+      n312 = -0.278529_dp - 0.00081381_dp * pbar
+      n30 = n300 * (exp(n301 * xmol) - 1._dp) + n302 * xmol
+      n31 = n310 * exp(n311 * xmol) + n312 * xmol
+      deviation = n30 * exp(n31 * temperature)
+
+    end function deviation
+
+!........................................................................
+
+    PetscReal function extrapolation(pressure, pbar, ts, tstar_v, &
+         brine_molecular_weight, err)
+      !! Brine density from eq. 17 extrapolation
+
+      PetscReal, intent(in) :: pressure, pbar, ts, tstar_v
+      PetscReal, intent(in) :: brine_molecular_weight
+      PetscErrorCode, intent(in out) :: err
+      ! Locals:
+      PetscReal :: vws, vws1, dvdt, logp, vb, ts2
+      PetscReal :: o0, o1, o2
+      PetscReal :: props_s(2), props_s1(2)
+      PetscReal, parameter :: dt = 0.2_dp
+
+      call thermo%water%properties([pressure, ts], props_s, err)
+      if (err == 0) then
+         associate(dws => props_s(1))
+           vws = 1.e3_dp * water_molecular_weight / dws
+         end associate
+         call thermo%water%properties([pressure, ts - dt], props_s1, err)
+         if (err == 0) then
+            associate(dws1 => props_s1(1))
+              vws1 = 1.e3_dp * water_molecular_weight / dws1
+            end associate
+            dvdt = (vws - vws1) / dt
+            logp = log(pbar)
+            o2 = polynomial([2.0125e-7_dp + 3.29977e-9_dp * exp(-4.31279_dp * logp), &
+                 -1.17748e-7_dp, 7.58009e-8_dp], logp)
+            ts2 = ts * ts
+            o1 = dvdt - 3._dp * o2 * ts2
+            o0 = vws - ts * (o1 + o2 * ts2)
+            vb = polynomial([o0, o1, 0._dp, o2], tstar_v)
+            extrapolation = 1.e3_dp * brine_molecular_weight / vb
+         end if
+      end if
+
+    end function extrapolation
 
   end subroutine brine_properties
 
 !------------------------------------------------------------------------
 
-  subroutine brine_viscosity(temperature, pressure, water_density, &
+  subroutine brine_viscosity(temperature, pressure, &
        salt_mass_fraction, thermo, viscosity, err)
-    !! Viscosity of brine as a function of temperature, pressure,
-    !! water density and salt mass fraction. Pure water viscosity is
+    !! Viscosity of brine as a function of temperature, pressure
+    !! and salt mass fraction. Pure water viscosity is
     !! calculated using the specified thermodynamics. From Phillips,
     !! Igbene, Fair, Ozbek and Tavana (1981).
 
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: pressure !! Pressure
-    PetscReal, intent(in) :: water_density !! Density of pure water
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
     class(thermodynamics_type), intent(in out) :: thermo !! Water thermodynamics
     PetscReal, intent(out) :: viscosity !! Brine viscosity
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: smol, factor
-    PetscReal :: water_viscosity
+    PetscReal :: props(2), water_viscosity
 
     err = 0
     smol = salt_mole_fraction(salt_mass_fraction)
     factor = polynomial(brine_viscosity_data, smol) + &
          6.29e-4_dp * temperature * (1._dp - exp(-0.7_dp * smol))
-    call thermo%water%viscosity(temperature, pressure, &
-         water_density, water_viscosity)
-    viscosity = factor * water_viscosity
+    call thermo%water%properties([pressure, temperature], props, err)
+    if (err == 0) then
+       associate(water_density => props(1))
+         call thermo%water%viscosity(temperature, pressure, &
+              water_density, water_viscosity)
+       end associate
+       viscosity = factor * water_viscosity
+    end if
 
   end subroutine brine_viscosity
-
-!------------------------------------------------------------------------
-
-  subroutine brine_critical_temperature(salt_mass_fraction, &
-       critical_temperature, err)
-    !! Returns critical temperature of brine for given salt mass
-    !! fraction. From Sourirayan and Kennedy (1962).
-
-    PetscReal, intent(in) :: salt_mass_fraction
-    PetscReal, intent(out) :: critical_temperature
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: t
-    PetscReal :: poly(size(brine_critical_data))
-    PetscInt, parameter :: maxit = 30
-    PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
-
-    poly = brine_critical_data
-    poly(1) = poly(1) - salt_mass_fraction * 100._dp
-    t = polynomial(brine_critical_initial_data, salt_mass_fraction)
-    call newton1d(poly, t, ftol, xtol, maxit, err)
-    critical_temperature = max(t, 374.15_dp)
-
-  end subroutine brine_critical_temperature
 
 !------------------------------------------------------------------------
 
