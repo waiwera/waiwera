@@ -255,12 +255,12 @@ contains
       ! density:
       n11 = -54.2958_dp - 45.7623_dp * exp(-9.44785e-4_dp * pbar)
       n21 = -2.6142_dp - 0.000239092_dp * pbar
-      n22 = polynomial([0.0356828_dp, 4.37235e-6_dp, 2.0566e-9_dp], pbar)
+      n22 = polynomial([0.0356828_dp, 4.37235e-3_dp, 2.0566e-3_dp], pbar / 1.e3_dp)
 
-      n1x1 = polynomial([330.47_dp + 0.942876_dp * sqrt(pbar), 0.0817193_dp, &
-           -2.47556e-8_dp, 3.45052e-10_dp], pbar)
-      n2x1 = polynomial([-0.0370751_dp + 0.00237723_dp * sqrt(pbar), 5.42049e-5_dp, &
-           5.84709e-9_dp, -5.99373e-13_dp], pbar)
+      n1x1 = polynomial([330.47_dp + 0.942876_dp * sqrt(pbar), 8.17193_dp, &
+           -2.47556e-4_dp, 3.45052e-4_dp], pbar / 1.e2_dp)
+      n2x1 = polynomial([-0.0370751_dp + 0.00237723_dp * sqrt(pbar), 5.42049e-1_dp, &
+           5.84709e-1_dp, -5.99373e-1_dp], pbar / 1.e4_dp)
 
       n10 = n1x1
       n20 = 1._dp - n21 * sqrt(n22)
@@ -289,12 +289,11 @@ contains
          ! internal energy:
 
          q11 = -32.1724_dp + 0.0621255_dp * pbar
-         q21 = -1.69513 - 4.52781e-4 * pbar - 6.04279e-8 * pbar ** 2
-         q21 = polynomial([-1.69513_dp, -4.52781e-4_dp, -6.04279e-8_dp], pbar)
+         q21 = polynomial([-1.69513_dp, -4.52781_dp, -6.04279_dp], pbar / 1.e4_dp)
          q22 = 0.0612567_dp + 1.88082e-5_dp * pbar
 
-         q1x1 = polynomial([47.9048_dp, -9.36994e-3_dp, 6.51059e-6_dp], pbar)
-         q2x1 = polynomial([0.241022_dp, 3.45087e-5_dp, -4.28356e-9_dp], pbar)
+         q1x1 = polynomial([47.9048_dp, -9.36994_dp, 6.51059_dp], pbar / 1.e3_dp)
+         q2x1 = polynomial([0.241022_dp, 3.45087e-1_dp, -4.28356e-1_dp], pbar / 1.e4_dp)
 
          q10 = q1x1
          q20 = 1._dp - q21 * sqrt(q22)
