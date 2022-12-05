@@ -241,7 +241,7 @@ Water, carbon dioxide and energy ("wce")
 Water / salt EOS modules
 ========================
 
-These EOS modules simulate mixtures of water and salt (NaCl), i.e. brine, together with energy. They work in much the same way as the water / energy EOS ("we") apart from modifications to the fluid properties resulting from the presence of salt.
+These EOS modules simulate mixtures of water and salt (NaCl), i.e. brine, together with energy. They work in much the same way as the water / energy EOS ("we") apart from modifications to the fluid properties resulting from the presence of salt. The main thermodynamic properties (e.g. density and internal energy) of brine are calculated using the formulation of [Driesner]_.
 
 Salt can be present in dissolved form in the liquid phase, under either single-phase liquid or two-phase conditions. It is assumed there is no salt present in the vapour phase.
 
@@ -274,6 +274,8 @@ For the water/salt EOS modules, the thermodynamic "region" has an expanded meani
 +------+----------+
 
 (Note that, as for the :ref:`water_energy_eos` EOS, supercritical fluid (region 3) is not supported.)
+
+.. [Driesner] Driesner, T. (2007). "The system H2O - NaCl. Part II: Correlations for molar volume, enthalpy, and isobaric heat capacity from 0 1000 C, 1 to 5000 bar, and 0 to 1 XNaCl. Geochimica et Cosmochimica Acta, 71, 4902 -- 4919.
 
 .. index:: equation of state (EOS); water / salt / energy ("wse")
 .. _water_salt_energy_eos:
