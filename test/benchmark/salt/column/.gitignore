@@ -1,0 +1,6 @@
+run/*
+!run/gsalt_column.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc

@@ -1,0 +1,6 @@
+run/*
+!run/gsalt_production.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc
