@@ -74,7 +74,7 @@ contains
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, allocatable:: primary(:), primary2(:)
     type(eos_wse_type) :: eos
-    type(IFC67_type) :: thermo
+    type(IAPWS_type) :: thermo
     class(relative_permeability_type), allocatable :: rp
     class(capillary_pressure_type), allocatable :: cp
     type(fson_value), pointer :: json
@@ -82,27 +82,26 @@ contains
          '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.35, 1.0], "vapour": [0.0, 0.7]}}}'
     PetscErrorCode :: err
     PetscReal, parameter :: pressure = 33.7726e5_dp
-    PetscReal, parameter :: temperature = 262.133_dp
+    PetscReal, parameter :: temperature = 261.8535057357576_dp
     PetscReal, parameter :: vapour_saturation = 0.375914_dp
     PetscReal, parameter :: solid_saturation = 0.321895_dp
-    PetscReal, parameter :: expected_liquid_density = 1087.30_dp
+    PetscReal, parameter :: expected_liquid_density = 1106.6518135561505_dp
     PetscReal, parameter :: expected_liquid_saturation = 1._dp - solid_saturation &
          - vapour_saturation
-    PetscReal, parameter :: expected_liquid_specific_enthalpy = 0.751611e6_dp
-    PetscReal, parameter :: expected_liquid_viscosity = 0.316435e-3_dp
-    PetscReal, parameter :: expected_liquid_relative_permeability = 0.147138_dp
+    PetscReal, parameter :: expected_liquid_internal_energy = 855553.6653034494_dp
+    PetscReal, parameter :: expected_liquid_viscosity = 0.0003082594394253848_dp
+    PetscReal, parameter :: expected_liquid_relative_permeability = 0.14713911448930356_dp
     PetscReal, parameter :: expected_liquid_capillary_pressure = 0._dp
-    PetscReal, parameter :: expected_liquid_salt_mass_fraction = 0.35389010827034_dp
-    PetscReal, parameter :: expected_vapour_density = 15.6514_dp
-    PetscReal, parameter :: expected_vapour_specific_enthalpy = 0.287400e7_dp
-    PetscReal, parameter :: expected_vapour_viscosity = 0.18221406e-4_dp
-    PetscReal, parameter :: expected_vapour_relative_permeability = 0.791943_dp
+    PetscReal, parameter :: expected_liquid_salt_mass_fraction = 0.3509746512916994_dp
+    PetscReal, parameter :: expected_vapour_density = 15.649607177473_dp
+    PetscReal, parameter :: expected_vapour_internal_energy = 2658784.4508994194_dp
+    PetscReal, parameter :: expected_vapour_viscosity = 1.8139908004858663e-05_dp
+    PetscReal, parameter :: expected_vapour_relative_permeability = 0.791942250831361_dp
     PetscReal, parameter :: expected_vapour_capillary_pressure = 0._dp
-    PetscReal, parameter :: expected_solid_density = 2098.24_dp
-    PetscReal, parameter :: expected_solid_specific_enthalpy = 0.235611e6_dp
+    PetscReal, parameter :: expected_solid_density = 2099.742571479692_dp
+    PetscReal, parameter :: expected_solid_internal_energy = -326148.8593836402_dp
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: tol = 1.e-5_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -131,58 +130,58 @@ contains
 
     if (rank == 0) then
 
-       call test%assert(pressure, fluid%pressure, "Pressure", tol = tol)
-       call test%assert(temperature, fluid%temperature, "Temperature", tol = tol)
+       call test%assert(pressure, fluid%pressure, "Pressure")
+       call test%assert(temperature, fluid%temperature, "Temperature")
        call test%assert(phase_composition, nint(fluid%phase_composition), "Phase composition")
 
        call test%assert(expected_liquid_density, fluid%phase(1)%density, &
-            "Liquid density", tol = tol)
-       call test%assert(expected_liquid_specific_enthalpy, &
-            fluid%phase(1)%specific_enthalpy, "Liquid specific enthalpy", tol = tol)
+            "Liquid density")
+       call test%assert(expected_liquid_internal_energy, &
+            fluid%phase(1)%internal_energy, "Liquid internal energy")
        call test%assert(expected_liquid_viscosity, fluid%phase(1)%viscosity, &
-            "Liquid viscosity", tol = tol)
+            "Liquid viscosity")
        call test%assert(expected_liquid_saturation, &
-            fluid%phase(1)%saturation, "Liquid saturation", tol = tol)
+            fluid%phase(1)%saturation, "Liquid saturation")
        call test%assert(expected_liquid_relative_permeability, &
             fluid%phase(1)%relative_permeability, &
-            "Liquid relative permeability", tol = tol)
+            "Liquid relative permeability")
        call test%assert(expected_liquid_capillary_pressure, &
             fluid%phase(1)%capillary_pressure, &
-            "Liquid capillary pressure", tol = tol)
+            "Liquid capillary pressure")
        call test%assert(1._dp - expected_liquid_salt_mass_fraction, &
-            fluid%phase(1)%mass_fraction(1), "Liquid water mass fraction", tol = tol)
+            fluid%phase(1)%mass_fraction(1), "Liquid water mass fraction")
        call test%assert(expected_liquid_salt_mass_fraction, &
-            fluid%phase(1)%mass_fraction(2), "Liquid salt mass fraction", tol = tol)
+            fluid%phase(1)%mass_fraction(2), "Liquid salt mass fraction")
 
        call test%assert(expected_vapour_density, fluid%phase(2)%density, &
-            "Vapour density", tol = tol)
-       call test%assert(expected_vapour_specific_enthalpy, &
-            fluid%phase(2)%specific_enthalpy, "Vapour specific enthalpy", tol = tol)
+            "Vapour density")
+       call test%assert(expected_vapour_internal_energy, &
+            fluid%phase(2)%internal_energy, "Vapour internal energy")
        call test%assert(expected_vapour_viscosity, fluid%phase(2)%viscosity, &
-            "Vapour viscosity", tol = tol)
+            "Vapour viscosity")
        call test%assert(vapour_saturation, fluid%phase(2)%saturation, &
-            "Vapour saturation", tol = tol)
+            "Vapour saturation")
        call test%assert(expected_vapour_relative_permeability, &
             fluid%phase(2)%relative_permeability, &
-            "Vapour relative permeability", tol = tol)
+            "Vapour relative permeability")
        call test%assert(expected_vapour_capillary_pressure, &
             fluid%phase(2)%capillary_pressure, &
-            "Vapour capillary pressure", tol = tol)
+            "Vapour capillary pressure")
        call test%assert(1._dp, fluid%phase(2)%mass_fraction(1), &
-            "Vapour water mass fraction", tol = tol)
+            "Vapour water mass fraction")
        call test%assert(0._dp, fluid%phase(2)%mass_fraction(2), &
-            "Vapour salt mass fraction", tol = tol)
+            "Vapour salt mass fraction")
 
        call test%assert(solid_saturation, fluid%phase(3)%saturation, &
-            "Solid saturation", tol = tol)
+            "Solid saturation")
        call test%assert(expected_solid_density, fluid%phase(3)%density, &
-            "Solid density", tol = tol)
-       call test%assert(expected_solid_specific_enthalpy, &
-            fluid%phase(3)%specific_enthalpy, "Solid specific enthalpy", tol = tol)
+            "Solid density")
+       call test%assert(expected_solid_internal_energy, &
+            fluid%phase(3)%internal_energy, "Solid internal energy")
        call test%assert(0._dp, fluid%phase(3)%mass_fraction(1), &
-            "Solid water mass fraction", tol = tol)
+            "Solid water mass fraction")
        call test%assert(1._dp, fluid%phase(3)%mass_fraction(2), &
-            "Solid salt mass fraction", tol = tol)
+            "Solid salt mass fraction")
 
        call test%assert(pressure, primary2(1), "Primary 1")
        call test%assert(vapour_saturation, primary2(2), "Primary 2")
@@ -349,7 +348,7 @@ contains
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
        expected_region = 4
-       expected_primary = [1.5243034825e6_dp, small, 4.80557214e-02_dp]
+       expected_primary = [1.52428924e+06_dp, small, 4.80568610e-02_dp]
        expected_transition = PETSC_TRUE
        old_primary = [20.e5_dp, 210._dp, 0.01_dp]
        primary = [15.e5_dp, 200._dp, 0.05_dp]
@@ -374,7 +373,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 4
-       expected_primary = [8.501510451467e6_dp, 1._dp - small, 3.0302090450917078e-2_dp]
+       expected_primary = [8.501510451467e6_dp, 1._dp - small, 3.03013436e-02_dp]
        expected_transition = PETSC_TRUE
        old_primary = [84.0e5_dp, 302._dp, 0.01_dp]
        primary = [86.e5_dp, 299.27215502281706_dp, 0.05_dp]
@@ -463,7 +462,7 @@ contains
        old_fluid%region = dble(5)
        fluid%region = old_fluid%region
        expected_region = 1
-       expected_primary = [20.e5_dp, 210._dp, 0.324045_dp]
+       expected_primary = [20.e5_dp, 210._dp, 0.3220677667197454_dp]
        expected_transition = PETSC_TRUE
        old_primary = [20.e5_dp, 210._dp, 0.05_dp]
        primary = [20.e5_dp, 210._dp, -0.01_dp]
@@ -515,7 +514,7 @@ contains
        old_fluid%temperature = temperature
        fluid%region = old_fluid%region
        expected_region = 4
-       expected_primary = [1.116895574534e6_dp, 0.1_dp, 3.18979e-1_dp]
+       expected_primary = [1.116895574534e6_dp, 0.1_dp, 0.3172414011477263_dp]
        expected_transition = PETSC_TRUE
        old_primary = [1.116895574534e6_dp, 0.1_dp, 0.01_dp]
        primary = [1.116895574534e6_dp, 0.1_dp, -0.01_dp]

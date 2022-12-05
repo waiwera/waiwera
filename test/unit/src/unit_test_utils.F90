@@ -31,9 +31,11 @@ contains
     PetscBool, intent(in) :: expected_transition, transition
     PetscErrorCode, intent(in) :: err
     character(60), intent(in) :: message
+    ! Locals:
+    PetscReal, parameter :: tol = 1.e-6_dp
 
     call test%assert(expected_primary, primary, &
-         trim(message) // " primary")
+         trim(message) // " primary", tol = tol)
     call test%assert(expected_region, nint(fluid%region), &
          trim(message) // " region")
     call test%assert(expected_transition, transition, &
