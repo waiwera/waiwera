@@ -324,6 +324,7 @@ contains
           fluid%temperature = cell_temperature
           fluid%region = dble(cell_region)
           fluid%phase_composition = cell_phase_composition
+          fluid%permeability_factor = 1._dp
           fluid%phase(1)%density = cell_liquid_density
           fluid%phase(1)%viscosity = cell_liquid_viscosity
           fluid%phase(1)%saturation = 1._dp - cell_vapour_saturation

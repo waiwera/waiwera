@@ -355,6 +355,7 @@ contains
     PetscInt :: p, phases
     PetscReal :: h, reference_pressure, pressure_difference
     PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
+    PetscReal :: effective_productivity
 
     allocate(phase_mobilities(source%fluid%num_phases))
     allocate(phase_flow_fractions(source%fluid%num_phases))
@@ -369,13 +370,14 @@ contains
        reference_pressure = self%reference_pressure%interpolate(h, 1)
     end select
 
+    effective_productivity = productivity * source%fluid%permeability_factor
     pressure_difference = source%fluid%pressure - reference_pressure
     flow_rate = 0._dp
 
     phases = nint(source%fluid%phase_composition)
     do p = 1, source%fluid%num_phases
        if (btest(phases, p - 1)) then
-          flow_rate = flow_rate - productivity * &
+          flow_rate = flow_rate - effective_productivity * &
                phase_mobilities(p) * pressure_difference
        end if
     end do
@@ -434,7 +436,8 @@ contains
 
          reference_pressure = self%reference_pressure%interpolate(time, 1)
          pressure_difference = source%fluid%pressure - reference_pressure
-         factor = sum(phase_mobilities) * pressure_difference
+         factor = sum(phase_mobilities) * pressure_difference * &
+              source%fluid%permeability_factor
 
          if (abs(factor) > tol) then
             productivity = abs(rate) / factor
