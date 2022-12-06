@@ -645,7 +645,7 @@ contains
     call fson_get_mpi(json, "exponent", default_exponent, self%exponent, logfile)
     call fson_get_mpi(json, "phir", default_phir, self%phir, logfile)
     call fson_get_mpi(json, "gamma", default_gamma, self%gamma, logfile)
-    self%omega = 1._dp + (1._dp / self%gamma) / (1._dp / self%phir - 1._dp)
+    self%omega = 1._dp + (1._dp / (self%gamma * (1._dp / self%phir - 1._dp)))
 
   end subroutine fluid_permeability_factor_verma_pruess_init
 
