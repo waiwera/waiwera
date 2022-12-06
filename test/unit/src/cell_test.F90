@@ -120,7 +120,7 @@ contains
             fluid_data(num_fluid_variables + num_phases * &
             (num_phase_variables + num_components)))
        rock_data = [0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0.1_dp, 2200._dp, 950._dp]
-       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, 0._dp, 0._dp, &
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, 1._dp, 0._dp, 0._dp, &
             935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 

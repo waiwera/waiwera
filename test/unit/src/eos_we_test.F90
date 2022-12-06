@@ -119,6 +119,7 @@ contains
 
     primary = [pressure, vapour_saturation]
     fluid%region = dble(region)
+    fluid%permeability_factor = 1._dp
     call eos%bulk_properties(primary, fluid, err)
     call eos%phase_composition(fluid, err)
     call eos%phase_properties(primary, rock, fluid, err)
@@ -431,7 +432,7 @@ contains
 
     if (rank == 0) then
 
-       associate(sl => fluid_data(8))
+       associate(sl => fluid_data(9))
 
          sl = 0.0_dp
          expected_cond = 1.0_dp
