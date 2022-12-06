@@ -113,6 +113,23 @@
                                                  "wce", "WCE",
                                                  "wae", "WAE",
                                                  "wse", "WSE"]},
+                               "permeability_modifier": {"type": "object",
+                                                         "properties": {
+                                                             "type": {"type": "string",
+                                                                      "enum": ["none", "None",
+                                                                               "power", "Power",
+                                                                               "verma-pruess",
+                                                                               "Verma-Pruess"]},
+                                                             "exponent": {"type": "number",
+                                                                          "minimum": 2,
+                                                                          "maximum": 3},
+                                                             "phir": {"type": "number",
+                                                                      "minimum": 0,
+                                                                      "maximum": 1},
+                                                             "gamma": {"type": "number",
+                                                                      "minimum": 0,
+                                                                      "maximum": 1}
+                                                         }},
                                "primary": {"type": "object",
                                            "properties": {
                                                "scale": {
