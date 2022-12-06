@@ -16,22 +16,27 @@ In the Waiwera JSON input file, the **"eos"** value specifies the equation of st
 
    **JSON path**: eos
 
-   +-------------+----------+-------------------+-----------------------+
-   |**name**     |**type**  |**default**        |**value**              |
-   +-------------+----------+-------------------+-----------------------+
-   |"name"       |string    |"we"               |abbreviated EOS module |
-   |             |          |                   |name                   |
-   +-------------+----------+-------------------+-----------------------+
-   |"primary"    |object    |{}                 |primary variable       |
-   |             |          |                   |parameters             |
-   |             |          |                   |                       |
-   |             |          |                   |                       |
-   +-------------+----------+-------------------+-----------------------+
-   |"temperature"|number    |20\                |constant temperature ( |
-   |             |          |:math:`^{\circ}`\ C|:math:`^{\circ}`\ C)   |
-   |             |          |                   |for :ref:`water_eos`   |
-   |             |          |                   |EOS                    |
-   +-------------+----------+-------------------+-----------------------+
+   +-----------------------+----------+-------------------+-----------------------+
+   |**name**               |**type**  |**default**        |**value**              |
+   +-----------------------+----------+-------------------+-----------------------+
+   |"name"                 |string    |"we"               |abbreviated EOS module |
+   |                       |          |                   |name                   |
+   +-----------------------+----------+-------------------+-----------------------+
+   |"primary"              |object    |{}                 |primary variable       |
+   |                       |          |                   |parameters             |
+   |                       |          |                   |                       |
+   |                       |          |                   |                       |
+   +-----------------------+----------+-------------------+-----------------------+
+   |"temperature"          |number    |20\                |constant temperature ( |
+   |                       |          |:math:`^{\circ}`\ C|:math:`^{\circ}`\ C)   |
+   |                       |          |                   |for :ref:`water_eos`   |
+   |                       |          |                   |EOS                    |
+   +-----------------------+----------+-------------------+-----------------------+
+   |"permeability_modifier"|object    |{}                 |parameters for effect  |
+   |                       |          |                   |of fluid on            |
+   |                       |          |                   |permeability           |
+   |                       |          |                   |                       |
+   +-----------------------+----------+-------------------+-----------------------+
 
 For example:
 
@@ -72,6 +77,71 @@ Scaling
 Waiwera internally non-dimensionalises the primary variables to improve numerical behaviour. In most cases this is carried out via a simple scaling by a fixed constant. These fixed constants have default values, but can be over-ridden via the **"eos.primary.scale"** value in the Waiwera input JSON file. This is also an object, with values specific to each EOS module (see below).
 
 Note that all input and output thermodynamic variables are in their usual dimensional form (i.e. not scaled).
+
+.. index:: equation of state (EOS), permeability modification
+
+Permeability modification
+=========================
+
+For some equations of state, the fluid state can change the effective local permeability. For example, when the :ref:`water_salt_eos` are used, a solid halite phase can be present when salt precipitates out of solution.
+
+This effect can be represented using the **"eos.permeability_modifier"** value. This object a **"type"** string value which determines how the permeability is reduced as the effective porosity decreases. Its possible values are "none", "power" and "verma-pruess".
+
+.. note::
+   **JSON object**: fluid permeability modifier
+
+   **JSON path**: eos.permeability_modifier
+
+   +-------------+----------+-------------------+-----------------------+
+   |**name**     |**type**  |**default**        |**value**              |
+   +-------------+----------+-------------------+-----------------------+
+   |"type"       |string    |"none"             |permeability modifier  |
+   |             |          |                   |type                   |
+   +-------------+----------+-------------------+-----------------------+
+   |"exponent"   |number    |3 for power law; 2 |exponent :math:`n` for |
+   |             |          |for Verma-Pruess   |power law; for         |
+   |             |          |                   |Verma-Pruess: 2 for    |
+   |             |          |                   |tubes in series or 3   |
+   |             |          |                   |for fractures in series|
+   +-------------+----------+-------------------+-----------------------+
+   |"phir"       |number    |0.1                |for Verma-Pruess,      |
+   |             |          |                   |parameter              |
+   |             |          |                   |:math:`\phi_r`         |
+   +-------------+----------+-------------------+-----------------------+
+   |"gamma"      |number    |0.7                |for Verma-Pruess,      |
+   |             |          |                   |parameter              |
+   |             |          |                   |:math:`\Gamma`         |
+   +-------------+----------+-------------------+-----------------------+
+
+If the type is "none", there is no permeability reduction (the default). If the type is "power", a power-law relationship is used to determine the permeability reduction :math:`k/k_0`:
+
+.. math::
+
+   \frac{k}{k_0} = \left(\frac{\phi}{\phi_0}\right)^n
+
+Here :math:`k` and :math:`k_0` represent the permeabilities before and after modification respectively, :math:`\phi_0` is the rock porosity and :math:`\phi` is the effective porosity, reduced by e.g. the presence of solid halite. The exponent :math:`n` typically takes values between 2 and 3.
+
+The Verma-Pruess model [Verma-Pruess]_ for permeability modification is more complex and is based on considering the possible geometries of the pores and how reduced porosity at the throats of the pores can have a larger effect on the effective permeability. Here the permeability reduction is given by:
+
+.. math::
+
+   \frac{k}{k_0} = \theta^n \frac{1 - \Gamma + \Gamma / \omega^n}{1 - \Gamma + \Gamma \left(\frac{\theta}{\theta + \omega - 1} \right)^n}
+
+where
+
+.. math::
+
+   \theta = \frac{\frac{\phi}{\phi_0} - \phi_r}{1 - \phi_r}
+
+and
+
+.. math::
+
+   \omega = 1 + \frac{1}{\Gamma (1/\phi_r - 1)}
+
+When the parameter :math:`n` takes the value 2, the pores are represented by a series of one-dimensional tubes, whereas when it takes the value 3, the pores are represented by parallel-plate fracture segments. The parameter :math:`\phi_r` is the fraction of the original porosity at which the permeability is reduced to zero, and the parameter :math:`\Gamma` is the fractional length of the pore bodies.
+
+.. [Verma-Pruess] Verma, A. and Pruess, K. (1988). "Thermohydrologic conditions and silica redistribution near high-level nuclear wastes emplaced in saturated geological formations", J. Geophysical Research, 93, B2, 1159 - 1173.
 
 Water EOS modules
 =================
@@ -245,7 +315,7 @@ These EOS modules simulate mixtures of water and salt (NaCl), i.e. brine, togeth
 
 Salt can be present in dissolved form in the liquid phase, under either single-phase liquid or two-phase conditions. It is assumed there is no salt present in the vapour phase.
 
-Salt in the liquid phase may be present in concentrations up to a limit defined by the solubility of salt in water. This is temperature-dependent but under typical conditions the maximum salt mass fraction is approximately 0.3. At higher concentrations the salt will precipitate out into solid-phase salt (halite). Hence, the salt EOS modules have a "solid" phase as well as the liquid and vapour phases. This solid phase is not considered mobile, and is omitted from flux calculations across mesh faces. However, when solid halite is present it does reduce the pore space available for brine.
+Salt in the liquid phase may be present in concentrations up to a limit defined by the solubility of salt in water. This is temperature-dependent but under typical conditions the maximum salt mass fraction is approximately 0.3. At higher concentrations the salt will precipitate out into solid-phase salt (halite). Hence, the salt EOS modules have a "solid" phase as well as the liquid and vapour phases. This solid phase is not considered mobile, and is omitted from flux calculations across mesh faces. However, when solid halite is present it does reduce the pore space available for brine. It can also optionally reduce the effective permeability
 
 The primary variables for these EOS modules are as for the water / energy EOS, but with an added third variable for salt. This variable represents salt mass fraction (in the liquid phase), unless there is solid-phase halite present, in which case it switches to the solid-phase saturation, i.e. the volume fraction of halite.
 
