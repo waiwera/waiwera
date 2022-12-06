@@ -82,8 +82,7 @@ field_tols = {"Pressure": 0.01, "Temperature": 0.02, "Liquid saturation": sat_to
              "Liquid salt mass fraction": 0.01}
 
 salt_column_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
-salt_column_test.description = """Vertical column salt test
-"""
+salt_column_test.description = """Vertical column salt test. The AUTOUGH2 EWASG EOS uses different brine thermodynamics, so an exact match is not expected."""
 
 run_index = 0
 run_name = 'run'

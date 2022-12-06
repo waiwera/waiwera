@@ -76,7 +76,7 @@ field_tols = {"Pressure": 0.01, "Temperature": 0.01, "Liquid saturation": sat_to
 geo = mulgrid(t2geo_filename)
 
 salt_production_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
-salt_production_test.description = """Salt water production problem"""
+salt_production_test.description = """Salt water production problem. The AUTOUGH2 EWASG EOS uses different brine thermodynamics, so an exact match is not expected."""
 
 obs_cell_index = 0
 time_index = -1
