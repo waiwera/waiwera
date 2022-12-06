@@ -28,6 +28,7 @@ module fluid_module
 
   use petsc
   use kinds_module
+  use fson
 
   implicit none
   private
@@ -48,6 +49,7 @@ module fluid_module
        "capillary_pressure   ", &
        "specific_enthalpy    ", "internal_energy      ", &
        "mass_fraction        "]
+  PetscInt, parameter, public :: max_fluid_modifier_name_length = 12
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
@@ -103,7 +105,47 @@ module fluid_module
           fluid_update_phase_composition
   end type fluid_type
 
-  public :: fluid_type, phase_type, create_fluid_vector
+  type, public, abstract :: fluid_modifier_type
+     !! Abstract type for fluid modification object.
+     private
+     character(max_fluid_modifier_name_length), public :: name !! Name of fluid modifier
+   contains
+     private
+     procedure(fluid_modifier_init_routine), public, deferred :: init
+     procedure(fluid_modifier_modify_routine), public, deferred :: modify
+     procedure, public :: destroy => fluid_modifier_destroy
+  end type fluid_modifier_type
+
+  type, public, extends(fluid_modifier_type) :: fluid_permeability_factor_null_type
+     !! Type for null permeability factor type - assigns permeability factor 1.
+   contains
+     private
+     procedure, public :: init => fluid_permeability_factor_null_init
+     procedure, public :: modify => fluid_permeability_factor_null_modify
+  end type fluid_permeability_factor_null_type
+
+  abstract interface
+
+     subroutine fluid_modifier_init_routine(self, json, logfile)
+       !! Initializes fluid modifier object from JSON data.
+       use logfile_module
+       import :: fluid_modifier_type, fson_value
+       class(fluid_modifier_type), intent(in out) :: self
+       type(fson_value), pointer, intent(in) :: json
+       type(logfile_type), intent(in out), optional :: logfile
+     end subroutine fluid_modifier_init_routine
+
+     subroutine fluid_modifier_modify_routine(self, fluid)
+       !! Routine for modifying the specified fluid object.
+       import :: fluid_type, fluid_modifier_type
+       class(fluid_modifier_type), intent(in out) :: self
+       type(fluid_type), intent(in out) :: fluid
+     end subroutine fluid_modifier_modify_routine
+
+  end interface
+
+  public :: fluid_type, phase_type
+  public :: create_fluid_vector
 
 contains
 
@@ -489,6 +531,44 @@ contains
     call fluid%destroy()
 
   end subroutine create_fluid_vector
+
+!------------------------------------------------------------------------
+! Fluid modifier types:
+!------------------------------------------------------------------------
+
+  subroutine fluid_modifier_destroy(self)
+    !! Destroys fluid modifier object. To be overridden by derived types.
+    class(fluid_modifier_type), intent(in out) :: self
+
+    continue
+
+  end subroutine fluid_modifier_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_permeability_factor_null_init(self, json, logfile)
+    !! Initializes null permeability factor object from JSON data.
+
+    use logfile_module
+
+    class(fluid_permeability_factor_null_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+
+    continue
+
+  end subroutine fluid_permeability_factor_null_init
+
+!........................................................................
+
+  subroutine fluid_permeability_factor_null_modify(self, fluid)
+    !! Sets fluid permeability factor identically to 1.
+    class(fluid_permeability_factor_null_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+
+    fluid%permeability_factor = 1._dp
+
+  end subroutine fluid_permeability_factor_null_modify
 
 !------------------------------------------------------------------------
 
