@@ -242,9 +242,14 @@ The available bulk fluid fields are:
 |"phases"                   |fluid phase composition      |
 |                           |                             |
 +---------------------------+-----------------------------+
+|"permeability_factor"      |fluid permeability factor    |
+|                           |                             |
++---------------------------+-----------------------------+
 |`component_name` +         |partial pressures of mass    |
 |"_partial_pressure"        |components (Pa)              |
 +---------------------------+-----------------------------+
+
+The permeability factor in each cell gives the effect of the fluid on the local permeability. For most equations of state this is identically 1 (i.e. no effect), but for some (e.g. :ref:`water_salt_eos`) the fluid may alter the effective permeability.
 
 There is a partial pressure field for each mass component in the :ref:`eos` module being used. For example, for the :ref:`water_air_energy_eos` EOS, the mass component names are "water" and "air", so the corresponding partial pressure fluid field names are "water_partial_pressure" and "air_partial_pressure".
 
