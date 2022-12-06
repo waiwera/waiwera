@@ -14,7 +14,7 @@ module fluid_test
 
   public :: setup, teardown
   public :: test_fluid_assign, test_fluid_component_density, &
-     test_fluid_energy, test_fluid_enthalpy
+     test_fluid_energy, test_fluid_enthalpy, test_fluid_permeability_modifier
 
 contains
   
@@ -240,6 +240,66 @@ contains
     end if
 
   end subroutine test_fluid_enthalpy
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_permeability_modifier(test)
+    ! Fluid permeability modifier
+
+    use fson
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fson_value), pointer :: json
+    type(fluid_type) :: fluid
+    type(fluid_permeability_factor_power_type) :: power
+    type(fluid_permeability_factor_verma_pruess_type) :: vp
+    PetscInt, parameter :: num_components = 2, num_phases = 3
+    PetscInt,  parameter :: offset = 1
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call fluid%init(num_components, num_phases)
+
+       allocate(fluid_data(offset - 1 + fluid%dof))
+       fluid_data = 0._dp
+       call fluid%assign(fluid_data, offset)
+       fluid%phase(1)%saturation = 0.6_dp
+       fluid%phase(2)%saturation = 0.3_dp
+       fluid%phase(3)%saturation = 0.1_dp
+
+       json => fson_parse(str = '{"type": "power", "exponent": 2}')
+       call power%init(json)
+       call power%modify(fluid)
+       call test%assert(0.81_dp, fluid%permeability_factor, "Power")
+       call power%destroy()
+       call fson_destroy(json)
+
+       json => fson_parse(str = '{"type": "Verma-Pruess", "exponent": 2, ' // &
+            '"phir": 0.2, "gamma": 0.8}')
+       call vp%init(json)
+       call vp%modify(fluid)
+       call test%assert(0.8018938015526441_dp, fluid%permeability_factor, "Verma-Pruess tube")
+
+       json => fson_parse(str = '{"type": "Verma-Pruess", "exponent": 3, ' // &
+            '"phir": 0.1, "gamma": 0.7}')
+       call vp%init(json)
+       call vp%modify(fluid)
+       call test%assert(0.7238998749370428_dp, fluid%permeability_factor, "Verma-Pruess fracture")
+
+       call vp%destroy()
+       call fson_destroy(json)
+
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  end subroutine test_fluid_permeability_modifier
 
 !------------------------------------------------------------------------
 
