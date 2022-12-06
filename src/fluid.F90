@@ -117,12 +117,33 @@ module fluid_module
   end type fluid_modifier_type
 
   type, public, extends(fluid_modifier_type) :: fluid_permeability_factor_null_type
-     !! Type for null permeability factor type - assigns permeability factor 1.
+     !! Type for null permeability factor - assigns permeability factor 1.
    contains
      private
      procedure, public :: init => fluid_permeability_factor_null_init
      procedure, public :: modify => fluid_permeability_factor_null_modify
   end type fluid_permeability_factor_null_type
+
+  type, public, extends(fluid_modifier_type) :: fluid_permeability_factor_power_type
+     !! Type for power-law permeability factor.
+     private
+     PetscReal :: exponent !! exponent for power law
+   contains
+     private
+     procedure, public :: init => fluid_permeability_factor_power_init
+     procedure, public :: modify => fluid_permeability_factor_power_modify
+  end type fluid_permeability_factor_power_type
+
+  type, public, extends(fluid_modifier_type) :: fluid_permeability_factor_verma_pruess_type
+     !! Type for permeability factor given by Verma & Pruess (1988).
+     private
+     PetscReal :: exponent !! exponent (2: tubes in series; 3: fractures in series)
+     PetscReal :: phir, gamma, omega
+   contains
+     private
+     procedure, public :: init => fluid_permeability_factor_verma_pruess_init
+     procedure, public :: modify => fluid_permeability_factor_verma_pruess_modify
+  end type fluid_permeability_factor_verma_pruess_type
 
   abstract interface
 
@@ -563,12 +584,90 @@ contains
 
   subroutine fluid_permeability_factor_null_modify(self, fluid)
     !! Sets fluid permeability factor identically to 1.
+
     class(fluid_permeability_factor_null_type), intent(in out) :: self
     type(fluid_type), intent(in out) :: fluid
 
     fluid%permeability_factor = 1._dp
 
   end subroutine fluid_permeability_factor_null_modify
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_permeability_factor_power_init(self, json, logfile)
+    !! Initializes power-law permeability factor object from JSON data.
+
+    use logfile_module
+    use fson_mpi_module, only: fson_get_mpi
+
+    class(fluid_permeability_factor_power_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscReal, parameter :: default_exponent = 3._dp
+
+    call fson_get_mpi(json, "exponent", default_exponent, &
+         self%exponent, logfile)
+
+  end subroutine fluid_permeability_factor_power_init
+
+!........................................................................
+
+  subroutine fluid_permeability_factor_power_modify(self, fluid)
+    !! Sets fluid permeability factor according to power-law relation
+    !! between permeability factor and porosity factor.
+
+    class(fluid_permeability_factor_power_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+    ! Locals:
+    PetscReal :: porosity_factor
+
+    porosity_factor = fluid%phase(1)%saturation + fluid%phase(2)%saturation
+    fluid%permeability_factor = porosity_factor ** self%exponent
+
+  end subroutine fluid_permeability_factor_power_modify
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_permeability_factor_verma_pruess_init(self, json, logfile)
+    !! Initializes Verma & Pruess permeability factor object from JSON data.
+
+    use logfile_module
+    use fson_mpi_module, only: fson_get_mpi
+
+    class(fluid_permeability_factor_verma_pruess_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    PetscReal, parameter :: default_exponent = 2._dp
+    PetscReal, parameter :: default_phir = 0._dp, default_gamma = 0._dp
+
+    call fson_get_mpi(json, "exponent", default_exponent, self%exponent, logfile)
+    call fson_get_mpi(json, "phir", default_phir, self%phir, logfile)
+    call fson_get_mpi(json, "gamma", default_gamma, self%gamma, logfile)
+    self%omega = (1._dp / self%gamma) / (1._dp / self%phir - 1._dp)
+
+  end subroutine fluid_permeability_factor_verma_pruess_init
+
+!........................................................................
+
+  subroutine fluid_permeability_factor_verma_pruess_modify(self, fluid)
+    !! Sets fluid permeability factor according to Verma & Pruess relation
+    !! between permeability factor and porosity factor.
+
+    class(fluid_permeability_factor_verma_pruess_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+    ! Locals:
+    PetscReal :: porosity_factor, theta
+
+    porosity_factor = fluid%phase(1)%saturation + fluid%phase(2)%saturation
+    theta = (porosity_factor - self%phir) / (1._dp - self%phir)
+    fluid%permeability_factor = theta ** self%exponent * &
+         (1._dp - self%gamma + self%gamma / self%omega ** self%exponent) / &
+         (1._dp - self%gamma + self%gamma * (theta / (theta + self%omega - 1._dp)) &
+         ** self%exponent)
+
+  end subroutine fluid_permeability_factor_verma_pruess_modify
 
 !------------------------------------------------------------------------
 

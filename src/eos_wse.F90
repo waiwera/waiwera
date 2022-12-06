@@ -83,6 +83,7 @@ contains
     PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale
     character(max_fluid_modifier_name_length) :: permeability_modifier_type_name
+    type(fson_value), pointer :: perm_json
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_salt_mass_fraction = 0._dp
@@ -153,14 +154,19 @@ contains
     call self%saturation_line_finder%init(f, context = pinterp)
 
     ! Set up permeability modifier:
-    call fson_get_mpi(json, "eos.permeability_modifier.type", &
+    call fson_get_mpi(json, "eos.permeability_modifier", perm_json)
+    call fson_get_mpi(perm_json, "type", &
          default_permeability_modifier_type_name, &
          permeability_modifier_type_name, logfile)
     select case (str_to_lower(permeability_modifier_type_name))
+    case ("power")
+       allocate(fluid_permeability_factor_power_type :: self%permeability_modifier)
+    case ("verma-pruess")
+       allocate(fluid_permeability_factor_verma_pruess_type :: self%permeability_modifier)
     case default
        allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
     end select
-    call self%permeability_modifier%init(json, logfile)
+    call self%permeability_modifier%init(perm_json, logfile)
 
   end subroutine eos_wse_init
 
