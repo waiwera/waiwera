@@ -17,8 +17,7 @@ module flow_simulation_test
   character(len = 512) :: data_path
 
   public :: setup, teardown
-  public :: test_flow_simulation_init, &
-       test_flow_simulation_fluid_properties, test_flow_simulation_lhs
+  public :: test_flow_simulation_init, test_flow_simulation_lhs
   public :: test_setup_gravity, test_setup_flux
 
 contains
@@ -121,35 +120,6 @@ contains
     call sim%destroy()
 
   end subroutine test_flow_simulation_init
-
-!------------------------------------------------------------------------
-
-  subroutine test_flow_simulation_fluid_properties(test)
-    ! Test flow_simulation fluid_properties() method
-
-    use fson_mpi_module
-
-    class(unit_test_type), intent(in out) :: test
-    ! Locals:
-    type(flow_simulation_type) :: sim
-    type(fson_value), pointer :: json
-    character(:), allocatable :: path
-    PetscReal :: time = 0._dp
-    PetscErrorCode :: err
-
-    path = trim(adjustl(data_path)) // "flow_simulation/fluid_properties/"
-    json => fson_parse_mpi(trim(path) // "test_fluid_properties.json")
-
-    call sim%init(json, err = err)
-    call fson_destroy_mpi(json)
-
-    call test%assert(0, err, "fluid_properties error")
-    call sim%pre_solve(time, sim%solution, err = err)
-    call vec_diff_test(test, sim%fluid, "fluid", path, sim%mesh%cell_index)
-    
-    call sim%destroy()
-
-  end subroutine test_flow_simulation_fluid_properties
 
 !------------------------------------------------------------------------
 
