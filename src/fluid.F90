@@ -640,7 +640,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, parameter :: default_exponent = 2._dp
-    PetscReal, parameter :: default_phir = 0._dp, default_gamma = 0._dp
+    PetscReal, parameter :: default_phir = 0.1_dp, default_gamma = 0.7_dp
 
     call fson_get_mpi(json, "exponent", default_exponent, self%exponent, logfile)
     call fson_get_mpi(json, "phir", default_phir, self%phir, logfile)
