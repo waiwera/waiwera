@@ -378,6 +378,7 @@ contains
     end if
 
     if (err == 0) then
+       fluid%permeability_factor = 1._dp
        call self%phase_composition(fluid, err)
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
