@@ -79,6 +79,7 @@ Waiwera internally non-dimensionalises the primary variables to improve numerica
 Note that all input and output thermodynamic variables are in their usual dimensional form (i.e. not scaled).
 
 .. index:: equation of state (EOS), permeability modification
+.. _fluid_permeability_modification:
 
 Permeability modification
 =========================
@@ -315,7 +316,7 @@ These EOS modules simulate mixtures of water and salt (NaCl), i.e. brine, togeth
 
 Salt can be present in dissolved form in the liquid phase, under either single-phase liquid or two-phase conditions. It is assumed there is no salt present in the vapour phase.
 
-Salt in the liquid phase may be present in concentrations up to a limit defined by the solubility of salt in water. This is temperature-dependent but under typical conditions the maximum salt mass fraction is approximately 0.3. At higher concentrations the salt will precipitate out into solid-phase salt (halite). Hence, the salt EOS modules have a "solid" phase as well as the liquid and vapour phases. This solid phase is not considered mobile, and is omitted from flux calculations across mesh faces. However, when solid halite is present it does reduce the pore space available for brine. It can also optionally reduce the effective permeability
+Salt in the liquid phase may be present in concentrations up to a limit defined by the solubility of salt in water. This is temperature-dependent but under typical conditions the maximum salt mass fraction is approximately 0.3. At higher concentrations the salt will precipitate out into solid-phase salt (halite). Hence, the salt EOS modules have a "solid" phase as well as the liquid and vapour phases. This solid phase is not considered mobile, and is omitted from flux calculations across mesh faces. However, when solid halite is present it does reduce the pore space available for brine. It can also optionally reduce the effective permeability (see :ref:`fluid_permeability_modification`).
 
 The primary variables for these EOS modules are as for the water / energy EOS, but with an added third variable for salt. This variable represents salt mass fraction (in the liquid phase), unless there is solid-phase halite present, in which case it switches to the solid-phase saturation, i.e. the volume fraction of halite.
 
