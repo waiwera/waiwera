@@ -27,6 +27,7 @@ module eos_wse_module
   use root_finder_module
   use thermodynamics_module
   use salt_thermodynamics_module
+  use fluid_module
 
   implicit none
   private
@@ -36,6 +37,7 @@ module eos_wse_module
      private
      PetscInt, allocatable :: water_region(:) !! Water region from mixture region
      PetscBool, allocatable :: halite(:) !! Halite presence from mixture region
+     class(fluid_modifier_type), allocatable :: permeability_modifier !! Modifies effective permeability for effects of solid halite
    contains
      private
      procedure, public :: init => eos_wse_init
@@ -69,6 +71,7 @@ contains
     use fson_mpi_module, only: fson_get_mpi
     use logfile_module
     use thermodynamics_module
+    use utils_module, only: str_to_lower
 
     class(eos_wse_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
@@ -79,11 +82,14 @@ contains
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale
+    character(max_fluid_modifier_name_length) :: permeability_modifier_type_name
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_salt_mass_fraction = 0._dp
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
+    character(max_fluid_modifier_name_length), parameter :: &
+         default_permeability_modifier_type_name = "identity"
 
     self%name = "wse"
     self%description = "Water, salt and energy"
@@ -146,6 +152,16 @@ contains
     pinterp => self%primary_variable_interpolator
     call self%saturation_line_finder%init(f, context = pinterp)
 
+    ! Set up permeability modifier:
+    call fson_get_mpi(json, "eos.permeability_modifier.type", &
+         default_permeability_modifier_type_name, &
+         permeability_modifier_type_name, logfile)
+    select case (str_to_lower(permeability_modifier_type_name))
+    case default
+       allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
+    end select
+    call self%permeability_modifier%init(json, logfile)
+
   end subroutine eos_wse_init
 
 !------------------------------------------------------------------------
@@ -154,8 +170,6 @@ contains
        new_region, primary, fluid, transition, err)
     !! For eos_wse, make transition from two-phase to single-phase with
     !! specified region.
-
-    use fluid_module, only: fluid_type
 
     class(eos_wse_type), intent(in out) :: self
     type(fluid_type), intent(in) :: old_fluid
@@ -255,8 +269,6 @@ contains
        old_primary, old_fluid, primary, fluid, transition, err)
     !! For eos_wse, make transition from single-phase to two-phase.
 
-    use fluid_module, only: fluid_type
-
     class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: saturation_pressure
     type(fluid_type), intent(in) :: old_fluid
@@ -324,8 +336,6 @@ contains
   subroutine eos_wse_halite_transition(self, primary, fluid, transition, err)
     !! For eos_wse, check for halite transitions (e.g. precipitation,
     !! dissolution).
-
-    use fluid_module, only: fluid_type
 
     class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
@@ -422,8 +432,6 @@ contains
     !! For eos_wse, check primary variables for a cell and make
     !! thermodynamic region transitions if needed.
 
-    use fluid_module, only: fluid_type
-
     class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
@@ -507,8 +515,6 @@ contains
     !! Determines fluid phase composition from bulk properties and
     !! thermodynamic region for non-isothermal water/salt.
 
-    use fluid_module, only: fluid_type
-
     class(eos_wse_type), intent(in out) :: self
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
@@ -533,8 +539,6 @@ contains
   subroutine eos_wse_bulk_properties(self, primary, fluid, err)
     !! Calculate fluid bulk properties from region and primary variables
     !! for non-isothermal water/salt.
-
-    use fluid_module, only: fluid_type
 
     class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
@@ -568,6 +572,7 @@ contains
        call self%phase_composition(fluid, err)
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
+          call self%permeability_modifier%modify(fluid)
           fluid%partial_pressure(1) = fluid%pressure
           fluid%partial_pressure(2) = 0._dp
        end if
@@ -580,7 +585,6 @@ contains
   subroutine eos_wse_phase_saturations(self, primary, fluid)
     !! Assigns fluid phase saturations from fluid region and primary variables.
 
-    use fluid_module, only: fluid_type
     class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
@@ -623,7 +627,6 @@ contains
     !! Bulk properties need to be calculated before calling this routine.
 
     use rock_module, only: rock_type
-    use fluid_module, only: fluid_type
 
     class(eos_wse_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
@@ -736,8 +739,6 @@ contains
   subroutine eos_wse_primary_variables(self, fluid, primary)
     !! Determine primary variables from fluid properties.
 
-    use fluid_module, only: fluid_type
-
     class(eos_wse_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(out) :: primary(self%num_primary_variables)
@@ -771,8 +772,6 @@ contains
        primary, changed, err)
     !! Check if primary variables are in acceptable bounds, and return error
     !! code accordingly.
-
-    use fluid_module, only: fluid_type
 
     class(eos_wse_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
