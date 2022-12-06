@@ -291,6 +291,12 @@ contains
        call vp%modify(fluid)
        call test%assert(0.7238998749370428_dp, fluid%permeability_factor, "Verma-Pruess fracture")
 
+       fluid%phase(1)%saturation = 0.1_dp
+       fluid%phase(2)%saturation = 0._dp
+       fluid%phase(3)%saturation = 0.9_dp
+       call vp%modify(fluid)
+       call test%assert(0._dp, fluid%permeability_factor, "Verma-Pruess fracture zero")
+
        call vp%destroy()
        call fson_destroy(json)
 
