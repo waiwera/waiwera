@@ -68,7 +68,7 @@ contains
     !! Initialise water, salt and energy EOS.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi
+    use fson_mpi_module, only: fson_get_mpi, fson_has_mpi
     use logfile_module
     use thermodynamics_module
     use utils_module, only: str_to_lower
@@ -154,8 +154,7 @@ contains
     call self%saturation_line_finder%init(f, context = pinterp)
 
     ! Set up permeability modifier:
-    call fson_get_mpi(json, "eos.permeability_modifier", perm_json)
-    call fson_get_mpi(perm_json, "type", &
+    call fson_get_mpi(json, "eos.permeability_modifier.type", &
          default_permeability_modifier_type_name, &
          permeability_modifier_type_name, logfile)
     select case (str_to_lower(permeability_modifier_type_name))
@@ -166,6 +165,11 @@ contains
     case default
        allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
     end select
+    if (fson_has_mpi(json, "eos.permeability_modifier")) then
+       call fson_get_mpi(json, "eos.permeability_modifier", perm_json)
+    else
+       perm_json => null()
+    end if
     call self%permeability_modifier%init(perm_json, logfile)
 
   end subroutine eos_wse_init
