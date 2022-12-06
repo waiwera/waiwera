@@ -389,7 +389,9 @@ contains
 
     direction = nint(self%permeability_direction)
     do i = 1, 2
-       perm(i) = self%cell(i)%rock%permeability(direction)
+       associate(cell => self%cell(i))
+         perm(i) = cell%rock%permeability(direction) * cell%fluid%permeability_factor
+       end associate
     end do
     k = self%harmonic_average(perm)
 
