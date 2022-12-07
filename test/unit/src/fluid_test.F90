@@ -261,27 +261,31 @@ contains
     PetscInt :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
     if (rank == 0) then
-
        call fluid%init(num_components, num_phases)
-
        allocate(fluid_data(offset - 1 + fluid%dof))
        fluid_data = 0._dp
        call fluid%assign(fluid_data, offset)
+    end if
 
-       json => fson_parse(str = '{"type": "power", "exponent": 2}')
-       call power%init(json)
+    json => fson_parse(str = '{"type": "power", "exponent": 2}')
+    call power%init(json)
+
+    if (rank == 0) then
        fluid%phase(1)%saturation = 0.6_dp
        fluid%phase(2)%saturation = 0.3_dp
        fluid%phase(3)%saturation = 0.1_dp
        call power%modify(fluid)
        call test%assert(0.81_dp, fluid%permeability_factor, "Power")
-       call power%destroy()
-       call fson_destroy(json)
+    end if
+    call power%destroy()
+    call fson_destroy(json)
 
-       json => fson_parse(str = '{"type": "Verma-Pruess", "exponent": 2, ' // &
-            '"phir": 0.2, "gamma": 0.8}')
-       call vp%init(json)
+    json => fson_parse(str = '{"type": "Verma-Pruess", "exponent": 2, ' // &
+         '"phir": 0.2, "gamma": 0.8}')
+    call vp%init(json)
+    if (rank == 0) then
        fluid%phase(1)%saturation = 7.46061E-01_dp
        fluid%phase(2)%saturation = 1.36511E-01_dp
        fluid%phase(3)%saturation = 0.117428_dp
@@ -293,10 +297,13 @@ contains
        fluid%phase(3)%saturation = 0.008548_dp
        call vp%modify(fluid)
        call test%assert(9.82261697E-01_dp, fluid%permeability_factor, "Verma-Pruess tube 2")
+    end if
+    call fson_destroy(json)
 
-       json => fson_parse(str = '{"type": "Verma-Pruess", "exponent": 3, ' // &
-            '"phir": 0.1, "gamma": 0.7}')
-       call vp%init(json)
+    json => fson_parse(str = '{"type": "Verma-Pruess", "exponent": 3, ' // &
+         '"phir": 0.1, "gamma": 0.7}')
+    call vp%init(json)
+    if (rank == 0) then
        fluid%phase(1)%saturation = 0.6_dp
        fluid%phase(2)%saturation = 0.3_dp
        fluid%phase(3)%saturation = 0.1_dp
@@ -308,13 +315,13 @@ contains
        fluid%phase(3)%saturation = 0.9_dp
        call vp%modify(fluid)
        call test%assert(0._dp, fluid%permeability_factor, "Verma-Pruess fracture zero")
+    end if
+    call vp%destroy()
+    call fson_destroy(json)
 
-       call vp%destroy()
-       call fson_destroy(json)
-
+    if (rank == 0) then
        call fluid%destroy()
        deallocate(fluid_data)
-
     end if
 
   end subroutine test_fluid_permeability_modifier
