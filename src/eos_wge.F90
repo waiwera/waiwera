@@ -639,18 +639,18 @@ contains
                end associate
             else
                associate (t => primary(2))
-               if ((t < 0._dp) .or. (t > 800._dp)) then
-                  err = 1
-               end if
-             end associate
-          end if
-       end if
+                 if ((t < 0._dp) .or. (t > 800._dp)) then
+                    err = 1
+                 end if
+               end associate
+            end if
+         end if
 
-    else
-       err = 1
-    end if
+      else
+         err = 1
+      end if
 
-  end associate
+    end associate
 
   end subroutine eos_wge_check_primary_variables
 
