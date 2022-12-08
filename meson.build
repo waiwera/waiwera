@@ -28,6 +28,7 @@ waiwera_sources = [
   'src/eos_w.F90',
   'src/eos_wge.F90',
   'src/eos_wse.F90',
+  'src/eos_wsge.F90',
   'src/face.F90',
   'src/flow_simulation.F90',
   'src/fluid.F90',
