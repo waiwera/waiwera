@@ -35,9 +35,9 @@ module eos_wse_module
   type, public, extends(eos_we_type) :: eos_wse_type
      !! Water, salt and energy equation of state type.
      private
-     PetscInt, allocatable :: water_region(:) !! Water region from mixture region
-     PetscBool, allocatable :: halite(:) !! Halite presence from mixture region
-     class(fluid_modifier_type), allocatable :: permeability_modifier !! Modifies effective permeability for effects of solid halite
+     PetscInt, allocatable, public :: water_region(:) !! Water region from mixture region
+     PetscBool, allocatable, public :: halite(:) !! Halite presence from mixture region
+     class(fluid_modifier_type), allocatable, public :: permeability_modifier !! Modifies effective permeability for effects of solid halite
    contains
      private
      procedure, public :: init => eos_wse_init
@@ -53,11 +53,11 @@ module eos_wse_module
      procedure, public :: check_primary_variables => eos_wse_check_primary_variables
   end type eos_wse_type
 
-  type, extends(primary_variable_interpolator_type) :: &
+  type, public, extends(primary_variable_interpolator_type) :: &
        eos_wse_primary_variable_interpolator_type
      !! Interpolator with flag for the presence of halite.
      private
-     PetscBool :: halite
+     PetscBool, public :: halite
   end type eos_wse_primary_variable_interpolator_type
 
 contains
