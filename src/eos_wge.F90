@@ -26,7 +26,6 @@ module eos_wge_module
      procedure, public :: transition => eos_wge_transition
      procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
-     procedure, public :: phase_composition => eos_wge_phase_composition
      procedure, public :: bulk_properties => eos_wge_bulk_properties
      procedure, public :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
@@ -341,32 +340,6 @@ contains
     end if
 
   end subroutine eos_wge_transition
-
-!------------------------------------------------------------------------
-
-  subroutine eos_wge_phase_composition(self, fluid, err)
-    !! Determines fluid phase composition from bulk properties and
-    !! thermodynamic region.
-
-    use fluid_module, only: fluid_type
-
-    class(eos_wge_type), intent(in out) :: self
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: region, phases
-
-    region = nint(fluid%region)
-    phases = self%thermo%phase_composition(region, fluid%partial_pressure(1), &
-         fluid%temperature)
-    if (phases > 0) then
-       fluid%phase_composition = dble(phases)
-       err = 0
-    else
-       err = 1
-    end if
-
-  end subroutine eos_wge_phase_composition
 
 !------------------------------------------------------------------------
 
