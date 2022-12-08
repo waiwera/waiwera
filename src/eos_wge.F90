@@ -86,10 +86,7 @@ contains
          "pressure            ", "temperature         ", &
          "region              ", "gas_partial_pressure", &
          "vapour_saturation   "]
-    self%default_output_fluid_fields = [ &
-         "pressure              ", "temperature           ", &
-         "region                ", "gas_partial_pressure  ", &
-         "vapour_saturation     "]
+    self%default_output_fluid_fields = self%required_output_fluid_fields
 
     call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
          pressure_scale, logfile)
