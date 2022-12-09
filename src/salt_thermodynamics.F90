@@ -32,8 +32,8 @@ module salt_thermodynamics_module
   public :: halite_solubility, halite_solubility_two_phase
   public :: halite_properties
   public :: brine_saturation_pressure, brine_saturation_temperature
-  public :: brine_viscosity
-  public :: brine_properties
+  public :: brine_properties, brine_viscosity
+  public :: salt_mole_fraction
 
 contains
 
