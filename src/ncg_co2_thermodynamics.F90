@@ -15,6 +15,10 @@ module ncg_co2_thermodynamics_module
   PetscReal, parameter :: henry_data(6) = [&
        0.783666_dp, 1.96025_dp, 8.20574_dp, &
        -7.40674_dp, 2.18380_dp, -0.220999_dp]
+  PetscReal, parameter :: henry_salt_data(5) = [&
+       1.19784e-1_dp, -7.17823e-2_dp, 4.93854e-2_dp, &
+       -1.03826e-2_dp, 1.08233e-3_dp]
+
   PetscReal, parameter :: viscosity_data(5, 6) = reshape([ &
        0._dp, 10._dp, 15._dp, 20._dp, 30._dp, &
        1.3578_dp, 3.9189_dp, 9.6607_dp, 13.1566_dp, 14.7968_dp, &
@@ -29,14 +33,16 @@ module ncg_co2_thermodynamics_module
      !! Type for CO2 NCG thermodynamics.
      private
      type(interpolation_table_type) :: viscosity_table
-     PetscReal :: henry_derivative_data(5)
+     PetscReal :: henry_derivative_data(5), henry_salt_derivative_data(4)
    contains
      private
      procedure, public :: init => ncg_co2_init
      procedure, public :: destroy => ncg_co2_destroy
      procedure, public :: properties => ncg_co2_properties
      procedure, public :: henrys_constant => ncg_co2_henrys_constant
+     procedure, public :: henrys_constant_salt => ncg_co2_henrys_constant_salt
      procedure, public :: henrys_derivative => ncg_co2_henrys_derivative
+     procedure, public :: henrys_derivative_salt => ncg_co2_henrys_derivative_salt
      procedure, public :: viscosity => ncg_co2_viscosity
      procedure, public :: mixture_viscosity => ncg_co2_mixture_viscosity
   end type ncg_co2_thermodynamics_type
@@ -57,7 +63,8 @@ contains
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
     call self%viscosity_table%init(viscosity_data, err)
-    self%henry_derivative_data = 10._dp * polynomial_derivative(henry_data)
+    self%henry_derivative_data = polynomial_derivative(henry_data)
+    self%henry_salt_derivative_data = polynomial_derivative(henry_salt_data)
 
   end subroutine ncg_co2_init
 
@@ -126,6 +133,33 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine ncg_co2_henrys_constant_salt(self, temperature, &
+       salt_mass_fraction, henrys_constant, err)
+    !! Henry's constant for CO2 NCG in brine.
+
+    use utils_module, only: polynomial
+    use salt_thermodynamics_module, only: salt_mole_fraction
+
+    class(ncg_co2_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
+    PetscReal, intent(out) :: henrys_constant !! Henry's constant
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: m, kb
+
+    err = 0
+    call self%henrys_constant(temperature, henrys_constant, err)
+    if (err == 0) then
+       m = salt_mole_fraction(salt_mass_fraction)
+       kb = polynomial(henry_salt_data, temperature / tscale)
+       henrys_constant = henrys_constant * 10._dp ** (m * kb)
+    end if
+
+  end subroutine ncg_co2_henrys_constant_salt
+
+!------------------------------------------------------------------------
+
   subroutine ncg_co2_henrys_derivative(self, temperature, &
        henrys_constant, henrys_derivative, err)
     !! Returns derivative of natural logarithm of Henry's constant
@@ -139,12 +173,44 @@ contains
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
 
-    henrys_derivative = 1.e7_dp * &
+    henrys_derivative = 1.e8_dp * &
          polynomial(self%henry_derivative_data, temperature / tscale) / &
          (henrys_constant * tscale)
     err = 0
 
   end subroutine ncg_co2_henrys_derivative
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_co2_henrys_derivative_salt(self, temperature, &
+       salt_mass_fraction, henrys_constant, henrys_derivative, err)
+    !! Returns derivative of natural logarithm of Henry's constant
+    !! with respect to temperature, for brine with given salt mass
+    !! fraction.
+
+    use utils_module, only: polynomial
+    use salt_thermodynamics_module, only: salt_mole_fraction
+
+    class(ncg_co2_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature !! Temperature
+    PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
+    PetscReal, intent(in) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: m, dkb_dt
+
+    err = 0
+    call self%henrys_derivative(temperature, henrys_constant, &
+         henrys_derivative, err)
+    if (err == 0) then
+       m = salt_mole_fraction(salt_mass_fraction)
+       dkb_dt = polynomial(self%henry_salt_derivative_data, &
+            temperature / tscale) / tscale
+       henrys_derivative = henrys_derivative + log(10._dp) * m * dkb_dt
+    end if
+
+  end subroutine ncg_co2_henrys_derivative_salt
 
 !------------------------------------------------------------------------
   

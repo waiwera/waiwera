@@ -24,10 +24,14 @@ module ncg_thermodynamics_module
      procedure(ncg_init_procedure), public, deferred :: init
      procedure(ncg_properties_procedure), public, deferred :: properties
      procedure(ncg_henrys_constant_procedure), public, deferred :: henrys_constant
+     procedure(ncg_henrys_constant_salt_procedure), public, deferred :: henrys_constant_salt
      procedure(ncg_henrys_derivative_procedure), public, deferred :: henrys_derivative
+     procedure(ncg_henrys_derivative_salt_procedure), public, deferred :: henrys_derivative_salt
      procedure(ncg_viscosity_procedure), public, deferred :: viscosity
      procedure(ncg_mixture_viscosity_procedure), public, deferred :: mixture_viscosity
+     procedure, public :: energy_solution_internal => ncg_energy_solution_internal
      procedure, public :: energy_solution => ncg_energy_solution
+     procedure, public :: energy_solution_salt => ncg_energy_solution_salt
      procedure, public :: partial_pressure => ncg_partial_pressure
      procedure, public :: mass_fraction => ncg_mass_fraction
      procedure, public :: mole_to_mass_fraction => ncg_thermodynamics_mole_to_mass_fraction
@@ -66,6 +70,18 @@ module ncg_thermodynamics_module
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_henrys_constant_procedure
 
+     subroutine ncg_henrys_constant_salt_procedure(self, temperature, &
+          salt_mass_fraction, henrys_constant, err)
+       !! Calculate NCG Henry's constant, for calculating dissolution
+       !! of gas into brine with given salt mass fraction.
+       import :: ncg_thermodynamics_type
+       class(ncg_thermodynamics_type), intent(in) :: self
+       PetscReal, intent(in) :: temperature
+       PetscReal, intent(in) :: salt_mass_fraction
+       PetscReal, intent(out) :: henrys_constant
+       PetscErrorCode, intent(out) :: err
+     end subroutine ncg_henrys_constant_salt_procedure
+
      subroutine ncg_henrys_derivative_procedure(self, temperature, &
           henrys_constant, henrys_derivative, err)
        !! Calculate derivative of the natural logarithm of Henry's
@@ -78,6 +94,20 @@ module ncg_thermodynamics_module
        PetscReal, intent(out) :: henrys_derivative
        PetscErrorCode, intent(out) :: err
      end subroutine ncg_henrys_derivative_procedure
+
+     subroutine ncg_henrys_derivative_salt_procedure(self, temperature, &
+          salt_mass_fraction, henrys_constant, henrys_derivative, err)
+       !! Calculate derivative of the natural logarithm of Henry's
+       !! constant with respect to temperature (used for computing
+       !! energy of solution), in brine with given salt mass fraction.
+       import :: ncg_thermodynamics_type
+       class(ncg_thermodynamics_type), intent(in) :: self
+       PetscReal, intent(in) :: temperature
+       PetscReal, intent(in) :: salt_mass_fraction
+       PetscReal, intent(in) :: henrys_constant
+       PetscReal, intent(out) :: henrys_derivative
+       PetscErrorCode, intent(out) :: err
+     end subroutine ncg_henrys_derivative_salt_procedure
 
      subroutine ncg_viscosity_procedure(self, partial_pressure, &
           temperature, viscosity, err)
@@ -144,10 +174,30 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscReal function ncg_energy_solution_internal(self, temperature, &
+       henrys_derivative) result(energy_solution)
+    !! Calculates NCG energy of solution from the given temperature
+    !! and Henry's derivative (from Himmelblau, 1959).
+
+    use thermodynamics_module, only: tc_k, gas_constant
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature
+    PetscReal, intent(in) :: henrys_derivative
+
+    associate(tk => temperature + tc_k)
+      energy_solution = -1.e3_dp * gas_constant * tk * tk * &
+           henrys_derivative / self%molecular_weight
+    end associate
+
+  end function ncg_energy_solution_internal
+
+!------------------------------------------------------------------------
+
   subroutine ncg_energy_solution(self, temperature, henrys_constant, &
        energy_solution, err)
     !! Calculates NCG energy of solution from the given temperature
-    !! and Henry's constant (from Himmelblau, 1959).
+    !! and Henry's constant.
 
     use thermodynamics_module, only: tc_k, gas_constant
 
@@ -160,16 +210,42 @@ contains
     PetscReal :: henrys_derivative
 
     err = 0
-
     call self%henrys_derivative(temperature, henrys_constant, &
          henrys_derivative, err)
-
-    associate(tk => temperature + tc_k)
-      energy_solution = -1.e3_dp * gas_constant * tk * tk * &
-           henrys_derivative / self%molecular_weight
-    end associate
+    if (err == 0) then
+       energy_solution = self%energy_solution_internal(temperature, &
+            henrys_derivative)
+    end if
 
   end subroutine ncg_energy_solution
+
+!------------------------------------------------------------------------
+
+  subroutine ncg_energy_solution_salt(self, temperature, salt_mass_fraction, &
+       henrys_constant, energy_solution, err)
+    !! Calculates NCG energy of solution for brine from the given
+    !! temperature, salt mass fraction and Henry's constant.
+
+    use thermodynamics_module, only: tc_k, gas_constant
+
+    class(ncg_thermodynamics_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature
+    PetscReal, intent(in) :: salt_mass_fraction
+    PetscReal, intent(in) :: henrys_constant
+    PetscReal, intent(out) :: energy_solution
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: henrys_derivative
+
+    err = 0
+    call self%henrys_derivative_salt(temperature, salt_mass_fraction, &
+         henrys_constant, henrys_derivative, err)
+    if (err == 0) then
+       energy_solution = self%energy_solution_internal(temperature, &
+            henrys_derivative)
+    end if
+
+  end subroutine ncg_energy_solution_salt
 
 !------------------------------------------------------------------------
 

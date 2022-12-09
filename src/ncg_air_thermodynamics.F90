@@ -14,7 +14,7 @@ module ncg_air_thermodynamics_module
   PetscReal, parameter :: enthalpy_data(4) = [&
        1.20740_dp, 9.24502_dp, 0.115984_dp, -5.63568e-4_dp]
   PetscReal, parameter :: henry_weight(2) = [0.79_dp, 0.21_dp]
-  PetscReal, parameter :: henry_p0(2) = [1.01325_dp, 1._dp]
+  PetscReal, parameter :: henry_p0(2) = [1.01325e5_dp, 1.e5_dp]
   PetscReal, parameter :: henry_data(2, 7) = reshape([&
        0.513726_dp, 0.26234_dp, &
        1.58603_dp, 0.610628_dp, &
@@ -120,7 +120,7 @@ contains
 
     err = 0
     hinv = polynomial(henry_data, temperature / tscale)
-    henrys_constant = 1.e10_dp * sum(henry_weight * henry_p0 * hinv)
+    henrys_constant = 1.e5_dp * sum(henry_weight * henry_p0 * hinv)
 
   end subroutine ncg_air_henrys_constant
 
@@ -143,7 +143,7 @@ contains
 
     err = 0
     dhinv = polynomial(self%henry_derivative_data, temperature / tscale)
-    henrys_derivative = 1.e10_dp * sum(henry_weight * henry_p0 * dhinv) &
+    henrys_derivative = 1.e5_dp * sum(henry_weight * henry_p0 * dhinv) &
          / (henrys_constant * tscale)
 
   end subroutine ncg_air_henrys_derivative
