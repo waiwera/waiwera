@@ -705,7 +705,7 @@ contains
 
                           if (p == 1) then
                              call brine_viscosity(fluid%temperature, fluid%pressure, &
-                                  salt_mass_fraction, self%thermo, b_viscosity, err)
+                                  phase_salt_mass_fraction, self%thermo, b_viscosity, err)
                           else
                              call region%viscosity(fluid%temperature, fluid%pressure, &
                                   phase%density, b_viscosity)
