@@ -671,11 +671,11 @@ contains
                      phase_salt_mass_fraction = salt_mass_fraction
                      capillary_pressure = rock%capillary_pressure%value(sl_effective, &
                           fluid%temperature)
-                     call self%gas%henrys_constant(fluid%temperature, &
-                          henrys_constant, err)
+                     call self%gas%henrys_constant_salt(fluid%temperature, &
+                          salt_mass_fraction, henrys_constant, err)
                      if (err == 0) then
-                        call self%gas%energy_solution(fluid%temperature, henrys_constant, &
-                             energy_solution, err)
+                        call self%gas%energy_solution_salt(fluid%temperature, &
+                             salt_mass_fraction, henrys_constant, energy_solution, err)
                      end if
                   else
                      brine_pressure = fluid%partial_pressure(1)
