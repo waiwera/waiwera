@@ -52,7 +52,7 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     type(ncg_co2_thermodynamics_type) :: gas
-    PetscReal :: temperature, expected, hc
+    PetscReal :: temperature, expected, hc0, hc
     PetscErrorCode :: err
     character(31) :: s = "CO2 Henry constant, temperature"
     PetscMPIInt :: rank
@@ -70,15 +70,15 @@ contains
        call test%assert(0, err, trim(s) // " 20 deg C error")
        call test%assert(expected, hc, trim(s) // " 20 deg C")
 
-       call gas%henrys_constant_salt(temperature, 0._dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0._dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 20 deg C zero salt error")
        call test%assert(expected, hc, trim(s) // " 20 deg C zero salt")
 
-       call gas%henrys_constant_salt(temperature, 0.1_dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0.1_dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 20 deg C 0.1 salt error")
        call test%assert(1.599700034044_dp * expected, hc, trim(s) // " 20 deg C 0.1 salt")
 
-       call gas%henrys_constant_salt(temperature, 0.25_dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0.25_dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 20 deg C 0.25 salt error")
        call test%assert(4.093696693331_dp * expected, hc, trim(s) // " 20 deg C 0.25 salt")
 
@@ -88,15 +88,15 @@ contains
        call test%assert(0, err, trim(s) // " 100 deg C error")
        call test%assert(expected, hc, trim(s) // " 100 deg C")
 
-       call gas%henrys_constant_salt(temperature, 0._dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0._dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 100 deg C zero salt error")
        call test%assert(expected, hc, trim(s) // " 100 deg C zero salt")
 
-       call gas%henrys_constant_salt(temperature, 0.1_dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0.1_dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 100 deg C 0.1 salt error")
        call test%assert(1.470515461734_dp * expected, hc, trim(s) // " 100 deg C 0.1 salt")
 
-       call gas%henrys_constant_salt(temperature, 0.3_dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0.3_dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 100 deg C 0.3 salt error")
        call test%assert(4.425416524041_dp * expected, hc, trim(s) // " 100 deg C 0.3 salt")
 
@@ -112,15 +112,15 @@ contains
        call test%assert(0, err, trim(s) // " 300 deg C error")
        call test%assert(expected, hc, trim(s) // " 300 deg C")
 
-       call gas%henrys_constant_salt(temperature, 0._dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0._dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 300 deg C zero salt error")
        call test%assert(expected, hc, trim(s) // " 300 deg C zero salt")
 
-       call gas%henrys_constant_salt(temperature, 0.1_dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0.1_dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 300 deg C 0.1 salt error")
        call test%assert(1.981753363144_dp * expected, hc, trim(s) // " 300 deg C 0.1 salt")
 
-       call gas%henrys_constant_salt(temperature, 0.3_dp, hc, err)
+       call gas%henrys_constant_salt(temperature, 0.3_dp, hc0, hc, err)
        call test%assert(0, err, trim(s) // " 300 deg C 0.3 salt error")
        call test%assert(13.988229784674_dp * expected, hc, trim(s) // " 300 deg C 0.3 salt")
 
@@ -142,7 +142,7 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     type(ncg_co2_thermodynamics_type) :: gas
-    PetscReal :: temperature, expected, hs, hc
+    PetscReal :: temperature, expected, hs, hc0, hc
     PetscErrorCode :: err
     character(35) :: s = "CO2 energy of solution, temperature"
     PetscMPIInt :: rank
@@ -164,10 +164,31 @@ contains
        call test%assert(expected, hs, trim(s) // " 20 deg C", tol)
 
        xs = 0._dp
-       call gas%henrys_constant_salt(temperature, xs, hc, err)
-       call gas%energy_solution_salt(temperature, xs, hc, hs, err)
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
        call test%assert(0, err, trim(s) // " 20 deg C 0 salt error")
        call test%assert(expected, hs, trim(s) // " 20 deg C 0 salt", tol)
+
+       xs = 0.1_dp
+       expected = -457912.15278475045_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 20 deg C 0.1 salt error")
+       call test%assert(expected, hs, trim(s) // " 20 deg C 0.1 salt", tol)
+
+       xs = 0.2_dp
+       expected = -410613.7525195794_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 20 deg C 0.2 salt error")
+       call test%assert(expected, hs, trim(s) // " 20 deg C 0.2 salt", tol)
+
+       xs = 0.3_dp
+       expected = -349801.52360721654_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 20 deg C 0.3 salt error")
+       call test%assert(expected, hs, trim(s) // " 20 deg C 0.3 salt", tol)
 
        temperature = 100._dp
        expected = -180685.98723494_dp
@@ -175,6 +196,27 @@ contains
        call gas%energy_solution(temperature, hc, hs, err)
        call test%assert(0, err, trim(s) // " 100 deg C error")
        call test%assert(expected, hs, trim(s) // " 100 deg C", tol)
+
+       xs = 0.1_dp
+       expected = -180881.77711991896_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 100 deg C 0.1 salt error")
+       call test%assert(expected, hs, trim(s) // " 100 deg C 0.1 salt", tol)
+
+       xs = 0.2_dp
+       expected = -181126.5144761395_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 100 deg C 0.2 salt error")
+       call test%assert(expected, hs, trim(s) // " 100 deg C 0.2 salt", tol)
+
+       xs = 0.3_dp
+       expected = -181441.17679128022_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 100 deg C 0.3 salt error")
+       call test%assert(expected, hs, trim(s) // " 100 deg C 0.3 salt", tol)
 
        temperature = 240._dp
        expected = 242741.64505202_dp
@@ -189,6 +231,27 @@ contains
        call gas%energy_solution(temperature, hc, hs, err)
        call test%assert(0, err, trim(s) // " 300 deg C error")
        call test%assert(expected, hs, trim(s) // " 300 deg C", tol)
+
+       xs = 0.1_dp
+       expected = 241434.91186903339_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 300 deg C 0.1 salt error")
+       call test%assert(expected, hs, trim(s) // " 300 deg C 0.1 salt", tol)
+
+       xs = 0.2_dp
+       expected = 33966.95647077112_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 300 deg C 0.2 salt error")
+       call test%assert(expected, hs, trim(s) // " 300 deg C 0.2 salt", tol)
+
+       xs = 0.3_dp
+       expected = -232777.5576127092_dp
+       call gas%henrys_constant_salt(temperature, xs, hc0, hc, err)
+       call gas%energy_solution_salt(temperature, xs, hc0, hs, err)
+       call test%assert(0, err, trim(s) // " 300 deg C 0.3 salt error")
+       call test%assert(expected, hs, trim(s) // " 300 deg C 0.3 salt", tol)
 
     end if
 
