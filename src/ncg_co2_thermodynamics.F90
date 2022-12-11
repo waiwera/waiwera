@@ -134,8 +134,9 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_constant_salt(self, temperature, &
-       salt_mass_fraction, henrys_constant, err)
-    !! Henry's constant for CO2 NCG in brine.
+       salt_mass_fraction, henrys_constant_0, henrys_constant, err)
+    !! Henry's constant for CO2 NCG in brine. The value for the
+    !! zero-salt case is also returned.
 
     use utils_module, only: polynomial
     use salt_thermodynamics_module, only: salt_mole_fraction
@@ -143,17 +144,18 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
+    PetscReal, intent(out) :: henrys_constant_0 !! Henry's constant for zero salt
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscReal :: m, kb
 
     err = 0
-    call self%henrys_constant(temperature, henrys_constant, err)
+    call self%henrys_constant(temperature, henrys_constant_0, err)
     if (err == 0) then
        m = salt_mole_fraction(salt_mass_fraction)
        kb = polynomial(henry_salt_data, temperature / tscale)
-       henrys_constant = henrys_constant * 10._dp ** (m * kb)
+       henrys_constant = henrys_constant_0 * 10._dp ** (m * kb)
     end if
 
   end subroutine ncg_co2_henrys_constant_salt
@@ -183,7 +185,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_derivative_salt(self, temperature, &
-       salt_mass_fraction, henrys_constant, henrys_derivative, err)
+       salt_mass_fraction, henrys_constant_0, henrys_derivative, err)
     !! Returns derivative of natural logarithm of Henry's constant
     !! with respect to temperature, for brine with given salt mass
     !! fraction.
@@ -194,14 +196,14 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
-    PetscReal, intent(in) :: henrys_constant !! Henry's constant
+    PetscReal, intent(in) :: henrys_constant_0 !! Henry's constant for zero salt
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscReal :: m, dkb_dt
 
     err = 0
-    call self%henrys_derivative(temperature, henrys_constant, &
+    call self%henrys_derivative(temperature, henrys_constant_0, &
          henrys_derivative, err)
     if (err == 0) then
        m = salt_mole_fraction(salt_mass_fraction)

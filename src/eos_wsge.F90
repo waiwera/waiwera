@@ -629,7 +629,7 @@ contains
     ! Locals:
     PetscInt :: p, phases, region
     PetscBool :: halite
-    PetscReal :: henrys_constant
+    PetscReal :: henrys_constant_0, henrys_constant
     PetscReal :: properties(2), sl, ss, sl_effective, xg
     PetscReal :: salt_mass_fraction, phase_salt_mass_fraction
     PetscReal :: relative_permeability(2), capillary_pressure
@@ -672,10 +672,10 @@ contains
                      capillary_pressure = rock%capillary_pressure%value(sl_effective, &
                           fluid%temperature)
                      call self%gas%henrys_constant_salt(fluid%temperature, &
-                          salt_mass_fraction, henrys_constant, err)
+                          salt_mass_fraction, henrys_constant_0, henrys_constant, err)
                      if (err == 0) then
                         call self%gas%energy_solution_salt(fluid%temperature, &
-                             salt_mass_fraction, henrys_constant, energy_solution, err)
+                             salt_mass_fraction, henrys_constant_0, energy_solution, err)
                      end if
                   else
                      brine_pressure = fluid%partial_pressure(1)
