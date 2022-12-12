@@ -62,6 +62,7 @@ contains
 
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
+    self%num_constituents = 1
     call self%viscosity_table%init(viscosity_data, err)
     self%henry_derivative_data = polynomial_derivative(henry_data)
     self%henry_salt_derivative_data = polynomial_derivative(henry_salt_data)
@@ -114,7 +115,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine ncg_co2_henrys_constant(self, temperature, henrys_constant, err)
+  subroutine ncg_co2_henrys_constant(self, temperature, &
+       henrys_constant, constituent_henrys_constant, err)
     !! Henry's constant for CO2 NCG. The formulation is from
     !! Batistelli et al. (1997).
 
@@ -123,18 +125,21 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: constituent_henrys_constant( &
+         self%num_constituents) !! Constituent Henry's constants
     PetscErrorCode, intent(out) :: err !! Error code
 
+    err = 0
     henrys_constant = 1.e8_dp * polynomial(henry_data, &
          temperature / tscale)
-    err = 0
+    constituent_henrys_constant = henrys_constant
 
   end subroutine ncg_co2_henrys_constant
 
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_constant_salt(self, temperature, &
-       salt_mass_fraction, henrys_constant_0, henrys_constant, err)
+       salt_mass_fraction, henrys_constant, constituent_henrys_constant_0, err)
     !! Henry's constant for CO2 NCG in brine. The value for the
     !! zero-salt case is also returned.
 
@@ -144,18 +149,20 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
-    PetscReal, intent(out) :: henrys_constant_0 !! Henry's constant for zero salt
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: constituent_henrys_constant_0( &
+         self%num_constituents) !! Henry's constant for zero salt
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscReal :: m, kb
 
     err = 0
-    call self%henrys_constant(temperature, henrys_constant_0, err)
+    call self%henrys_constant(temperature, henrys_constant, &
+         constituent_henrys_constant_0, err)
     if (err == 0) then
        m = salt_mole_fraction(salt_mass_fraction)
        kb = polynomial(henry_salt_data, temperature / tscale)
-       henrys_constant = henrys_constant_0 * 10._dp ** (m * kb)
+       henrys_constant = henrys_constant * 10._dp ** (m * kb)
     end if
 
   end subroutine ncg_co2_henrys_constant_salt
@@ -163,7 +170,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_derivative(self, temperature, &
-       henrys_constant, henrys_derivative, err)
+       constituent_henrys_constant, henrys_derivative, &
+       constituent_henrys_derivative, err)
     !! Returns derivative of natural logarithm of Henry's constant
     !! with respect to temperature.
 
@@ -171,21 +179,28 @@ contains
 
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(in) :: henrys_constant !! Henry's constant
-    PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
+    PetscReal, intent(in) :: constituent_henrys_constant( &
+         self%num_constituents) !! Constituent Henry's constants
+    PetscReal, intent(out) :: henrys_derivative
+    PetscReal, intent(out) :: constituent_henrys_derivative( &
+         self%num_constituents)!! Constituent Henry's derivatives
     PetscErrorCode, intent(out) :: err !! Error code
 
-    henrys_derivative = 1.e8_dp * &
-         polynomial(self%henry_derivative_data, temperature / tscale) / &
-         (henrys_constant * tscale)
     err = 0
+    associate(henrys_constant => constituent_henrys_constant(1))
+      henrys_derivative = 1.e8_dp * &
+           polynomial(self%henry_derivative_data, temperature / tscale) / &
+           (henrys_constant * tscale)
+    end associate
+    constituent_henrys_derivative = henrys_derivative
 
   end subroutine ncg_co2_henrys_derivative
 
 !------------------------------------------------------------------------
 
   subroutine ncg_co2_henrys_derivative_salt(self, temperature, &
-       salt_mass_fraction, henrys_constant_0, henrys_derivative, err)
+       salt_mass_fraction, constituent_henrys_constant_0, &
+       henrys_derivative, err)
     !! Returns derivative of natural logarithm of Henry's constant
     !! with respect to temperature, for brine with given salt mass
     !! fraction.
@@ -196,20 +211,24 @@ contains
     class(ncg_co2_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
-    PetscReal, intent(in) :: henrys_constant_0 !! Henry's constant for zero salt
+    PetscReal, intent(in) :: constituent_henrys_constant_0( &
+         self%num_constituents) !! Constituent Henry's constants for zero salt
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
+    PetscReal :: henrys_derivative_0
+    PetscReal :: constituent_henrys_derivative_0(self%num_constituents)
     PetscReal :: m, dkb_dt
 
     err = 0
-    call self%henrys_derivative(temperature, henrys_constant_0, &
-         henrys_derivative, err)
+    call self%henrys_derivative(temperature, constituent_henrys_constant_0, &
+         henrys_derivative_0, constituent_henrys_derivative_0, err)
     if (err == 0) then
        m = salt_mole_fraction(salt_mass_fraction)
        dkb_dt = polynomial(self%henry_salt_derivative_data, &
             temperature / tscale) / tscale
-       henrys_derivative = henrys_derivative + log(10._dp) * m * dkb_dt
+       henrys_derivative = henrys_derivative_0 + &
+            log(10._dp) * m * dkb_dt
     end if
 
   end subroutine ncg_co2_henrys_derivative_salt

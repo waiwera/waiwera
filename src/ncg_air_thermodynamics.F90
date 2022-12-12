@@ -13,7 +13,7 @@ module ncg_air_thermodynamics_module
   PetscReal, parameter, public :: air_molecular_weight = 28.96_dp ! g/mol
   PetscReal, parameter :: enthalpy_data(4) = [&
        1.20740_dp, 9.24502_dp, 0.115984_dp, -5.63568e-4_dp]
-  PetscReal, parameter :: henry_weight(2) = [0.79_dp, 0.21_dp]
+  PetscReal, parameter :: constituent_weight(2) = [0.79_dp, 0.21_dp]
   PetscReal, parameter :: henry_p0(2) = [1.01325e5_dp, 1.e5_dp]
   PetscReal, parameter :: henry_data(2, 7) = reshape([&
        0.513726_dp, 0.26234_dp, &
@@ -24,6 +24,13 @@ module ncg_air_thermodynamics_module
        -1.21388e-1_dp, -1.54216e-1_dp, &
        1.00041e-2_dp, 1.23190e-2_dp], &
        [2, 7])
+  PetscReal, parameter :: henry_salt_data(2, 5) = reshape([&
+       0.183369_dp, 0.16218_dp, &
+       -0.236905_dp, -1.16909e-1_dp, &
+       0.242438_dp, 5.55185e-2_dp, &
+       -7.30134e-2_dp, -8.75443e-3_dp, &
+       8.58723e-3_dp, 9.91567e-4_dp], &
+       [2, 5])
   PetscReal, parameter :: tscale = 100._dp
 
   type, public, extends(ncg_thermodynamics_type) :: ncg_air_thermodynamics_type
@@ -35,7 +42,7 @@ module ncg_air_thermodynamics_module
      PetscReal :: cwat = 2.655_dp
      PetscReal :: fmix, cmix
      PetscReal :: enthalpy_shift
-     PetscReal :: henry_derivative_data(2, 6)
+     PetscReal :: henry_derivative_data(2, 6), henry_salt_derivative_data(2, 4)
    contains
      private
      procedure, public :: init => ncg_air_init
@@ -62,6 +69,7 @@ contains
 
     self%name = "Air"
     self%molecular_weight = air_molecular_weight
+    self%num_constituents = 2
 
     self%fmix = sqrt(self%fair * self%fwat)
     self%cmix = 0.5_dp * (self%cair + self%cwat)
@@ -107,7 +115,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine ncg_air_henrys_constant(self, temperature, &
-       henrys_constant, err)
+       henrys_constant, constituent_henrys_constant, err)
     !! Henry's constant for air NCG. The formulation is based on
     !! D'Amore and Truesdell (1988), Cramer (1982) and Cygan (1991).
 
@@ -116,20 +124,22 @@ contains
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: constituent_henrys_constant( &
+         self%num_constituents) !! Constituent Henry's constants
     PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscReal :: hinv(2)
 
     err = 0
-    hinv = polynomial(henry_data, temperature / tscale)
-    henrys_constant = 1.e5_dp * sum(henry_weight * henry_p0 * hinv)
+    constituent_henrys_constant = 1.e5_dp * henry_p0 * &
+         polynomial(henry_data, temperature / tscale)
+    henrys_constant = sum(constituent_weight * constituent_henrys_constant)
 
   end subroutine ncg_air_henrys_constant
 
 !------------------------------------------------------------------------
 
   subroutine ncg_air_henrys_constant_salt(self, temperature, &
-       salt_mass_fraction, henrys_constant_0, henrys_constant, err)
+       salt_mass_fraction, henrys_constant, &
+       constituent_henrys_constant_0, err)
     !! Henry's constant for air NCG in brine.
 
     use utils_module, only: polynomial
@@ -138,27 +148,31 @@ contains
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
-    PetscReal, intent(out) :: henrys_constant_0 !! Henry's constant for zero salt
     PetscReal, intent(out) :: henrys_constant !! Henry's constant
+    PetscReal, intent(out) :: constituent_henrys_constant_0( &
+         self%num_constituents) !! Constituent Henry's constants for zero salt
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    ! PetscReal :: m, kb
+    PetscReal :: henrys_constant_0
+    PetscReal :: m, kb(self%num_constituents)
 
     err = 0
-    call self%henrys_constant(temperature, henrys_constant_0, err)
-    henrys_constant = henrys_constant_0
-    ! if (err == 0) then
-    !    m = salt_mole_fraction(salt_mass_fraction)
-    !    kb = polynomial(henry_salt_data, temperature / tscale)
-    !    henrys_constant = henrys_constant * 10._dp ** (m * kb)
-    ! end if
+    call self%henrys_constant(temperature, henrys_constant_0, &
+         constituent_henrys_constant_0, err)
+    if (err == 0) then
+       m = salt_mole_fraction(salt_mass_fraction)
+       kb = polynomial(henry_salt_data, temperature / tscale)
+       henrys_constant = sum(constituent_weight * constituent_henrys_constant_0 * &
+            10._dp ** (m * kb))
+    end if
 
   end subroutine ncg_air_henrys_constant_salt
 
 !------------------------------------------------------------------------
 
   subroutine ncg_air_henrys_derivative(self, temperature, &
-       henrys_constant, henrys_derivative, err)
+       constituent_henrys_constant, henrys_derivative, &
+       constituent_henrys_derivative, err)
     !! Returns derivative of natural logarithm of Henry's constant
     !! with respect to temperature.
 
@@ -166,23 +180,28 @@ contains
 
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
-    PetscReal, intent(in) :: henrys_constant !! Henry's constant
+    PetscReal, intent(in) :: constituent_henrys_constant( &
+         self%num_constituents) !! Constituent Henry's constants
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
+    PetscReal, intent(out) :: constituent_henrys_derivative( &
+         self%num_constituents)!! Constituent Henry's derivatives
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscReal :: dhinv(2)
 
     err = 0
-    dhinv = polynomial(self%henry_derivative_data, temperature / tscale)
-    henrys_derivative = 1.e5_dp * sum(henry_weight * henry_p0 * dhinv) &
-         / (henrys_constant * tscale)
+    dhinv = 1.e5_dp * polynomial(self%henry_derivative_data, temperature / tscale)
+    constituent_henrys_derivative = henry_p0 * dhinv &
+         / (constituent_henrys_constant * tscale)
+    henrys_derivative = sum(constituent_weight * constituent_henrys_derivative)
 
   end subroutine ncg_air_henrys_derivative
 
 !------------------------------------------------------------------------
 
   subroutine ncg_air_henrys_derivative_salt(self, temperature, &
-       salt_mass_fraction, henrys_constant_0, henrys_derivative, err)
+       salt_mass_fraction, constituent_henrys_constant_0, &
+       henrys_derivative, err)
     !! Returns derivative of natural logarithm of Henry's constant
     !! with respect to temperature, for brine with given salt mass
     !! fraction.
@@ -193,21 +212,27 @@ contains
     class(ncg_air_thermodynamics_type), intent(in) :: self
     PetscReal, intent(in) :: temperature !! Temperature
     PetscReal, intent(in) :: salt_mass_fraction !! Salt mass fraction
-    PetscReal, intent(in) :: henrys_constant_0 !! Henry's constant for zero salt
+    PetscReal, intent(in) :: constituent_henrys_constant_0( &
+         self%num_constituents) !! Constituent Henry's constants for zero salt
     PetscReal, intent(out) :: henrys_derivative !! Henry's derivative
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    ! PetscReal :: m, dkb_dt
+    PetscReal :: henrys_derivative_0
+    PetscReal :: constituent_henrys_derivative_0(self%num_constituents)
+    PetscReal :: constituent_henrys_derivative(self%num_constituents)
+    PetscReal :: m, dkb_dt(self%num_constituents)
 
     err = 0
-    call self%henrys_derivative(temperature, henrys_constant_0, &
-         henrys_derivative, err)
-    ! if (err == 0) then
-    !    m = salt_mole_fraction(salt_mass_fraction)
-    !    dkb_dt = polynomial(self%henry_salt_derivative_data, &
-    !         temperature / tscale) / tscale
-    !    henrys_derivative = henrys_derivative + log(10._dp) * m * dkb_dt
-    ! end if
+    call self%henrys_derivative(temperature, constituent_henrys_constant_0, &
+         henrys_derivative_0, constituent_henrys_derivative_0, err)
+    if (err == 0) then
+       m = salt_mole_fraction(salt_mass_fraction)
+       dkb_dt = polynomial(self%henry_salt_derivative_data, &
+            temperature / tscale) / tscale
+       constituent_henrys_derivative = constituent_henrys_derivative_0 + &
+            log(10._dp) * m * dkb_dt
+       henrys_derivative = sum(constituent_weight * constituent_henrys_derivative)
+    end if
 
   end subroutine ncg_air_henrys_derivative_salt
 

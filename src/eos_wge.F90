@@ -429,7 +429,7 @@ contains
     ! Locals:
     PetscInt :: p, phases
     PetscReal :: sl, xg
-    PetscReal :: henrys_constant
+    PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
     PetscReal :: water_properties(2), water_viscosity, water_enthalpy
     PetscReal :: relative_permeability(2), capillary_pressure(2)
     PetscReal :: water_pressure(2), energy_solution(2)
@@ -455,9 +455,10 @@ contains
        if (btest(phases, 0)) then
           capillary_pressure(1) = rock%capillary_pressure%value(sl, &
                fluid%temperature)
-          call self%gas%henrys_constant(fluid%temperature, henrys_constant, err)
+          call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
+               constituent_henrys_constant, err)
           if (err == 0) then
-             call self%gas%energy_solution(fluid%temperature, henrys_constant, &
+             call self%gas%energy_solution(fluid%temperature, constituent_henrys_constant, &
                   energy_solution(1), err)
           end if
        end if
