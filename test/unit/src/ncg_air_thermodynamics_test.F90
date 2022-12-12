@@ -105,7 +105,7 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     type(ncg_air_thermodynamics_type) :: gas
-    PetscReal :: temperature, expected, hc
+    PetscReal :: temperature, expected, hc, chc(2)
     PetscErrorCode :: err
     character(33) :: s = "Air Henry constant, temperature"
     PetscMPIInt :: rank
@@ -119,31 +119,31 @@ contains
 
        temperature = 20._dp
        expected = 7.26786761e+09_dp
-       call gas%henrys_constant(temperature, hc, err)
+       call gas%henrys_constant(temperature, hc, chc, err)
        call test%assert(0, err, trim(s) // " 20 deg C error")
        call test%assert(expected, hc, trim(s) // " 20 deg C")
 
        temperature = 100._dp
        expected = 1.12393541e+10_dp
-       call gas%henrys_constant(temperature, hc, err)
+       call gas%henrys_constant(temperature, hc, chc, err)
        call test%assert(0, err, trim(s) // " 100 deg C error")
        call test%assert(expected, hc, trim(s) // " 100 deg C")
 
        temperature = 240._dp
        expected = 3.95721621e+09_dp
-       call gas%henrys_constant(temperature, hc, err)
+       call gas%henrys_constant(temperature, hc, chc, err)
        call test%assert(0, err, trim(s) // " 240 deg C error")
        call test%assert(expected, hc, trim(s) // " 240 deg C")
 
        temperature = 300._dp
        expected = 1.90169063e+09_dp
-       call gas%henrys_constant(temperature, hc, err)
+       call gas%henrys_constant(temperature, hc, chc, err)
        call test%assert(0, err, trim(s) // " 300 deg C error")
        call test%assert(expected, hc, trim(s) // " 300 deg C")
 
        temperature = 350._dp
        expected = 6.10714550e+08_dp
-       call gas%henrys_constant(temperature, hc, err)
+       call gas%henrys_constant(temperature, hc, chc, err)
        call test%assert(0, err, trim(s) // " 300 deg C error")
        call test%assert(expected, hc, trim(s) // " 300 deg C")
 
@@ -159,7 +159,7 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     type(ncg_air_thermodynamics_type) :: gas
-    PetscReal :: temperature, expected, hs, hc
+    PetscReal :: temperature, expected, hs, hc, chc(2)
     PetscErrorCode :: err
     character(35) :: s = "Air energy of solution, temperature"
     PetscMPIInt :: rank
@@ -172,37 +172,37 @@ contains
     if (rank == 0) then
 
        temperature = 20._dp
-       expected = -400992.95145511_dp
-       call gas%henrys_constant(temperature, hc, err)
-       call gas%energy_solution(temperature, hc, hs, err)
+       expected = -406930.12_dp
+       call gas%henrys_constant(temperature, hc, chc, err)
+       call gas%energy_solution(temperature, chc, hs, err)
        call test%assert(0, err, trim(s) // " 20 deg C error")
        call test%assert(expected, hs, trim(s) // " 20 deg C")
 
        temperature = 100._dp
-       expected = 58149.1888649_dp
-       call gas%henrys_constant(temperature, hc, err)
-       call gas%energy_solution(temperature, hc, hs, err)
+       expected = 53825.89_dp
+       call gas%henrys_constant(temperature, hc, chc, err)
+       call gas%energy_solution(temperature, chc, hs, err)
        call test%assert(0, err, trim(s) // " 100 deg C error")
        call test%assert(expected, hs, trim(s) // " 100 deg C")
 
        temperature = 240._dp
-       expected = 845139.95259237_dp
-       call gas%henrys_constant(temperature, hc, err)
-       call gas%energy_solution(temperature, hc, hs, err)
+       expected = 850547.65_dp
+       call gas%henrys_constant(temperature, hc, chc, err)
+       call gas%energy_solution(temperature, chc, hs, err)
        call test%assert(0, err, trim(s) // " 240 deg C error")
        call test%assert(expected, hs, trim(s) // " 240 deg C")
 
        temperature = 300._dp
-       expected = 1358812.70708159_dp
-       call gas%henrys_constant(temperature, hc, err)
-       call gas%energy_solution(temperature, hc, hs, err)
+       expected = 1378067.69_dp
+       call gas%henrys_constant(temperature, hc, chc, err)
+       call gas%energy_solution(temperature, chc, hs, err)
        call test%assert(0, err, trim(s) // " 300 deg C error")
        call test%assert(expected, hs, trim(s) // " 300 deg C")
 
        temperature = 350._dp
-       expected = 4390404.09402286_dp
-       call gas%henrys_constant(temperature, hc, err)
-       call gas%energy_solution(temperature, hc, hs, err)
+       expected = 4498309.62_dp
+       call gas%henrys_constant(temperature, hc, chc, err)
+       call gas%energy_solution(temperature, chc, hs, err)
        call test%assert(0, err, trim(s) // " 350 deg C error")
        call test%assert(expected, hs, trim(s) // " 350 deg C")
 
