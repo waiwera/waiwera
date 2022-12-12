@@ -81,6 +81,7 @@ contains
     end associate
 
     self%henry_derivative_data = polynomial_derivative(henry_data)
+    self%henry_salt_derivative_data = polynomial_derivative(henry_salt_data)
 
   end subroutine ncg_air_init
 
