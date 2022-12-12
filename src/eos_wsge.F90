@@ -102,6 +102,11 @@ contains
     self%num_components = 3
     self%component_names = ["water", "salt ", "gas  "]
 
+    ! Mixture regions above 4 have halite present:
+    self%water_region = [1, 2, 0, 4, 1, 2, 0, 4]
+    self%halite = [PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, PETSC_FALSE, &
+         PETSC_TRUE, PETSC_TRUE, PETSC_FALSE, PETSC_TRUE]
+
     self%default_primary = [default_pressure, default_temperature, &
          default_salt_mass_fraction, default_gas_partial_pressure]
     self%default_region = 1
