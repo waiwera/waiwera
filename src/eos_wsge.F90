@@ -510,7 +510,7 @@ contains
      end associate
     else  ! Single-phase
        associate (pressure => primary(1), temperature => primary(2), &
-            partial_pressure => primary(3))
+            partial_pressure => primary(4))
 
          if (old_halite) then
             call halite_solubility(temperature, salt_mass_fraction, err)
