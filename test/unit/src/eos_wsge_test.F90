@@ -15,14 +15,16 @@ module eos_wsge_test_module
   use IAPWS_module
   use fson
   use fson_mpi_module
+  use eos_wse_module
   use eos_wsge_module
+  use eos_wsce_module
   use unit_test_utils_module, only: transition_compare
 
   implicit none
   private
 
   public :: setup, teardown, setup_test
-  public :: test_eos_wsge_transition
+  public :: test_eos_wsge_fluid_properties, test_eos_wsge_transition
 
 contains
 
@@ -59,6 +61,154 @@ contains
     test%tolerance = 1.e-9
 
   end subroutine setup_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_wsge_fluid_properties(test)
+
+    ! eos_wsge fluid_properties() test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fluid_type) :: fluid_wse, fluid_wsce
+    type(rock_type) :: rock
+    PetscInt,  parameter :: offset = 1, region = 8, phase_composition = b'011'
+    PetscReal, pointer, contiguous :: fluid_data_wse(:), fluid_data_wsce(:)
+    PetscReal, allocatable:: primary_wse(:), primary2_wse(:)
+    PetscReal, allocatable:: primary_wsce(:), primary2_wsce(:)
+    type(eos_wse_type) :: eos_wse
+    type(eos_wsce_type) :: eos_wsce
+    type(IAPWS_type) :: thermo
+    class(relative_permeability_type), allocatable :: rp
+    class(capillary_pressure_type), allocatable :: cp
+    type(fson_value), pointer :: json
+    character(120) :: json_str = &
+         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.35, 1.0], "vapour": [0.0, 0.7]}}}'
+    PetscErrorCode :: err
+    PetscReal, parameter :: pressure = 33.7726e5_dp
+    PetscReal, parameter :: temperature = 261.8535057357576_dp
+    PetscReal, parameter :: vapour_saturation = 0.375914_dp
+    PetscReal, parameter :: solid_saturation = 0.321895_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos_wse%init(json, thermo)
+    call eos_wsce%init(json, thermo)
+    call setup_relative_permeabilities(json, rp)
+    call setup_capillary_pressures(json, cp)
+
+    call fluid_wse%init(eos_wse%num_components, eos_wse%num_phases)
+    call fluid_wsce%init(eos_wsce%num_components, eos_wsce%num_phases)
+    call rock%init()
+    allocate(primary_wse(eos_wse%num_primary_variables), &
+         primary2_wse(eos_wse%num_primary_variables))
+    allocate(primary_wsce(eos_wsce%num_primary_variables), &
+         primary2_wsce(eos_wsce%num_primary_variables))
+    allocate(fluid_data_wse(fluid_wse%dof))
+    allocate(fluid_data_wsce(fluid_wsce%dof))
+    fluid_data_wse = 0._dp
+    fluid_data_wsce = 0._dp
+    call fluid_wse%assign(fluid_data_wse, offset)
+    call fluid_wsce%assign(fluid_data_wsce, offset)
+
+    call rock%assign_relative_permeability(rp)
+    call rock%assign_capillary_pressure(cp)
+
+    ! Check consistency between wse and wsce with zero CO2:
+    primary_wse = [pressure, vapour_saturation, solid_saturation]
+    primary_wsce = [pressure, vapour_saturation, solid_saturation, 0._dp]
+
+    fluid_wse%region = dble(region)
+    fluid_wsce%region = dble(region)
+    call eos_wse%bulk_properties(primary_wse, fluid_wse, err)
+    call eos_wse%phase_composition(fluid_wse, err)
+    call eos_wse%phase_properties(primary_wse, rock, fluid_wse, err)
+    call eos_wse%primary_variables(fluid_wse, primary2_wse)
+    call eos_wsce%bulk_properties(primary_wsce, fluid_wsce, err)
+    call eos_wsce%phase_composition(fluid_wsce, err)
+    call eos_wsce%phase_properties(primary_wsce, rock, fluid_wsce, err)
+    call eos_wsce%primary_variables(fluid_wsce, primary2_wsce)
+
+    if (rank == 0) then
+
+       call test%assert(fluid_wse%pressure, fluid_wsce%pressure, "Pressure")
+       call test%assert(fluid_wse%temperature, fluid_wsce%temperature, "Temperature")
+       call test%assert(nint(fluid_wse%phase_composition), &
+            nint(fluid_wsce%phase_composition), "Phase composition")
+
+       call test%assert(fluid_wse%phase(1)%density, fluid_wsce%phase(1)%density, &
+            "Liquid density")
+       call test%assert(fluid_wse%phase(1)%internal_energy, &
+            fluid_wsce%phase(1)%internal_energy, "Liquid internal energy")
+       call test%assert(fluid_wse%phase(1)%viscosity, fluid_wsce%phase(1)%viscosity, &
+            "Liquid viscosity")
+       call test%assert(fluid_wse%phase(1)%saturation, &
+            fluid_wsce%phase(1)%saturation, "Liquid saturation")
+       call test%assert(fluid_wse%phase(1)%relative_permeability, &
+            fluid_wsce%phase(1)%relative_permeability, &
+            "Liquid relative permeability")
+       call test%assert(fluid_wse%phase(1)%capillary_pressure, &
+            fluid_wsce%phase(1)%capillary_pressure, &
+            "Liquid capillary pressure")
+       call test%assert(fluid_wse%phase(1)%mass_fraction(1), &
+            fluid_wsce%phase(1)%mass_fraction(1), "Liquid water mass fraction")
+       call test%assert(fluid_wse%phase(1)%mass_fraction(2), &
+            fluid_wsce%phase(1)%mass_fraction(2), "Liquid salt mass fraction")
+
+       call test%assert(fluid_wse%phase(2)%density, fluid_wsce%phase(2)%density, &
+            "Vapour density")
+       call test%assert(fluid_wse%phase(2)%internal_energy, &
+            fluid_wsce%phase(2)%internal_energy, "Vapour internal energy")
+       ! (Vapour viscosity is calculated differently with NCG present)
+       call test%assert(fluid_wse%phase(2)%saturation, fluid_wsce%phase(2)%saturation, &
+            "Vapour saturation")
+       call test%assert(fluid_wse%phase(2)%relative_permeability, &
+            fluid_wsce%phase(2)%relative_permeability, &
+            "Vapour relative permeability")
+       call test%assert(fluid_wse%phase(2)%capillary_pressure, &
+            fluid_wsce%phase(2)%capillary_pressure, &
+            "Vapour capillary pressure")
+       call test%assert(fluid_wse%phase(2)%mass_fraction(1), &
+            fluid_wsce%phase(2)%mass_fraction(1), &
+            "Vapour water mass fraction")
+       call test%assert(fluid_wse%phase(2)%mass_fraction(2), &
+            fluid_wsce%phase(2)%mass_fraction(2), &
+            "Vapour salt mass fraction")
+
+       call test%assert(fluid_wse%phase(3)%saturation, fluid_wsce%phase(3)%saturation, &
+            "Solid saturation")
+       call test%assert(fluid_wse%phase(3)%density, fluid_wsce%phase(3)%density, &
+            "Solid density")
+       call test%assert(fluid_wse%phase(3)%internal_energy, &
+            fluid_wsce%phase(3)%internal_energy, "Solid internal energy")
+       call test%assert(fluid_wse%phase(3)%mass_fraction(1), &
+            fluid_wsce%phase(3)%mass_fraction(1), &
+            "Solid water mass fraction")
+       call test%assert(fluid_wse%phase(3)%mass_fraction(2), &
+            fluid_wsce%phase(3)%mass_fraction(2), &
+            "Solid salt mass fraction")
+
+       call test%assert(primary2_wse, primary2_wsce(1:3), "Primary")
+
+    end if
+
+    call fluid_wse%destroy()
+    call fluid_wsce%destroy()
+    call rock%destroy()
+    deallocate(primary_wse, primary2_wse, fluid_data_wse)
+    deallocate(primary_wsce, primary2_wsce, fluid_data_wsce)
+    call eos_wse%destroy()
+    call eos_wsce%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(rp)
+    deallocate(cp)
+
+  end subroutine test_eos_wsge_fluid_properties
 
 !------------------------------------------------------------------------
 
