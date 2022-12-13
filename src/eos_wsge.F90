@@ -719,22 +719,25 @@ contains
                                   phase%density, b_viscosity)
                           end if
 
-                          call self%gas%mixture_viscosity(b_viscosity, &
-                               fluid%temperature, fluid%partial_pressure(3), xg, p, &
-                               phase%viscosity, err)
-
                           if (err == 0) then
-                             phase%density = brine_density + gas_density
-                             phase%mass_fraction = [1._dp - phase_salt_mass_fraction - xg, &
-                                  phase_salt_mass_fraction, xg]
-                             phase%relative_permeability = relative_permeability(p)
-                             phase%capillary_pressure =  capillary_pressure
-                             b_enthalpy = brine_internal_energy &
-                                  + brine_pressure / brine_density
-                             phase%specific_enthalpy = b_enthalpy * (1._dp - xg) &
-                                  + (gas_enthalpy + energy_solution) * xg
-                             phase%internal_energy = phase%specific_enthalpy &
-                                  - fluid%pressure / phase%density
+                             call self%gas%mixture_viscosity(b_viscosity, &
+                                  fluid%temperature, fluid%partial_pressure(3), xg, p, &
+                                  phase%viscosity, err)
+                             if (err == 0) then
+                                phase%density = brine_density + gas_density
+                                phase%mass_fraction = [1._dp - phase_salt_mass_fraction - xg, &
+                                     phase_salt_mass_fraction, xg]
+                                phase%relative_permeability = relative_permeability(p)
+                                phase%capillary_pressure =  capillary_pressure
+                                b_enthalpy = brine_internal_energy &
+                                     + brine_pressure / brine_density
+                                phase%specific_enthalpy = b_enthalpy * (1._dp - xg) &
+                                     + (gas_enthalpy + energy_solution) * xg
+                                phase%internal_energy = phase%specific_enthalpy &
+                                     - fluid%pressure / phase%density
+                             else
+                                exit
+                             end if
                           else
                              exit
                           end if
