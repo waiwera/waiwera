@@ -764,20 +764,28 @@ contains
 
           if (err == 0) then
              associate(solid_phase => fluid%phase(3))
-
-               call halite_properties(fluid%pressure, fluid%temperature, &
-                    properties, err)
-               if (err == 0) then
-                  solid_phase%density = properties(1)
-                  solid_phase%internal_energy = properties(2)
-                  solid_phase%specific_enthalpy = solid_phase%internal_energy + &
-                       fluid%pressure / solid_phase%density
+               if (halite) then
+                  call halite_properties(fluid%pressure, fluid%temperature, &
+                       properties, err)
+                  if (err == 0) then
+                     solid_phase%density = properties(1)
+                     solid_phase%internal_energy = properties(2)
+                     solid_phase%specific_enthalpy = solid_phase%internal_energy + &
+                          fluid%pressure / solid_phase%density
+                     solid_phase%relative_permeability = 0._dp
+                     solid_phase%capillary_pressure = 0._dp
+                     solid_phase%viscosity = 0._dp
+                     solid_phase%mass_fraction = [0._dp, 1._dp, 0._dp]
+                  end if
+               else
+                  solid_phase%density = 0._dp
+                  solid_phase%internal_energy = 0._dp
+                  solid_phase%specific_enthalpy = 0._dp
                   solid_phase%relative_permeability = 0._dp
                   solid_phase%capillary_pressure = 0._dp
                   solid_phase%viscosity = 0._dp
-                  solid_phase%mass_fraction = [0._dp, 1._dp, 0._dp]
+                  solid_phase%mass_fraction = 0._dp
                end if
-
              end associate
           end if
 
