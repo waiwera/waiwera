@@ -431,8 +431,8 @@ contains
     PetscReal :: sl, xg
     PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
     PetscReal :: water_properties(2), water_viscosity, water_enthalpy
-    PetscReal :: relative_permeability(2), capillary_pressure(2)
-    PetscReal :: water_pressure(2), energy_solution(2)
+    PetscReal :: relative_permeability(2), capillary_pressure
+    PetscReal :: water_pressure, energy_solution
     PetscReal :: gas_properties(2), effective_gas_properties(2)
 
     err = 0
@@ -440,37 +440,37 @@ contains
 
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
-    capillary_pressure = 0._dp
-    henrys_constant = 0._dp
-    energy_solution = 0._dp
 
     call self%gas%properties(fluid%partial_pressure(2), fluid%temperature, &
          gas_properties, err)
 
     if (err == 0) then
 
-       ! effective water pressure in each phase:
-       water_pressure = [fluid%pressure, fluid%partial_pressure(1)]
+       do p = 1, self%num_phases
+          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
 
-       if (btest(phases, 0)) then
-          capillary_pressure(1) = rock%capillary_pressure%value(sl, &
-               fluid%temperature)
-          call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
-               constituent_henrys_constant, err)
-          if (err == 0) then
-             call self%gas%energy_solution(fluid%temperature, constituent_henrys_constant, &
-                  energy_solution(1), err)
-          end if
-       end if
+            if (btest(phases, p - 1)) then
 
-       if (err == 0) then
+               if (p == 1) then
+                  water_pressure = fluid%pressure
+                  capillary_pressure = rock%capillary_pressure%value(sl, &
+                       fluid%temperature)
+                  call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
+                       constituent_henrys_constant, err)
+                  if (err == 0) then
+                     call self%gas%energy_solution(fluid%temperature, &
+                          constituent_henrys_constant, energy_solution, err)
+                  end if
+               else
+                  water_pressure = fluid%partial_pressure(1)
+                  capillary_pressure = 0._dp
+                  henrys_constant = 0._dp
+                  energy_solution = 0._dp
+               end if
 
-          do p = 1, self%num_phases
-             associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
+               if (err == 0) then
 
-               if (btest(phases, p - 1)) then
-
-                  call region%properties([water_pressure(p), fluid%temperature], &
+                  call region%properties([water_pressure, fluid%temperature], &
                        water_properties, err)
 
                   if (err == 0) then
@@ -499,11 +499,11 @@ contains
                              phase%density = water_density + gas_density
                              phase%mass_fraction = [1._dp - xg, xg]
                              phase%relative_permeability = relative_permeability(p)
-                             phase%capillary_pressure =  capillary_pressure(p)
+                             phase%capillary_pressure =  capillary_pressure
                              water_enthalpy = water_internal_energy &
-                                  + water_pressure(p) / water_density
+                                  + water_pressure / water_density
                              phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
-                                  + (gas_enthalpy + energy_solution(p)) * xg
+                                  + (gas_enthalpy + energy_solution) * xg
                              phase%internal_energy = phase%specific_enthalpy &
                                   - fluid%pressure / phase%density
                           else
@@ -517,20 +517,22 @@ contains
                   else
                      exit
                   end if
-
                else
-                  phase%density = 0._dp
-                  phase%internal_energy = 0._dp
-                  phase%specific_enthalpy = 0._dp
-                  phase%relative_permeability = 0._dp
-                  phase%capillary_pressure = 0._dp
-                  phase%viscosity = 0._dp
-                  phase%mass_fraction = 0._dp
+                  exit
                end if
 
-             end associate
-          end do
-       end if
+            else
+               phase%density = 0._dp
+               phase%internal_energy = 0._dp
+               phase%specific_enthalpy = 0._dp
+               phase%relative_permeability = 0._dp
+               phase%capillary_pressure = 0._dp
+               phase%viscosity = 0._dp
+               phase%mass_fraction = 0._dp
+            end if
+
+          end associate
+       end do
 
     end if
 
