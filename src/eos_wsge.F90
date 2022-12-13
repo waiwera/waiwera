@@ -795,7 +795,7 @@ contains
     if (halite) then
        primary(3) = fluid%phase(3)%saturation
     else
-       primary(3) = fluid%component_mass_fraction(2)
+       primary(3) = fluid%phase(1)%mass_fraction(2)
     end if
 
     primary(4) = fluid%partial_pressure(3)
