@@ -44,7 +44,6 @@ module eos_wsge_module
      procedure, public :: transition_to_single_phase => eos_wsge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wsge_transition_to_two_phase
      procedure, public :: halite_transition => eos_wsge_halite_transition
-     procedure, public :: phase_composition => eos_wsge_phase_composition
      procedure, public :: bulk_properties => eos_wsge_bulk_properties
      procedure, public :: phase_properties => eos_wsge_phase_properties
      procedure, public :: primary_variables => eos_wsge_primary_variables
@@ -542,31 +541,6 @@ contains
     end if
 
   end subroutine eos_wsge_transition
-
-!------------------------------------------------------------------------
-
-  subroutine eos_wsge_phase_composition(self, fluid, err)
-    !! Determines fluid phase composition from bulk properties and
-    !! thermodynamic region for non-isothermal water/salt and NCG.
-
-    class(eos_wsge_type), intent(in out) :: self
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: region, water_region, phases
-
-    region = nint(fluid%region)
-    water_region = self%water_region(region)
-    phases = self%thermo%phase_composition(water_region, &
-         fluid%partial_pressure(1), fluid%temperature)
-    if (phases > 0) then
-       fluid%phase_composition = dble(phases)
-       err = 0
-    else
-       err = 1
-    end if
-
-  end subroutine eos_wsge_phase_composition
 
 !------------------------------------------------------------------------
 
