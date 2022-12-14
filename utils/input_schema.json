@@ -104,7 +104,9 @@
                                     "we", "WE",
                                     "wce", "WCE",
                                     "wae", "WAE",
-                                    "wse", "WSE"]},
+                                    "wse", "WSE",
+                                    "wsae", "WSAE",
+                                    "wsce", "WSCE"]},
                           {"type": "object",
                            "properties": {
                                "name": {"type": "string",
@@ -112,7 +114,9 @@
                                                  "we", "WE",
                                                  "wce", "WCE",
                                                  "wae", "WAE",
-                                                 "wse", "WSE"]},
+                                                 "wse", "WSE",
+                                                 "wsae", "WSAE",
+                                                 "wsce", "WSCE"]},
                                "permeability_modifier": {"type": "object",
                                                          "properties": {
                                                              "type": {"type": "string",
