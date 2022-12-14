@@ -79,7 +79,7 @@ field_scale = {"Pressure": 1.e5}
 field_unit = {"Pressure": "bar", "Temperature": "$^{\circ}$C"}
 
 sat_tol = 0.05
-field_tols = {"Pressure": 0.01, "Temperature": 0.02, "Liquid saturation": sat_tol,
+field_tols = {"Pressure": 0.01, "Temperature": 0.025, "Liquid saturation": sat_tol,
              "Vapour saturation": sat_tol, "Solid saturation": sat_tol,
              "Liquid salt mass fraction": 0.01}
 
