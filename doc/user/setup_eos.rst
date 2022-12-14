@@ -84,7 +84,7 @@ Note that all input and output thermodynamic variables are in their usual dimens
 Permeability modification
 =========================
 
-For some equations of state, the fluid state can change the effective local permeability. For example, when the :ref:`water_salt_eos` are used, a solid halite phase can be present when salt precipitates out of solution.
+For some equations of state, the fluid state can change the effective local permeability. For example, when the :ref:`water_salt_eos` is used, a solid halite phase can be present when salt precipitates out of solution.
 
 This effect can be represented using the **"eos.permeability_modifier"** value. This object a **"type"** string value which determines how the permeability is reduced as the effective porosity decreases. Its possible values are "none", "power" and "verma-pruess".
 
@@ -281,6 +281,7 @@ Water, air and energy ("wae")
 +-------------------------------+-------------------------------------------------------------------------+
 
 .. index:: equation of state (EOS); water / air / carbon dioxide ("wce")
+.. _water_CO2_energy_eos:
 
 Water, carbon dioxide and energy ("wce")
 ----------------------------------------
@@ -309,18 +310,18 @@ Water, carbon dioxide and energy ("wce")
        
 .. _water_salt_eos:
 
-Water / salt EOS modules
-========================
+Water / salt EOS module
+=======================
 
-These EOS modules simulate mixtures of water and salt (NaCl), i.e. brine, together with energy. They work in much the same way as the water / energy EOS ("we") apart from modifications to the fluid properties resulting from the presence of salt. The main thermodynamic properties (e.g. density and internal energy) of brine are calculated using the formulation of [Driesner]_.
+This EOS module simulates mixtures of water and salt (NaCl), i.e. brine, together with energy. It works in much the same way as the :ref:`water_energy_eos` EOS apart from modifications to the fluid properties resulting from the presence of salt. The main thermodynamic properties (e.g. density and internal energy) of brine are calculated using the formulation of [Driesner]_.
 
 Salt can be present in dissolved form in the liquid phase, under either single-phase liquid or two-phase conditions. It is assumed there is no salt present in the vapour phase.
 
 Salt in the liquid phase may be present in concentrations up to a limit defined by the solubility of salt in water. This is temperature-dependent but under typical conditions the maximum salt mass fraction is approximately 0.3. At higher concentrations the salt will precipitate out into solid-phase salt (halite). Hence, the salt EOS modules have a "solid" phase as well as the liquid and vapour phases. This solid phase is not considered mobile, and is omitted from flux calculations across mesh faces. However, when solid halite is present it does reduce the pore space available for brine. It can also optionally reduce the effective permeability (see :ref:`fluid_permeability_modification`).
 
-The primary variables for these EOS modules are as for the water / energy EOS, but with an added third variable for salt. This variable represents salt mass fraction (in the liquid phase), unless there is solid-phase halite present, in which case it switches to the solid-phase saturation, i.e. the volume fraction of halite.
+The primary variables for this EOS module are as for the water / energy EOS, but with an added third variable for salt. This variable represents salt mass fraction (in the liquid phase), unless there is solid-phase halite present, in which case it switches to the solid-phase saturation, i.e. the volume fraction of halite.
 
-For the water/salt EOS modules, the thermodynamic "region" has an expanded meaning to differentiate between fluid with and without solid-phase halite present. When halite is not present, the region has the same meaning as for pure water (see :ref:`thermodynamic_regions`). However when halite is present the region is incremented by 4:
+For the water/salt EOS module, the thermodynamic "region" has an expanded meaning to differentiate between fluid with and without solid-phase halite present. When halite is not present, the region has the same meaning as for pure water (see :ref:`thermodynamic_regions`). However when halite is present the region is incremented by 4:
 
 +------+----------+
 |Region|Conditions|
@@ -364,8 +365,8 @@ Water, salt and energy ("wse")
 |**primary variable names**:    |**single-phase, no halite**: ["pressure", "temperature",                 |
 |                               |"salt_mass_fraction"]                                                    |
 |                               +-------------------------------------------------------------------------+
-|                               |**two-phase, no halite**: ["pressure", "vapour_saturation", "salt mass   |
-|                               |fraction"]                                                               |
+|                               |**two-phase, no halite**: ["pressure", "vapour_saturation",              |
+|                               |"salt_mass_fraction"]                                                    |
 |                               +-------------------------------------------------------------------------+
 |                               |**single-phase, halite**: ["pressure", "temperature", "solid_saturation"]|
 |                               |                                                                         |
@@ -382,4 +383,85 @@ Water, salt and energy ("wse")
 +-------------------------------+-------------------------------------------------------------------------+
 |**default output fluid         |["pressure", "temperature", "region", "vapour_saturation",               |
 |fields**:                      |"liquid_salt_mass_fraction", "solid_saturation"]                         |
++-------------------------------+-------------------------------------------------------------------------+
+
+.. _water_salt_ncg_eos:
+
+Water / salt / NCG EOS modules
+==============================
+
+These EOS modules simulate mixtures of water and salt (NaCl), i.e. brine, together with non-condensible gases (NCGs) and energy. They are essentially a cross between the :ref:`water_salt_eos` and the :ref:`water_ncg_eos`, using the same formulations for salt and NCG thermodynamics. In addition, the "salting out" effect of salt concentration on the dissolution of NCG into the liquid phase is simulated.
+
+The primary variables for these EOS modules are as for the water / salt EOS, but with an added fourth variable for NCG partial pressure.
+
+.. index:: equation of state (EOS); water / salt / air / energy ("wsae")
+.. _water_salt_air_energy_eos:
+
+Water, salt, air and energy ("wsae")
+------------------------------------
+
++-------------------------------+-------------------------------------------------------------------------+
+|**abbreviated name**:          |"wsae"                                                                   |
++-------------------------------+-------------------------------------------------------------------------+
+|**component names**:           |["water", "salt", "air", "energy"]                                       |
++-------------------------------+-------------------------------------------------------------------------+
+|**phase names**:               |["liquid", "vapour", "solid"]                                            |
++-------------------------------+-------------------------------------------------------------------------+
+|**primary variable names**:    |**single-phase, no halite**: ["pressure", "temperature",                 |
+|                               |"salt_mass_fraction", "air_partial_pressure"]                            |
+|                               +-------------------------------------------------------------------------+
+|                               |**two-phase, no halite**: ["pressure", "vapour_saturation",              |
+|                               |"salt_mass_fraction", "air_partial_pressure"]                            |
+|                               +-------------------------------------------------------------------------+
+|                               |**single-phase, halite**: ["pressure", "temperature", "solid_saturation",|
+|                               |"air_partial_pressure"]                                                  |
+|                               +-------------------------------------------------------------------------+
+|                               |**two-phase, halite**: ["pressure", "vapour_saturation",                 |
+|                               |"solid_saturation", "air_partial_pressure"]                              |
++-------------------------------+-------------------------------------------------------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0, 0 Pa]                       |
++-------------------------------+-------------------------------------------------------------------------+
+|**default region**:            |1 (liquid)                                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100,                                    |
+|                               |"salt_mass_fraction/solid_saturation": 1, "partial_pressure": "pressure"}|
++-------------------------------+-------------------------------------------------------------------------+
+|**default output fluid         |["pressure", "temperature", "region", "air_partial_pressure",            |
+|fields**:                      |"vapour_saturation", "liquid_salt_mass_fraction", "solid_saturation"]    |
++-------------------------------+-------------------------------------------------------------------------+
+
+.. index:: equation of state (EOS); water / salt / carbon dioxide / energy ("wsce")
+.. _water_salt_CO2_energy_eos:
+
+Water, salt, carbon dioxide and energy ("wsce")
+-----------------------------------------------
+
++-------------------------------+-------------------------------------------------------------------------+
+|**abbreviated name**:          |"wsce"                                                                   |
++-------------------------------+-------------------------------------------------------------------------+
+|**component names**:           |["water", "salt", "CO2", "energy"]                                       |
++-------------------------------+-------------------------------------------------------------------------+
+|**phase names**:               |["liquid", "vapour", "solid"]                                            |
++-------------------------------+-------------------------------------------------------------------------+
+|**primary variable names**:    |**single-phase, no halite**: ["pressure", "temperature",                 |
+|                               |"salt_mass_fraction", "CO2_partial_pressure"]                            |
+|                               +-------------------------------------------------------------------------+
+|                               |**two-phase, no halite**: ["pressure", "vapour_saturation",              |
+|                               |"salt_mass_fraction", "CO2_partial_pressure"]                            |
+|                               +-------------------------------------------------------------------------+
+|                               |**single-phase, halite**: ["pressure", "temperature", "solid_saturation",|
+|                               |"CO2_partial_pressure"]                                                  |
+|                               +-------------------------------------------------------------------------+
+|                               |**two-phase, halite**: ["pressure", "vapour_saturation",                 |
+|                               |"solid_saturation", "CO2_partial_pressure"]                              |
++-------------------------------+-------------------------------------------------------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0, 0 Pa]                       |
++-------------------------------+-------------------------------------------------------------------------+
+|**default region**:            |1 (liquid)                                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100,                                    |
+|                               |"salt_mass_fraction/solid_saturation": 1, "partial_pressure": "pressure"}|
++-------------------------------+-------------------------------------------------------------------------+
+|**default output fluid         |["pressure", "temperature", "region", "CO2_partial_pressure",            |
+|fields**:                      |"vapour_saturation", "liquid_salt_mass_fraction", "solid_saturation"]    |
 +-------------------------------+-------------------------------------------------------------------------+
