@@ -1,0 +1,6 @@
+run/*
+!run/gsalt_co2_column.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc
