@@ -690,7 +690,7 @@ contains
                                   phase_salt_mass_fraction, self%thermo, b_viscosity, err)
                           else
                              call region%viscosity(fluid%temperature, fluid%pressure, &
-                                  phase%density, b_viscosity)
+                                  brine_density, b_viscosity)
                           end if
 
                           if (err == 0) then
