@@ -136,7 +136,7 @@ The appropriate number of processes depends on how many are available, and on th
 
 This is because the processes need to communicate with each other, e.g. to communicate values at cells on the edges of the mesh partitions (see :ref:`mesh_partitioning`). There is a cost involved with this communication, which rises as the number of processes is increased. Eventually, if too many processes are used, the communication costs start to outweigh the benefits of increased parallelisation.
 
-These considerations apply to most MPI programs. The `PETSc documentation <https://www.mcs.anl.gov/petsc/petsc-dev/docs/faq.html>`_ recommends that there should be an absolute minimum of 10,000 unknowns per process for good parallel performance, with at least 20,000 unknowns per process being preferable.
+These considerations apply to most MPI programs. The `PETSc documentation <https://petsc.org/release/faq/>`_ recommends that there should be an absolute minimum of 10,000 unknowns per process for good parallel performance, with at least 20,000 unknowns per process being preferable.
 
 For Waiwera the number of unknowns per process is equal to the number of cells on each process multiplied by the number of unknowns per cell. The cells are usually divided approximately evenly between the processes, so the number of cells per process is approximately the total number of cells divided by the number of processes. The number of unknowns per cell depends on the :ref:`eos` module being used.
 
@@ -167,7 +167,7 @@ again runs Waiwera in parallel on 16 processes, but also displays PETSc profilin
 
    waiwera-dkr -np 16 model.json -log_view
 
-More information about specific PETSc command line parameters can be found in the `PETSc <https://www.mcs.anl.gov/petsc/>`_ documentation.
+More information about specific PETSc command line parameters can be found in the `PETSc <https://petsc.org/>`_ documentation.
 
 Run-time console output
 =======================

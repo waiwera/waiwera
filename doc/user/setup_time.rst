@@ -7,7 +7,7 @@ Time stepping
 
 Waiwera solves for the :ref:`time_evolution` of the system being simulated using a numerical time-stepping method. Time is discretised, proceeding from the simulation start time to its end time in steps.
 
-At each time step, the time-stepping method results in a system of non-linear equations to be solved, using the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "SNES" iterative non-linear solver (see :ref:`nonlinear_equations`). This in turn leads to a sequence of systems of linear equations to be solved at each non-linear solver iteration, using the PETSc "KSP" linear solvers.
+At each time step, the time-stepping method results in a system of non-linear equations to be solved, using the `PETSc <https://petsc.org/>`_ "SNES" iterative non-linear solver (see :ref:`nonlinear_equations`). This in turn leads to a sequence of systems of linear equations to be solved at each non-linear solver iteration, using the PETSc "KSP" linear solvers.
 
 All time-related parameters are specified in the Waiwera JSON input file via the **"time"** value, which is an object.
 
@@ -347,7 +347,7 @@ sets up a steady-state simulation using adaptive time-stepping, with a starting 
 Solution of non-linear equations
 ================================
 
-At each time step the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "SNES" non-linear solver (with Newton-Raphson iteration by default) is used to solve the discretised mass and energy conservation equations, e.g. equation :eq:`beuler2` for the backwards Euler time-stepping method. The conservation equations are re-written as a function, known as the **residual** function, so that finding the root of this function corresponds to solving the original equation. For example, for the backwards Euler time-stepping method, the residual function :math:`\mathbf{f}` is:
+At each time step the `PETSc <https://petsc.org/>`_ "SNES" non-linear solver (with Newton-Raphson iteration by default) is used to solve the discretised mass and energy conservation equations, e.g. equation :eq:`beuler2` for the backwards Euler time-stepping method. The conservation equations are re-written as a function, known as the **residual** function, so that finding the root of this function corresponds to solving the original equation. For example, for the backwards Euler time-stepping method, the residual function :math:`\mathbf{f}` is:
 
 .. math::
 
@@ -492,7 +492,7 @@ At each iteration of the non-linear solver (see :ref:`nonlinear_equations`), a l
 
 where :math:`\mathbf{J}` is the Jacobian matrix of the residual function :math:`\mathbf{f}`.
 
-This system of linear equations is solved using the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "KSP" suite of parallelised linear equation solvers. Linear solver parameters can be specified via the **"time.step.solver.linear"** value in the Waiwera JSON input file. This value is an object.
+This system of linear equations is solved using the `PETSc <https://petsc.org/>`_ "KSP" suite of parallelised linear equation solvers. Linear solver parameters can be specified via the **"time.step.solver.linear"** value in the Waiwera JSON input file. This value is an object.
 
 .. note::
    **JSON object**: linear solver parameters
@@ -526,7 +526,7 @@ This system of linear equations is solved using the `PETSc <https://www.mcs.anl.
 Linear solver type
 ------------------
 
-PETSc offers a range of different `KSP linear solver types <http://www.mcs.anl.gov/petsc/petsc-dev/docs/linearsolvertable.html>`_. For Waiwera, the most appropriate linear solvers are generally the "Krylov subspace" methods. The linear solver type can be specified in the Waiwera JSON input file via the **"type"** string value in the "time.step.solver.linear" object. The linear solver types that may be selected in this way are:
+PETSc offers a range of different `KSP linear solver types <https://petsc.org/release/docs/manual/ksp/#tab-kspdefaults>`_. For Waiwera, the most appropriate linear solvers are generally the "Krylov subspace" methods. The linear solver type can be specified in the Waiwera JSON input file via the **"type"** string value in the "time.step.solver.linear" object. The linear solver types that may be selected in this way are:
 
 +------------+---------------+-----------------------+
 |**name**    |**PETSc name** |**description**        |
@@ -725,7 +725,7 @@ specifies a Bi-CGStab linear solver. The default ILU sub-preconditioner is used,
 Solution of tracer equations
 ============================
 
-When tracers are being simulated (see :ref:`setup_tracers`), the tracer mass fractions are updated at each time step by solving a single auxiliary system of linear equations (separate from the main flow solution process). This is carried out using the `PETSc <https://www.mcs.anl.gov/petsc/>`_ "KSP" suite of parallelised linear equation solvers, as is done at each iteration of the non-linear flow solution process (see :ref:`linear_equation_solution`).
+When tracers are being simulated (see :ref:`setup_tracers`), the tracer mass fractions are updated at each time step by solving a single auxiliary system of linear equations (separate from the main flow solution process). This is carried out using the `PETSc <https://petsc.org/>`_ "KSP" suite of parallelised linear equation solvers, as is done at each iteration of the non-linear flow solution process (see :ref:`linear_equation_solution`).
 
 However, the linear solver parameters for the auxiliary tracer solution can be specified independently of those for the main flow solution, via the **"time.step.solver.auxiliary"** value in the Waiwera JSON input file.
 

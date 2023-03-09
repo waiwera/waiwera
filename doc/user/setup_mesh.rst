@@ -83,7 +83,7 @@ Note that the mesh filename (specified in either of the above two ways) is a req
 Mesh formats
 ============
 
-Mesh handling in Waiwera makes use of the `PETSc <https://www.mcs.anl.gov/petsc/>`_ library -- more specifically, it uses PETSc's **DMPlex** unstructured mesh functionality. As a result, Waiwera meshes may be stored in any of the file formats supported by DMPlex. Currently these formats include:
+Mesh handling in Waiwera makes use of the `PETSc <https://petsc.org/>`_ library -- more specifically, it uses PETSc's **DMPlex** unstructured mesh functionality. As a result, Waiwera meshes may be stored in any of the file formats supported by DMPlex. Currently these formats include:
 
 * ExodusII [ScYa95]_
 * `GMSH <http://gmsh.info/>`_

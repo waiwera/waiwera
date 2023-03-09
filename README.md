@@ -9,7 +9,7 @@ Waiwera features:
 
 - numerical simulation of high-temperature subsurface flows, including robust phase changes
 - parallel execution on shared- or distributed-memory computers and clusters
-- use of [PETSc](https://www.mcs.anl.gov/petsc/) (Portable Extensible Toolkit for Scientific Computation) for parallel data structures, linear and non-linear solvers, etc.
+- use of [PETSc](https://petsc.org/) (Portable Extensible Toolkit for Scientific Computation) for parallel data structures, linear and non-linear solvers, etc.
 - standard file formats for input ([JSON](http://www.json.org)) and output ([HDF5](https://portal.hdfgroup.org/display/HDF5/HDF5), [YAML](http://www.yaml.org/about.html))
 - structured, object-oriented code written in Fortran 2003
 - free, open-source license (GNU LGPL)

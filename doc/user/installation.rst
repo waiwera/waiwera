@@ -92,7 +92,7 @@ The `waiwera-dkr` script will check if the Waiwera Docker container image is alr
 Native Linux build
 ==================
 
-For building a native Waiwera executable on Linux, Waiwera uses the `Ansible <https://www.ansible.com/>`_ deployment system, which automates the build process. This includes checking if the necessary tools (e.g. compilers, build tools) are present on your system, installing them if they are not, building Waiwera's dependency libraries (e.g. `PETSc <https://www.mcs.anl.gov/petsc/>`_), and building Waiwera itself (which is carried out using the `Meson <https://mesonbuild.com/>`_ build system).
+For building a native Waiwera executable on Linux, Waiwera uses the `Ansible <https://www.ansible.com/>`_ deployment system, which automates the build process. This includes checking if the necessary tools (e.g. compilers, build tools) are present on your system, installing them if they are not, building Waiwera's dependency libraries (e.g. `PETSc <https://petsc.org/>`_), and building Waiwera itself (which is carried out using the `Meson <https://mesonbuild.com/>`_ build system).
 
 .. index:: Ansible
 
