@@ -65,7 +65,7 @@ These options include:
 
 - ``--noupdate`` (or ``-nu``): do not check for or download an updated Waiwera Docker image before running (the default behaviour is to check before each run, and download an updated image if there is one available)
 - ``--update`` (or ``-u``): check for an updated Waiwera Docker image and download if available, and then exit (without running anything)
-- ``--tag`` (or ``-t``): to use a branch of the Waiwera code other than ``master``, e.g. ``-t testing`` to run the testing branch
+- ``--tag`` (or ``-t``): to use a branch (or Docker "tag") of the Waiwera code other than ``master``, e.g. ``-t testing`` to run the testing branch
 - ``--test_volume`` (or ``-tv``): test that the sharing of files between the current directory and the Docker container is working correctly, and then exit
 - ``--examples`` (or ``-e``): create example models (files will be written into an ``examples`` sub-directory) and then exit (note any existing files will be overwritten)
 - ``--verbose`` (or ``-v``): output additional diagnostic message while running (for debugging Docker-related problems)
