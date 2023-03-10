@@ -369,7 +369,8 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerHDF5Open(PETSC_COMM_WORLD, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5SetDefaultTimestepping(self%hdf5_viewer, PETSC_FALSE)
        CHKERRQ(ierr)
     else
        self%hdf5_viewer = PETSC_NULL_VIEWER
@@ -1015,6 +1016,10 @@ contains
     if (self%mesh%has_minc) then
        call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
     end if
+
+    call PetscViewerHDF5SetDefaultTimestepping(self%hdf5_viewer, PETSC_TRUE)
+    CHKERRQ(ierr)
+    call PetscViewerHDF5PushTimestepping(ierr); CHKERRQ(ierr)
 
     self%unperturbed = PETSC_TRUE
     call mpi_broadcast_error_flag(err)

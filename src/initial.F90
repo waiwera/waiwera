@@ -399,6 +399,7 @@ contains
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5SetDefaultTimestepping(viewer, PETSC_FALSE); CHKERRQ(ierr)
 
     call get_required_field_indices()
     num_tracers = size(tracers)
@@ -415,6 +416,9 @@ contains
     end if
     call PetscObjectSetName(output_cell_index, "cell_index", ierr); CHKERRQ(ierr)
     call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
+
+    call PetscViewerHDF5SetDefaultTimestepping(viewer, PETSC_TRUE); CHKERRQ(ierr)
+    call PetscViewerHDF5PushTimestepping(ierr); CHKERRQ(ierr)
 
     if (use_original_dm) then
        call load_fluid_original_dm()
