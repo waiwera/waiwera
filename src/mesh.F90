@@ -2221,6 +2221,7 @@ contains
          minc_level_cells)
 
     call DMPlexSymmetrize(minc_dm, ierr); CHKERRQ(ierr)
+    call DMPlexComputeCellTypes(minc_dm, ierr); CHKERRQ(ierr)
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%set_minc_dm_cell_types(minc_dm, max_num_levels, minc_level_cells)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
