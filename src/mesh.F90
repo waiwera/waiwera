@@ -929,8 +929,8 @@ contains
        stop
     else
        ! Read in DM:
-       call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
-            self%serial_dm, ierr); CHKERRQ(ierr)
+       call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, 'mesh', &
+            PETSC_TRUE, self%serial_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%serial_dm)
        self%dof = eos%num_primary_variables
        call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
