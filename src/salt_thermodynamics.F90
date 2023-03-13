@@ -239,6 +239,7 @@ contains
     PetscReal :: q1, q2, q10, q11, q12, q20, q21, q22, q23
     PetscReal :: q1x1, q2x1
     PetscReal :: tstar_h, hb
+    PetscBool :: extrapolate
 
     err = 0
 
@@ -271,17 +272,24 @@ contains
       n2 = n20 + n21 * sqrt(xmol + n22) + n23 * xmol
 
       tstar_v = n1 + n2 * temperature + deviation(pbar, temperature, xmol)
-      call thermo%saturation%temperature(pressure, ts, err)
+      if (pressure <= pcritical) then
+         call thermo%saturation%temperature(pressure, ts, err)
+         if (err == 0) then
+            extrapolate = (tstar_v > ts)
+         end if
+      else
+         extrapolate = PETSC_FALSE
+      end if
       if (err == 0) then
-         if (tstar_v <= ts) then
+         if (extrapolate) then
+            brine_density = extrapolation(pressure, pbar, ts, tstar_v, &
+                 brine_molecular_weight, err)
+         else
             call thermo%water%properties([pressure, tstar_v], props_star, err)
             if (err == 0) then
                brine_density = props_star(1) * &
                     brine_molecular_weight / water_molecular_weight
             end if
-         else
-            brine_density = extrapolation(pressure, pbar, ts, tstar_v, &
-                 brine_molecular_weight, err)
          end if
       end if
 
