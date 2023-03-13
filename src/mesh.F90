@@ -2221,7 +2221,6 @@ contains
          minc_level_cells)
 
     call DMPlexSymmetrize(minc_dm, ierr); CHKERRQ(ierr)
-    call DMPlexComputeCellTypes(minc_dm, ierr); CHKERRQ(ierr)
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%set_minc_dm_cell_types(minc_dm, max_num_levels, minc_level_cells)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
@@ -2641,7 +2640,7 @@ contains
     PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
          self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: ic, minc_p
+    PetscInt :: ic, minc_p, h
     PetscInt :: iminc, m, c, ghost
     DMLabel :: minc_zone_label, ghost_label
     PetscErrorCode :: ierr
@@ -2658,9 +2657,11 @@ contains
        if ((iminc > 0) .and. (ghost < 0)) then
           do m = 1, self%minc(iminc)%num_levels
              ic = minc_level_cells(m, c)
-             minc_p = self%strata(0)%minc_point(ic, m)
-             call DMPlexSetCellType(minc_dm, minc_p, DM_POLYTOPE_INTERIOR_GHOST, &
-                  ierr); CHKERRQ(ierr)
+             do h = 0, self%depth
+                minc_p = self%strata(h)%minc_point(ic, m)
+                call DMPlexSetCellType(minc_dm, minc_p, DM_POLYTOPE_INTERIOR_GHOST, &
+                     ierr); CHKERRQ(ierr)
+             end do
           end do
        end if
 
