@@ -1017,9 +1017,11 @@ contains
        call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
     end if
 
-    call PetscViewerHDF5SetDefaultTimestepping(self%hdf5_viewer, PETSC_TRUE)
-    CHKERRQ(ierr)
-    call PetscViewerHDF5PushTimestepping(ierr); CHKERRQ(ierr)
+    if (self%output_filename /= "") then
+       call PetscViewerHDF5SetDefaultTimestepping(self%hdf5_viewer, PETSC_TRUE, ierr)
+       CHKERRQ(ierr)
+       call PetscViewerHDF5PushTimestepping(self%hdf5_viewer, ierr); CHKERRQ(ierr)
+    end if
 
     self%unperturbed = PETSC_TRUE
     call mpi_broadcast_error_flag(err)
