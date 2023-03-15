@@ -83,12 +83,16 @@ if not get_option('mpi_wrapper_compiler')
   waiwera_deps += mpi
 endif
 
-if meson.get_compiler('fortran').get_id() == 'gcc'
+fc = meson.get_compiler('fortran')
+if fc.get_id() == 'gcc'
   f_args = ['-ffree-line-length-none',
             '-Wno-unused-dummy-argument',
             '-Wno-unused-function',
             '-Wno-return-type',
             '-Wno-maybe-uninitialized']
+  if fc.has_argument('-fallow-argument-mismatch')
+    f_args += ['-fallow-argument-mismatch']
+  endif
   if not get_option('buildtype').startswith('release')
     f_args += ['-fcheck=all']
   endif
