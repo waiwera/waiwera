@@ -125,7 +125,8 @@ unit_test_utils = shared_library('unit_test_utils',
                             [join_paths(meson.current_source_dir(),
                                         'test', 'unit', 'src', 'unit_test_utils.F90')],
                             link_with: waiwera,
-                            dependencies: unit_test_deps)
+                            dependencies: unit_test_deps,
+                            fortran_args: f_args)
 
 test_sources = ['capillary_pressure_test',
                 'cell_test',
