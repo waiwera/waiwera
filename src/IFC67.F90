@@ -208,13 +208,13 @@ contains
 
     select case(region)
     case(1)   ! liquid water
-       phases = b'01'
+       phases = int(b'01')
     case(2)   ! dry steam
-       phases = b'10'
+       phases = int(b'10')
     case(4)   ! two-phase
-       phases = b'11'
+       phases = int(b'11')
     case default
-       phases = b'00'
+       phases = int(b'00')
     end select
 
   end function IFC67_phase_composition
