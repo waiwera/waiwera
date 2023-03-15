@@ -72,7 +72,7 @@ contains
     ! Locals:
     type(fluid_type) :: fluid_wse, fluid_wsce
     type(rock_type) :: rock
-    PetscInt,  parameter :: offset = 1, region = 8, phase_composition = b'011'
+    PetscInt,  parameter :: offset = 1, region = 8, phase_composition = int(b'011')
     PetscReal, pointer, contiguous :: fluid_data_wse(:), fluid_data_wsce(:)
     PetscReal, allocatable:: primary_wse(:), primary2_wse(:)
     PetscReal, allocatable:: primary_wsce(:), primary2_wsce(:)

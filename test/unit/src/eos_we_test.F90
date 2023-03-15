@@ -70,7 +70,7 @@ contains
     ! Locals:
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    PetscInt,  parameter :: offset = 1, region = 4, phase_composition = b'011'
+    PetscInt,  parameter :: offset = 1, region = 4, phase_composition = int(b'011')
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, allocatable:: primary(:), primary2(:)
     type(eos_we_type) :: eos
