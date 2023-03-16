@@ -370,7 +370,6 @@ contains
        call PetscViewerHDF5Open(PETSC_COMM_WORLD, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr); CHKERRQ(ierr)
-       call PetscViewerHDF5SetDefaultTimestepping(self%hdf5_viewer, PETSC_FALSE)
        CHKERRQ(ierr)
     else
        self%hdf5_viewer = PETSC_NULL_VIEWER
