@@ -399,7 +399,6 @@ contains
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5SetDefaultTimestepping(viewer, PETSC_FALSE, ierr); CHKERRQ(ierr)
 
     call get_required_field_indices()
     num_tracers = size(tracers)
