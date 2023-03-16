@@ -246,17 +246,17 @@ contains
     if (rank == 0) then
 
        phases = IFC67%phase_composition(1, 1.e5_dp, 20._dp)
-       expected_phases = b'01'
+       expected_phases = int(b'01')
        call test%assert(expected_phases, phases, &
             "Region 1 liquid")
 
        phases = IFC67%phase_composition(2, 1.e5_dp, 110._dp)
-       expected_phases = b'10'
+       expected_phases = int(b'10')
        call test%assert(expected_phases, phases, &
             "Region 2 steam")
 
        phases = IFC67%phase_composition(4, 33.466518715101621e5_dp, 240._dp)
-       expected_phases = b'11'
+       expected_phases = int(b'11')
        call test%assert(expected_phases, phases, &
             "Two-phase at 240 deg C")
 

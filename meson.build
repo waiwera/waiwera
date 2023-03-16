@@ -83,12 +83,16 @@ if not get_option('mpi_wrapper_compiler')
   waiwera_deps += mpi
 endif
 
-if meson.get_compiler('fortran').get_id() == 'gcc'
+fc = meson.get_compiler('fortran')
+if fc.get_id() == 'gcc'
   f_args = ['-ffree-line-length-none',
             '-Wno-unused-dummy-argument',
             '-Wno-unused-function',
             '-Wno-return-type',
             '-Wno-maybe-uninitialized']
+  if fc.has_argument('-fallow-argument-mismatch')
+    f_args += ['-fallow-argument-mismatch']
+  endif
   if not get_option('buildtype').startswith('release')
     f_args += ['-fcheck=all']
   endif
@@ -125,7 +129,8 @@ unit_test_utils = shared_library('unit_test_utils',
                             [join_paths(meson.current_source_dir(),
                                         'test', 'unit', 'src', 'unit_test_utils.F90')],
                             link_with: waiwera,
-                            dependencies: unit_test_deps)
+                            dependencies: unit_test_deps,
+                            fortran_args: f_args)
 
 test_sources = ['capillary_pressure_test',
                 'cell_test',

@@ -293,57 +293,57 @@ module IAPWS_test
     if (rank == 0) then
 
        phases = IAPWS%phase_composition(1, 1.e5_dp, 20._dp)
-       expected_phases = b'001'
+       expected_phases = int(b'001')
        call test%assert(expected_phases, phases, &
             "Region 1 liquid")
 
        phases = IAPWS%phase_composition(3, 200.e5_dp, 360._dp)
-       expected_phases = b'001'
+       expected_phases = int(b'001')
        call test%assert(expected_phases, phases, &
             "Region 3 liquid")
 
        phases = IAPWS%phase_composition(2, 1.e5_dp, 110._dp)
-       expected_phases = b'010'
+       expected_phases = int(b'010')
        call test%assert(expected_phases, phases, &
             "Region 2 steam below critical temperature")
 
        phases = IAPWS%phase_composition(2, 175.e5_dp, 360._dp)
-       expected_phases = b'010'
+       expected_phases = int(b'010')
        call test%assert(expected_phases, phases, &
             "Region 2 steam above critical temperature")
 
        phases = IAPWS%phase_composition(2, 150.e5_dp, 700._dp)
-       expected_phases = b'010'
+       expected_phases = int(b'010')
        call test%assert(expected_phases, phases, &
             "High temperature region 2 steam")
 
        phases = IAPWS%phase_composition(3, 180.e5_dp, 360._dp)
-       expected_phases = b'010'
+       expected_phases = int(b'010')
        call test%assert(expected_phases, phases, &
             "Region 3 steam below critical temperature")
 
        phases = IAPWS%phase_composition(3, 210.e5_dp, 380._dp)
-       expected_phases = b'010'
+       expected_phases = int(b'010')
        call test%assert(expected_phases, phases, &
             "Region 3 steam above critical temperature")
 
        phases = IAPWS%phase_composition(4, 33.466518715101621e5_dp, 240._dp)
-       expected_phases = b'011'
+       expected_phases = int(b'011')
        call test%assert(expected_phases, phases, &
             "Two-phase at 240 deg C")
 
        phases = IAPWS%phase_composition(3, 500.e5_dp, 390._dp)
-       expected_phases = b'100'
+       expected_phases = int(b'100')
        call test%assert(expected_phases, phases, &
             "Region 3 supercritical, 390 deg C")
 
        phases = IAPWS%phase_composition(3, 560.e5_dp, 500._dp)
-       expected_phases = b'100'
+       expected_phases = int(b'100')
        call test%assert(expected_phases, phases, &
             "Region 3 supercritical, 500 deg C")
 
        phases = IAPWS%phase_composition(2, 300.e5_dp, 700._dp)
-       expected_phases = b'100'
+       expected_phases = int(b'100')
        call test%assert(expected_phases, phases, &
             "Region 2 supercritical")
 

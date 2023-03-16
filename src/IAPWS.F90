@@ -323,25 +323,25 @@ contains
     PetscReal :: saturation_pressure
     PetscInt :: ierr
 
-    phases = b'000'
+    phases = int(b'000')
 
     if (region == 4) then
-       phases = b'011'
+       phases = int(b'011')
     else
        if (temperature <= tcritical) then
           select case(region)
              case (1)
-                phases = b'001'
+                phases = int(b'001')
              case (2)
-                phases = b'010'
+                phases = int(b'010')
              case (3)
                 call self%saturation%pressure(temperature, &
                      saturation_pressure, ierr)
                 if (ierr == 0) then
                    if (pressure >= saturation_pressure) then
-                      phases = b'001'
+                      phases = int(b'001')
                    else
-                      phases = b'010'
+                      phases = int(b'010')
                    end if
                 else
                    phases = -1 ! error in saturation pressure
@@ -349,9 +349,9 @@ contains
              end select
        else
           if (pressure <= pcritical) then
-             phases = b'010'
+             phases = int(b'010')
           else
-             phases = b'100'
+             phases = int(b'100')
           end if
        end if
     end if
