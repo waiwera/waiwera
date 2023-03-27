@@ -1017,8 +1017,6 @@ contains
     end if
 
     if (self%output_filename /= "") then
-       call PetscViewerHDF5SetDefaultTimestepping(self%hdf5_viewer, PETSC_TRUE, ierr)
-       CHKERRQ(ierr)
        call PetscViewerHDF5PushTimestepping(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
