@@ -630,7 +630,7 @@ contains
          '[10.e5, 32.5000]'
 
     ! Clearly unphysical regions (chosen so each cell's region is unique):
-    initial_region_json = '33, 8, 83, 58, 1, 35, 16, 51, 85, 66'
+    initial_region_json = '33, 8, 83, 58, 1, 34, 16, 51, 84, 66'
 
     json_str = &
          '{"mesh": {"filename": "' // trim(adjustl(data_path)) // &
@@ -817,7 +817,7 @@ contains
       associate(x => centroid(1), y => centroid(2))
         primary(1) = 10.e5
         primary(2) = 20._dp + 100._dp * x * y
-        region = int(10 * x + 100 * y) - 10
+        region = nint(10 * x + 100 * y) - 11
       end associate
 
     end subroutine get_expected
