@@ -35,7 +35,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_primary_constant(mesh, primary, &
-       eos, y, y_range_start)
+       eos, y, y_range_start, logfile, err)
 
     !! Initializes solution vector y with constant values over the mesh.
 
@@ -43,41 +43,57 @@ contains
          dm_get_end_interior_cell
     use mesh_module, only: mesh_type
     use eos_module, only: eos_type
+    use logfile_module
 
     type(mesh_type), intent(in) :: mesh
     PetscReal, intent(in) :: primary(:)
     class(eos_type), intent(in) :: eos
     Vec, intent(in out) :: y
     PetscInt, intent(in) :: y_range_start
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: np, c, ghost
+    PetscInt :: np, c, ghost, primary_size
     PetscInt :: start_cell, end_cell, end_interior_cell, y_offset
     PetscErrorCode :: ierr
     PetscReal, pointer, contiguous :: cell_primary(:), y_array(:)
     PetscSection :: y_section
     DMLabel :: ghost_label
 
+    err = 0
     np = eos%num_primary_variables
-
-    call global_vec_section(y, y_section)
-    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
-
-    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-    CHKERRQ(ierr)
-    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-
-    do c = start_cell, end_interior_cell - 1
-       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-       if (ghost < 0) then
-          y_offset = global_section_offset(y_section, c, y_range_start)
-          cell_primary => y_array(y_offset : y_offset + np - 1)
-          cell_primary = primary
+    primary_size = size(primary)
+    if (primary_size /= np) then
+       err = 1
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_ERR, 'initialize', 'initial.primary', &
+               int_keys = ['size'], int_values = [primary_size], rank = 0)
        end if
-    end do
+    end if
 
-    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    if (err == 0) then
+
+       call global_vec_section(y, y_section)
+       call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+       call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+       CHKERRQ(ierr)
+       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+       CHKERRQ(ierr)
+       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+
+       do c = start_cell, end_interior_cell - 1
+          call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+          if (ghost < 0) then
+             y_offset = global_section_offset(y_section, c, y_range_start)
+             cell_primary => y_array(y_offset : y_offset + np - 1)
+             cell_primary = primary
+          end if
+       end do
+
+       call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+    end if
 
   end subroutine setup_initial_primary_constant
 
@@ -738,7 +754,7 @@ contains
        select case (primary_rank)
        case (-1)
           call setup_initial_primary_constant(mesh, eos%default_primary, &
-               eos, y, y_range_start)
+               eos, y, y_range_start, logfile, err)
           if (.not. has_file) then
              if (present(logfile)) then
                 call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
@@ -754,7 +770,7 @@ contains
              call fson_get_mpi(json, "initial.primary", val = primary)
           end if
           call setup_initial_primary_constant(mesh, primary, eos, y, &
-               y_range_start)
+               y_range_start, logfile, err)
           deallocate(primary)
        case (2)
           call setup_initial_primary_array(json, mesh, eos, y, y_range_start, &
@@ -839,7 +855,7 @@ contains
     else
 
        call setup_initial_primary_constant(mesh, eos%default_primary, &
-            eos, y, y_range_start)
+            eos, y, y_range_start, logfile, err)
        call setup_initial_region_constant(mesh, eos%default_region, &
             eos, fluid_vector, fluid_range_start)
        if (present(logfile)) then
