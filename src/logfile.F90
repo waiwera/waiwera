@@ -54,6 +54,8 @@ module logfile_module
      procedure :: append_int_data => logfile_append_int_data
      procedure :: append_real_data => logfile_append_real_data
      procedure :: append_logical_data => logfile_append_logical_data
+     procedure :: append_int_array_data => &
+          logfile_append_int_array_data
      procedure :: append_real_array_data => &
           logfile_append_real_array_data
      procedure :: append_string_data => logfile_append_string_data
@@ -263,6 +265,38 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine logfile_append_int_array_data(self, int_array_key, &
+       int_array_value, content)
+    !! Append int array data to logfile content line. (Only one array
+    !! can be appended.)
+
+    class(logfile_type), intent(in out) :: self
+    character(*), intent(in) :: int_array_key
+    PetscInt, intent(in) :: int_array_value(:)
+    character(:), allocatable, intent(in out) ::  content
+    ! Locals:
+    PetscInt :: num_int, i
+    character(self%max_num_length) :: int_str
+
+    if (len(content) > 0) then
+       content = content // ', '
+    end if
+
+    num_int = size(int_array_value)
+    content = content // '"' // trim(int_array_key) // '": ['
+    do i = 1, num_int
+       write(int_str, self%int_format) int_array_value(i)
+       content = content // trim(adjustl(int_str))
+       if (i < num_int) then
+          content = content // ', '
+       end if
+    end do
+    content = content // ']'
+
+  end subroutine logfile_append_int_array_data
+
+!------------------------------------------------------------------------
+
   subroutine logfile_append_real_array_data(self, real_array_key, &
        real_array_value, content)
     !! Append real array data to logfile content line. (Only one array
@@ -318,7 +352,8 @@ contains
 
   subroutine logfile_write(self, level, source, event, int_keys, &
        int_values, real_keys, real_values, logical_keys, logical_values, &
-       str_key, str_value, real_array_key, real_array_value, rank)
+       str_key, str_value, int_array_key, int_array_value, &
+       real_array_key, real_array_value, rank)
     !! Write message to logfile, optionally echoing to console output
     !! according to self%echo property.
     !! Output is in YAML format: each message is formatted as an
@@ -331,11 +366,12 @@ contains
     PetscInt, intent(in) :: level
     character(*), intent(in) :: source, event
     character(*), intent(in), optional :: int_keys(:), &
-         real_keys(:), logical_keys(:), str_key, real_array_key
+         real_keys(:), logical_keys(:), str_key, int_array_key, real_array_key
     PetscInt, intent(in), optional :: int_values(:)
     PetscReal, intent(in), optional :: real_values(:)
     PetscBool, intent(in), optional :: logical_values(:)
     character(*), intent(in), optional :: str_value
+    PetscInt, intent(in), optional :: int_array_value(:)
     PetscReal, intent(in), optional :: real_array_value(:)
     PetscMPIInt, intent(in), optional :: rank
     ! Locals:
@@ -364,6 +400,12 @@ contains
        if (present(logical_keys) .and. present(logical_values)) then
           has_data = PETSC_TRUE
           call self%append_logical_data(logical_keys, logical_values, content)
+       end if
+
+       if (present(int_array_key) .and. present(int_array_value)) then
+          has_data = PETSC_TRUE
+          call self%append_int_array_data(int_array_key, &
+               int_array_value, content)
        end if
 
        if (present(real_array_key) .and. present(real_array_value)) then
