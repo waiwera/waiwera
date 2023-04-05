@@ -265,7 +265,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_region_array(json, mesh, eos, fluid_vector, &
-       fluid_range_start, minc_specified)
+       fluid_range_start, minc_specified, logfile, err)
 
     !! Initializes fluid regions from a rank-1 array of values for
     !! all mesh cells in the JSON input.
@@ -276,6 +276,8 @@ contains
     use dm_utils_module
     use fluid_module, only: fluid_type
     use minc_module, only: minc_level_label_name
+    use logfile_module
+    use mpi_utils_module, only: mpi_broadcast_error_flag
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -283,8 +285,10 @@ contains
     Vec, intent(in out) :: fluid_vector
     PetscInt, intent(in) :: fluid_range_start
     PetscBool, intent(in) :: minc_specified
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscMPIInt :: np, rank
+    PetscMPIInt :: nprocs, rank
     PetscInt :: start_cell, end_cell, num_cells, end_interior_cell
     PetscInt, allocatable :: region_array(:)
     IS :: serial_region
@@ -292,6 +296,7 @@ contains
     DM :: dm_is
     IS :: region
     PetscInt :: i, c, ghost, offset, minc_level
+    PetscInt :: cells_total, cells_min, cells_max, region_size
     DMLabel :: ghost_label, minc_label
     type(fluid_type) :: fluid
     PetscInt, pointer, contiguous :: region_indices(:)
@@ -299,8 +304,9 @@ contains
     ISLocalToGlobalMapping :: l2g
     PetscErrorCode :: ierr
 
+    err = 0
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, nprocs, ierr)
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     if (mesh%has_minc) then
        call DMGetLabel(mesh%dm, minc_level_label_name, minc_label, &
@@ -311,54 +317,69 @@ contains
 
     if ((.not. mesh%has_minc) .or. (.not. minc_specified)) then
 
+       call dm_cell_counts(mesh%serial_dm, cells_total, cells_min, cells_max)
        if (rank == 0) then
           call fson_get(json, "initial.region", region_array)
+          region_size = size(region_array)
+          if (region_size /= cells_total) then
+             err = 1
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_ERR, 'initialize', 'initial.region', &
+                     int_keys = ['size'], int_values = [region_size], rank = 0)
+             end if
+          end if
        else
           allocate(region_array(0))
        end if
-       num_cells = size(region_array)
-       call ISCreateGeneral(PETSC_COMM_WORLD, num_cells, region_array, &
-            PETSC_COPY_VALUES, serial_region, ierr); CHKERRQ(ierr)
-       deallocate(region_array)
 
-       if (np > 1) then
-          call DMClone(mesh%serial_dm, dm_is, ierr); CHKERRQ(ierr)
-          call dm_set_default_data_layout(dm_is, 1)
-          call DMGetSection(dm_is, serial_section, ierr); CHKERRQ(ierr)
-          call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
-          call DMPlexDistributeFieldIS(mesh%dm, mesh%dist_sf, serial_section, &
-               serial_region, section, region, ierr); CHKERRQ(ierr)
-          call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
-          call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
-       else
-          call ISDuplicate(serial_region, region, ierr); CHKERRQ(ierr)
+       call mpi_broadcast_error_flag(err)
+       if (err == 0) then
+
+          num_cells = size(region_array)
+          call ISCreateGeneral(PETSC_COMM_WORLD, num_cells, region_array, &
+               PETSC_COPY_VALUES, serial_region, ierr); CHKERRQ(ierr)
+
+          if (nprocs > 1) then
+             call DMClone(mesh%serial_dm, dm_is, ierr); CHKERRQ(ierr)
+             call dm_set_default_data_layout(dm_is, 1)
+             call DMGetSection(dm_is, serial_section, ierr); CHKERRQ(ierr)
+             call PetscSectionCreate(PETSC_COMM_WORLD, section, ierr); CHKERRQ(ierr)
+             call DMPlexDistributeFieldIS(mesh%dm, mesh%dist_sf, serial_section, &
+                  serial_region, section, region, ierr); CHKERRQ(ierr)
+             call DMDestroy(dm_is, ierr); CHKERRQ(ierr)
+             call PetscSectionDestroy(section, ierr); CHKERRQ(ierr)
+          else
+             call ISDuplicate(serial_region, region, ierr); CHKERRQ(ierr)
+          end if
+
+          call global_vec_section(fluid_vector, fluid_section)
+          call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+          call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+          CHKERRQ(ierr)
+          end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+          call ISGetIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
+          i = 1
+          do c = start_cell, end_interior_cell - 1
+             call DMLabelGetValue(ghost_label, c, ghost, ierr)
+             if (ghost < 0) then
+                if (mesh%has_minc) then
+                   call DMLabelGetValue(minc_label, c, minc_level, ierr)
+                   CHKERRQ(ierr)
+                else
+                   minc_level = -1
+                end if
+                if (minc_level <= 0) then
+                   offset =  global_section_offset(fluid_section, c, fluid_range_start)
+                   call fluid%assign(fluid_array, offset)
+                   fluid%region = dble(region_indices(i))
+                end if
+             end if
+             i = i + 1
+          end do
+
        end if
 
-       call global_vec_section(fluid_vector, fluid_section)
-       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-       call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-       CHKERRQ(ierr)
-       end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-       call ISGetIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
-       i = 1
-       do c = start_cell, end_interior_cell - 1
-          call DMLabelGetValue(ghost_label, c, ghost, ierr)
-          if (ghost < 0) then
-             if (mesh%has_minc) then
-                call DMLabelGetValue(minc_label, c, minc_level, ierr)
-                CHKERRQ(ierr)
-             else
-                minc_level = -1
-             end if
-             if (minc_level <= 0) then
-                offset =  global_section_offset(fluid_section, c, fluid_range_start)
-                call fluid%assign(fluid_array, offset)
-                fluid%region = dble(region_indices(i))
-             end if
-          end if
-          i = i + 1
-       end do
-
+       deallocate(region_array)
        call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
        call ISRestoreIndicesF90(region, region_indices, ierr); CHKERRQ(ierr)
        call ISDestroy(region, ierr); CHKERRQ(ierr)
@@ -802,7 +823,7 @@ contains
                   fluid_range_start)
           case (1)
              call setup_initial_region_array(json, mesh, eos, fluid_vector, &
-                  fluid_range_start, minc_specified)
+                  fluid_range_start, minc_specified, logfile, err)
           case default
              if (present(logfile)) then
                 call logfile%write(LOG_LEVEL_WARN, 'input', &
@@ -810,46 +831,49 @@ contains
              end if
           end select
 
-          if (num_tracers > 0) then
-             tracer_rank = fson_mpi_array_rank(json, "initial.tracer")
-             select case (tracer_rank)
-             case (-1)
-                call setup_initial_tracer_scalar(mesh, default_tracer, &
-                     tracer_vector, num_tracers, tracer_range_start)
-                if (.not. has_file) then
-                   if (present(logfile)) then
-                      call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                           real_keys = ['initial.tracer'], &
-                           real_values = [default_tracer])
+          if (err == 0) then
+
+             if (num_tracers > 0) then
+                tracer_rank = fson_mpi_array_rank(json, "initial.tracer")
+                select case (tracer_rank)
+                case (-1)
+                   call setup_initial_tracer_scalar(mesh, default_tracer, &
+                        tracer_vector, num_tracers, tracer_range_start)
+                   if (.not. has_file) then
+                      if (present(logfile)) then
+                         call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                              real_keys = ['initial.tracer'], &
+                              real_values = [default_tracer])
+                      end if
                    end if
-                end if
-             case (0)
-                call fson_get_mpi(json, "initial.tracer", val = tracer_scalar)
-                call setup_initial_tracer_scalar(mesh, tracer_scalar, &
-                     tracer_vector, num_tracers, tracer_range_start)
-             case (1)
-                tracer_array_size = fson_value_count_mpi(json, "initial.tracer")
-                call fson_get_mpi(json, "initial.tracer", val = tracer_values)
-                call setup_initial_tracer_constant(mesh, tracer_values, &
-                     tracer_vector, num_tracers, tracer_range_start)
-                ! could add rank 2 option here for initialising tracer
-                ! from array of values over entire mesh
-             case default
-                if (present(logfile)) then
-                   call logfile%write(LOG_LEVEL_WARN, 'input', &
-                        '"unrecognised initial.tracer"')
-                end if
-             end select
-          end if
+                case (0)
+                   call fson_get_mpi(json, "initial.tracer", val = tracer_scalar)
+                   call setup_initial_tracer_scalar(mesh, tracer_scalar, &
+                        tracer_vector, num_tracers, tracer_range_start)
+                case (1)
+                   tracer_array_size = fson_value_count_mpi(json, "initial.tracer")
+                   call fson_get_mpi(json, "initial.tracer", val = tracer_values)
+                   call setup_initial_tracer_constant(mesh, tracer_values, &
+                        tracer_vector, num_tracers, tracer_range_start)
+                   ! could add rank 2 option here for initialising tracer
+                   ! from array of values over entire mesh
+                case default
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_WARN, 'input', &
+                           '"unrecognised initial.tracer"')
+                   end if
+                end select
+             end if
 
-          if (has_file) then
-             call fson_get_mpi(json, "initial.filename", val = filename)
-             call fson_get_mpi(json, "initial.index", default_index, index, logfile)
-             call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-                  tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-                  index, use_original_dm, tracers)
-          end if
+             if (has_file) then
+                call fson_get_mpi(json, "initial.filename", val = filename)
+                call fson_get_mpi(json, "initial.index", default_index, index, logfile)
+                call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
+                     tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
+                     index, use_original_dm, tracers)
+             end if
 
+          end if
        end if
 
     else
