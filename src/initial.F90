@@ -84,7 +84,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_initial_primary_array(json, mesh, eos, y, range_start, &
-       minc_specified)
+       minc_specified, logfile, err)
 
     !! Initializes solution vector y from a rank-2 array of values for
     !! all mesh cells in the JSON input.
@@ -93,7 +93,9 @@ contains
     use mesh_module, only: mesh_type
     use eos_module
     use dm_utils_module, only: global_vec_section, global_section_offset, &
-         natural_to_local_cell_index, dm_distribute_local_vec
+         natural_to_local_cell_index, dm_distribute_local_vec, dm_cell_counts
+    use mpi_utils_module, only: mpi_broadcast_error_flag
+    use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -101,8 +103,10 @@ contains
     Vec, intent(in out) :: y
     PetscInt, intent(in) :: range_start
     PetscBool, intent(in) :: minc_specified
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscMPIInt :: np, rank
+    PetscMPIInt :: nprocs, rank
     PetscInt :: num_data
     PetscReal, allocatable :: primary_array(:,:)
     PetscReal, pointer, contiguous :: primary_data(:)
@@ -113,39 +117,54 @@ contains
     PetscReal, pointer, contiguous :: y_array(:)
     DMLabel :: ghost_label
     ISLocalToGlobalMapping :: l2g
-    PetscInt :: i, c, offset, ghost
+    PetscInt :: i, c, offset, ghost, cells_total, cells_min, cells_max, np
+    PetscInt, allocatable :: primary_shape(:)
     PetscReal, pointer, contiguous :: cell_primary(:)
 
+    err = 0
     call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    call MPI_comm_size(PETSC_COMM_WORLD, np, ierr)
+    call MPI_comm_size(PETSC_COMM_WORLD, nprocs, ierr)
+
+    np = eos%num_primary_variables
 
     if ((.not. mesh%has_minc) .or. (.not. minc_specified)) then
 
+       call dm_cell_counts(mesh%serial_dm, cells_total, cells_min, cells_max)
        if (rank == 0) then
           call fson_get(json, "initial.primary", primary_array)
+          primary_shape = shape(primary_array)
+          if (any(primary_shape /= [cells_total, np])) then
+             err = 1
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_ERR, 'initialize', 'initial.primary', &
+                     int_array_key = 'shape', int_array_value = primary_shape, rank = 0)
+             end if
+          end if
        else
           allocate(primary_array(0, 0))
        end if
-       call DMCreateLocalVector(mesh%serial_dm, primary, ierr); CHKERRQ(ierr)
-       call VecGetArrayF90(primary, primary_data, ierr); CHKERRQ(ierr)
-       primary_data = pack(transpose(primary_array), PETSC_TRUE)
-       call VecRestoreArrayF90(primary, primary_data, ierr); CHKERRQ(ierr)
-       deallocate(primary_array)
+       call mpi_broadcast_error_flag(err)
+       if (err == 0) then
+          call DMCreateLocalVector(mesh%serial_dm, primary, ierr); CHKERRQ(ierr)
+          call VecGetArrayF90(primary, primary_data, ierr); CHKERRQ(ierr)
+          primary_data = pack(transpose(primary_array), PETSC_TRUE)
+          call VecRestoreArrayF90(primary, primary_data, ierr); CHKERRQ(ierr)
+          deallocate(primary_array)
 
-       if (np > 1) then
-          call dm_distribute_local_vec(mesh%dm, mesh%dist_sf, primary)
-          call DMLocalToGlobal(mesh%dm, primary, INSERT_VALUES, y, &
-               ierr); CHKERRQ(ierr)
-       else
-          call VecGetLocalSize(primary, num_data, ierr); CHKERRQ(ierr)
-          call ISCreateStride(PETSC_COMM_WORLD, num_data, &
-               0, 1, interior, ierr); CHKERRQ(ierr)
-          call VecISCopy(y, interior, SCATTER_FORWARD, primary, &
-               ierr); CHKERRQ(ierr)
-          call ISDestroy(interior, ierr); CHKERRQ(ierr)
+          if (nprocs > 1) then
+             call dm_distribute_local_vec(mesh%dm, mesh%dist_sf, primary)
+             call DMLocalToGlobal(mesh%dm, primary, INSERT_VALUES, y, &
+                  ierr); CHKERRQ(ierr)
+          else
+             call VecGetLocalSize(primary, num_data, ierr); CHKERRQ(ierr)
+             call ISCreateStride(PETSC_COMM_WORLD, num_data, &
+                  0, 1, interior, ierr); CHKERRQ(ierr)
+             call VecISCopy(y, interior, SCATTER_FORWARD, primary, &
+                  ierr); CHKERRQ(ierr)
+             call ISDestroy(interior, ierr); CHKERRQ(ierr)
+          end if
+          call VecDestroy(primary, ierr); CHKERRQ(ierr)
        end if
-       call VecDestroy(primary, ierr); CHKERRQ(ierr)
-
     else
 
        ! Initialising entire MINC solution from JSON array - note this is not scalable:
@@ -659,7 +678,7 @@ contains
 
   subroutine setup_initial(json, mesh, eos, t, y, fluid_vector, &
        tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-       tracers, logfile)
+       tracers, logfile, err)
     !! Initializes time t and a Vec y with initial conditions read
     !! from JSON input 'initial'.  A full set of initial conditions
     !! may be read in from an HDF5 file, or a constant set of primary
@@ -681,7 +700,8 @@ contains
     Vec, intent(in out) :: y, fluid_vector, tracer_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start, tracer_range_start
     type(tracer_type), intent(in) :: tracers(:)
-    type(logfile_type), intent(in out) :: logfile
+    type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, parameter :: default_start_time = 0.0_dp
     PetscReal, allocatable :: primary(:)
@@ -697,6 +717,7 @@ contains
     PetscBool, parameter :: default_minc_specified = PETSC_FALSE
     PetscReal, parameter :: default_tracer = 0._dp
 
+    err = 0
     num_tracers = size(tracers)
     call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
 
@@ -719,9 +740,11 @@ contains
           call setup_initial_primary_constant(mesh, eos%default_primary, &
                eos, y, y_range_start)
           if (.not. has_file) then
-             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  real_array_key = 'initial.primary', &
-                  real_array_value = eos%default_primary)
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                     real_array_key = 'initial.primary', &
+                     real_array_value = eos%default_primary)
+             end if
           end if
        case (0, 1)
           if (primary_rank == 0) then
@@ -735,68 +758,82 @@ contains
           deallocate(primary)
        case (2)
           call setup_initial_primary_array(json, mesh, eos, y, y_range_start, &
-               minc_specified)
+               minc_specified, logfile, err)
        case default
-          call logfile%write(LOG_LEVEL_WARN, 'input', &
-               '"unrecognised initial.primary"')
-       end select
-
-       region_rank = fson_mpi_array_rank(json, "initial.region")
-       select case (region_rank)
-       case (-1)
-          call setup_initial_region_constant(mesh, eos%default_region, &
-               eos, fluid_vector, fluid_range_start)
-          if (.not. has_file) then
-             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  int_keys = ['initial.region'], &
-                  int_values = [eos%default_region])
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_WARN, 'input', &
+                  '"unrecognised initial.primary"')
           end if
-       case (0)
-          call fson_get_mpi(json, "initial.region", val = region)
-          call setup_initial_region_constant(mesh, region, eos, fluid_vector, &
-               fluid_range_start)
-       case (1)
-          call setup_initial_region_array(json, mesh, eos, fluid_vector, &
-               fluid_range_start, minc_specified)
-       case default
-          call logfile%write(LOG_LEVEL_WARN, 'input', &
-               '"unrecognised initial.region"')
        end select
 
-       if (num_tracers > 0) then
-          tracer_rank = fson_mpi_array_rank(json, "initial.tracer")
-          select case (tracer_rank)
+       if (err == 0) then
+
+          region_rank = fson_mpi_array_rank(json, "initial.region")
+          select case (region_rank)
           case (-1)
-             call setup_initial_tracer_scalar(mesh, default_tracer, &
-                  tracer_vector, num_tracers, tracer_range_start)
+             call setup_initial_region_constant(mesh, eos%default_region, &
+                  eos, fluid_vector, fluid_range_start)
              if (.not. has_file) then
-                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                     real_keys = ['initial.tracer'], &
-                     real_values = [default_tracer])
+                if (present(logfile)) then
+                   call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                        int_keys = ['initial.region'], &
+                        int_values = [eos%default_region])
+                end if
              end if
           case (0)
-             call fson_get_mpi(json, "initial.tracer", val = tracer_scalar)
-             call setup_initial_tracer_scalar(mesh, tracer_scalar, &
-                  tracer_vector, num_tracers, tracer_range_start)
+             call fson_get_mpi(json, "initial.region", val = region)
+             call setup_initial_region_constant(mesh, region, eos, fluid_vector, &
+                  fluid_range_start)
           case (1)
-             tracer_array_size = fson_value_count_mpi(json, "initial.tracer")
-             call fson_get_mpi(json, "initial.tracer", val = tracer_values)
-             call setup_initial_tracer_constant(mesh, tracer_values, &
-                  tracer_vector, num_tracers, tracer_range_start)
-             ! could add rank 2 option here for initialising tracer
-             ! from array of values over entire mesh
+             call setup_initial_region_array(json, mesh, eos, fluid_vector, &
+                  fluid_range_start, minc_specified)
           case default
-             call logfile%write(LOG_LEVEL_WARN, 'input', &
-                  '"unrecognised initial.tracer"')
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_WARN, 'input', &
+                     '"unrecognised initial.region"')
+             end if
           end select
-       end if
 
-       if (has_file) then
-          call fson_get_mpi(json, "initial.filename", val = filename)
-          call fson_get_mpi(json, "initial.index", default_index, index, logfile)
-          call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
-               tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-               index, use_original_dm, tracers)
+          if (num_tracers > 0) then
+             tracer_rank = fson_mpi_array_rank(json, "initial.tracer")
+             select case (tracer_rank)
+             case (-1)
+                call setup_initial_tracer_scalar(mesh, default_tracer, &
+                     tracer_vector, num_tracers, tracer_range_start)
+                if (.not. has_file) then
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                           real_keys = ['initial.tracer'], &
+                           real_values = [default_tracer])
+                   end if
+                end if
+             case (0)
+                call fson_get_mpi(json, "initial.tracer", val = tracer_scalar)
+                call setup_initial_tracer_scalar(mesh, tracer_scalar, &
+                     tracer_vector, num_tracers, tracer_range_start)
+             case (1)
+                tracer_array_size = fson_value_count_mpi(json, "initial.tracer")
+                call fson_get_mpi(json, "initial.tracer", val = tracer_values)
+                call setup_initial_tracer_constant(mesh, tracer_values, &
+                     tracer_vector, num_tracers, tracer_range_start)
+                ! could add rank 2 option here for initialising tracer
+                ! from array of values over entire mesh
+             case default
+                if (present(logfile)) then
+                   call logfile%write(LOG_LEVEL_WARN, 'input', &
+                        '"unrecognised initial.tracer"')
+                end if
+             end select
+          end if
+
+          if (has_file) then
+             call fson_get_mpi(json, "initial.filename", val = filename)
+             call fson_get_mpi(json, "initial.index", default_index, index, logfile)
+             call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
+                  tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
+                  index, use_original_dm, tracers)
+          end if
+
        end if
 
     else
@@ -805,12 +842,14 @@ contains
             eos, y, y_range_start)
        call setup_initial_region_constant(mesh, eos%default_region, &
             eos, fluid_vector, fluid_range_start)
-       call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-            real_array_key = 'initial.primary', &
-            real_array_value = eos%default_primary)
-       call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-            int_keys = ['initial.region'], &
-            int_values = [eos%default_region])
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               real_array_key = 'initial.primary', &
+               real_array_value = eos%default_primary)
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               int_keys = ['initial.region'], &
+               int_values = [eos%default_region])
+       end if
        if (num_tracers > 0) then
           call setup_initial_tracer_scalar(mesh, default_tracer, &
                tracer_vector, num_tracers, tracer_range_start)

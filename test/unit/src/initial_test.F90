@@ -267,56 +267,62 @@ contains
            eos%phase_names, fluid_vector, fluid_range_start)
 
       t = 0._dp
+      write(*,*) 'got to here in:', name
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
            tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-           tracers, logfile)
+           tracers, logfile, err)
+      call test%assert(0, err, name // ': err = 0')
 
-      call global_vec_section(fluid_vector, fluid_section)
-      call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-      call global_vec_section(y, y_section)
-      call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+      if (err == 0) then
 
-      call fson_destroy_mpi(json)
-      call mesh%destroy_distribution_data()
+         call global_vec_section(fluid_vector, fluid_section)
+         call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+         call global_vec_section(y, y_section)
+         call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
 
-      call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
-      CHKERRQ(ierr)
-      end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
-      call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
-      CHKERRQ(ierr)
-      call fluid%init(eos%num_components, eos%num_phases)
-      allocate(expected_primary(eos%num_primary_variables))
+         call fson_destroy_mpi(json)
+         call mesh%destroy_distribution_data()
 
-      call local_vec_section(mesh%cell_geom, cell_geom_section)
-      call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
-      CHKERRQ(ierr)
-      call cell%init(eos%num_components, eos%num_phases)
+         call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+         CHKERRQ(ierr)
+         end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+         call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+         CHKERRQ(ierr)
+         call fluid%init(eos%num_components, eos%num_phases)
+         allocate(expected_primary(eos%num_primary_variables))
 
-      do c = start_cell, end_interior_cell - 1
-         call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
-         if (ghost < 0) then
-            fluid_offset = global_section_offset(fluid_section, c, &
-                 fluid_range_start)
-            call fluid%assign(fluid_array, fluid_offset)
-            cell_geom_offset = section_offset(cell_geom_section, c)
-            call cell%assign_geometry(cell_geom_array, cell_geom_offset)
-            associate(z => cell%centroid(3))
-              call column_primary_variables(z, gravity(3), expected_primary)
-            end associate
-            y_offset = global_section_offset(y_section, c, y_range_start)
-            primary => y_array(y_offset: y_offset + eos%num_primary_variables - 1)
-            call test%assert(expected_primary, primary, &
-                 name // ': primary')
-            call test%assert(expected_region, nint(fluid%region), &
-                 name // ': region')
-         end if
-      end do
+         call local_vec_section(mesh%cell_geom, cell_geom_section)
+         call VecGetArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+         CHKERRQ(ierr)
+         call cell%init(eos%num_components, eos%num_phases)
 
-      call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
-      CHKERRQ(ierr)
-      call fluid%destroy()
-      call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
-      call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+         do c = start_cell, end_interior_cell - 1
+            call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+            if (ghost < 0) then
+               fluid_offset = global_section_offset(fluid_section, c, &
+                    fluid_range_start)
+               call fluid%assign(fluid_array, fluid_offset)
+               cell_geom_offset = section_offset(cell_geom_section, c)
+               call cell%assign_geometry(cell_geom_array, cell_geom_offset)
+               associate(z => cell%centroid(3))
+                 call column_primary_variables(z, gravity(3), expected_primary)
+               end associate
+               y_offset = global_section_offset(y_section, c, y_range_start)
+               primary => y_array(y_offset: y_offset + eos%num_primary_variables - 1)
+               call test%assert(expected_primary, primary, &
+                    name // ': primary')
+               call test%assert(expected_region, nint(fluid%region), &
+                    name // ': region')
+            end if
+         end do
+
+         call VecRestoreArrayReadF90(mesh%cell_geom, cell_geom_array, ierr)
+         CHKERRQ(ierr)
+         call fluid%destroy()
+         call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+         call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+      end if
 
       call VecDestroy(fluid_vector, ierr); CHKERRQ(ierr)
       call VecDestroy(y, ierr); CHKERRQ(ierr)
@@ -551,7 +557,7 @@ contains
 
     t = 0._dp
     call setup_initial(json, mesh, eos, t, y, fluid_vector, tracer_vector, &
-         y_range_start, fluid_range_start, tracer_range_start, tracers, logfile)
+         y_range_start, fluid_range_start, tracer_range_start, tracers, logfile, err)
 
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -750,7 +756,7 @@ contains
 
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, tracer_vector, &
-           y_range_start, fluid_range_start, tracer_range_start, tracers, logfile)
+           y_range_start, fluid_range_start, tracer_range_start, tracers, logfile, err)
 
       call global_vec_section(fluid_vector, fluid_section)
       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -930,7 +936,7 @@ contains
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
            tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-           tracers, logfile)
+           tracers, logfile, err)
 
       num_tracers = size(tracers)
       call test%assert(expected_num_tracers, num_tracers, &
