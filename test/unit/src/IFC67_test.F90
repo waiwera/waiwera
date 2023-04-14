@@ -157,7 +157,7 @@ contains
     PetscReal, parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
     PetscReal, parameter :: p(n) = [0.35323426e4_dp, 0.263961572e7_dp, &
          0.123493902e8_dp]
-    PetscReal :: ps, ts, ps1, ts1
+    PetscReal :: ps, ts
     PetscInt :: i, err
     PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
     PetscMPIInt :: rank
@@ -173,14 +173,6 @@ contains
           call IFC67%saturation%temperature(ps, ts, err)
           call test%assert(t(i), ts, 'temperature')
           call test%assert(0, err, 'temperature error')
-
-          ! Test region 1 saturation object:
-          call IFC67%region(1)%ptr%saturation%pressure(t(i), ps1, err)
-          call test%assert(p(i), ps1, 'region 1 pressure')
-          call test%assert(0, err, 'region 1 pressure error')
-          call IFC67%region(1)%ptr%saturation%temperature(ps1, ts1, err)
-          call test%assert(t(i), ts1, 'region 1 temperature')
-          call test%assert(0, err, 'region 1 temperature error')
 
        end do
        do i = 1, nerr

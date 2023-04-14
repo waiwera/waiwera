@@ -32,12 +32,8 @@ module IFC67_module
   implicit none
   private
 
-  PetscReal, parameter :: tcriticalk67 = 647.3_dp        ! Critical temperature (Kelvin)
-  PetscReal, parameter :: tcritical67 = tcriticalk67 - tc_k
-  PetscReal, parameter :: pcritical67  = 2.212e7_dp      ! Critical pressure (Pa)
-
 !------------------------------------------------------------------------
-  ! Saturation curve type
+! Saturation curve type
 !------------------------------------------------------------------------
 
   type, public, extends(saturation_type) :: IFC67_saturation_type
@@ -158,7 +154,13 @@ contains
 
     self%name = 'IFC-67'
 
+    self%tcriticalk = 647.3_dp
+    self%tcritical = self%tcriticalk - tc_k
+    self%pcritical  = 22.12e6_dp
+    self%dcritical  = 322.0_dp
+
     allocate(IFC67_saturation_type :: self%saturation)
+    call self%saturation%init(self)
 
     self%num_regions = 2
     allocate(IFC67_region1_type :: self%water)
@@ -169,7 +171,7 @@ contains
     call self%region(2)%set(self%steam)
 
     do i = 1, self%num_regions
-       call self%region(i)%ptr%init(extrapolate)
+       call self%region(i)%ptr%init(self, extrapolate)
     end do
 
   end subroutine IFC67_init
@@ -223,17 +225,18 @@ contains
 ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self, extrapolate)
+  subroutine region1_init(self, thermo, extrapolate)
     !! Initializes IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
     PetscBool, intent(in), optional :: extrapolate
     ! Locals:
     PetscReal, parameter :: default_max_temperature = 350._dp
     PetscReal, parameter :: extrapolated_max_temperature = 360._dp
 
     self%name = 'water'
-    allocate(IFC67_saturation_type :: self%saturation)
+    self%thermo => thermo
 
     if (present(extrapolate)) then
        if (extrapolate) then
@@ -254,8 +257,6 @@ contains
     !! Destroys IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
-
-    deallocate(self%saturation)
 
   end subroutine region1_destroy
 
@@ -284,7 +285,7 @@ contains
 
       if ((t <= self%max_temperature).and.(p <= 100.e6_dp)) then
 
-         TKR = (t + tc_k) / tcriticalk67
+         TKR = (t + tc_k) / self%thermo%tcriticalk
          TKR2 = TKR * TKR
          TKR3 = TKR * TKR2
          TKR4 = TKR2 * TKR2
@@ -298,7 +299,7 @@ contains
          TKR18 = TKR8 * TKR10
          TKR19 = TKR8 * TKR11
          TKR20 = TKR10 * TKR10
-         PNMR = p / pcritical67
+         PNMR = p / self%thermo%pcritical
          PNMR2 = PNMR * PNMR
          PNMR3 = PNMR * PNMR2
          PNMR4 = PNMR * PNMR3
@@ -388,7 +389,7 @@ contains
 
     ex = 247.8_dp / (temperature + 133.15_dp)
     phi = 1.0467_dp * (temperature - 31.85_dp)
-    call self%saturation%pressure(temperature, ps, err)
+    call self%thermo%saturation%pressure(temperature, ps, err)
     am = 1.0_dp + phi * (pressure - ps) * 1.0e-11_dp
     viscosity = 1.0e-7_dp * am * 241.4_dp * 10.0_dp ** ex
 
@@ -398,13 +399,15 @@ contains
 ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self, extrapolate)
+  subroutine region2_init(self, thermo, extrapolate)
     !! Initializes IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
     PetscBool, intent(in), optional :: extrapolate
 
     self%name = 'steam'
+    self%thermo => thermo
 
   end subroutine region2_init
 
@@ -441,8 +444,8 @@ contains
       ! Check input:
       if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
 
-         THETA = (T + tc_k) / tcriticalk67
-         BETA = P / pcritical67
+         THETA = (T + tc_k) / self%thermo%tcriticalk
+         BETA = P / self%thermo%pcritical
          RI1 = 4.260321148_dp
          X = exp(self%SB * (1.0_dp - THETA))
          X2 = X * X
@@ -611,8 +614,8 @@ subroutine saturation_pressure(self, t, p, err)
   ! Locals:
   PetscReal :: PC, SC, TC, X1, X2
 
-  if ((t >= 1._dp).and.(t <= tcritical67)) then
-     TC = (t + tc_k) / tcriticalk67
+  if ((t >= 1._dp).and.(t <= self%thermo%tcritical)) then
+     TC = (t + tc_k) / self%thermo%tcriticalk
      X1 = 1._dp - TC
      X2 = X1 * X1
      SC = self%A5 * X1 + self%A4
@@ -621,7 +624,7 @@ subroutine saturation_pressure(self, t, p, err)
      SC = SC * X1 + self%A1
      SC = SC * X1
      PC = exp(SC / (TC * (1._dp + self%A6 * X1 + self%A7 * X2)) - X1 / (self%A8 * X2 + self%A9))
-     p = PC * pcritical67
+     p = PC * self%thermo%pcritical
      err = 0
   else
      err = 1
@@ -646,7 +649,7 @@ subroutine saturation_temperature(self, p, t, err)
   PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
   PetscReal, parameter :: inc = 1.e-8_dp
 
-  if ((p >= 0.0061e5_dp) .and. (p <= pcritical67)) then
+  if ((p >= 0.0061e5_dp) .and. (p <= self%thermo%pcritical)) then
 
      ! Initial estimate:
      t = max(4606.0_dp / (24.02_dp - dlog(p)) - tc_k, 5._dp)

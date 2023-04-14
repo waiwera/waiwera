@@ -35,10 +35,6 @@ module thermodynamics_module
 
   PetscReal, parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
   PetscReal, parameter, public :: tc_k       = 273.15_dp         !! Conversion from Celsius to Kelvin
-  PetscReal, parameter, public :: tcriticalk = 647.096_dp        !! Critical temperature (Kelvin)
-  PetscReal, parameter, public :: tcritical  = tcriticalk - tc_k !! Critical temperature (\(^\circ C\))
-  PetscReal, parameter, public :: dcritical  = 322.0_dp          !! Critical density (\(kg.m^{-3}\))
-  PetscReal, parameter, public :: pcritical  = 22.064e6_dp       !! Critical pressure (Pa)
   PetscReal, parameter, public :: water_molecular_weight = 18.01528_dp !! Molecular weight of water (g/mol)
   PetscReal, parameter, public :: gas_constant = 8.3144598_dp    !! Gas constant R
   PetscReal, parameter, public :: ttriple = 0.01_dp              !! Triple point of water
@@ -49,8 +45,10 @@ module thermodynamics_module
 
   type, public, abstract :: saturation_type
      !! Saturation curve type.
+     class(thermodynamics_type), pointer, public :: thermo
    contains
      private
+       procedure, public :: init => saturation_init
        procedure(saturation_temperature), public, deferred :: temperature
        procedure(saturation_pressure), public, deferred :: pressure
   end type saturation_type
@@ -62,7 +60,7 @@ module thermodynamics_module
   type, public, abstract :: region_type
      !! Thermodynamic region type.
      character(max_thermodynamic_region_name_length), public :: name
-     class(saturation_type), allocatable :: saturation
+     class(thermodynamics_type), pointer, public :: thermo
    contains
      private
      procedure(region_init), public, deferred :: init
@@ -87,6 +85,10 @@ module thermodynamics_module
      !! Thermodynamics type.
      private
      character(max_thermodynamics_name_length), public :: name
+     PetscReal, public :: tcriticalk !! Critical temperature (Kelvin)
+     PetscReal, public :: tcritical !! Critical temperature (\(^\circ C\))
+     PetscReal, public :: pcritical !! Critical pressure (Pa)
+     PetscReal, public :: dcritical !! Critical density (\(kg.m^{-3}\))
      class(saturation_type), allocatable, public :: saturation !! Saturation curve
      PetscInt, public :: num_regions  !! Number of thermodynamic regions
      class(region_type), allocatable, public :: water !! Pure water region
@@ -123,12 +125,13 @@ module thermodynamics_module
        PetscInt, intent(out) :: err  !! Error code
      end subroutine saturation_pressure
 
-     subroutine region_init(self, extrapolate)
+     subroutine region_init(self, thermo, extrapolate)
        !! Initializes region. The extrapolate parameter allows the
        !! region's methods to be called slightly out of their usual
        !! operating range if needed.
-       import :: region_type
+       import :: region_type, thermodynamics_type
        class(region_type), intent(in out) :: self
+       class(thermodynamics_type), intent(in), target :: thermo
        PetscBool, intent(in), optional :: extrapolate
      end subroutine region_init
 
@@ -185,6 +188,19 @@ module thermodynamics_module
 !------------------------------------------------------------------------
 
 contains
+
+!------------------------------------------------------------------------
+! Saturation type
+!------------------------------------------------------------------------
+
+  subroutine saturation_init(self, thermo)
+    !! Initialise saturation type.
+    class(saturation_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
+
+    self%thermo => thermo
+
+  end subroutine saturation_init
 
 !------------------------------------------------------------------------
 ! Region pointers

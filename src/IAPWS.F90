@@ -190,7 +190,7 @@ module IAPWS_module
   type, public, extends(IAPWS_region_type) :: IAPWS_region3_type
      !! IAPWS-97 region 3 (supercritical) type.
      private
-     PetscReal :: dstar = dcritical, tstar = tcriticalk
+     PetscReal :: dstar, tstar
      PetscReal :: n(40) = [ &
            0.10658070028513e1_dp, -0.15732845290239e2_dp,   0.20944396974307e2_dp,  -0.76867707878716e1_dp,  &
            0.26185947787954e1_dp, -0.28080781148620e1_dp,   0.12053369696517e1_dp,  -0.84566812812502e-2_dp, &
@@ -270,7 +270,13 @@ contains
 
     self%name = "IAPWS-97"
 
+    self%tcriticalk = 647.096_dp
+    self%tcritical  = self%tcriticalk - tc_k
+    self%pcritical  = 22.064e6_dp
+    self%dcritical  = 322.0_dp
+
     allocate(IAPWS_saturation_type :: self%saturation)
+    call self%saturation%init(self)
 
     self%num_regions = 3
     allocate(IAPWS_region1_type :: self%water)
@@ -283,7 +289,7 @@ contains
     call self%region(3)%set(self%supercritical)
 
     do i = 1, self%num_regions
-       call self%region(i)%ptr%init(extrapolate)
+       call self%region(i)%ptr%init(self, extrapolate)
     end do
 
   end subroutine IAPWS_init
@@ -328,7 +334,7 @@ contains
     if (region == 4) then
        phases = int(b'011')
     else
-       if (temperature <= tcritical) then
+       if (temperature <= self%tcritical) then
           select case(region)
              case (1)
                 phases = int(b'001')
@@ -348,7 +354,7 @@ contains
                 end if
              end select
        else
-          if (pressure <= pcritical) then
+          if (pressure <= self%pcritical) then
              phases = int(b'010')
           else
              phases = int(b'100')
@@ -362,12 +368,14 @@ contains
   ! Abstract region type
 !------------------------------------------------------------------------
 
-  subroutine region_init(self, extrapolate)
+  subroutine region_init(self, thermo, extrapolate)
     !! Initializes abstract IAPWS-97 region object.
     
     class(IAPWS_region_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
     PetscBool, intent(in), optional :: extrapolate
 
+    self%thermo => thermo
     call self%visc%init()
 
   end subroutine region_init
@@ -415,8 +423,8 @@ contains
     PetscReal:: mu0, mu1, s0, s1
 
     tk = temperature + tc_k
-    tau = tk / tcriticalk
-    del = density / dcritical
+    tau = tk / self%thermo%tcriticalk
+    del = density / self%thermo%dcritical
 
     call self%visc%pk%compute(1._dp / tau)
     call self%visc%pi%compute(self%visc%pk%power(1) - 1._dp)
@@ -438,16 +446,17 @@ contains
   ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self, extrapolate)
+  subroutine region1_init(self, thermo, extrapolate)
     !! Initializes IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
     PetscBool, intent(in), optional :: extrapolate
     ! Locals:
     PetscReal, parameter :: default_max_temperature = 350._dp
     PetscReal, parameter :: extrapolated_max_temperature = 360._dp
 
-    call self%IAPWS_region_type%init()
+    call self%IAPWS_region_type%init(thermo)
 
     self%name = 'water'
 
@@ -536,13 +545,14 @@ contains
   ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self, extrapolate)
+  subroutine region2_init(self, thermo, extrapolate)
     !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
     PetscBool, intent(in), optional :: extrapolate
 
-    call self%IAPWS_region_type%init()
+    call self%IAPWS_region_type%init(thermo)
 
     self%name = 'steam'
 
@@ -632,13 +642,14 @@ contains
   ! Region 3 (supercritical)
 !------------------------------------------------------------------------
 
-  subroutine region3_init(self, extrapolate)
+  subroutine region3_init(self, thermo, extrapolate)
     !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
     PetscBool, intent(in), optional :: extrapolate
 
-    call self%IAPWS_region_type%init()
+    call self%IAPWS_region_type%init(thermo)
 
     self%name = 'supercritical'
 
@@ -653,6 +664,9 @@ contains
 
     call self%pj%configure(self%J)
     call self%pj%configure(self%J_1)
+
+    self%dstar = self%thermo%dcritical
+    self%tstar = self%thermo%tcriticalk
 
   end subroutine region3_init
 
@@ -757,7 +771,7 @@ contains
     PetscReal:: tk
     PetscReal:: theta, theta2, a, b, c, x
 
-    if ((t >= 0._dp).and.(t <= tcritical)) then
+    if ((t >= 0._dp).and.(t <= self%thermo%tcritical)) then
        tk = t + tc_k      
        theta = tk + self%n(9) / (tk - self%n(10))
        theta2 = theta * theta
@@ -787,7 +801,7 @@ contains
     ! Locals:
     PetscReal:: beta, beta2, d, e, f, g, x
 
-    if ((p >= 611.213_dp).and.(p <= pcritical)) then
+    if ((p >= 611.213_dp).and.(p <= self%thermo%pcritical)) then
        beta2 = dsqrt(p / self%pstar)
        beta = dsqrt(beta2)
        e = beta2 + self%n(3) * beta + self%n(6)
