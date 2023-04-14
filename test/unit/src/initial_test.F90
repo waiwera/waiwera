@@ -267,7 +267,6 @@ contains
            eos%phase_names, fluid_vector, fluid_range_start)
 
       t = 0._dp
-      write(*,*) 'got to here in:', name
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
            tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
            tracers, logfile, err)
