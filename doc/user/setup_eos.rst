@@ -376,7 +376,7 @@ Water, salt and energy ("wse")
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0]                             |
 +-------------------------------+-------------------------------------------------------------------------+
-|**default region**:            |1 (liquid)                                                               |
+|**default region**:            |1 (liquid, no halite)                                                    |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100,                                    |
 |                               |"salt_mass_fraction/solid_saturation": 1}                                |
@@ -421,7 +421,7 @@ Water, salt, air and energy ("wsae")
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0, 0 Pa]                       |
 +-------------------------------+-------------------------------------------------------------------------+
-|**default region**:            |1 (liquid)                                                               |
+|**default region**:            |1 (liquid, no halite)                                                    |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100,                                    |
 |                               |"salt_mass_fraction/solid_saturation": 1, "partial_pressure": "pressure"}|
@@ -457,7 +457,7 @@ Water, salt, carbon dioxide and energy ("wsce")
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0, 0 Pa]                       |
 +-------------------------------+-------------------------------------------------------------------------+
-|**default region**:            |1 (liquid)                                                               |
+|**default region**:            |1 (liquid, no halite)                                                    |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100,                                    |
 |                               |"salt_mass_fraction/solid_saturation": 1, "partial_pressure": "pressure"}|
