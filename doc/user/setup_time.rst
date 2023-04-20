@@ -66,7 +66,7 @@ All parameters related to time-stepping are specified via the **"step"** value i
    |                 |            |"tries": 10}      |of tries per step      |
    |                 |            |                  |                       |
    +-----------------+------------+------------------+-----------------------+
-   |"stop"           |object      |{"step":          |minimum and maximum    |
+   |"stop"           |object      |{"size":          |minimum and maximum    |
    |                 |            |{"minimum":       |time step sizes causing|
    |                 |            |``null``,         |simulation to stop     |
    |                 |            |"maximum":        |                       |
