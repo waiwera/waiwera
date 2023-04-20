@@ -216,19 +216,21 @@ contains
        pressure_factor = 1._dp - small
     end if
 
-    self%primary_variable_interpolator%val(:, 1) = old_primary
-    self%primary_variable_interpolator%val(:, 2) = primary
-    select type (interpolator => self%primary_variable_interpolator)
-    type is (eos_wse_primary_variable_interpolator_type)
-       interpolator%halite = old_halite
-    end select
-    call self%primary_variable_interpolator%find_component_at_index( &
-         saturation_bound, 2, xi, err)
-
     associate (pressure => primary(1), temperature => primary(2), &
          salt => primary(3), &
          interpolated_pressure => interpolated_primary(1), &
          interpolated_salt => interpolated_primary(3))
+
+      salt = max(0._dp, salt)
+
+      self%primary_variable_interpolator%val(:, 1) = old_primary
+      self%primary_variable_interpolator%val(:, 2) = primary
+      select type (interpolator => self%primary_variable_interpolator)
+      type is (eos_wse_primary_variable_interpolator_type)
+         interpolator%halite = old_halite
+      end select
+      call self%primary_variable_interpolator%find_component_at_index( &
+           saturation_bound, 2, xi, err)
 
       if (err == 0) then
 
@@ -258,6 +260,7 @@ contains
             salt_mass_fraction = old_primary(3)
          end if
          if (err == 0) then
+            salt_mass_fraction = max(0._dp, salt_mass_fraction)
             call brine_saturation_pressure(old_fluid%temperature, salt_mass_fraction, &
                  self%thermo, old_saturation_pressure, err)
             if (err == 0) then
@@ -303,6 +306,8 @@ contains
       old_region = nint(old_fluid%region)
       old_water_region = self%water_region(old_region)
       old_halite = self%halite(old_region)
+
+      salt = max(0._dp, salt)
 
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
@@ -496,6 +501,8 @@ contains
          end if
 
          if (err == 0) then
+
+            salt_mass_fraction = max(0._dp, salt_mass_fraction)
 
             call brine_saturation_pressure(temperature, salt_mass_fraction, &
                  self%thermo, saturation_pressure, err)
