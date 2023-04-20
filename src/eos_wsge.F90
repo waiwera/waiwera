@@ -231,7 +231,9 @@ contains
          interpolated_salt => interpolated_primary(3), &
          interpolated_partial_pressure => interpolated_primary(4))
 
+      salt = max(0._dp, salt)
       partial_pressure = max(0._dp, min(partial_pressure, pressure))
+
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
       select type (interpolator => self%primary_variable_interpolator)
@@ -320,7 +322,9 @@ contains
       old_water_region = self%water_region(old_region)
       old_halite = self%halite(old_region)
 
+      salt = max(0._dp, salt)
       partial_pressure = max(0._dp, min(partial_pressure, pressure))
+
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
       select type (interpolator => self%primary_variable_interpolator)
@@ -518,6 +522,8 @@ contains
          end if
 
          if (err == 0) then
+
+            salt_mass_fraction = max(0._dp, salt_mass_fraction)
 
             call brine_saturation_pressure(temperature, salt_mass_fraction, &
                  self%thermo, saturation_pressure, err)
