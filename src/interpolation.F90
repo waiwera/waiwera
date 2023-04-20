@@ -181,26 +181,31 @@ contains
 
   subroutine inverse_interpolant_linear(coord, val, y, index, &
        component, x, err)
-    !! Routine for inverting linear interpolation function.
+    !! Routine for inverting linear interpolation function. Values are
+    !! normalised before inverting.
+
     PetscReal, intent(in) :: coord(:), val(:,:)
     PetscReal, intent(in) :: y
     PetscInt, intent(in) :: index, component
     PetscReal, intent(out) :: x
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: d, xi
+    PetscReal :: xi, vmax, vs(2), ys
     PetscReal, parameter :: tol = 1.e-8_dp
 
     err = 0
 
-    d = val(component, index + 1) - val(component, index)
-
-    if (abs(d) >= tol) then
-       xi = (y - val(component, index)) / d
-       x = (1._dp - xi) * coord(index) + xi * coord(index + 1)
-    else
-       err = 1
-    end if
+    associate(v => val(component, index : index + 1))
+      vmax = max(abs(v(1)), abs(v(2)))
+      if (abs(v(2) - v(1)) >= tol * vmax) then
+         vs = v / vmax
+         ys = y / vmax
+         xi = (ys - vs(1)) / (vs(2) - vs(1))
+         x = (1._dp - xi) * coord(index) + xi * coord(index + 1)
+      else
+         err = 1
+      end if
+    end associate
 
   end subroutine inverse_interpolant_linear
 

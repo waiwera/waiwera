@@ -379,6 +379,10 @@ contains
     PetscInt :: ierr
     PetscReal :: x
     PetscErrorCode :: err
+    PetscReal, dimension(2, 2), parameter :: data_const = reshape([&
+         0._dp, 2.0_dp, &
+         3._dp, 3.0_dp], &
+         [2,2])
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -396,6 +400,11 @@ contains
        call table%find_component_at_index(0._dp, 1, x, err)
        call test%assert(0, err, "component 1 = 0 error")
        
+       call table%destroy()
+
+       call table%init(data_const)
+       call table%find_component_at_index(3._dp, 1, x, err)
+       call test%assert(1, err, "constant data error")
        call table%destroy()
 
     end if
