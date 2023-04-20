@@ -275,6 +275,7 @@ contains
             salt_mass_fraction = old_primary(3)
          end if
          if (err == 0) then
+            salt_mass_fraction = max(0._dp, salt_mass_fraction)
             call brine_saturation_pressure(old_fluid%temperature, salt_mass_fraction, &
                  self%thermo, old_saturation_pressure, err)
             if (err == 0) then
