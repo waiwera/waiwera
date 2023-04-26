@@ -4,6 +4,14 @@
 Boundary conditions
 *******************
 
+.. index:: boundary conditions; no-flux
+.. _no_flux_bcs:
+
+No-flux boundary conditions
+===========================
+
+No-flux boundary conditions (where no flow is allowed in or out of the boundary) are the default in a Waiwera model: if no boundary conditions are explicitly applied to a boundary, it will be treated as no-flux. These are often used, for example, at the lateral boundaries of the model.
+
 .. index:: boundary conditions; Dirichlet
 .. _dirichlet_bcs:
 
@@ -111,3 +119,5 @@ Neumann boundary conditions
 In the finite volume framework (see :ref:`finite_volume_discretisation`), a specified flux through a boundary face (which would otherwise be zero) is formally identical to adding a source term to the cell just inside the boundary. In either case, a term is simply added to the right-hand side of the discretised conservation equations for that cell.
 
 Hence, it is not necessary to provide a separate mechanism for implementing Neumann boundary conditions, as they can always be implemented using equivalent source terms instead (see :ref:`source_terms`).
+
+:ref:`no_flux_bcs` are a special case of Neumann boundary conditions in which the flux is zero. As boundaries are no-flux by default in Waiwera, it is not necessary to specify them explicitly.
