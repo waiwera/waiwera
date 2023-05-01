@@ -90,7 +90,7 @@ contains
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
     character(max_fluid_modifier_name_length), parameter :: &
-         default_permeability_modifier_type_name = "identity"
+         default_permeability_modifier_type_name = "none"
 
     self%name = "wse"
     self%description = "Water, salt and energy"
