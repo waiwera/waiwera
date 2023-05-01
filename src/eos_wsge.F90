@@ -84,7 +84,7 @@ contains
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
     PetscReal, parameter :: default_partial_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising partial pressure
     character(max_fluid_modifier_name_length), parameter :: &
-         default_permeability_modifier_type_name = "identity"
+         default_permeability_modifier_type_name = "none"
 
     self%name = "wsge"
     self%description = "Water, salt, non-condensible gas and energy"
