@@ -672,7 +672,7 @@ where :math:`P_0` and :math:`\lambda` are specified constant parameters (:math:`
    |            |            |:sup:`5` Pa     |parameter (Pa)      |
    +------------+------------+----------------+--------------------+
    |"Pmax"      |number      |undefined       |:math:`P_{max}`     |
-   |            |            |                |parameter           |
+   |            |            |                |parameter (Pa)      |
    +------------+------------+----------------+--------------------+
 
 For example:
