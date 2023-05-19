@@ -262,6 +262,7 @@ contains
        self%Pmax = abs(self%Pmax)
        self%apply_Pmax = PETSC_TRUE
     else
+       self%Pmax = 0._dp
        self%apply_Pmax = PETSC_FALSE
     end if
     
@@ -279,7 +280,7 @@ contains
 
     associate(sstar => (sl - self%slr) / (self%sls - self%slr))
       if (sstar < 0._dp) then
-         cp = -self%P0
+         cp = -self%Pmax
       else if (sstar < 1._dp) then
          cp = -self%P0 * (sstar ** (-1._dp / self%lambda) - 1._dp) ** &
               (1._dp - self%lambda)
