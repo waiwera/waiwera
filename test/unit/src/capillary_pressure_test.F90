@@ -139,7 +139,7 @@ contains
 
     if (rank == 0) then
        call test%assert("van Genuchten", cp%name, "Name")
-       call test%assert(-0.2e5_dp, cp%value(0._dp, t), "0")
+       call test%assert(0._dp, cp%value(0._dp, t), "0")
        call test%assert(-6.99714227381e5_dp, cp%value(0.12_dp, t), "0.12")
        call test%assert(-2.79284800875e5_dp, cp%value(0.15_dp, t), "0.15")
        call test%assert(-0.911652955412e5_dp, cp%value(0.25_dp, t), "0.25")
@@ -156,6 +156,7 @@ contains
     call fson_destroy(json)
 
     if (rank == 0) then
+       call test%assert(-6.e5_dp, cp%value(0._dp, t), "0 Pmax")
        call test%assert(-6.e5_dp, cp%value(0.12_dp, t), "0.12 Pmax")
        call test%assert(-0.195959179423e5_dp, cp%value(0.6_dp, t), "0.6 Pmax")
     end if
