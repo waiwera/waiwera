@@ -277,21 +277,30 @@ contains
     class(capillary_pressure_van_genuchten_type), intent(in out) :: self
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, intent(in) :: t  !! Temperature
+    ! Locals:
+    PetscReal, parameter :: eps = 1.e-3_dp, tol = 1.e-6_dp
 
-    associate(sstar => (sl - self%slr) / (self%sls - self%slr))
-      if (sstar < 0._dp) then
-         cp = -self%Pmax
-      else if (sstar < 1._dp) then
-         cp = -self%P0 * (sstar ** (-1._dp / self%lambda) - 1._dp) ** &
-              (1._dp - self%lambda)
-      else
-         cp = 0._dp
-      end if
-      cp = min(0._dp, cp)
-      if (self%apply_Pmax) then
-         cp = max(-self%Pmax, cp)
-      end if
-    end associate
+    if (sl < 1._dp - tol) then
+       associate(sstar => (sl - self%slr) / (self%sls - self%slr))
+         if (sstar < 0._dp) then
+            cp = -self%Pmax
+         else if (sstar < 1._dp) then
+            cp = -self%P0 * (sstar ** (-1._dp / self%lambda) - 1._dp) ** &
+                 (1._dp - self%lambda)
+         else
+            cp = 0._dp
+         end if
+         cp = min(0._dp, cp)
+         if (self%apply_Pmax) then
+            cp = max(-self%Pmax, cp)
+         end if
+         if (sl > 1._dp - eps) then
+            cp = cp * (1._dp - sl) / eps
+         end if
+       end associate
+    else
+       cp = 0._dp
+    end if
 
   end function capillary_pressure_van_genuchten_value
 
