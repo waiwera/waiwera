@@ -278,9 +278,9 @@ contains
     PetscReal, intent(in) :: sl !! Liquid saturation
     PetscReal, intent(in) :: t  !! Temperature
     ! Locals:
-    PetscReal, parameter :: eps = 1.e-3_dp, tol = 1.e-6_dp
+    PetscReal, parameter :: eps = 1.e-3_dp
 
-    if (sl < 1._dp - tol) then
+    if (sl < 1._dp) then
        associate(sstar => (sl - self%slr) / (self%sls - self%slr))
          if (sstar < 0._dp) then
             cp = -self%Pmax
