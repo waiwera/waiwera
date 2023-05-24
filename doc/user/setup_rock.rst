@@ -639,7 +639,7 @@ where :math:`S_1` is the liquid saturation. and :math:`S_{lr}` and :math:`S_{ls}
 
    P_c =
    \begin{cases}
-   -P_0 & S_* < 0\\
+   -P_{max} & S_* < 0\\
    \min{(-P_0 (S_*^{-1 / \lambda} -1) ^ {1 - \lambda}, 0)} & 0 \le S_* < 1\\
    0 & S_* \ge 1
    \end{cases}
