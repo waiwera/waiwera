@@ -142,7 +142,10 @@ contains
     call self%saturation_line_finder%destroy()
     call self%primary_variable_interpolator%destroy()
     deallocate(self%primary_variable_interpolator)
-    call self%gas%destroy()
+    if (allocated(self%gas)) then
+       call self%gas%destroy()
+       deallocate(self%gas)
+    end if
 
   end subroutine eos_wge_destroy
 

@@ -15,7 +15,6 @@ module eos_wae_module
    contains
      private
      procedure, public :: init => eos_wae_init
-     procedure, public :: destroy => eos_wae_destroy
   end type eos_wae_type
 
 contains
@@ -62,18 +61,6 @@ contains
     call self%gas%init()
 
   end subroutine eos_wae_init
-
-!------------------------------------------------------------------------
-
-  subroutine eos_wae_destroy(self)
-    !! Destroy eos_wae object.
-
-    class(eos_wae_type), intent(in out) :: self
-
-    deallocate(self%gas)
-    call self%eos_wge_type%destroy()
-
-  end subroutine eos_wae_destroy
 
 !------------------------------------------------------------------------
 
