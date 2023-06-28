@@ -38,6 +38,7 @@ module source_setup_module
   use source_network_reinjector_module
   use source_control_module
   use separator_module
+  use tracer_module
 
   implicit none
   private
@@ -48,7 +49,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_source_network(json, dm, ao, eos, tracer_names, thermo, start_time, &
+  subroutine setup_source_network(json, dm, ao, eos, tracers, thermo, start_time, &
        fluid_vector, fluid_range_start, source_network, logfile, err)
     !! Sets up source network, including sinks / sources, source
     !! controls and source groups.
@@ -63,7 +64,7 @@ contains
     DM, intent(in) :: dm !! Mesh DM
     AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
     class(eos_type), intent(in) :: eos !! Equation of state
-    character(*), intent(in) :: tracer_names(:) !! Tracer names
+    type(tracer_type), intent(in) :: tracers(:) !! Tracers
     class(thermodynamics_type), intent(in out) :: thermo !! Thermodynamics formulation
     PetscReal, intent(in) :: start_time
     Vec, intent(in) :: fluid_vector !! Fluid vector
@@ -90,6 +91,7 @@ contains
     type(dictionary_type) :: reinjector_dict, reinjector_index_dict
     PetscInt, allocatable :: indices(:), group_indices(:), reinjector_indices(:)
     PetscInt, allocatable :: group_order(:), reinjector_order(:)
+    character(max_tracer_name_length), allocatable :: tracer_names(:)
     PetscErrorCode :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -97,7 +99,8 @@ contains
     source_network%num_sources = 0
     source_network%num_groups = 0
     source_network%num_reinjectors = 0
-    num_tracers = size(tracer_names)
+    num_tracers = size(tracers)
+    tracer_names = tracers%name
     num_local_root_groups = 0
     num_local_root_reinjectors = 0
     err = 0

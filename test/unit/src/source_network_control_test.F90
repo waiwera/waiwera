@@ -98,7 +98,7 @@ contains
     call mesh%configure(gravity, json, err = err)
     call DMGetGlobalVector(mesh%dm, fluid_vector, ierr); CHKERRQ(ierr) ! dummy- not used
 
-    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
+    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracers, &
          thermo, start_time, fluid_vector, fluid_range_start, source_network, &
          err = err)
 

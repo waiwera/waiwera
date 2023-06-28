@@ -14,6 +14,7 @@ module source_control_test
   use source_network_group_module
   use source_network_module
   use source_setup_module
+  use tracer_module
 
   implicit none
   private
@@ -112,7 +113,7 @@ contains
     call global_vec_section(fluid_vector, fluid_section)
     call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracers%name, &
+    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracers, &
          thermo, start_time, fluid_vector, fluid_range_start, source_network, &
          err = err)
     call test%assert(0, err, "source network setup error")
@@ -264,7 +265,7 @@ contains
     PetscInt, parameter :: cell_region = 4
     PetscReal, parameter :: start_time = 0._dp
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
-    character :: tracer_names(0)
+    type(tracer_type) :: tracers(0)
     PetscBool, parameter :: rate_specified = PETSC_FALSE, &
          enthalpy_specified = PETSC_FALSE
     PetscReal, parameter :: specified_rate = -1._dp, specified_enthalpy = 0._dp
@@ -345,7 +346,7 @@ contains
     end do
     call VecRestoreArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
 
-    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracer_names, &
+    call setup_source_network(json, mesh%dm, mesh%cell_natural_global, eos, tracers, &
          thermo, start_time, fluid_vector, fluid_range_start, source_network, &
          err = err)
     call test%assert(0, err, "source setup error")
@@ -387,7 +388,7 @@ contains
 
     ! Test deliverability threshold control- reduce fluid pressure:
     call source%init("source 12", eos, 0, 0, 0._dp, 0, 0, rate_specified, &
-         specified_rate, enthalpy_specified, specified_enthalpy, size(tracer_names))
+         specified_rate, enthalpy_specified, specified_enthalpy, size(tracers))
     call reset_fluid_pressures(6.e5_dp)
     call source_network%source_controls%traverse(source_control_update_iterator)
     if (s12 >= 0) then
