@@ -802,7 +802,10 @@ contains
       character(max_source_network_node_name_length), allocatable :: node_names(:)
       type(list_node_type), pointer :: dict_node
       PetscInt :: group_index, i
+      PetscMPIInt :: rank
+      PetscErrorCode :: ierr
 
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
       call group_dag%init(num_groups)
       allocate(group_specs_array(num_groups))
 
@@ -830,7 +833,9 @@ contains
                  dependency_indices > 0)
          end if
          call group_dag%set_edges(group_index, dependency_indices)
-         call group_specs_array(group_index + 1)%set(group_json)
+         if (rank == 0) then
+            call group_specs_array(group_index + 1)%set(group_json)
+         end if
          deallocate(node_names, dependency_indices)
          group_json => fson_value_next_mpi(group_json)
       end do
@@ -1142,6 +1147,10 @@ contains
       character(max_source_network_node_name_length) :: node_name
       PetscInt, parameter :: num_keys = 2
       character(5), parameter :: keys(num_keys) = ["water", "steam"]
+      PetscMPIInt :: rank
+      PetscErrorCode :: ierr
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
       call reinjector_dag%init(num_reinjectors)
       allocate(reinjector_specs_array(num_reinjectors))
@@ -1206,7 +1215,9 @@ contains
          call dep_list%destroy()
          call reinjector_dag%set_edges(reinjector_index, dependency_indices)
          deallocate(dependency_indices)
-         call reinjector_specs_array(reinjector_index + 1)%set(reinjector_json)
+         if (rank == 0) then
+            call reinjector_specs_array(reinjector_index + 1)%set(reinjector_json)
+         end if
 
          reinjector_json => fson_value_next_mpi(reinjector_json)
       end do
