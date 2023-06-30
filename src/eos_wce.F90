@@ -15,7 +15,6 @@ module eos_wce_module
    contains
      private
      procedure, public :: init => eos_wce_init
-     procedure, public :: destroy => eos_wce_destroy
   end type eos_wce_type
 
 contains
@@ -53,18 +52,6 @@ contains
     call self%gas%init()
 
   end subroutine eos_wce_init
-
-!------------------------------------------------------------------------
-
-  subroutine eos_wce_destroy(self)
-    !! Destroy eos_wce object.
-
-    class(eos_wce_type), intent(in out) :: self
-
-    deallocate(self%gas)
-    call self%eos_wge_type%destroy()
-
-  end subroutine eos_wce_destroy
 
 !------------------------------------------------------------------------
 

@@ -38,6 +38,7 @@ module source_setup_module
   use source_network_reinjector_module
   use source_control_module
   use separator_module
+  use tracer_module
 
   implicit none
   private
@@ -48,7 +49,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_source_network(json, dm, ao, eos, tracer_names, thermo, start_time, &
+  subroutine setup_source_network(json, dm, ao, eos, tracers, thermo, start_time, &
        fluid_vector, fluid_range_start, source_network, logfile, err)
     !! Sets up source network, including sinks / sources, source
     !! controls and source groups.
@@ -63,7 +64,7 @@ contains
     DM, intent(in) :: dm !! Mesh DM
     AO, intent(in) :: ao !! Application ordering for natural to global cell indexing
     class(eos_type), intent(in) :: eos !! Equation of state
-    character(*), intent(in) :: tracer_names(:) !! Tracer names
+    type(tracer_type), intent(in) :: tracers(:) !! Tracers
     class(thermodynamics_type), intent(in out) :: thermo !! Thermodynamics formulation
     PetscReal, intent(in) :: start_time
     Vec, intent(in) :: fluid_vector !! Fluid vector
@@ -90,6 +91,7 @@ contains
     type(dictionary_type) :: reinjector_dict, reinjector_index_dict
     PetscInt, allocatable :: indices(:), group_indices(:), reinjector_indices(:)
     PetscInt, allocatable :: group_order(:), reinjector_order(:)
+    character(max_tracer_name_length), allocatable :: tracer_names(:)
     PetscErrorCode :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -97,7 +99,8 @@ contains
     source_network%num_sources = 0
     source_network%num_groups = 0
     source_network%num_reinjectors = 0
-    num_tracers = size(tracer_names)
+    num_tracers = size(tracers)
+    tracer_names = tracers%name
     num_local_root_groups = 0
     num_local_root_reinjectors = 0
     err = 0
@@ -799,7 +802,10 @@ contains
       character(max_source_network_node_name_length), allocatable :: node_names(:)
       type(list_node_type), pointer :: dict_node
       PetscInt :: group_index, i
+      PetscMPIInt :: rank
+      PetscErrorCode :: ierr
 
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
       call group_dag%init(num_groups)
       allocate(group_specs_array(num_groups))
 
@@ -827,7 +833,9 @@ contains
                  dependency_indices > 0)
          end if
          call group_dag%set_edges(group_index, dependency_indices)
-         call group_specs_array(group_index + 1)%set(group_json)
+         if (rank == 0) then
+            call group_specs_array(group_index + 1)%set(group_json)
+         end if
          deallocate(node_names, dependency_indices)
          group_json => fson_value_next_mpi(group_json)
       end do
@@ -1139,6 +1147,10 @@ contains
       character(max_source_network_node_name_length) :: node_name
       PetscInt, parameter :: num_keys = 2
       character(5), parameter :: keys(num_keys) = ["water", "steam"]
+      PetscMPIInt :: rank
+      PetscErrorCode :: ierr
+
+      call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
       call reinjector_dag%init(num_reinjectors)
       allocate(reinjector_specs_array(num_reinjectors))
@@ -1203,7 +1215,9 @@ contains
          call dep_list%destroy()
          call reinjector_dag%set_edges(reinjector_index, dependency_indices)
          deallocate(dependency_indices)
-         call reinjector_specs_array(reinjector_index + 1)%set(reinjector_json)
+         if (rank == 0) then
+            call reinjector_specs_array(reinjector_index + 1)%set(reinjector_json)
+         end if
 
          reinjector_json => fson_value_next_mpi(reinjector_json)
       end do

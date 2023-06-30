@@ -250,7 +250,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = size(val)
+       if (alloc) count = size(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -289,7 +289,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = size(val)
+       if (alloc) count = size(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -328,7 +328,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = size(val)
+       if (alloc) count = size(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -368,7 +368,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = size(val)
+       if (alloc) count = size(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -409,7 +409,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = size(val)
+       if (alloc) count = size(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -449,7 +449,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = shape(val)
+       if (alloc) count = shape(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -490,7 +490,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = shape(val)
+       if (alloc) count = shape(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -531,7 +531,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = shape(val)
+       if (alloc) count = shape(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then
@@ -572,7 +572,7 @@ contains
           call fson_get(self, path, val)
        end if
        alloc = allocated(val)
-       count = shape(val)
+       if (alloc) count = shape(val)
     end if
     call MPI_bcast(alloc, 1, MPI_LOGICAL, 0, PETSC_COMM_WORLD, ierr)
     if (alloc) then

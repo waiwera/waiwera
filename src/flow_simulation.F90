@@ -993,7 +993,7 @@ contains
                       call self%fluid_init(self%time, self%solution, err)
                       if (err == 0) then
                          call setup_source_network(json, self%mesh%dm, self%mesh%cell_natural_global, &
-                              self%eos, self%tracers%name, self%thermo, self%time, self%fluid, &
+                              self%eos, self%tracers, self%thermo, self%time, self%fluid, &
                               self%fluid_range_start, self%source_network, self%logfile, err)
                          if (err == 0) then
                             call self%setup_output_fields(json)

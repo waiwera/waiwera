@@ -338,7 +338,9 @@ contains
                trim(rockstr) // "density")
           call fson_get_mpi(r, "specific_heat", default_specific_heat, &
                specific_heat, logfile, trim(rockstr) // "specific_heat")
-          perm_size = size(permeability)
+          if (permeability_init) then
+             perm_size = size(permeability)
+          end if
 
           if (num_cells > 0) then
              call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &

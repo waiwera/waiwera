@@ -178,6 +178,8 @@ The various aspects of the simulation are specified by different named values wi
    +-----------------+-----------------+--------------------------+
    |"eos"            |object           |equation of state         |
    +-----------------+-----------------+--------------------------+
+   |"tracer"         |object           |tracers                   |
+   +-----------------+-----------------+--------------------------+
    |"time"           |object           |time stepping             |
    +-----------------+-----------------+--------------------------+
    |"logfile"        |boolean | object |output log file           |
