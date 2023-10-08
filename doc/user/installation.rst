@@ -94,6 +94,8 @@ Native Linux build
 
 For building a native Waiwera executable on Linux, Waiwera uses the `Ansible <https://www.ansible.com/>`_ deployment system, which automates the build process. This includes checking if the necessary tools (e.g. compilers, build tools) are present on your system, installing them if they are not, building Waiwera's dependency libraries (e.g. `PETSc <https://petsc.org/>`_), and building Waiwera itself (which is carried out using the `Meson <https://mesonbuild.com/>`_ build system).
 
+Note that this build process will only work on a *native* Linux OS, not a compatibility layer like Windows Subsystem for Linux (WSL). If you are using Windows then running Waiwera via the Docker image is recommended (see :ref:`using_docker`).
+
 .. index:: Ansible
 
 Install Ansible
