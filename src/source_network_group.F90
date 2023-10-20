@@ -218,12 +218,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_group_set_rate(self, rate)
+  subroutine source_network_group_set_rate(self, rate, relax)
     !! Sets source network group flow rate to specified value, on the
     !! root process of the group.
 
     class(source_network_group_type), intent(in out) :: self
     PetscReal, intent(in) :: rate !! Flow rate
+    PetscReal, intent(in), optional :: relax !! Relaxation coefficient (not used)
 
     if (self%rank == 0) then
        self%rate = rate

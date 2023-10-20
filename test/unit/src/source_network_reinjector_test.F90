@@ -317,7 +317,7 @@ contains
       stopped = PETSC_FALSE
       select type (reinjector => node%data)
       class is (source_network_reinjector_type)
-         call reinjector%distribute()
+         call reinjector%distribute(unperturbed = PETSC_TRUE)
       end select
 
     end subroutine reinjector_iterator

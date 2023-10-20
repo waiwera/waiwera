@@ -76,6 +76,7 @@ module source_module
      PetscReal, public :: specified_rate !! Rate specified (may be overridden by reinjectors)
      PetscBool, public :: enthalpy_specified !! Whether enthalpy specified, by value or controls
      PetscReal, public :: specified_enthalpy !! Enthalpy specified (may be overridden by reinjectors)
+     PetscBool, public :: pressure_controlled !! Whether rate is controlled by cell fluid pressure
      PetscInt, public :: production_component !! Component for production (default 0 means all)
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
@@ -148,6 +149,7 @@ contains
     self%specified_rate = specified_rate
     self%enthalpy_specified = enthalpy_specified
     self%specified_enthalpy = specified_enthalpy
+    self%pressure_controlled = PETSC_FALSE
     self%production_component = production_component
     self%isothermal = eos%isothermal
 
@@ -264,14 +266,15 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_set_rate(self, rate)
+  subroutine source_set_rate(self, rate, relax)
     !! Sets source flow rate to specified value. For injection, also
     !! sets specified injection rate.
 
     class(source_type), intent(in out) :: self
     PetscReal, intent(in) :: rate !! Flow rate
+    PetscReal, intent(in), optional :: relax !! Relaxation coefficient
 
-    call self%source_network_node_type%set_rate(rate)
+    call self%source_network_node_type%set_rate(rate, relax)
     if (self%rate_specified) then
        self%specified_rate = rate
     end if

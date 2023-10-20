@@ -173,13 +173,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_node_set_rate(self, rate)
-    !! Sets network node flow rate to specified value.
+  subroutine source_network_node_set_rate(self, rate, relax)
+    !! Sets network node flow rate to specified value, with given
+    !! relaxation coefficient.
 
     class(source_network_node_type), intent(in out) :: self
     PetscReal, intent(in) :: rate !! Flow rate
+    PetscReal, intent(in), optional :: relax !! Relaxation coefficient
 
-    self%rate = rate
+    if (present(relax)) then
+       self%rate = (1._dp - relax) * self%rate + relax * rate
+    else
+       self%rate = rate
+    end if
     call self%get_separated_flows()
 
   end subroutine source_network_node_set_rate

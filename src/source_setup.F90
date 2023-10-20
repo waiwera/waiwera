@@ -1332,6 +1332,9 @@ contains
       character(max_source_network_node_name_length) :: out_name
       type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
       PetscMPIInt :: rank
+      PetscReal :: default_relax, relax
+      PetscReal, parameter :: default_relax_non_pressure_controlled = 0._dp
+      PetscReal, parameter :: default_relax_pressure_controlled = 1._dp
 
       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
@@ -1376,6 +1379,7 @@ contains
                      exit
                   else
                      if (source_dict_all%has(out_name)) then
+                        default_relax = default_relax_non_pressure_controlled
                         source_dict_node => source_dict%get(out_name)
                         if (associated(source_dict_node)) then
                            ! source is on this process:
@@ -1384,10 +1388,15 @@ contains
                               output%out => source
                               source%link_index = output_index
                               call reinjector%out%append(output)
+                              if (source%pressure_controlled) then
+                                 default_relax = default_relax_pressure_controlled
+                              end if
                            end select
                         else ! source is not on this process:
                            deallocate(output)
                         end if
+                        call fson_get_mpi(output_json, "relax", default_relax, relax)
+                        if (associated(output)) output%relax = relax
                         call reinjector_output_dict%add(out_name)
                      else
                         reinjector_dict_node => reinjector_dict%get(out_name)
@@ -1671,6 +1680,9 @@ contains
       PetscInt :: overflow_type
       character(max_source_network_node_name_length) :: node_name
       type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
+      PetscReal :: default_relax
+      PetscReal, parameter :: default_relax_non_pressure_controlled = 0._dp
+      PetscReal, parameter :: default_relax_pressure_controlled = 1._dp
 
       err = 0
       if (fson_has_mpi(reinjector_json, "overflow")) then
@@ -1694,6 +1706,7 @@ contains
                err = 1
             else
                if (source_dict_all%has(node_name)) then
+                  default_relax = default_relax_non_pressure_controlled
                   source_dict_node => source_dict%get(node_name)
                   if (associated(source_dict_node)) then
                      ! source is on this process:
@@ -1701,8 +1714,13 @@ contains
                      type is (source_type)
                         reinjector%overflow%out => source
                         source%link_index = 0 ! not used
+                        if (source%pressure_controlled) then
+                           default_relax = default_relax_pressure_controlled
+                        end if
                      end select
                   end if
+                  call fson_get_mpi(reinjector_json, "relax", default_relax, &
+                       reinjector%overflow%relax)
                   call reinjector_output_dict%add(node_name)
                else
                   reinjector_dict_node => reinjector_dict%get(node_name)
@@ -2673,11 +2691,12 @@ contains
     type(deliverability_source_control_type), pointer :: deliv
     PetscBool :: calculate_reference_pressure
     PetscBool :: calculate_PI_from_rate
-    PetscReal :: initial_rate, threshold
+    PetscReal :: initial_rate, threshold, relax
     PetscReal, allocatable :: productivity_array(:,:)
     PetscInt :: pressure_table_coordinate
     PetscReal, parameter :: default_rate = 0._dp
     PetscReal, parameter :: default_threshold = -1._dp
+    PetscReal, parameter :: default_relax = 1._dp
 
     err = 0
 
@@ -2707,6 +2726,8 @@ contains
           call get_deliverability_productivity(deliv_json, source_json, &
                srcstr, productivity_array, calculate_PI_from_rate, logfile)
 
+          call fson_get_mpi(deliv_json, "relax", default_relax, relax)
+
           call spec_sources%traverse(setup_deliverability_iterator)
 
        end if
@@ -2731,7 +2752,7 @@ contains
          allocate(deliv)
          call deliv%init(single_source, productivity_array, &
               interpolation_type, averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, threshold)
+               pressure_table_coordinate, threshold, relax)
 
           if (calculate_reference_pressure) then
              call deliv%set_reference_pressure_initial(fluid_data, &
@@ -2747,6 +2768,7 @@ contains
                   deliv%productivity%interpolate(start_time, 1)
           end if
           source%rate_specified = PETSC_TRUE
+          source%pressure_controlled = PETSC_TRUE
           call source_network%source_controls%append(deliv)
 
       end select
@@ -2849,6 +2871,8 @@ contains
     PetscInt, parameter :: num_keys = 2
     character(12), parameter :: keys(num_keys) = ["recharge   ", "injectivity"]
     character(12) :: key
+    PetscReal :: relax
+    PetscReal, parameter :: default_relax = 1._dp
 
     do k = 1, num_keys
        key = keys(k)
@@ -2869,6 +2893,8 @@ contains
              call get_reference_pressure(recharge_json, srcstr, key, &
                   reference_pressure_array, calculate_reference_pressure, &
                   pressure_table_coordinate, logfile)
+
+             call fson_get_mpi(recharge_json, "relax", default_relax, relax)
 
              if (pressure_table_coordinate == SRC_PRESSURE_TABLE_COORD_TIME) then
 
@@ -2909,13 +2935,14 @@ contains
 
          allocate(recharge)
          call recharge%init(single_source, recharge_array, interpolation_type, &
-              averaging_type, reference_pressure_array)
+              averaging_type, reference_pressure_array, relax)
 
          if (calculate_reference_pressure) then
             call recharge%set_reference_pressure_initial(fluid_data, &
                  fluid_section, fluid_range_start)
          end if
          source%rate_specified = PETSC_TRUE
+         source%pressure_controlled = PETSC_TRUE
 
          call source_network%source_controls%append(recharge)
 

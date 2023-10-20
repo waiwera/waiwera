@@ -1449,7 +1449,8 @@ contains
     call VecRestoreArrayF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
 
     call PetscLogEventBegin(sources_event, ierr); CHKERRQ(ierr)
-    call self%source_network%update(t, interval, fluid_array, fluid_section)
+    call self%source_network%update(t, interval, fluid_array, fluid_section, &
+         self%unperturbed)
     call self%source_network%assemble_cell_inflows(self%eos, rhs_array, rhs_section, &
          self%solution_range_start, fluid_array, fluid_section, &
          cell_geom_array, cell_geom_section)

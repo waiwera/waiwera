@@ -82,7 +82,11 @@ module source_control_module
      PetscReal :: interval(2) !! Time interval
      PetscReal, pointer, contiguous :: local_fluid_data(:)
      PetscSection, pointer :: local_fluid_section
+     PetscBool :: unperturbed !! if primary variables are perturbed for Jacobian calculation
+     PetscReal :: relax !! Relaxation coefficient for perturbed primary variables
    contains
+     private
+     procedure :: effective_relax => pressure_reference_source_control_effective_relax
      procedure, public :: set_reference_pressure_initial => &
           pressure_reference_source_control_set_initial
      procedure, public :: iterator => pressure_reference_source_control_iterator
@@ -218,6 +222,23 @@ contains
 ! Pressure reference source control:
 !------------------------------------------------------------------------
 
+  PetscReal function pressure_reference_source_control_effective_relax(self) &
+       result(relax)
+    !! Returns effective relaxation coefficient for updating source
+    !! flow.
+
+    class(pressure_reference_source_control_type), intent(in) :: self
+
+    if (self%unperturbed) then
+       relax = 1._dp
+    else
+       relax = self%relax
+    end if
+
+  end function pressure_reference_source_control_effective_relax
+
+!------------------------------------------------------------------------
+
   subroutine pressure_reference_source_control_set_initial(self, &
        global_fluid_data, global_fluid_section, fluid_range_start)
     !! Sets reference pressure for pressure reference control to be
@@ -272,7 +293,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine pressure_reference_source_control_update(self, time, interval, &
-       local_fluid_data, local_fluid_section)
+       local_fluid_data, local_fluid_section, unperturbed)
     !! Updates source flow rates for pressure reference source controls.
 
     class(pressure_reference_source_control_type), intent(in out) :: self
@@ -280,11 +301,13 @@ contains
     PetscReal, intent(in) :: interval(2) !! Time interval
     PetscReal, pointer, contiguous, intent(in) :: local_fluid_data(:) !! Fluid data array
     PetscSection, target, intent(in) :: local_fluid_section !! Fluid section
+    PetscBool, intent(in) :: unperturbed !! if primary variables are perturbed for Jacobian calculation
 
     self%time = time
     self%interval = interval
     self%local_fluid_data => local_fluid_data
     self%local_fluid_section => local_fluid_section
+    self%unperturbed = unperturbed
     call self%objects%traverse(iterator)
 
   contains
@@ -320,7 +343,8 @@ contains
 
   subroutine deliverability_source_control_init(self, objects, &
        productivity_data, interpolation_type, averaging_type, &
-       reference_pressure_data, pressure_table_coordinate, threshold)
+       reference_pressure_data, pressure_table_coordinate, &
+       threshold, relax)
     !! Initialises deliverability source_control.
 
     class(deliverability_source_control_type), intent(in out) :: self
@@ -330,6 +354,7 @@ contains
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: pressure_table_coordinate
     PetscReal, intent(in) :: threshold
+    PetscReal, intent(in) :: relax
 
     self%objects = objects
     call self%productivity%init(productivity_data, &
@@ -338,6 +363,7 @@ contains
          interpolation_type, averaging_type)
     self%pressure_table_coordinate = pressure_table_coordinate
     self%threshold = threshold
+    self%relax = relax
 
   end subroutine deliverability_source_control_init
 
@@ -472,12 +498,13 @@ contains
 
        if (self%threshold <= 0._dp) then
           productivity = self%productivity%average(self%interval, 1)
-          call source%set_rate(self%flow_rate(source, productivity))
+          call source%set_rate(self%flow_rate(source, productivity), &
+               self%effective_relax())
        else
           if (source%fluid%pressure < self%threshold) then
              qd = self%flow_rate(source, self%threshold_productivity)
              if (qd > source%rate) then
-                call source%set_rate(qd)
+                call source%set_rate(qd, self%effective_relax())
              else ! don't use qd, but update PI
                 call self%calculate_PI_from_rate(self%time, source%rate, &
                      self%local_fluid_data, self%local_fluid_section, -1, &
@@ -510,7 +537,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine recharge_source_control_init(self, objects, recharge_data, &
-       interpolation_type, averaging_type, reference_pressure_data)
+       interpolation_type, averaging_type, reference_pressure_data, &
+       relax)
     !! Initialises recharge source control.
 
     class(recharge_source_control_type), intent(in out) :: self
@@ -518,12 +546,14 @@ contains
     PetscReal, intent(in) :: recharge_data(:,:)
     PetscInt, intent(in) :: interpolation_type, averaging_type
     PetscReal, intent(in) :: reference_pressure_data(:,:)
+    PetscReal, intent(in) :: relax
 
     self%objects = objects
     call self%coefficient%init(recharge_data, &
          interpolation_type, averaging_type)
     call self%reference_pressure%init(reference_pressure_data, &
          interpolation_type, averaging_type)
+    self%relax = relax
 
   end subroutine recharge_source_control_init
 
@@ -548,7 +578,9 @@ contains
        reference_pressure = self%reference_pressure%average(self%interval, 1)
        pressure_difference = source%fluid%pressure - reference_pressure
        recharge_coefficient = self%coefficient%average(self%interval, 1)
-       call source%set_rate(-recharge_coefficient * pressure_difference)
+
+       call source%set_rate(-recharge_coefficient * pressure_difference, &
+            self%effective_relax())
 
     end select
 

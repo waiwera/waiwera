@@ -66,8 +66,10 @@ module source_network_reinjector_module
      private
      class(source_network_reinjector_type), pointer :: reinjector !! Reinjector to output from
      class(source_network_node_type), pointer, public :: out !! Output network node
+     PetscReal, public :: relax !! Relaxation coefficient for perturbed primary variables
    contains
      private
+     procedure :: effective_relax => reinjector_output_effective_relax
      procedure, public :: allocate_variables => reinjector_output_allocate_variables
      procedure, public :: deallocate_variables => reinjector_output_deallocate_variables
      procedure, public :: node_limit => reinjector_output_node_limit
@@ -273,8 +275,28 @@ contains
 
 !------------------------------------------------------------------------
 
+  PetscReal function reinjector_output_effective_relax(self, unperturbed) &
+       result(relax)
+    !! Returns effective relaxation coefficient for updating source
+    !! flow, based on whether primary variables are perturbed for
+    !! Jacobian calculation.
+
+    class(reinjector_output_type), intent(in out) :: self
+    PetscBool, intent(in) :: unperturbed
+
+    if (unperturbed) then
+       relax = 1._dp
+    else
+       relax = self%relax
+    end if
+
+  end function reinjector_output_effective_relax
+
+!------------------------------------------------------------------------
+
   subroutine reinjector_output_update(self, water_rate, &
-       water_enthalpy, steam_rate, steam_enthalpy, enthalpy_specified)
+       water_enthalpy, steam_rate, steam_enthalpy, enthalpy_specified, &
+       unperturbed)
     !! Updates output rates and enthalpies, and assigns them to the
     !! output node if it is a source.
 
@@ -282,6 +304,7 @@ contains
     PetscReal, target, intent(in) :: water_rate, water_enthalpy
     PetscReal, target, intent(in) :: steam_rate, steam_enthalpy
     PetscBool, intent(in) :: enthalpy_specified
+    PetscBool, intent(in) :: unperturbed
     ! Locals:
     PetscReal :: rate, enthalpy
 
@@ -298,7 +321,7 @@ contains
     if (associated(self%out)) then
        select type (n => self%out)
        class is (source_type)
-          n%rate = rate
+          call n%set_rate(rate, self%effective_relax(unperturbed))
           n%water_rate = water_rate
           n%steam_rate = steam_rate
           if (.not. n%enthalpy_specified) then
@@ -341,6 +364,7 @@ contains
     self%out => null()
     self%link_index = -1
     self%flow_type = flow_type
+    self%relax = 1._dp
     call self%allocate_variables()
 
   end subroutine specified_reinjector_output_init
@@ -503,6 +527,7 @@ contains
 
     self%reinjector => reinjector
     self%out => null()
+    self%relax = 1._dp
 
   end subroutine overflow_reinjector_output_init
 
@@ -913,7 +938,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_network_reinjector_overflow_output(self, water_balance, &
-       water_enthalpy, steam_balance, steam_enthalpy)
+       water_enthalpy, steam_balance, steam_enthalpy, unperturbed)
     !! Updates overflow data in reinjection vector, and assigns to
     !! overflow output node if there is one.
 
@@ -922,6 +947,7 @@ contains
     class(source_network_reinjector_type), intent(in out) :: self
     PetscReal, intent(in out) :: water_balance, water_enthalpy
     PetscReal, intent(in out) :: steam_balance, steam_enthalpy
+    PetscBool, intent(in) :: unperturbed
     ! Locals:
     PetscMPIInt :: rank
     PetscErrorCode :: ierr
@@ -947,7 +973,8 @@ contains
 
        if (rank == self%overflow%out_world_rank) then
           call self%overflow%update(water_balance, water_enthalpy, &
-               steam_balance, steam_enthalpy, output_enthalpy_specified)
+               steam_balance, steam_enthalpy, output_enthalpy_specified, &
+               unperturbed)
        end if
 
     end if
@@ -1057,11 +1084,12 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_reinjector_distribute(self)
+  subroutine source_network_reinjector_distribute(self, unperturbed)
     !! Distributes reinjector input flow to outputs (and overflow if
     !! needed).
 
     class(source_network_reinjector_type), intent(in out) :: self
+    PetscBool, intent(in) :: unperturbed !! if primary variables are perturbed for Jacobian calculation
     ! Locals:
     PetscReal :: water_balance
     PetscReal :: steam_balance
@@ -1143,7 +1171,7 @@ contains
     call self%out%traverse(local_update_iterator)
 
     call self%overflow_output(water_balance, self%in_water_enthalpy, &
-         steam_balance, self%in_steam_enthalpy)
+         steam_balance, self%in_steam_enthalpy, unperturbed)
 
   contains
 
@@ -1216,7 +1244,7 @@ contains
                call output%enthalpies(water_enthalpy, steam_enthalpy, &
                     output_enthalpy_specified)
                call output%update(local_qw(i), water_enthalpy, local_qs(i), &
-                    steam_enthalpy, output_enthalpy_specified)
+                    steam_enthalpy, output_enthalpy_specified, unperturbed)
                i = i + 1
             end if
          else
@@ -1224,7 +1252,7 @@ contains
                call output%enthalpies(water_enthalpy, steam_enthalpy, &
                     output_enthalpy_specified)
                call output%update(local_qw(i), water_enthalpy, local_qs(i), &
-                    steam_enthalpy, output_enthalpy_specified)
+                    steam_enthalpy, output_enthalpy_specified, unperturbed)
                i = i + 1
             end if
          end if

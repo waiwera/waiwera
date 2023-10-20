@@ -83,7 +83,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_update(self, t, interval, fluid_data, fluid_section)
+  subroutine source_network_update(self, t, interval, fluid_data, fluid_section, &
+       unperturbed)
     !! Updates flows through source network, applying controls and
     !! updating source rates.
 
@@ -94,6 +95,7 @@ contains
     PetscReal, intent(in) :: interval(2) !! time interval bounds
     PetscReal, pointer, contiguous, intent(in out) :: fluid_data(:) !! array on fluid vector
     PetscSection, intent(in out) :: fluid_section !! fluid section
+    PetscBool, intent(in) :: unperturbed !! whether primary variables are perturbed for Jacobian calculation
     ! Locals:
     PetscSection :: source_section, group_section, reinjector_section
     PetscReal, pointer, contiguous :: source_data(:), group_data(:), reinjector_data(:)
@@ -232,7 +234,7 @@ contains
          call control%update(interval)
       class is (pressure_reference_source_control_type)
          call control%update(t, interval, fluid_data, &
-              fluid_section)
+              fluid_section, unperturbed)
       end select
 
     end subroutine control_iterator
@@ -281,7 +283,7 @@ contains
       stopped = PETSC_FALSE
       select type (reinjector => node%data)
       class is (source_network_reinjector_type)
-         call reinjector%distribute()
+         call reinjector%distribute(unperturbed)
       end select
 
     end subroutine reinjector_iterator

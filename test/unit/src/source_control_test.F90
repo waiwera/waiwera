@@ -172,7 +172,7 @@ contains
          call source_control%update(interval)
       class is (pressure_reference_source_control_type)
          call source_control%update(t, interval, local_fluid_array, &
-              local_fluid_section)
+              local_fluid_section, unperturbed = PETSC_TRUE)
       end select
     end subroutine source_control_iterator
 
@@ -474,7 +474,7 @@ contains
          call source_control%update(interval)
       class is (pressure_reference_source_control_type)
          call source_control%update(t, interval, local_fluid_array, &
-              local_fluid_section)
+              local_fluid_section, unperturbed = PETSC_TRUE)
       end select
       stopped = PETSC_FALSE
     end subroutine source_control_update_iterator
