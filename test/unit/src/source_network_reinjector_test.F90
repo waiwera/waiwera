@@ -88,6 +88,7 @@ contains
     PetscInt, parameter :: expected_num_sources = 39
     PetscInt, parameter :: expected_num_groups = 6
     PetscInt, parameter :: expected_num_reinjectors = 10
+    PetscBool, parameter :: update_reinjection = PETSC_TRUE
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_reinjector.json")
@@ -317,7 +318,7 @@ contains
       stopped = PETSC_FALSE
       select type (reinjector => node%data)
       class is (source_network_reinjector_type)
-         call reinjector%distribute()
+         call reinjector%distribute(update_reinjection)
       end select
 
     end subroutine reinjector_iterator
