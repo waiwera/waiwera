@@ -60,7 +60,7 @@
   become: no
 
 - name: Cleanup
-  include: cleanup.yml
+  include_tasks: cleanup.yml
   tags:
     - cleanup
 
