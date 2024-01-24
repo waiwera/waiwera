@@ -35,19 +35,24 @@ ADD . /opt/waiwera
 #RUN rm -rf /opt/waiwera/external && rm -rf /opt/waiwera/build
 
 RUN DEBIAN_FRONTEND=noninteractive \
-    apt update && \
-    apt install -y --no-install-recommends  \
-        python-minimal \
-        python-pip \
-        python-setuptools \
-        python-wheel \
-        apt-utils && \
-    pip install ansible &&\
-    usr/local/bin/ansible-playbook \
+    apt-get update && \
+    apt-get install -y --no-install-recommends  \
+        apt-utils \
+        python3-minimal \
+        python3-venv && \
+    python3 -m venv ~/env && \
+    . ~/env/bin/activate && \
+    ~/env/bin/pip install \
+        setuptools \
+        wheel \
+        ansible && \
+    ~/env/bin/ansible-playbook \
         --connection=local \
         /opt/waiwera/install/ansible/docker.yml \
         -v && \
-    pip uninstall ansible -y && \
+    deactivate && \
+    rm -rf ~/env && \
+    apt-get remove -y python3-venv && \
     apt-get autoremove -y && \
     apt-get autoclean -y && \
     apt-get clean -y && \
@@ -55,7 +60,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
         /var/lib/apt/lists/* \
         /tmp/* \
         /var/tmp/* \
-        /usr/share/doc/*  \
+        /usr/share/doc/* \
         /root/.pip/cache/*
 
 #RUN rm -r /ansible
