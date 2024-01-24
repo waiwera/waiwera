@@ -1,5 +1,5 @@
 #FROM phusion/baseimage
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 USER root
 
