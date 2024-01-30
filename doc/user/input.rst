@@ -128,6 +128,7 @@ If you are editing a JSON file manually using a text editor, particularly if it 
 
 There are software tools available to check if a the contents of a file are valid JSON, and point out any errors. There are JSON validation tools available inside some text editors, or as stand-alone tools, or as online tools such as `this <https://jsonlint.com/>`_ one.
 
+.. warning::
 It is not a good idea to have duplicate keys in a JSON object (although the JSON specification does not explicitly disallow it). Different JSON software implementations handle duplicates differently, so you cannot rely on any particular duplicate (e.g. the last one in the file) being the one that will always be used. Some JSON validators (e.g. the one linked to above) will treat duplicate keys as invalid and produce warnings.
 
 .. index:: JSON; schema

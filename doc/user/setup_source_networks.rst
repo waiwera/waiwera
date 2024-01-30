@@ -169,6 +169,7 @@ If any of the output flow rates (total, water or steam) exceeds its specified co
 
 If a group with a limiter has other groups in its inputs, then the limiter is applied recursively - that is, the limiter imposes limits on the input groups (according to its scaling policy), which in turn impose limits on their own inputs. This continues down until the level of individual sources is reached, at which point the flow rates in these sources are adjusted to meet the higher-level group limits.
 
+.. warning::
 Note that in more complex situations where there are higher-level groups with limiters, and they have lower-level groups with their own limiters as inputs, conflicts between the limiters can occur, and it may not be possible for all the groups to meet their specified limits exactly. Some of the groups may have output flow rates that are below their specified limits. In such cases, higher-level groups are given priority - that is, the highest-level groups will meet their limits exactly while the lower-level groups may not.
 
 Example:
@@ -212,6 +213,7 @@ Example:
 
 Here a group is defined with three inputs, limits on steam and total flow and progressive scaling.
 
+.. warning::
 Note that water or steam limiters with progressive scaling should not be used for groups which have their own :ref:`group_separator`. This is because the inputs are scaled by different factors, and if they have different enthalpies, then the output enthalpy will be changed by the progressive scaling process. This would also alter the proportion of water to steam flow coming out of a group separator, resulting in a complex non-linear feedback loop. Hence, groups with water or steam limiters and their own separators (e.g. representing multi-feed wells) should use uniform scaling. Conversely, groups with water or steam limiters and progressive scaling (e.g. make-up well groups) should not have their own separator.
    
 .. index:: source groups; separators, separators
