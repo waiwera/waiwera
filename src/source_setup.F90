@@ -869,6 +869,27 @@ contains
 
 !........................................................................
 
+    PetscErrorCode function check_valid_scaling(group_json, scaling_type) &
+         result(err)
+      ! Returns true if the JSON spec for a group has valid
+      ! scaling. Progressive scaling is invalid if the group has its
+      ! own separator and a separated water or steam limiter.
+
+      type(fson_value), pointer, intent(in out) :: group_json
+      character(*), intent(in) :: scaling_type
+
+      err = 0
+      if ((scaling_type == 'progressive') .and. &
+           (fson_has_mpi(group_json, 'separator')) .and. &
+           (fson_has_mpi(group_json, 'limiter.water') .or. &
+           fson_has_mpi(group_json, 'limiter.steam'))) then
+            err = 1
+      end if
+
+    end function check_valid_scaling
+
+!........................................................................
+
     subroutine init_source_network_groups(source_network, &
          num_local_root_groups, logfile, err)
       !! Initialise source network groups and controls and return
@@ -912,90 +933,103 @@ contains
               scaling_type, logfile, trim(grpstr) // "scaling")
          scaling_type = str_to_lower(scaling_type)
 
-         select case (scaling_type)
-         case ("progressive")
-            allocate(progressive_scaling_source_network_group_type :: group)
-         case default
-            allocate(uniform_scaling_source_network_group_type :: group)
-         end select
-
-         call group%init(name)
-         call setup_inline_source_group_controls(group_json, group, &
-              source_network, logfile)
-
-         do i = 1, size(node_names)
-            associate(node_name => node_names(i))
-              if (source_dict_all%has(node_name)) then
-                 if (group_source_dict%has(node_name)) then
-                    if (present(logfile)) then
-                       call logfile%write(LOG_LEVEL_ERR, "input", &
-                            "source " // trim(node_name) // &
-                            " outputs to more than one group.")
-                    end if
-                    err = 1
-                    deallocate(group)
-                    exit
-                 else
-                    source_dict_node => source_dict%get(node_name)
-                    if (associated(source_dict_node)) then
-                       select type (source => source_dict_node%data)
-                       type is (source_type)
-                          source%link_index = i
-                          call group%in%append(source)
-                       end select
-                    end if
-                    call group_source_dict%add(node_name)
-                 end if
-              else
-                 group_dict_node => group_dict%get(node_name)
-                 if (associated(group_dict_node)) then
-                    select type (in_group => group_dict_node%data)
-                    class is (source_network_group_type)
-                       if (associated(in_group%out)) then
-                          if (present(logfile)) then
-                             call logfile%write(LOG_LEVEL_ERR, "input", &
-                                  "group " // trim(in_group%name) // &
-                                  " outputs to more than one group.")
-                          end if
-                          err = 1
-                          deallocate(group)
-                          exit
-                       else
-                          in_group%out => group
-                          if (in_group%rank == 0) in_group%link_index = i
-                          call group%in%append(in_group)
-                       end if
-                    end select
-                 else
-                    if (present(logfile)) then
-                       call logfile%write(LOG_LEVEL_ERR, "input", &
-                            "unrecognised group input: " // trim(node_name))
-                    end if
-                    err = 1
-                    deallocate(group)
-                    exit
-                 end if
-              end if
-            end associate
-         end do
-
+         err = check_valid_scaling(group_json, scaling_type)
          if (err == 0) then
 
-            call group%init_comm()
+            select case (scaling_type)
+            case ("progressive")
+               allocate(progressive_scaling_source_network_group_type :: group)
+            case default
+               allocate(uniform_scaling_source_network_group_type :: group)
+            end select
 
-            if (group%rank == 0) then
-               g = num_local_root_groups
-               num_local_root_groups = num_local_root_groups + 1
+            call group%init(name)
+            call setup_inline_source_group_controls(group_json, group, &
+                 source_network, logfile)
+
+            do i = 1, size(node_names)
+               associate(node_name => node_names(i))
+                 if (source_dict_all%has(node_name)) then
+                    if (group_source_dict%has(node_name)) then
+                       if (present(logfile)) then
+                          call logfile%write(LOG_LEVEL_ERR, "input", &
+                               "source " // trim(node_name) // &
+                               " outputs to more than one group.")
+                       end if
+                       err = 1
+                       deallocate(group)
+                       exit
+                    else
+                       source_dict_node => source_dict%get(node_name)
+                       if (associated(source_dict_node)) then
+                          select type (source => source_dict_node%data)
+                          type is (source_type)
+                             source%link_index = i
+                             call group%in%append(source)
+                          end select
+                       end if
+                       call group_source_dict%add(node_name)
+                    end if
+                 else
+                    group_dict_node => group_dict%get(node_name)
+                    if (associated(group_dict_node)) then
+                       select type (in_group => group_dict_node%data)
+                       class is (source_network_group_type)
+                          if (associated(in_group%out)) then
+                             if (present(logfile)) then
+                                call logfile%write(LOG_LEVEL_ERR, "input", &
+                                     "group " // trim(in_group%name) // &
+                                     " outputs to more than one group.")
+                             end if
+                             err = 1
+                             deallocate(group)
+                             exit
+                          else
+                             in_group%out => group
+                             if (in_group%rank == 0) in_group%link_index = i
+                             call group%in%append(in_group)
+                          end if
+                       end select
+                    else
+                       if (present(logfile)) then
+                          call logfile%write(LOG_LEVEL_ERR, "input", &
+                               "unrecognised group input: " // trim(node_name))
+                       end if
+                       err = 1
+                       deallocate(group)
+                       exit
+                    end if
+                 end if
+               end associate
+            end do
+
+            if (err == 0) then
+
+               call group%init_comm()
+
+               if (group%rank == 0) then
+                  g = num_local_root_groups
+                  num_local_root_groups = num_local_root_groups + 1
+               else
+                  g = -1
+               end if
+               group%local_group_index = g
+
+               call source_network%groups%append(group)
+               if (name /= "") then
+                  call group_dict%add(name, group)
+               end if
             else
-               g = -1
-            end if
-            group%local_group_index = g
-
-            call source_network%groups%append(group)
-            if (name /= "") then
-               call group_dict%add(name, group)
+               exit
             end if
 
+         else
+            if (present(logfile)) then
+               call logfile%write(LOG_LEVEL_ERR, "input", &
+                    "invalid_scaling", str_key = "group", &
+                    str_value = trim(name))
+            end if
+            exit
          end if
 
          deallocate(node_names)

@@ -216,7 +216,11 @@ Here a group is defined with three inputs, limits on steam and total flow and pr
 
 .. warning::
 
-   Note that water or steam limiters with progressive scaling should not be used for groups which have their own :ref:`group_separator`. This is because the inputs are scaled by different factors, and if they have different enthalpies, then the output enthalpy will be changed by the progressive scaling process. This would also alter the proportion of water to steam flow coming out of a group separator, resulting in a complex non-linear feedback loop. Hence, groups with water or steam limiters and their own separators (e.g. representing multi-feed wells) should use uniform scaling. Conversely, groups with water or steam limiters and progressive scaling (e.g. make-up well groups) should not have their own separator.
+   Note that water or steam limiters with progressive scaling cannot be used for groups which have their own :ref:`group_separator`. Specifying groups with these parameters will raise an error.
+
+   This is because the inputs are scaled by different factors, and if they have different enthalpies, then the output enthalpy will be changed by the progressive scaling process. This would also alter the proportion of water to steam flow coming out of a group separator, thus changing the scaling; resulting in a non-linear feedback loop.
+
+   Hence, groups with water or steam limiters and their own separators (e.g. representing multi-feed wells) must use uniform scaling. Conversely, groups with water or steam limiters and progressive scaling (e.g. make-up well groups) should not have their own separator (instead, their inputs must have their own separators).
    
 .. index:: source groups; separators, separators
 .. _group_separator:
