@@ -359,7 +359,7 @@ contains
     call MPI_reduce(source_network%source_controls%count, num_source_controls, 1, &
          MPI_INTEGER, MPI_SUM, 0, PETSC_COMM_WORLD, ierr)
     if (rank == 0) then
-       call test%assert(29, num_source_controls, "number of source controls")
+       call test%assert(31, num_source_controls, "number of source controls")
     end if
 
     call MPI_reduce(source_network%separated_sources%count, num_separators, 1, &

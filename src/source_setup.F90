@@ -2326,18 +2326,23 @@ contains
       PetscInt :: variable_type
       type(fson_value), pointer :: table
       type(rate_table_source_control_type), pointer :: control
+      PetscReal :: fixed_rate
       PetscReal, allocatable :: data_array(:,:)
 
       if (fson_has_mpi(source_json, "rate")) then
          variable_type = fson_type_mpi(source_json, "rate")
-         if (variable_type == TYPE_ARRAY) then
+         select case (variable_type)
+         case (TYPE_REAL, TYPE_INTEGER)
+            call fson_get_mpi(source_json, "rate", val = fixed_rate)
+            data_array = reshape([0._dp, fixed_rate], [1, 2])
+         case (TYPE_ARRAY)
             call fson_get_mpi(source_json, "rate", val = data_array)
-         else if (variable_type == TYPE_OBJECT) then
+         case (TYPE_OBJECT)
             call fson_get_mpi(source_json, "rate", table)
             if (fson_has_mpi(table, "time")) then
                call fson_get_mpi(table, "time", val = data_array)
             end if
-         end if
+         end select
       end if
 
       if (allocated(data_array)) then
