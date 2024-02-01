@@ -147,6 +147,7 @@ contains
          source_offset = global_section_offset(source_section, &
               s, self%source_range_start)
          call source%assign(source_data, source_offset)
+         call source%update_flow(fluid_data, fluid_section)
       end select
     end subroutine source_assign_iterator
 
