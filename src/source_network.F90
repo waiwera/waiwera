@@ -211,7 +211,6 @@ contains
       select type(source => node%data)
       type is (source_type)
 
-         call source%assign_fluid_local(fluid_data, fluid_section)
          allocate(phase_flow_fractions(source%fluid%num_phases))
          phase_flow_fractions = source%fluid%phase_flow_fractions()
          source%enthalpy = source%fluid%specific_enthalpy(phase_flow_fractions)
