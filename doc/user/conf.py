@@ -70,7 +70,7 @@ release = u'1.4.0'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -123,13 +123,17 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'pyramid'
+html_theme = 'pydata_sphinx_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {"secondary_sidebar_items": [],
+                      "logo": {
+                          "image_light": "waiwera_logo_text.png",
+                          "image_dark": "waiwera_logo_text_dark.png",
+                      }}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -178,7 +182,13 @@ html_static_path = ['_static']
 
 # Custom sidebar templates, maps document names to template names.
 #
-# html_sidebars = {}
+html_sidebars = {
+    '**': [
+        'localtoc.html',
+        'relations.html',  # needs 'show_related': True theme option to display
+        'searchbox.html',
+    ]
+}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
