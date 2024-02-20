@@ -35,7 +35,7 @@ Waiwera offers two types of interpolation (see :numref:`interpolation_fig`), dep
 
 .. _interpolation_fig:
 .. figure:: interpolation.*
-           :scale: 67 %
+           :scale: 80 %
            :align: center
 
            Interpolation types

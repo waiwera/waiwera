@@ -18,7 +18,7 @@ If the matrix is represented by just a single cell inside each fracture cell, th
 but not between matrix cells that are inside different fracture cells. Flow within the rock matrix is locally one-dimensional. Generally permeabilities are low in the matrix cells, but high in the fracture cells.
 
 .. figure:: minc.*
-           :scale: 67 %
+           :scale: 100 %
            :align: center
 
            Schematic of MINC cell connectivity (fracture cells and three-level nested matrix cells)

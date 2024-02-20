@@ -62,7 +62,7 @@ In either case, the faces are specified by a combination of cell indices and an 
 
 .. _bc_fig:
 .. figure:: boundary_conditions.*
-           :scale: 50 %
+           :scale: 75 %
            :align: center
 
            Specifying boundary faces by cells and normal vector
