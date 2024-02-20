@@ -9,11 +9,11 @@ Importing Waiwera input
 Importing from a TOUGH2 input data file
 =======================================
 
-It is possible to import a Waiwera model from the input for an existing TOUGH2 [Prue04]_ model, using `PyTOUGH <https://github.com/acroucher/PyTOUGH>`_ [WeCr12]_, a library for handling TOUGH2 simulations via Python scripts.
+It is possible to import a Waiwera model from the input for an existing `TOUGH2 <https://tough.lbl.gov/>`_ model, using `PyTOUGH <https://github.com/acroucher/PyTOUGH>`_ , a library for handling TOUGH2 simulations via Python scripts.
 
 PyTOUGH (since version 1.5.2) defines a ``t2data`` Python class for representing the contents of the main TOUGH2 input data file. This class has a ``json()`` method which returns a JSON representation of the TOUGH2 model, in the form expected by Waiwera. This JSON representation (in the form of a Python dictionary) can be written out to a Waiwera JSON input file using the ``json`` module built in to Python.
 
-The simulation mesh for the TOUGH2 simulation must be provided in the form of a MULgrid geometry file (see [Crou18]_), before the ``json()`` method can be used. If a MULgrid geometry file is not available for the TOUGH2 model, PyTOUGH includes functionality for reverse-engineering such a geometry file from the TOUGH2 input data file, if the mesh is rectangular.
+The simulation mesh for the TOUGH2 simulation must be provided in the form of a MULgrid geometry file (see the PyTOUGH `user guide <https://pytough.readthedocs.io/>`_), before the ``json()`` method can be used. If a MULgrid geometry file is not available for the TOUGH2 model, PyTOUGH includes functionality for reverse-engineering such a geometry file from the TOUGH2 input data file, if the mesh is rectangular.
 
 Full details of the parameters to be passed into the ``json()`` method can be found in the PyTOUGH user guide.
 
@@ -31,7 +31,7 @@ Limitations of the import process
 Importing meshes
 ================
 
-Simulation meshes in the MULgrid geometry format may be imported into ExodusII or GMSH format, suitable for Waiwera, using the PyTOUGH ``mulgrid`` object's ``write_mesh()`` method. For more details, refer to the PyTOUGH user guide [Crou18]_.
+Simulation meshes in the MULgrid geometry format may be imported into ExodusII or GMSH format, suitable for Waiwera, using the PyTOUGH ``mulgrid`` object's ``write_mesh()`` method. For more details, refer to the PyTOUGH `user guide <https://pytough.readthedocs.io/>`_.
 
 The ``write_mesh()`` method relies on the `meshio <https://pypi.org/project/meshio/>`_ Python library, so this must be installed first. The ``meshio`` library can also be used to import other types of mesh files into formats suitable for Waiwera.
 
@@ -68,7 +68,3 @@ In this example the mesh is a 2-D Cartesian vertical slice mesh, so the ``dimens
 After the ``jsondata`` dictionary variable has been created, containing a JSON representation of the simulation, this variable is edited to add a value for the 2-D mesh thickness. Other aspects of the simulation could be altered as desired here by editing the ``jsondata`` variable. 
 
 The last line of the script writes the Waiwera input JSON file, "model.json". Two optional parameters are added here, one to specify the size of the indenting, and the other to sort the keys in the JSON file. Since the ``jsondata`` variable is a Python dictionary, and dictionary variables have no implied order, the keys could otherwise be written out in arbitrary order. Setting the ``sort_keys`` parameter ensures the keys are written out in alphabetical order, which can make particular keys easier to find in the file.
-
-.. [Crou18] Croucher, A. (2018). "PyTOUGH user's guide", version 1.5.1, University of Auckland, July 2018. Available from the `PyTOUGH website <https://github.com/acroucher/PyTOUGH>`_.
-.. [Prue04] Pruess, K. (2004). "The TOUGH codes -- a family of simulation tools for multiphase flow and transport processes in permeable media". Vadose Zone Journal, 3(3), 738 -- 746.
-.. [WeCr12] Wellmann, J.F., Croucher, A.E. and Regenauer-Lieb, K. (2012). "Python scripting libraries for subsurface fluid and heat flow simulations with TOUGH2 and SHEMAT". Computers & Geosciences, 43 (197-206).
