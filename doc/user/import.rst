@@ -21,7 +21,7 @@ Limitations of the import process
 =================================
 
 * Only certain equations of state are supported: EOS1 ('W' or 'EW'), EOS2 ('EWC') and EOS4 ('EWAV').
-* Some generator types (mostly AUTOUGH2 types) are not supported: 'CO2', 'DMAK', 'FEED', 'FINJ', 'HLOS', 'IMAK', 'MAKE', 'PINJ', 'POWR', 'RINJ', 'TMAK', 'TOST', 'VOL.', 'WBRE', 'WFLO', 'XINJ', 'XIN2'.
+* Some generator types (mostly AUTOUGH2 types) are not supported: 'CO2', 'FEED', 'HLOS', 'MAKE', 'POWR', 'TOST', 'VOL.', 'WBRE', 'WFLO', 'XIN2'.
 * Only some relative permeability curves are supported: linear, Pickens, Corey, Grant, fully mobile, van Genuchten, and the AUTOUGH2 tri-linear relative permeability curve (type 19).
 * Only some capillary pressure functions are supported: linear, van Genuchten and zero.
 * If the model has side boundary conditions applied (via horizontal connections to large volume blocks), the boundary blocks must have their centres defined, so that the appropriate normal vectors can be determined for specifying the boundary faces.
