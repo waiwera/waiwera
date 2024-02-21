@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="79.228325mm"
+   height="20.161186mm"
+   viewBox="0 0 79.228323 20.161186"
+   version="1.1"
+   id="svg4501"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   sodipodi:docname="waiwera_logo_text_large_light.svg"
+   inkscape:export-filename="/home/acro018/software/geothermal/waiwera/website/virtualenvironment/mkdocs/waiwera-mkdocs/docs/img/waiwera_logo_text.png"
+   inkscape:export-xdpi="102.04756"
+   inkscape:export-ydpi="102.04756"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs4495">
+    <linearGradient
+       id="linearGradient925"
+       inkscape:collect="always">
+      <stop
+         id="stop921"
+         offset="0"
+         style="stop-color:#ff0000;stop-opacity:1" />
+      <stop
+         id="stop923"
+         offset="1"
+         style="stop-color:#0147ff;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient
+       gradientTransform="matrix(0.27092211,0,0,0.27092211,3.5545519,-1.1848385)"
+       y2="113.20927"
+       x2="38.390781"
+       y1="24.876698"
+       x1="38.92532"
+       gradientUnits="userSpaceOnUse"
+       id="linearGradient1147"
+       xlink:href="#linearGradient925"
+       inkscape:collect="always" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.979899"
+     inkscape:cx="156.32111"
+     inkscape:cy="-43.689097"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:window-width="1850"
+     inkscape:window-height="1136"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:pagecheckerboard="0" />
+  <metadata
+     id="metadata4498">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-12.183546,-10.240836)">
+    <g
+       transform="translate(4.9245495,4.665531)"
+       id="layer1-6"
+       inkscape:label="Layer 1">
+      <path
+         sodipodi:nodetypes="cccccccccccccscccccccc"
+         inkscape:connector-curvature="0"
+         id="path75"
+         d="M 12.785412,25.683657 C 10.876329,25.32737 9.0599909,24.381566 8.168567,22.907696 6.8935339,21.040753 6.9427559,18.603085 8.419037,16.82011 c 1.2368492,-1.810806 3.189431,-3.257273 4.10803,-5.218229 0.160865,-0.488352 0.200458,-0.995132 0.26965,-1.49594 0.592907,1.365049 1.024109,2.938716 0.174239,4.297619 -0.779413,1.215576 -2.02656,2.156909 -2.898078,3.31771 -0.933423,1.356018 -0.7730373,3.213488 0.589144,4.337263 1.012429,0.827202 2.493926,1.238202 3.905805,1.029931 1.05346,-0.195247 2.186152,-0.592203 2.821132,-1.353431 0.713302,-0.880278 1.070251,-2.125701 0.685746,-3.210382 -0.3638,-1.560332 -1.508209,-3.357681 -1.84545,-3.556244 -0.482634,0.05355 -0.488698,0.502566 -0.695899,1.036479 -0.338691,-0.597882 -0.639995,-1.127705 -0.990221,-2.094457 -0.284898,-0.786423 -0.538351,-1.765895 -0.674229,-2.422913 -0.448055,-1.8400078 -0.08797,-3.9535286 1.615211,-5.3064236 0.158171,-0.1336161 1.204467,-0.9832388 0.800099,-0.4081384 -0.832985,1.2036242 -0.71153,2.666618 -0.357961,3.9726434 0.663211,2.1780166 1.992729,4.1601296 3.16305,6.1722956 0.798748,1.208046 1.595962,2.501416 1.58203,3.9134 0.244059,2.587518 -1.995936,5.162312 -5.060237,5.775197 -0.929072,0.117529 -1.890763,0.181982 -2.825686,0.07717 z"
+         style="fill:url(#linearGradient1147);fill-opacity:1;stroke-width:0.101837" />
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:16.9333px;line-height:125%;font-family:'Gillius ADF';-inkscape-font-specification:'Gillius ADF, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="31.654413"
+       y="26.05335"
+       id="text4566"><tspan
+         sodipodi:role="line"
+         id="tspan4564"
+         x="31.654413"
+         y="26.05335"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:16.9333px;font-family:'Gillius ADF';-inkscape-font-specification:'Gillius ADF, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke-width:0.264583px">waiwera</tspan></text>
+  </g>
+</svg>
