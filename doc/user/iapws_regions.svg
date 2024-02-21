@@ -67,7 +67,7 @@
      pagecolor="#ffffff"
      id="base"
      inkscape:zoom="1.0944445"
-     inkscape:cx="125.63451"
+     inkscape:cx="344.92384"
      inkscape:cy="205.12689"
      inkscape:window-x="0"
      inkscape:window-y="0"
@@ -84,6 +84,13 @@
      id="title4">SVG drawing</title>
   <desc
      id="desc6">This was produced by version 4.1 of GNU libplot, a free library for exporting 2-D vector graphics.</desc>
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:0.00130412"
+     id="rect22104"
+     width="0.87845314"
+     height="0.64577973"
+     x="0.00021377741"
+     y="0.0005065595" />
   <line
      id="line12"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:0.0194444px;line-height:125%;font-family:Arial;text-align:start;letter-spacing:normal;word-spacing:normal;writing-mode:lr-tb;text-anchor:start;fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.00265958;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:10.433;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"

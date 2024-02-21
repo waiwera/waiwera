@@ -144,11 +144,11 @@
      pagecolor="#ffffff"
      bordercolor="#666666"
      borderopacity="1.0"
-     inkscape:pageopacity="0.0"
+     inkscape:pageopacity="0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="127.53176"
-     inkscape:cy="37.123106"
+     inkscape:cx="208.34396"
+     inkscape:cy="117.93531"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -161,7 +161,7 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:pagecheckerboard="0" />
+     inkscape:pagecheckerboard="false" />
   <metadata
      id="metadata7">
     <rdf:RDF>
@@ -178,6 +178,13 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(-1.4669118,-89.080573)">
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke-width:1.00157"
+       id="rect21434"
+       width="401.92627"
+       height="239.50677"
+       x="1.2952648"
+       y="89.522514" />
     <path
        sodipodi:type="arc"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.53535;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
