@@ -63,7 +63,7 @@ The IAPWS-97 regions are shown on a pressure-temperature diagram in :numref:`iap
 
 .. _iapws_regions_plot:
 .. figure:: iapws_regions.*
-           :scale: 100 %
+           :scale: 67 %
            :align: center
 
            IAPWS-97 thermodynamic regions

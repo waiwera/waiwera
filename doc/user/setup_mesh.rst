@@ -167,7 +167,7 @@ Because Waiwera uses a :ref:`finite_volume_discretisation` to solve the mass and
 
 .. _orthog_fig:
 .. figure:: orthogonality.*
-           :scale: 100 %
+           :scale: 67 %
            :align: center
 
            Mesh orthogonality

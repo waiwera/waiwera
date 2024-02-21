@@ -2,22 +2,22 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="264.88583"
-   height="158.67935"
+   width="400"
+   height="239.61922"
    id="svg2"
    version="1.1"
-   inkscape:version="0.92.1 r15371"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
    sodipodi:docname="orthogonality.svg"
    inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks2.png"
    inkscape:export-xdpi="300.71036"
-   inkscape:export-ydpi="300.71036">
+   inkscape:export-ydpi="300.71036"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <defs
      id="defs4">
     <marker
@@ -29,114 +29,114 @@
        style="overflow:visible">
       <path
          id="path3905"
-         style="font-size:12px;fill-rule:evenodd;stroke-width:0.40000001;stroke-linejoin:round"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.4;stroke-linejoin:round"
          d="M -5.5798962,-2.5815905 1.4126653,-0.01024849 -5.5798966,2.561093 c 1.117119,-1.518119 1.1106821,-3.5951692 4e-7,-5.1426835 z"
          inkscape:connector-curvature="0" />
     </marker>
     <inkscape:perspective
        sodipodi:type="inkscape:persp3d"
-       inkscape:vp_x="0 : 561.25983 : 1"
+       inkscape:vp_x="0 : 642.19969 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_z="793.70078 : 561.25983 : 1"
-       inkscape:persp3d-origin="396.85039 : 374.17322 : 1"
+       inkscape:vp_z="793.70078 : 642.19969 : 1"
+       inkscape:persp3d-origin="396.85039 : 455.11308 : 1"
        id="perspective10" />
     <inkscape:perspective
        id="perspective2832"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective2858"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3685"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3710"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3753"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3797"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3843"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective4333"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3655"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3679"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective4210"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3726"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3774"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
     <inkscape:perspective
        id="perspective3806"
-       inkscape:persp3d-origin="0.53333333 : 0.35555555 : 1"
-       inkscape:vp_z="1.0666667 : 0.53333333 : 1"
+       inkscape:persp3d-origin="0.53333333 : 81.295421 : 1"
+       inkscape:vp_z="1.0666667 : 81.473199 : 1"
        inkscape:vp_y="0 : 1066.6667 : 0"
-       inkscape:vp_x="0 : 0.53333333 : 1"
+       inkscape:vp_x="0 : 81.473199 : 1"
        sodipodi:type="inkscape:persp3d" />
   </defs>
   <sodipodi:namedview
@@ -147,20 +147,21 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="127.18983"
-     inkscape:cy="37.23085"
+     inkscape:cx="127.53176"
+     inkscape:cy="37.123106"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1323"
-     inkscape:window-height="918"
-     inkscape:window-x="371"
-     inkscape:window-y="181"
-     inkscape:window-maximized="0"
+     inkscape:window-width="1850"
+     inkscape:window-height="1136"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
-     fit-margin-bottom="0" />
+     fit-margin-bottom="0"
+     inkscape:pagecheckerboard="0" />
   <metadata
      id="metadata7">
     <rdf:RDF>
@@ -169,7 +170,6 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -177,33 +177,34 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-1.4669109,-89.080577)">
+     transform="translate(-1.4669118,-89.080573)">
     <path
        sodipodi:type="arc"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25266504px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.53534532;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.53535;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="path3833"
-       sodipodi:cx="118.99155"
-       sodipodi:cy="166.16808"
-       sodipodi:rx="9.6933317"
-       sodipodi:ry="10.165514"
-       d="m 125.94871,159.08958 a 9.6933317,10.165514 0 0 1 2.36064,9.88057"
+       sodipodi:cx="178.93904"
+       sodipodi:cy="205.48923"
+       sodipodi:rx="14.637751"
+       sodipodi:ry="15.350785"
+       d="m 189.44495,194.8001 a 14.637751,15.350785 0 0 1 3.56477,14.9205"
        sodipodi:start="5.5129216"
        sodipodi:end="0.27926089"
        sodipodi:open="true"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
-       inkscape:export-ydpi="300.71036" />
+       inkscape:export-ydpi="300.71036"
+       sodipodi:arc-type="arc" />
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.49579942;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:4.48739798, 1.49579933;stroke-dashoffset:0;stroke-opacity:1"
-       d="m 66.707801,152.97199 c 32.854164,33.12127 32.587058,32.85418 32.587058,32.85418"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:2.25879;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:6.77635, 2.25879;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 99.986169,185.56201 c 49.612561,50.01593 49.209211,49.6126 49.209211,49.6126"
        id="path3645"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036"
        inkscape:connector-curvature="0" />
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.49579942;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:4.48739798, 1.49579933;stroke-dashoffset:0;stroke-opacity:1"
-       d="m 141.49773,143.48965 c 32.85416,33.12128 38.19631,38.99764 38.19631,38.99764"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:2.25879;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:6.77635, 2.25879;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 212.92529,171.24288 c 49.61256,50.01593 57.67964,58.88974 57.67964,58.88974"
        id="path3645-8"
        sodipodi:nodetypes="cc"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
@@ -211,8 +212,8 @@
        inkscape:export-ydpi="300.71036"
        inkscape:connector-curvature="0" />
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.49579942;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       d="m 94.620486,181.01823 4.068627,-4.17928 4.879457,4.7135"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:2.25879;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 142.13669,227.91422 6.14397,-6.31109 7.36839,7.1178"
        id="path3669"
        sodipodi:nodetypes="ccc"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
@@ -220,8 +221,8 @@
        inkscape:export-ydpi="300.71036"
        inkscape:connector-curvature="0" />
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.49579942;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       d="m 137.17393,147.67045 4.06863,4.17927 4.87946,-4.71349"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:2.25879;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 206.39597,177.55623 6.14398,6.31105 7.3684,-7.11776"
        id="path3669-6"
        sodipodi:nodetypes="ccc"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
@@ -229,8 +230,8 @@
        inkscape:export-ydpi="300.71036"
        inkscape:connector-curvature="0" />
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.53543806;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-       d="M 66.490723,152.28667 179.61191,182.72372"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:2.31864;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       d="M 99.658362,184.52712 270.48091,230.48965"
        id="path2899"
        sodipodi:nodetypes="cc"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
@@ -238,8 +239,8 @@
        inkscape:export-ydpi="300.71036"
        inkscape:connector-curvature="0" />
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.53534532px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 50.578246,92.357551 -48.2537121,44.963689 16.4501291,63.60715 61.93756,4.27702 74.025947,-75.71926 z"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:2.3185px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 75.629178,94.029091 2.7619943,161.92806 27.603079,257.98024 121.13403,264.4389 232.91947,150.09641 Z"
        id="path2816"
        sodipodi:nodetypes="cccccc"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
@@ -247,8 +248,8 @@
        inkscape:export-ydpi="300.71036"
        inkscape:connector-curvature="0" />
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.53534532px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 80.334481,205.58315 92.815699,41.30805 92.20594,-58.53811 -36.44622,-72.88012 -75.30496,14.39092"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:2.3185px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 120.56361,265.00932 260.72316,327.38795 399.96191,238.99046 344.92504,128.93532 231.20819,150.66684"
        id="path2818"
        sodipodi:nodetypes="ccccc"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
@@ -257,73 +258,73 @@
        inkscape:connector-curvature="0" />
     <g
        id="g2846"
-       transform="matrix(1.4393862,0,0,1.4393862,-46.82432,-79.729692)"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25266504px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start"
+       transform="matrix(2.1735947,0,0,2.1735947,-71.456928,-165.8372)"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036">
       <path
          id="path2822"
          d="m 78.657212,157.89133 v 6.46497"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25266504px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06666672px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06667px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          id="path2822-0"
          d="M 81.889697,161.12381 H 75.424726"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25266504px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06666672px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06667px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          inkscape:connector-curvature="0" />
     </g>
     <g
        id="g2846-4"
-       transform="matrix(1.4393862,0,0,1.4393862,66.393781,-49.486499)"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25266504px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start"
+       transform="matrix(2.1735947,0,0,2.1735947,99.511971,-120.16741)"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036">
       <path
          id="path2822-6"
          d="m 78.657212,157.89133 v 6.46497"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25266504px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06666672px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06667px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          id="path2822-0-9"
          d="M 81.889697,161.12381 H 75.424726"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25266504px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06666672px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.25267px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#000000;stroke-width:1.06667px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
          inkscape:connector-curvature="0" />
     </g>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-       x="161.35628"
-       y="157.22475"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.61077"
+       x="242.91336"
+       y="191.98402"
        id="text3673-9-1"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036"><tspan
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
          sodipodi:role="line"
          id="tspan3675-9-5"
-         x="161.35628"
-         y="157.22475">d<tspan
-   style="font-size:64.99999762%;baseline-shift:sub"
+         x="242.91336"
+         y="191.98402">d<tspan
+   style="font-size:12.5639px;baseline-shift:sub;stroke-width:1.61077"
    id="tspan903">j</tspan></tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-       x="132.62216"
-       y="164.44186"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.61077"
+       x="199.52242"
+       y="202.88251"
        id="text3673-7-0"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036"><tspan
          sodipodi:role="line"
          id="tspan3675-29-2"
-         x="132.62216"
-         y="164.44186"
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672">θ</tspan></text>
+         x="199.52242"
+         y="202.88251"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077">θ</tspan></text>
     <path
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:1.49579942;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend)"
-       d="m 137.5872,99.158273 c 0,0 -14.73212,11.710137 -15.86535,26.819987 -1.13324,15.10986 4.53296,27.19774 4.53296,27.19774"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9px;line-height:125%;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:none;stroke:#5a5a5a;stroke-width:2.25879;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend)"
+       d="m 207.02005,104.29876 c 0,0 -22.24674,17.6833 -23.95801,40.50044 -1.71129,22.81717 6.84515,41.07089 6.84515,41.07089"
        id="path3238"
        sodipodi:nodetypes="csc"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
@@ -332,82 +333,82 @@
        inkscape:connector-curvature="0" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-       x="139.7366"
-       y="98.411827"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.61077"
+       x="210.26582"
+       y="103.17156"
        id="text3673-7-02"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036"><tspan
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
          sodipodi:role="line"
          id="tspan3675-29-6"
-         x="139.7366"
-         y="98.411827">area <tspan
-   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         x="210.26582"
+         y="103.17156">area <tspan
+   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
    id="tspan3686"
    dy="0"><tspan
-     style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start"
+     style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
      id="tspan889">A</tspan><tspan
-     style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:64.99999762%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;baseline-shift:sub;text-anchor:start"
+     style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.5639px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;baseline-shift:sub;text-anchor:start;stroke-width:1.61077"
      id="tspan891">ij</tspan></tspan></tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-       x="68.448097"
-       y="177.71979"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.61077"
+       x="102.61416"
+       y="222.93329"
        id="text3673-9-1-9"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036"><tspan
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
          sodipodi:role="line"
          id="tspan3675-9-5-9"
-         x="68.448097"
-         y="177.71979">d<tspan
-   style="font-size:64.99999762%;baseline-shift:sub"
+         x="102.61416"
+         y="222.93329">d<tspan
+   style="font-size:12.5639px;baseline-shift:sub;stroke-width:1.61077"
    id="tspan901">i</tspan></tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-       x="230.43213"
-       y="183.96454"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.61077"
+       x="347.22372"
+       y="232.36337"
        id="text3673-9-1-7"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036"><tspan
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
          sodipodi:role="line"
          id="tspan3675-9-5-7"
-         x="230.43213"
-         y="183.96454"><tspan
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         x="347.22372"
+         y="232.36337"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
            id="tspan3716-5"
            dy="0 0"><tspan
-             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
              id="tspan899">V</tspan><tspan
-             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.31999969px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;baseline-shift:sub;text-anchor:start"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.5639px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;baseline-shift:sub;text-anchor:start;stroke-width:1.61077"
              id="tspan897">j</tspan></tspan></tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-       x="23.282709"
-       y="186.9102"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.61077"
+       x="34.41061"
+       y="236.8116"
        id="text3673-9-1-7-3"
        inkscape:export-filename="/home/acro018/geothermal/documentation/conferences/geothermal_workshop/2013/local_grid_refinement/blocks.png"
        inkscape:export-xdpi="300.71036"
        inkscape:export-ydpi="300.71036"><tspan
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
          sodipodi:role="line"
          id="tspan3675-9-5-7-6"
-         x="23.282709"
-         y="186.9102"><tspan
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.06666672"
+         x="34.41061"
+         y="236.8116"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
            id="tspan3716-5-8"
            dy="0"><tspan
-             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.3291px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:1.61077"
              id="tspan895">V</tspan><tspan
-             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.31999969px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;baseline-shift:sub;text-anchor:start"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.5639px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;baseline-shift:sub;text-anchor:start;stroke-width:1.61077"
              id="tspan893">i</tspan></tspan></tspan></text>
   </g>
 </svg>

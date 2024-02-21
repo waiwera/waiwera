@@ -90,7 +90,7 @@ As an example, consider the simple 9-cell 2-D mesh in :numref:`global_ordering_f
 
 .. _global_ordering_fig:
 .. figure:: global_ordering.*
-           :scale: 100 %
+           :scale: 67 %
            :align: center
 
            Natural and local cell ordering
@@ -169,7 +169,7 @@ Here the second column (:math:`y`-coordinate) of the centroid array is read in, 
 
 .. _temp_elev_plot:
 .. figure:: temp_elev_plot.*
-           :scale: 8 %
+           :scale: 67 %
            :align: center
 
            Temperature vs. elevation plot from Waiwera HDF5 output
@@ -248,7 +248,7 @@ Then, the ``time`` and ``size`` values are extracted from the data object (a Pyt
 
 .. _timestep_size_history_plot:
 .. figure:: timestep_history.*
-           :scale: 8 %
+           :scale: 67 %
            :align: center
 
            Time step size history plot from Waiwera YAML log file, for a steady-state simulation
