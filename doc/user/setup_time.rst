@@ -11,7 +11,8 @@ At each time step, the time-stepping method results in a system of non-linear eq
 
 All time-related parameters are specified in the Waiwera JSON input file via the **"time"** value, which is an object.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: time parameters
 
    **JSON path**: time
@@ -44,7 +45,8 @@ specifies a simulation starting at time 86400 s and ending at 172800 s.
 
 All parameters related to time-stepping are specified via the **"step"** value in the "time" object. The "step" value is itself an object.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: time stepping parameters
 
    **JSON path**: time.step
@@ -184,7 +186,8 @@ When the time step size is increased, it is limited by the maximum time step siz
 
 It is also possible to specify minimum and maximum time step sizes which, if exceeded, will cause the simulation to stop. These limits are specified via the **"time.step.stop.size.minimum"** and **"time.step.stop.size.maximum"** values. Either of these can take number values or ``null`` (the default), in which case no limit is enforced. If either limit is hit, a final time step is carried out at the limiting time step size before the simulation is stopped.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: time step stop sizes
 
    **JSON path**: time.step.stop.size
@@ -203,7 +206,8 @@ It is also possible to specify minimum and maximum time step sizes which, if exc
 
 The "time.step.adapt" object has a Boolean **"on"** value, which determines whether adaptive time stepping is to be used. Note, however, that it can still be useful to specify at least some of the other adaptor parameters even if the adaptor is switched off. This is because the adaptor is also used to handle :ref:`time_step_reductions`. If these parameters are not specified, default values will be used.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: time step adaptor
 
    **JSON path**: time.step.adapt
@@ -364,7 +368,8 @@ The non-linear solution process is considered converged when all the elements of
 
 and the non-linear solution process is then considered converged when :math:`\|\mathbf{f}'\|_{\infty} < \epsilon_r`. Here :math:`\epsilon_a` and :math:`\epsilon_r` are specified tolerances, set in the Waiwera JSON input file via the **"tolerance.function.absolute"** and **"tolerance.function.relative"** values respectively in the **"time.step.solver.nonlinear"** object.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: non-linear solver parameters
 
    **JSON path**: time.step.solver.nonlinear
@@ -435,7 +440,8 @@ The step size :math:`h_j` is calculated from:
 
 where :math:`sgn` is the sign function,  :math:`\epsilon` is a fixed differencing increment parameter and :math:`\delta` is a differencing tolerance parameter (to prevent zero-division errors or loss of significance when the variable :math:`Y_j` is small). These two parameters may be set in the Waiwera JSON input file via the **"time.step.solver.nonlinear.jacobian.differencing"** object:
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: Jacobian finite differencing parameters
 
    **JSON path**: time.step.solver.nonlinear.jacobian.differencing
@@ -494,7 +500,8 @@ where :math:`\mathbf{J}` is the Jacobian matrix of the residual function :math:`
 
 This system of linear equations is solved using the `PETSc <https://petsc.org/>`_ "KSP" suite of parallelised linear equation solvers. Linear solver parameters can be specified via the **"time.step.solver.linear"** value in the Waiwera JSON input file. This value is an object.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: linear solver parameters
 
    **JSON path**: time.step.solver.linear
@@ -560,7 +567,8 @@ The above linear solver types are all iterative methods, so parameters may be se
 
 The convergence tolerance may be specified via the **"tolerance"** value in the "time.step.solver.linear" object. This value is itself an object, containing a **"relative"** number value for specifying the relative convergence tolerance. If not specified, then the PETSc default tolerance is used.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: linear solver tolerance
 
    **JSON path**: time.step.solver.linear.tolerance
@@ -575,7 +583,8 @@ The convergence tolerance may be specified via the **"tolerance"** value in the 
 
 The maximum allowed number of linear solver iterations can be specified using the **"maximum"** value in the "time.step.solver.linear" object, which again is itself an object, this time containing an **"iterations"** integer value for specifying the iteration limit. If not specified, then the PETSc default is used.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: linear solver iteration limit
 
    **JSON path**: time.step.solver.linear.maximum
@@ -605,7 +614,8 @@ Solver options
 
 Some linear solvers may have options specific to the solver type, which can be specified via the **"options"** value in the "time.step.solver.linear" object.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: linear solver options
 
    **JSON path**: time.step.solver.options
@@ -619,7 +629,8 @@ Some linear solvers may have options specific to the solver type, which can be s
 
 Currently there is only one such linear solver (GMRES) with options available in this way. The GMRES solver in PETSc offers a "restarted GMRES" option, and the "options.gmres" object has a **"restart"** integer value to specify the number of Krylov search directions to orthogonalise against. For some Waiwera simulations the restarted GMRES linear solver performs well on difficult problems, particularly if the restart parameter is increased.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: GMRES linear solver options
 
    **JSON path**: time.step.solver.options.gmres
@@ -650,7 +661,8 @@ Preconditioners are used to improve the convergence rate of iterative linear equ
 
 Preconditioning parameters can be specified using the **"preconditioner"** value in the "time.step.solver.linear" object.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: linear solver preconditioner
 
    **JSON path**: time.step.solver.linear.preconditioner
@@ -696,7 +708,8 @@ By default, the PETSc implementations of the Block Jacobi and Additive Schwarz p
 
 For very demanding problems it may be necessary, however, to increase the level of fill-in in the ILU sub-preconditioner. The level of fill-in may be specified via the **"sub.preconditioner"** value in the "time.step.solver.linear.preconditioner" object. This is itself an object, which contains a **"factor.levels"** value specifying the level of fill-in. (There is also a **"type"** string value which can be used for changing the sub-preconditioner type.)
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: linear solver sub-preconditioner
 
    **JSON path**: time.step.solver.linear.preconditioner.sub.preconditioner
@@ -733,7 +746,8 @@ This object is identical in structure to the **"time.step.solver.linear"** value
 
 All other values within the **"time.step.solver.auxiliary"** object can be specified in the same way as their counterparts in the **"time.step.solver.linear"** object, and have the same defaults.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: auxiliary linear solver parameters
 
    **JSON path**: time.step.solver.auxiliary

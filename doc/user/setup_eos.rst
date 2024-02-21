@@ -11,7 +11,8 @@ Given the primary thermodynamic variables, the EOS module calculates bulk fluid 
 
 In the Waiwera JSON input file, the **"eos"** value specifies the equation of state module to be used for the simulation. This can be either a string containing the abbreviated name of the EOS, or an object containing a **"name"** value. In general it is not necessary to specify the EOS as an object unless other EOS parameters besides the name need to be set.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: equation of state
 
    **JSON path**: eos
@@ -58,7 +59,8 @@ Primary variable parameters
 
 Each EOS module has a particular set of primary thermodynamic variables which determine the fluid state in each cell (see :ref:`primary_variables`). Parameters related to the primary variables can be specified via the **"eos.primary"** value in the Waiwera input JSON file. This is an object with just one value, **"eos.primary.scale"**.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: primary variable parameters
 
    **JSON path**: eos.primary
@@ -88,7 +90,8 @@ For some equations of state, the fluid state can change the effective local perm
 
 This effect can be represented using the **"eos.permeability_modifier"** value. This object a **"type"** string value which determines how the permeability is reduced as the effective porosity decreases. Its possible values are "none", "power" and "verma-pruess".
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: fluid permeability modifier
 
    **JSON path**: eos.permeability_modifier

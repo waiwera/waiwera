@@ -38,7 +38,7 @@ or:
 
 Note that the mesh filename (specified in either of the above two ways) is a required input parameter in the simulation (there is no default).
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: mesh
 
@@ -222,7 +222,7 @@ All cell indices are zero-based (i.e. start from zero) and refer to the cell ind
 
 If the zone definition is an object, it can optionally also contain a **"type"** string value, set to "array", to make the zone type more explicit.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: cell array zone
 
@@ -262,7 +262,7 @@ If any of these coordinate ranges is absent, there is assumed to be no limitatio
 
 The zone definition can optionally also contain a **"type"** string value, set to "box", to make the zone type more explicit.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: box zone
 
@@ -334,7 +334,7 @@ The zone definition is an object, with between one and three values named **"+"*
 
 The zone definition can optionally also contain a **"type"** string value, set to "combine", to make the zone type more explicit.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: combination zone
 

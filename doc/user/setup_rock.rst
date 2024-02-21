@@ -6,7 +6,7 @@ Rock parameters
 
 Parameters related to the details of the rock media for the simulation are specified in the Waiwera JSON input file via the **"rock"** value. This value is an object, and may contain the values shown below.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: rock properties
 
@@ -41,7 +41,7 @@ In many cases, rock properties may be assumed approximately constant over specif
 
 Rock types may be specified in the Waiwera JSON input file via the **"rock.types"** value. This is an array of objects, each object corresponding to a rock type definition.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: rock type
 
@@ -125,7 +125,7 @@ rotates the permeability axes anti-clockwise in the horizontal plane by 30\ :mat
 
 In addition, individual face permeability directions can be manually overridden, via the **"mesh.faces"** value (see :ref:`specifying_mesh`). This value is an array of objects, each of which has a **"cells"** array value containing the indices of the two cells on either side of the face. There is also a **"permeability_direction"** value which specifies the integer permeability direction for the face, overriding the default value.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: mesh face
 
@@ -224,7 +224,7 @@ Fully mobile
 
 This type of relative permeability curve maintains full mobility for all phases, regardless of saturation (i.e. :math:`k^r_p = 1` for all phases). It can be specified by setting the **"type"** value to "fully mobile" (or "fully_mobile"). There are no other parameters.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: fully mobile relative permeability
 
@@ -252,7 +252,7 @@ Setting the **"type"** value to "linear" selects linear relative permeability fu
 
 For both liquid and vapour phases, the curves vary linearly from zero to one between the specified saturation limits for that phase. Below the lower limit, the relative permeability is identically zero, and above the upper limit it is identically one. The limits are specified in the Waiwera JSON input file via the **"liquid"** and **"vapour"** array values.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: linear relative permeability
 
@@ -296,7 +296,7 @@ Pickens
 
 For the Pickens-type relative permeability curves, chosen by setting the **"type"** value to "pickens", the liquid relative permeability varies with liquid saturation :math:`S_1` according to a power law: :math:`k_r^1 = S_1^{\alpha}`. The exponent :math:`\alpha` can be specified in the Waiwera JSON input file via the **"power"** value. The vapour relative permeability is identically one (i.e. vapour is fully mobile; :math:`k_r^2 = 1`).
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: Pickens relative permeability
 
@@ -355,7 +355,7 @@ where :math:`S_1` is the liquid saturation, and :math:`S_{lr}` and :math:`S_{sr}
 
 The two parameters :math:`S_{lr}` and :math:`S_{sr}` are specified in the Waiwera JSON input file via the **"slr"** and **"ssr"** values in the relative permeability object.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: Corey relative permeability
 
@@ -391,7 +391,7 @@ For the Grant relative permeability curves, selected by setting the **"type"** v
 
 In the Waiwera JSON input file, the **"type"** value of the relative permeability object is set to "grant". All other values are the same as for the Corey curves (though the :math:`S_{sr}` parameter has a different default value).
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: Grant relative permeability
 
@@ -450,7 +450,7 @@ where :math:`S_{sr}` is another specified constant parameter. Then the vapour re
 
    k_r^2 = \min{((1 - \hat{s})^2 (1 - \hat{s}^2), 1)}
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: Van Genuchten relative permeability
 
@@ -492,7 +492,7 @@ Table
 -----
 Setting the relative permeability **"type"** value to "table" allows specification of relative permeability curves defined as general piecewise-linear tables. For each phase :math:`p`, the relative permeability curve is specified as a table of :math:`(S_p, k^r_p)` values. In the Waiwera JSON input file these tables take the form of rank-2 arrays (i.e. arrays of arrays), specified via the **"liquid"** and **"vapour"** values.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: table relative permeability
 
@@ -550,7 +550,7 @@ Zero
 
 Capillary pressure effects can be disabled by setting the **"type"** value of the capillary pressure object to "zero" (or setting the capillary pressure value to ``null``). This is the default. In this case, the capillary pressure is identically zero regardless of saturation.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: zero capillary pressure function
 
@@ -586,7 +586,7 @@ Setting the capillary pressure **"type"** value to "linear" selects the linear c
 
 When liquid saturation is below the lower limit, the capillary pressure is fixed at :math:`-P`, where :math:`P` is a specified (positive) constant. Between the limits, the capillary pressure is linearly interpolated between :math:`-P` and zero. Above the upper limit, the capillary pressure is identically zero.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: linear capillary pressure function
 
@@ -646,7 +646,7 @@ where :math:`S_1` is the liquid saturation. and :math:`S_{lr}` and :math:`S_{ls}
 
 where :math:`P_0` and :math:`\lambda` are specified constant parameters (:math:`P_0 > 0`). An optional limit :math:`P_{max}` can be set on the magnitude of the capillary pressure determined by the above equation. If this limit is not specified, no limit is applied.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: Van Genuchten capillary pressure function
 
@@ -690,7 +690,7 @@ Table
 
 Setting the capillary pressure **"type"** value to "table" allows specification of a capillary pressure function defined by a general piecewise-linear table. The capillary pressure function is specified as a table of :math:`(S_1, P_c)` values (i.e. capillary pressure vs. liquid saturation). In the Waiwera JSON input file this table takes the form of a rank-2 array (i.e. array of arrays), specified via the **"pressure"** value.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: table capillary pressure function
 

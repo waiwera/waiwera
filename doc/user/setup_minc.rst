@@ -29,7 +29,8 @@ Note that it is not necessary to add the additional MINC cells to the Waiwera si
 
 MINC parameters may be specified in the Waiwera JSON input file via the **"mesh.minc"** value. This is an object with two values, **"geometry"** and **"rock"**. Note that is also possible to set up multiple MINC zones in the mesh, each with different MINC parameters, simply by specifying the "mesh.minc" value as an array of these objects.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: MINC parameters
 
    **JSON path**: mesh.minc (or mesh.minc[`index`], if there are multiple MINC zones)
@@ -67,7 +68,8 @@ The main parameters controlling the MINC geometry are:
 
 The **"minc.geometry"** value in the "mesh" object contains two values, **"fracture"** and **"matrix"**, specifying the MINC fracture and matrix geometry parameters respectively.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: MINC geometry parameters
 
    **JSON path**: mesh.minc.geometry (or mesh.minc[`index`].geometry)
@@ -102,7 +104,8 @@ Fracture connection distance
 
 The **"fracture.connection"** value in the "mesh.minc" object specifies the distance from each MINC fracture cell to the face connecting it to its first-level matrix rock cell. This is zero by default, but can optionally be set to a small positive value if this improves numerical performance.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: MINC fracture geometry parameters
 
    **JSON path**: mesh.minc.geometry.fracture (or mesh.minc[`index`].geometry.fracture)
@@ -122,7 +125,8 @@ The **"fracture.connection"** value in the "mesh.minc" object specifies the dist
    |                |                |                |(m)                          |
    +----------------+----------------+----------------+-----------------------------+
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: MINC matrix geometry parameters
 
    **JSON path**: mesh.minc.geometry.matrix (or mesh.minc[`index`].geometry.matrix)
@@ -145,7 +149,8 @@ MINC rock properties
 
 The **"rock"** value in the "mesh.minc" object specifies rock properties for the fracture and matrix rocks in the MINC zone, as well as which parts of the mesh these rock properties are assigned to. In the simplest case, the "rock" value is a single object, although for more flexibility it can also be specified as an array of objects, with different rock properties assigned to different parts of the mesh zone.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: MINC rock properties
 
    **JSON path**: mesh.minc.rock, mesh.minc[`index`].rock, mesh.minc.rock[`index`] or mesh.minc[`index1`].rock[`index2`]

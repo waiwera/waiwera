@@ -18,7 +18,8 @@ To model the interactions between sources in a Waiwera simulation, a **source ne
 
 In the Waiwera JSON input file a source network may be set up using the **network** value. This is an object containing two array values, **"group"** and **"reinject"**, defining source network :ref:`source_network_groups` and :ref:`source_network_reinjectors` respectively.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: source network
 
    **JSON path**: network
@@ -47,7 +48,8 @@ A group also calculates output mass flow rates and enthalpies for separated wate
 
 Source groups are set up in the Waiwera JSON input file via the **"network.group"** value. This is an array of objects. Each object in the array specifies a single group.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: source group
 
    **JSON path**: network.group[`index`]
@@ -141,7 +143,8 @@ A group limiter is very similar to a :ref:`limiter` source control, which contro
 
 As for a limiter source control, a group limiter may specify limits on total flow, separated water flow or separated steam flow, or any combination of these, and the specified limits can be constant or time-dependent. The JSON input for a group limiter is specified using the group's **"limiter"** value and is exactly the same as for a limiter source control.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: group limiter
 
    **JSON path**: network.group[`index`]["limiter"]
@@ -234,7 +237,8 @@ For some types of groups, it is more appropriate for the group to have its own s
 
 In this case, a group separator can be defined in the Waiwera JSON input using the group's **"separator"** value. It is defined in exactly the same way as a separator for a source (see :ref:`source_separators`): it can be a Boolean value or an object containing a "pressure" value. Multi-stage separators can be used by specifying the separator pressure as an array.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: group separator
 
    **JSON path**: network.group[`index`]["separator"]
@@ -286,7 +290,8 @@ A reinjector also has an **overflow** which handles any fluid left over after th
 
 Reinjectors are set up in the Waiwera JSON input file via the **"network.reinject"** value. This is an array of objects. Each object in the array specifies a single reinjector.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: source reinjector
 
    **JSON path**: network.reinject[`index`]
@@ -349,7 +354,8 @@ Hence, the order of reinjector outputs is significant (for the same reason that 
 
 The reinjector outputs are specified in the Waiwera JSON input using two values, **"water"** for separated water outputs and **"steam"** for separated steam (or steam condensate) outputs. These are both arrays of objects. Each object represents a single separated water or steam output and its values are listed below.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: reinjector output
 
    **JSON path**: network.reinject[`index`]["water"][`index`] **or** network.reinject[`index`]["steam"][`index`]

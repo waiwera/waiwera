@@ -152,7 +152,7 @@ All input data for a Waiwera simulation are contained within one object in the i
 
 The various aspects of the simulation are specified by different named values within that object, as listed below. These values are of various types, and many are objects themselves, with their own internal structure.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: Waiwera JSON input
 

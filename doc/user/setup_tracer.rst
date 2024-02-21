@@ -7,7 +7,7 @@ Tracers
 
 Parameters related to the configuration of tracers (see :ref:`simulating_tracers`) are specified in the Waiwera JSON input file via the **"tracer"** value. This value is an object, and may contain the values shown below. Multiple tracers can be simulated simultaneously by specifying the **tracer** value as an array of these objects.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: tracer parameters
 

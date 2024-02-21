@@ -10,7 +10,8 @@ Before the simulation can run, the :ref:`primary_variables` in each cell at the 
 
 There are two ways of doing this. However, both ways specify the initial conditions via the **"initial"** value in the Waiwera JSON input file, and in both cases this value is an object (although some of its values are different in each case).
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: initial conditions
 
    **JSON path**: initial

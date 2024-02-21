@@ -30,7 +30,7 @@ As well as the primary variables, the thermodynamic region (see :ref:`thermodyna
 
 If tracers are being simulated (see :ref:`setup_tracers`) then tracer mass fractions on the boundary may be specified via the **"tracer"** value. This can be either a scalar, to be applied to all tracers defined in the simulation, or an array, with one value for each tracer. It defaults to zero.
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: boundary condition
 
@@ -67,7 +67,7 @@ In either case, the faces are specified by a combination of cell indices and an 
 
            Specifying boundary faces by cells and normal vector
 
-.. note::
+.. admonition:: JSON input
 
    **JSON object**: boundary condition face specification
 

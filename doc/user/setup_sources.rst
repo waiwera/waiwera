@@ -11,7 +11,8 @@ Sources may be used to represent physical sources or sinks such as wells or spri
 
 Sources are set up in the Waiwera JSON input file via the **"source"** value. This is an array of objects. Each object in the array contains a source specification, which can set up a single source, or multiple sources with similar parameters in different cells. The flow rate for each source can be specified using its **"rate"** value.
 
-.. note::
+.. admonition:: JSON input
+                
    **JSON object**: source specification
 
    **JSON path**: source[`index`]
@@ -285,7 +286,8 @@ Separator properties for a source can be specified via its **"separator"** value
 
 Setting it as an object containing a **"pressure"** value allows the separator pressure to be specified. This can be either a single number (for a single-stage separator) or a rank-1 array of stage separator pressures (for a multi-stage separator). Any number of stages may be used.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: source separator
 
    **JSON path**: source[`index`]["separator"]
@@ -390,7 +392,8 @@ where the sum is taken over all phases present. The quantity :math:`\alpha` is a
 
 In the Waiwera JSON input file, a deliverability control is added to a source specification via its **"deliverability"** value.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: deliverability source control
 
    **JSON path**: source[`index`]["deliverability"]
@@ -508,7 +511,8 @@ Recharge controls are most commonly used to implement boundary conditions, for e
 
 In the Waiwera JSON input file, a recharge control is added to a source specification via its **"recharge"** value.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: recharge source control
 
    **JSON path**: source[`index`]["recharge"]
@@ -559,7 +563,8 @@ The injectivity source control is typically used for injection wells which injec
 
 The injectivity source control is in fact exactly the same as the :ref:`recharge` control, and the input and options are identical, except that in the Waiwera JSON input file, an injectivity control is added to a source specification via its **"injectivity"** value.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: injectivity source control
 
    **JSON path**: source[`index`]["injectivity"]
@@ -603,7 +608,8 @@ When "water" or "steam" limit values are specified, a separator (see :ref:`sourc
 
 If time-dependent limits are specified, it is possible to specify the interpolation and averaging type for the interpolation tables via the **"interpolation"** and **"averaging"** values respectively (see :ref:`interpolation_tables`). Note that the limit value for each simulation time step will be taken from the average value of the specified limit table over the time step.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: limiter source control
 
    **JSON path**: source[`index`]["limiter"]
@@ -677,7 +683,8 @@ Note that this older syntax is less flexible and cannot be used to specify multi
 
 With this alternative syntax, when the "type" value is "water" or "steam" the separator pressure may be specified within the limiter specification (again for backwards compatibility), although this is now deprecated: it should usually be specified  via the **"separator.pressure"** value for the source instead.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: limiter source control (alternative syntax)
 
    **JSON path**: source[`index`]["limiter"]

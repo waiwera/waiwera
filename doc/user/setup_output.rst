@@ -21,7 +21,8 @@ Simulation output can be controlled via the **"output"** value in the Waiwera JS
 
 This object has a **"filename"** string value for specifying the filename of the simulation output. If this is not specified, then a default filename will be used, formed from the Waiwera JSON input filename but with the extension changed to ".h5". The other values in the "output" object control the times at which results are output, and which fluid and source properties are written.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: simulation output
 
    **JSON path**: output
@@ -100,7 +101,8 @@ Results can also be output at specified "checkpoint" times, as well as (or inste
 
 Checkpoint output is specified using the **"checkpoint"** value, which is an object.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: checkpoint output
 
    **JSON path**: output.checkpoint
@@ -179,7 +181,8 @@ Output fields
 
 The main simulation results consist of fluid, flux and source properties, or "fields", output for each cell, face and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with values **"fluid"**, **flux**, **"source"**, **network_group**, **network_reinject**, **"cell_geometry"** and **"face_geometry"**, specifying the fluid, flux, source, source network group, source network reinjector, cell geometry and face geometry output fields respectively.
 
-.. note::
+.. admonition:: JSON input
+
    **JSON object**: output fields
 
    **JSON path**: output.fields
