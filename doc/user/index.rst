@@ -7,12 +7,14 @@
 Waiwera
 *******
 
-*A parallel, open source geothermal flow simulator*
+.. only:: html
 
-Welcome to the Waiwera user documentation.
+   *A parallel, open source geothermal flow simulator*
 
-.. figure:: model.jpg
-           :align: left
+   Welcome to the Waiwera user documentation.
+
+   .. figure:: model.jpg
+               :align: left
 
 .. toctree::
    :hidden:
