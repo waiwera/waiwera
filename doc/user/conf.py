@@ -130,8 +130,8 @@ html_theme = 'shibuya'
 # documentation.
 #
 html_theme_options = {
-    "light_logo": "_static/waiwera_logo_text_large_light.svg",
-    "dark_logo": "_static/waiwera_logo_text_large_dark.svg",
+    "light_logo": "_static/waiwera_logo_text_large_light.png",
+    "dark_logo": "_static/waiwera_logo_text_large_dark.png",
     "github_url": "https://github.com/waiwera/waiwera"
 }
 
@@ -150,7 +150,7 @@ html_theme_options = {
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = '_static/waiwera_logo_text_large_dark.svg'
+html_logo = '_static/waiwera_logo_text_large_dark.png'
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
