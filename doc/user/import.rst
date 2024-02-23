@@ -11,7 +11,7 @@ Importing from a TOUGH2 input data file
 
 It is possible to import a Waiwera model from the input for an existing `TOUGH2 <https://tough.lbl.gov/>`_ model, using `PyTOUGH <https://github.com/acroucher/PyTOUGH>`_ , a library for handling TOUGH2 simulations via Python scripts.
 
-PyTOUGH (since version 1.5.2) defines a ``t2data`` Python class for representing the contents of the main TOUGH2 input data file. This class has a ``json()`` method which returns a JSON representation of the TOUGH2 model, in the form expected by Waiwera. This JSON representation (in the form of a Python dictionary) can be written out to a Waiwera JSON input file using the ``json`` module built in to Python.
+PyTOUGH (since version 1.5.2) defines a ``t2data`` Python class for representing the contents of the main TOUGH2 input data file, with a ``json()`` method which returns a JSON representation of the TOUGH2 model, in the form expected by Waiwera. This JSON representation (in the form of a Python dictionary) can be written out to a Waiwera JSON input file using the ``json`` module built in to Python.
 
 The simulation mesh for the TOUGH2 simulation must be provided in the form of a MULgrid geometry file (see the PyTOUGH `user guide <https://pytough.readthedocs.io/>`_), before the ``json()`` method can be used. If a MULgrid geometry file is not available for the TOUGH2 model, PyTOUGH includes functionality for reverse-engineering such a geometry file from the TOUGH2 input data file, if the mesh is rectangular.
 
