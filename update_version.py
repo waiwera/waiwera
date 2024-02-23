@@ -85,8 +85,8 @@ def userdoc(version):
     output(found_version and found_release, filename, lines)
 
 def pywaiwera(version):
-    """Update version in PyWaiwera's setup.py"""
-    filename = os.path.join('utils', 'pywaiwera', 'setup.py')
+    """Update version in PyWaiwera's pyproject.toml"""
+    filename = os.path.join('utils', 'pywaiwera', 'pyproject.toml')
     with open(filename, 'rt') as f:
         lines, n_changed = re.subn(r'(\sversion *= *")(.+?)(")',
                                    r'\g<1>{}\g<3>'.format(version), f.read())
