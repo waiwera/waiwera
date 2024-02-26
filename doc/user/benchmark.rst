@@ -56,18 +56,6 @@ CREDO can be installed from the Python Package Index (PyPI) using
 
    pip install waiwera-credo
 
-PyTOUGH
-=======
-
-Running the Waiwera benchmark tests also requires `PyTOUGH
-<https://github.com/acroucher/PyTOUGH>`_, a Python library for
-handling TOUGH2 simulations. This is needed for extracting the TOUGH2
-results for each benchmark test, so they can be compared with the
-Waiwera results.
-
-See the `PyTOUGH website <https://github.com/acroucher/PyTOUGH>`_ for
-instructions on how to install PyTOUGH.
-
 Running the test suite
 ======================
 
