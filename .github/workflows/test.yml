@@ -8,12 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'ci skip')"
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: '3.10'
 
     - name: Install Python dependencies
       run: |
@@ -27,7 +27,7 @@ jobs:
       shell: bash
 
     - name: Cache PETSc
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: |
           external/PETSc
