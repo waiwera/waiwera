@@ -23,7 +23,7 @@ jobs:
     - name: Get PETSc version
       id: get-petsc-version
       run: |
-        echo "::set-output name=version::$(grep petsc_version install/ansible/group_vars/all.yml | awk '{print $NF}')"
+        echo "version=$(grep petsc_version install/ansible/group_vars/all.yml | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Cache PETSc
