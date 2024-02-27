@@ -11,7 +11,7 @@ Waiwera
 
    *A parallel, open source geothermal flow simulator*
 
-   Welcome to the Waiwera user documentation.
+   Welcome to the Waiwera |release| user documentation.
 
    .. figure:: model.jpg
                :align: left
