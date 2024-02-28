@@ -472,6 +472,9 @@ contains
     call PetscObjectSetName(output_cell_index, "cell_index", ierr); CHKERRQ(ierr)
     call ISLoad(output_cell_index, viewer, ierr); CHKERRQ(ierr)
 
+    call PetscViewerHDF5SetDefaultTimestepping(viewer, PETSC_TRUE, ierr); CHKERRQ(ierr)
+    call PetscViewerHDF5PushTimestepping(viewer, ierr); CHKERRQ(ierr)
+
     if (use_original_dm) then
        call load_fluid_original_dm()
        if (num_tracers > 0) call load_tracers_original_dm()

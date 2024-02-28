@@ -929,8 +929,8 @@ contains
        stop
     else
        ! Read in DM:
-       call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
-            self%serial_dm, ierr); CHKERRQ(ierr)
+       call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, 'mesh', &
+            PETSC_TRUE, self%serial_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%serial_dm)
        self%dof = eos%num_primary_variables
        call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
@@ -2640,7 +2640,7 @@ contains
     PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
          self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: ic, minc_p
+    PetscInt :: ic, minc_p, h
     PetscInt :: iminc, m, c, ghost
     DMLabel :: minc_zone_label, ghost_label
     PetscErrorCode :: ierr
@@ -2657,9 +2657,11 @@ contains
        if ((iminc > 0) .and. (ghost < 0)) then
           do m = 1, self%minc(iminc)%num_levels
              ic = minc_level_cells(m, c)
-             minc_p = self%strata(0)%minc_point(ic, m)
-             call DMPlexSetCellType(minc_dm, minc_p, DM_POLYTOPE_INTERIOR_GHOST, &
-                  ierr); CHKERRQ(ierr)
+             do h = 0, self%depth
+                minc_p = self%strata(h)%minc_point(ic, m)
+                call DMPlexSetCellType(minc_dm, minc_p, DM_POLYTOPE_INTERIOR_GHOST, &
+                     ierr); CHKERRQ(ierr)
+             end do
           end do
        end if
 
