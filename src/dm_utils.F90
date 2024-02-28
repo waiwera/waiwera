@@ -178,7 +178,7 @@ contains
        strata(h)%end_interior = strata(h)%end
     end do
 
-    call DMPlexGetGhostCellStratum(dm, end_interior_cell, &
+    call DMPlexGetCellTypeStratum(dm, DM_POLYTOPE_FV_GHOST, end_interior_cell, &
          dummy, ierr); CHKERRQ(ierr)
     if (end_interior_cell >= 0) then
        strata(0)%end_interior = end_interior_cell
@@ -762,7 +762,7 @@ contains
        result(end_interior_cell)
     !! Returns index (+1) of last interior (i.e. non-boundary) cell of
     !! the DM. In the serial case the result from
-    !! DMPlexGetGhostCellStratum() is -1, so here this is corrected to
+    !! DMPlexGetCellTypeStratum() is -1, so here this is corrected to
     !! end_cell.
 
     DM, intent(in) :: dm
@@ -771,8 +771,8 @@ contains
     PetscInt :: dummy
     PetscErrorCode :: ierr
 
-    call DMPlexGetGhostCellStratum(dm, end_interior_cell, dummy, ierr)
-    CHKERRQ(ierr)
+    call DMPlexGetCellTypeStratum(dm, DM_POLYTOPE_FV_GHOST, end_interior_cell, &
+         dummy, ierr); CHKERRQ(ierr)
     if (end_interior_cell < 0) end_interior_cell = end_cell
 
   end function dm_get_end_interior_cell
@@ -1327,8 +1327,8 @@ contains
     call dm_check_create_label(dm, label_name)
     call DMPlexGetHeightStratum(dm, 0, start_cell, end_cell, ierr)
     CHKERRQ(ierr)
-    call DMPlexGetGhostCellStratum(dm, end_interior_cell, dummy, ierr)
-    CHKERRQ(ierr)
+    call DMPlexGetCellTypeStratum(dm, DM_POLYTOPE_FV_GHOST, end_interior_cell, &
+         dummy, ierr); CHKERRQ(ierr)
     if (end_interior_cell >= 0) then
        do c = end_interior_cell, end_cell - 1
           call DMSetLabelValue(dm, label_name, c, 1, ierr)
