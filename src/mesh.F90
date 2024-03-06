@@ -2178,7 +2178,7 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DM :: minc_dm
-    PetscInt :: coord_dim, start_chart, end_chart
+    PetscInt :: coord_dim, start_chart, end_chart, overlap
     PetscBool :: balance
     PetscInt :: num_minc_cells
     PetscInt :: num_new_points, max_num_levels
@@ -2221,6 +2221,9 @@ contains
          minc_level_cells)
 
     call DMPlexSymmetrize(minc_dm, ierr); CHKERRQ(ierr)
+    call DMPlexGetOverlap(self%dm, overlap, ierr); CHKERRQ(ierr)
+    call DMPlexSetOverlap(minc_dm, PETSC_NULL_DM, overlap, ierr); CHKERRQ(ierr)
+
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%set_minc_dm_cell_types(minc_dm, max_num_levels, minc_level_cells)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
