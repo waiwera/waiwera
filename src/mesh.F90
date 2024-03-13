@@ -2643,11 +2643,19 @@ contains
     PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
          self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: start_chart, end_chart, p, ct
-    PetscInt :: ic, minc_p, h
+    PetscInt :: start_chart, end_chart, p, ct, dim
+    PetscInt :: ic, minc_p, h, d
     PetscInt :: iminc, m, c, ghost
     DMLabel :: minc_zone_label, ghost_label
     PetscErrorCode :: ierr
+    DMPolytopeType, allocatable :: minc_dm_celltype(:)
+    DMPolytopeType, parameter :: minc_celltype(0:2) = [ &
+         DM_POLYTOPE_POINT, DM_POLYTOPE_SEGMENT, DM_POLYTOPE_QUADRILATERAL]
+
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    allocate(minc_dm_celltype(0: dim))
+    minc_dm_celltype(dim) = DM_POLYTOPE_INTERIOR_GHOST
+    minc_dm_celltype(0: dim - 1) = minc_celltype(0: dim - 1)
 
     ! Copy original cell types:
     call DMPlexGetChart(self%dm, start_chart, end_chart, ierr)
@@ -2673,7 +2681,8 @@ contains
              ic = minc_level_cells(m, c)
              do h = 0, self%depth
                 minc_p = self%strata(h)%minc_point(ic, m)
-                call DMPlexSetCellType(minc_dm, minc_p, DM_POLYTOPE_INTERIOR_GHOST, &
+                d = dim - h
+                call DMPlexSetCellType(minc_dm, minc_p, minc_dm_celltype(d), &
                      ierr); CHKERRQ(ierr)
              end do
           end do
