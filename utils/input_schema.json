@@ -27,6 +27,7 @@
                  "initial": {"type": "boolean"},
                  "final": {"type": "boolean"},
                  "frequency": {"type": "integer", "minimum": 0},
+                 "flush": {"type": "boolean"},
                  "checkpoint": {
                      "type": "object",
                      "properties": {
