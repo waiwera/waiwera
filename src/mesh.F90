@@ -929,8 +929,8 @@ contains
        stop
     else
        ! Read in DM:
-       call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, PETSC_TRUE, &
-            self%serial_dm, ierr); CHKERRQ(ierr)
+       call DMPlexCreateFromFile(PETSC_COMM_WORLD, self%filename, 'mesh', &
+            PETSC_TRUE, self%serial_dm, ierr); CHKERRQ(ierr)
        call dm_set_fv_adjacency(self%serial_dm)
        self%dof = eos%num_primary_variables
        call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
@@ -2178,7 +2178,7 @@ contains
     class(mesh_type), intent(in out) :: self
     ! Locals:
     DM :: minc_dm
-    PetscInt :: coord_dim, start_chart, end_chart
+    PetscInt :: coord_dim, start_chart, end_chart, overlap
     PetscBool :: balance
     PetscInt :: num_minc_cells
     PetscInt :: num_new_points, max_num_levels
@@ -2221,6 +2221,9 @@ contains
          minc_level_cells)
 
     call DMPlexSymmetrize(minc_dm, ierr); CHKERRQ(ierr)
+    call DMPlexGetOverlap(self%dm, overlap, ierr); CHKERRQ(ierr)
+    call DMPlexSetOverlap(minc_dm, PETSC_NULL_DM, overlap, ierr); CHKERRQ(ierr)
+
     call self%transfer_labels_to_minc_dm(minc_dm, max_num_levels)
     call self%set_minc_dm_cell_types(minc_dm, max_num_levels, minc_level_cells)
     call self%setup_minc_dm_depth_label(minc_dm, max_num_levels, &
@@ -2630,9 +2633,9 @@ contains
 
   subroutine mesh_set_minc_dm_cell_types(self, minc_dm, max_num_levels, &
        minc_level_cells)
-    !! Set cell types for MINC cells. Types for fracture and non-MINC
-    !! cells should be set automatically as the cell type label is
-    !! copied from the original DM.
+    !! Set cell types for all MINC DM points.
+
+    use dm_utils_module, only: dm_point_stratum_height
 
     class(mesh_type), intent(in out) :: self
     DM, intent(in out) :: minc_dm
@@ -2640,26 +2643,48 @@ contains
     PetscInt, intent(in) :: minc_level_cells(max_num_levels, &
          self%strata(0)%start: self%strata(0)%end - 1)
     ! Locals:
-    PetscInt :: ic, minc_p
+    PetscInt :: start_chart, end_chart, p, ct, dim
+    PetscInt :: ic, minc_p, h, d
     PetscInt :: iminc, m, c, ghost
     DMLabel :: minc_zone_label, ghost_label
     PetscErrorCode :: ierr
+    DMPolytopeType, allocatable :: minc_dm_celltype(:)
+    DMPolytopeType, parameter :: minc_celltype(0:2) = [ &
+         DM_POLYTOPE_POINT, DM_POLYTOPE_SEGMENT, DM_POLYTOPE_QUADRILATERAL]
+
+    call DMGetDimension(self%dm, dim, ierr); CHKERRQ(ierr)
+    allocate(minc_dm_celltype(0: dim))
+    minc_dm_celltype(dim) = DM_POLYTOPE_INTERIOR_GHOST
+    minc_dm_celltype(0: dim - 1) = minc_celltype(0: dim - 1)
+
+    ! Copy original cell types:
+    call DMPlexGetChart(self%dm, start_chart, end_chart, ierr)
+    CHKERRQ(ierr)
+    do p = start_chart, end_chart - 1
+       call DMPlexGetCellType(self%dm, p, ct, ierr); CHKERRQ(ierr)
+       h = dm_point_stratum_height(self%strata, p)
+       minc_p = self%strata(h)%minc_point(p, 0)
+       call DMPlexSetCellType(minc_dm, minc_p, ct, ierr); CHKERRQ(ierr)
+    end do
 
     call DMGetLabel(self%dm, minc_zone_label_name, minc_zone_label, &
          ierr); CHKERRQ(ierr)
     call DMGetLabel(self%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
 
+    ! Set MINC point cell types:
     do c = self%strata(0)%start, self%strata(0)%end - 1
 
-       minc_p = self%strata(0)%minc_point(c, 0)
        call DMLabelGetValue(minc_zone_label, c, iminc, ierr); CHKERRQ(ierr)
        call DMLabelGetValue(ghost_label, c, ghost, ierr)
        if ((iminc > 0) .and. (ghost < 0)) then
           do m = 1, self%minc(iminc)%num_levels
              ic = minc_level_cells(m, c)
-             minc_p = self%strata(0)%minc_point(ic, m)
-             call DMPlexSetCellType(minc_dm, minc_p, DM_POLYTOPE_INTERIOR_GHOST, &
-                  ierr); CHKERRQ(ierr)
+             do h = 0, self%depth
+                minc_p = self%strata(h)%minc_point(ic, m)
+                d = dim - h
+                call DMPlexSetCellType(minc_dm, minc_p, minc_dm_celltype(d), &
+                     ierr); CHKERRQ(ierr)
+             end do
           end do
        end if
 

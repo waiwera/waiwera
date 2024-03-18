@@ -66,6 +66,7 @@ module flow_simulation_module
      class(capillary_pressure_type), allocatable, public :: capillary_pressure !! Rock capillary pressure function
      character(max_output_filename_length), public :: output_filename !! HDF5 output filename
      PetscViewer :: hdf5_viewer !! Viewer for HDF5 output
+     PetscBool :: hdf5_flush !! Whether to flush HDF5 file buffer after output
      PetscInt, allocatable :: output_cell_geom_field_indices(:) !! Field indices for cell geometry output
      PetscInt, allocatable :: output_face_geom_field_indices(:) !! Field indices for face geometry output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
@@ -307,6 +308,7 @@ contains
          assumed_jacobian_filename
     PetscErrorCode :: ierr
     PetscBool :: output, output_jacobian, default_output, default_jacobian
+    PetscBool, parameter :: default_flush = PETSC_FALSE
 
     default_output = PETSC_FALSE
     self%output_filename = ""
@@ -342,6 +344,7 @@ contains
              self%output_filename = assumed_output_filename
              default_output = PETSC_TRUE
           end if
+          call fson_get_mpi(json, "output.flush", default_flush, self%hdf5_flush)
           if (fson_has_mpi(json, "output.jacobian")) then
              if (fson_type_mpi(json, "output.jacobian") == TYPE_LOGICAL) then
                 call fson_get_mpi(json, "output.jacobian", val = output_jacobian)
@@ -369,7 +372,7 @@ contains
     if (self%output_filename /= "") then
        call PetscViewerHDF5Open(PETSC_COMM_WORLD, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
-       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr)
+       call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr); CHKERRQ(ierr)
        CHKERRQ(ierr)
     else
        self%hdf5_viewer = PETSC_NULL_VIEWER
@@ -1017,6 +1020,10 @@ contains
 
     if (self%mesh%has_minc) then
        call DMDestroy(self%mesh%original_dm, ierr); CHKERRQ(ierr)
+    end if
+
+    if (self%output_filename /= "") then
+       call PetscViewerHDF5PushTimestepping(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
     self%unperturbed = PETSC_TRUE
@@ -2955,6 +2962,10 @@ contains
                self%output_tracer_field_indices, "/cell_fields", time_index, &
                time, self%hdf5_viewer)
        end if
+    end if
+
+    if (self%hdf5_flush) then
+       call PetscViewerFlush(self%hdf5_viewer, ierr); CHKERRQ(ierr)
     end if
 
     if (self%jacobian_filename /= "") then

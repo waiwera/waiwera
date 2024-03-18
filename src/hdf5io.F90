@@ -138,15 +138,19 @@ contains
     PetscReal :: time
     character(max_field_name_length) :: field_name
     character(:), allocatable :: subvector_name, field_path
+    PetscBool :: is_timestepping
     PetscErrorCode :: ierr
 
     call PetscObjectGetName(v, vector_name, ierr); CHKERRQ(ierr)
     call VecGetDM(v, dm, ierr); CHKERRQ(ierr)
     call DMGetSection(dm, section, ierr); CHKERRQ(ierr)
 
-    call DMGetOutputSequenceNumber(dm, time_index, time, ierr); CHKERRQ(ierr)
-    call PetscViewerHDF5SetTimestep(viewer, time_index, ierr); CHKERRQ(ierr)    
-    call dm_time_view_hdf5(dm, time_index, time, viewer)
+    call PetscViewerHDF5IsTimestepping(viewer, is_timestepping, ierr); CHKERRQ(ierr)
+    if (is_timestepping) then
+       call DMGetOutputSequenceNumber(dm, time_index, time, ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5SetTimestep(viewer, time_index, ierr); CHKERRQ(ierr)
+       call dm_time_view_hdf5(dm, time_index, time, viewer)
+    end if
 
     do i = 1, size(field_indices)
        f = field_indices(i)

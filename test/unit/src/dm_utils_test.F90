@@ -129,7 +129,7 @@ contains
     ! 2D tests:
     filename = trim(adjustl(data_path)) // "mesh/2D.msh"
 
-    call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
+    call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, 'mesh', &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
 
     if (rank == 0) then
@@ -156,7 +156,7 @@ contains
     ! 3D tests:
     filename = trim(adjustl(data_path)) // "mesh/block3.exo"
 
-    call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, &
+    call DMPlexCreateFromFile(PETSC_COMM_WORLD, filename, 'mesh', &
          PETSC_TRUE, dm, ierr); CHKERRQ(ierr)
 
     if (rank == 0) then

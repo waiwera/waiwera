@@ -46,6 +46,10 @@ This object has a **"filename"** string value for specifying the filename of the
    |             |              |                      |:ref:`regular_output`          |
    |             |              |                      |                               |
    +-------------+--------------+----------------------+-------------------------------+
+   |"flush"      |boolean       |false                 |whether to flush HDF5 file     |
+   |             |              |                      |buffer after writing           |
+   |             |              |                      |                               |
+   +-------------+--------------+----------------------+-------------------------------+
    |"checkpoint" |object        |{}                    |parameters for                 |
    |             |              |                      |:ref:`checkpoint_output`       |
    |             |              |                      |                               |
@@ -172,6 +176,18 @@ This tolerance :math:`\epsilon` is necessary for two reasons. Firstly, with no t
 Secondly, the tolerance can give better time-stepping behaviour if a time step happens to fall just short of a checkpoint time. Without the tolerance, the time step would be completed, and the size of the following time step would have to be reduced to a very small value to hit the checkpoint. With the tolerance, the time step size can instead be increased slightly so that it hits the checkpoint, with no need for a subsequent reduction. This is the reason the default tolerance is relatively large (10%), larger than what would otherwise be needed simply to avoid rounding error issues.
 
 If output results at the simulation start time (i.e. the initial conditions) are required, it is recommended to specify this using **"output.initial"** (see :ref:`initial_and_final_output`) rather than setting a checkpoint at the start time. (Using a checkpoint to achieve this means that a redundant initial time step of size zero must be taken.) If a start time checkpoint *is* used, "setup.initial" should be set to ``false``, otherwise the initial conditions will be output twice.
+
+.. index:: output; flushing
+.. _flushing_output:
+
+Flushing
+========
+
+If Waiwera is forcibly stopped part-way through a simulation, it is possible (though not common) for the HDF5 output file to become corrupted, particularly if the output file is being written at the time.
+
+To guard against this, it is possible to "flush" the Waiwera HDF5 output file buffer after each time the file is written. This can be done by specifying the **"output.flush"** value in the Waiwera JSON input file to ``true`` (its default value is ``false``).
+
+This forces any as-yet unwritten data in the buffer to be written to the file immediately, and should help prevent file corruption. There is a small performance penalty associated with doing this (i.e. more time will be spent on file output).
 
 .. index:: output; fields
 .. _output_fields:
