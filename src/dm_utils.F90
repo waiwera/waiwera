@@ -374,8 +374,8 @@ contains
 
     call DMGetPointSF(dm, sf, ierr); CHKERRQ(ierr)
     call DMGetSection(dm, local_section, ierr); CHKERRQ(ierr)
-    call PetscSectionCreateGlobalSection(local_section, sf, PETSC_FALSE, &
-         PETSC_FALSE, global_section, ierr); CHKERRQ(ierr)
+    call PetscSectionCreateGlobalSection(local_section, sf, PETSC_TRUE, &
+         PETSC_FALSE, PETSC_FALSE, global_section, ierr); CHKERRQ(ierr)
     call DMSetGlobalSection(dm, global_section, ierr)
     CHKERRQ(ierr)
 
