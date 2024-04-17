@@ -358,14 +358,13 @@ contains
 
     class(deliverability_source_control_type), intent(in out) :: self
     PetscReal, intent(in)  :: pressure_difference !! Pressure difference (above reference)
-    ! Locals:
-    PetscReal :: pr
 
     smooth = 1._dp
     if (self%smooth > 0._dp) then
        if (pressure_difference < self%smooth) then
-          pr = pressure_difference / self%smooth
-          smooth = pr * (2._dp - pr)
+          associate(pr => pressure_difference / self%smooth)
+            smooth = pr * (2._dp - pr)
+          end associate
        end if
     end if
 
