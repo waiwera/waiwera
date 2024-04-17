@@ -98,9 +98,11 @@ module source_control_module
      type(interpolation_table_type), public :: productivity !! Productivity index vs. time
      PetscReal, public :: threshold !! Pressure threshold below which deliverability is switched on (< 0 for always on)
      PetscReal, public :: threshold_productivity !! Productivity index computed from flow rate and used when pressure drops below threshold
+     PetscReal, public :: smooth !! Smoothing threshold for pressures approaching reference pressure     
    contains
      private
      procedure :: flow_rate => deliverability_source_control_flow_rate
+     procedure, public :: smoothing_factor => deliverability_source_control_smoothing_factor
      procedure, public :: calculate_PI_from_rate => &
           deliverability_source_control_calculate_PI_from_rate
      procedure, public :: init => deliverability_source_control_init
@@ -320,7 +322,8 @@ contains
 
   subroutine deliverability_source_control_init(self, objects, &
        productivity_data, interpolation_type, averaging_type, &
-       reference_pressure_data, pressure_table_coordinate, threshold)
+       reference_pressure_data, pressure_table_coordinate, threshold, &
+       smooth)
     !! Initialises deliverability source_control.
 
     class(deliverability_source_control_type), intent(in out) :: self
@@ -330,6 +333,7 @@ contains
     PetscReal, intent(in) :: reference_pressure_data(:,:)
     PetscInt, intent(in) :: pressure_table_coordinate
     PetscReal, intent(in) :: threshold
+    PetscReal, intent(in) :: smooth
 
     self%objects = objects
     call self%productivity%init(productivity_data, &
@@ -338,8 +342,34 @@ contains
          interpolation_type, averaging_type)
     self%pressure_table_coordinate = pressure_table_coordinate
     self%threshold = threshold
+    self%smooth = smooth
 
   end subroutine deliverability_source_control_init
+
+!------------------------------------------------------------------------
+
+  PetscReal function deliverability_source_control_smoothing_factor(self, &
+       pressure_difference) result(smooth)
+    !! Computes smoothing factor for deliverability relation as
+    !! pressure approaches the reference pressure. Below the smoothing
+    !! threshold pressure difference, a quadratic smoothing factor is
+    !! applied so that the flow rate has continuous derivative at the
+    !! reference pressure.
+
+    class(deliverability_source_control_type), intent(in out) :: self
+    PetscReal, intent(in)  :: pressure_difference !! Pressure difference (above reference)
+    ! Locals:
+    PetscReal :: pr
+
+    smooth = 1._dp
+    if (self%smooth > 0._dp) then
+       if (pressure_difference < self%smooth) then
+          pr = pressure_difference / self%smooth
+          smooth = pr * (2._dp - pr)
+       end if
+    end if
+
+  end function deliverability_source_control_smoothing_factor
 
 !------------------------------------------------------------------------
 
@@ -355,7 +385,7 @@ contains
     PetscInt :: p, phases
     PetscReal :: h, reference_pressure, pressure_difference
     PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
-    PetscReal :: effective_productivity
+    PetscReal :: effective_productivity, smooth
 
     allocate(phase_mobilities(source%fluid%num_phases))
     allocate(phase_flow_fractions(source%fluid%num_phases))
@@ -372,13 +402,14 @@ contains
 
     effective_productivity = productivity * source%fluid%permeability_factor
     pressure_difference = source%fluid%pressure - reference_pressure
+    smooth = self%smoothing_factor(pressure_difference)
     flow_rate = 0._dp
 
     phases = nint(source%fluid%phase_composition)
     do p = 1, source%fluid%num_phases
        if (btest(phases, p - 1)) then
           flow_rate = flow_rate - effective_productivity * &
-               phase_mobilities(p) * pressure_difference
+               phase_mobilities(p) * smooth * pressure_difference
        end if
     end do
 

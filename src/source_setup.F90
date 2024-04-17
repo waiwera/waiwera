@@ -2712,11 +2712,12 @@ contains
     type(deliverability_source_control_type), pointer :: deliv
     PetscBool :: calculate_reference_pressure
     PetscBool :: calculate_PI_from_rate
-    PetscReal :: initial_rate, threshold
+    PetscReal :: initial_rate, threshold, smooth
     PetscReal, allocatable :: productivity_array(:,:)
     PetscInt :: pressure_table_coordinate
     PetscReal, parameter :: default_rate = 0._dp
     PetscReal, parameter :: default_threshold = -1._dp
+    PetscReal, parameter :: default_smooth = -1._dp
 
     err = 0
 
@@ -2738,6 +2739,8 @@ contains
           if (threshold <= 0._dp) then
              call fson_get_mpi(source_json, "rate", default_rate, initial_rate)
           end if
+
+          call fson_get_mpi(deliv_json, "smooth", default_smooth, smooth)
 
           call get_reference_pressure(deliv_json, srcstr, "deliverability", &
                reference_pressure_array, calculate_reference_pressure, &
@@ -2770,7 +2773,7 @@ contains
          allocate(deliv)
          call deliv%init(single_source, productivity_array, &
               interpolation_type, averaging_type, reference_pressure_array, &
-               pressure_table_coordinate, threshold)
+               pressure_table_coordinate, threshold, smooth)
 
           if (calculate_reference_pressure) then
              call deliv%set_reference_pressure_initial(fluid_data, &
