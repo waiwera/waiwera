@@ -23,6 +23,7 @@ module source_control_test
 
   public :: setup, teardown
   public :: test_source_control_table, test_source_control_pressure_reference
+  public :: test_deliverability_smoothing
 
 contains
 
@@ -608,6 +609,50 @@ contains
     end subroutine reset_fluid_pressures
 
   end subroutine test_source_control_pressure_reference
+
+!------------------------------------------------------------------------
+
+  subroutine test_deliverability_smoothing(test)
+    ! Deliverability smoothing
+
+    use list_module
+    use interpolation_module
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(list_type) :: objects
+    type(deliverability_source_control_type) :: deliv
+    PetscReal, parameter :: prod(1, 2) = reshape( &
+         [0._dp, 1e-12_dp], [1, 2])
+    PetscReal, parameter :: pressure(1, 2) = reshape( &
+         [0._dp, 2.e5_dp], [1, 2])
+    PetscReal, parameter :: threshold = -1._dp
+    PetscReal, parameter :: smooth = 0.1e5_dp
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+
+       call objects%init()
+
+       call deliv%init(objects, prod, INTERP_LINEAR, INTERP_AVERAGING_ENDPOINT, &
+            pressure, SRC_PRESSURE_TABLE_COORD_TIME, threshold, smooth)
+
+       call test%assert(deliv%smoothing_factor(0._dp), 0._dp)
+       call test%assert(deliv%smoothing_factor(0.25_dp * smooth), 7._dp / 16._dp)
+       call test%assert(deliv%smoothing_factor(0.5_dp * smooth), 0.75_dp)
+       call test%assert(deliv%smoothing_factor(0.75_dp * smooth), 15._dp / 16._dp)
+       call test%assert(deliv%smoothing_factor(smooth), 1._dp)
+       call test%assert(deliv%smoothing_factor(2._dp * smooth), 1._dp)
+
+       call deliv%destroy()
+       call objects%destroy()
+
+    end if
+
+  end subroutine test_deliverability_smoothing
 
 !------------------------------------------------------------------------
 
