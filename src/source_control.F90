@@ -454,7 +454,8 @@ contains
       ! Locals:
       PetscInt :: c, fluid_offset
       PetscReal, allocatable :: phase_mobilities(:)
-      PetscReal :: reference_pressure, pressure_difference, factor
+      PetscReal :: reference_pressure, pressure_difference, &
+           smoothed_pressure_difference, factor
       PetscReal, parameter :: tol = 1.e-9_dp
 
       stopped = PETSC_FALSE
@@ -475,7 +476,8 @@ contains
 
          reference_pressure = self%reference_pressure%interpolate(time, 1)
          pressure_difference = source%fluid%pressure - reference_pressure
-         factor = sum(phase_mobilities) * pressure_difference * &
+         smoothed_pressure_difference = self%smoothed_pressure_difference(pressure_difference)
+         factor = sum(phase_mobilities) * smoothed_pressure_difference * &
               source%fluid%permeability_factor
 
          if (abs(factor) > tol) then
