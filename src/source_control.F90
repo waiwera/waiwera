@@ -352,23 +352,18 @@ contains
        pressure_difference) result(spd)
     !! Computes smoothed pressure difference for deliverability relation as
     !! pressure approaches the reference pressure. Below the smoothing
-    !! threshold pressure difference, a cubic Hermite smoothing factor
+    !! threshold pressure difference, a quadratic smoothing factor
     !! is applied so that the flow rate has continuous derivative.
 
     class(deliverability_source_control_type), intent(in out) :: self
     PetscReal, intent(in)  :: pressure_difference !! Pressure difference (above reference)
-    ! Locals:
-    PetscReal :: xi2, h01, h11
 
     if (self%smooth > 0._dp) then
        if (pressure_difference < -self%smooth) then
           spd = 0._dp
        else if (pressure_difference < self%smooth) then
           associate(xi => (pressure_difference + self%smooth) / (2._dp * self%smooth))
-            xi2 = xi * xi
-            h01 = xi2 * (3._dp - 2._dp * xi)
-            h11 = xi2 * (xi - 1._dp)
-            spd = self%smooth * (h01 + 2._dp * h11)
+            spd = self%smooth * xi * xi
           end associate
        else
           spd = pressure_difference
