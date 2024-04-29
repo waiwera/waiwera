@@ -640,12 +640,13 @@ contains
        call deliv%init(objects, prod, INTERP_LINEAR, INTERP_AVERAGING_ENDPOINT, &
             pressure, SRC_PRESSURE_TABLE_COORD_TIME, threshold, smooth)
 
-       call test%assert(deliv%smoothing_factor(0._dp), 0._dp)
-       call test%assert(deliv%smoothing_factor(0.25_dp * smooth), 7._dp / 16._dp)
-       call test%assert(deliv%smoothing_factor(0.5_dp * smooth), 0.75_dp)
-       call test%assert(deliv%smoothing_factor(0.75_dp * smooth), 15._dp / 16._dp)
-       call test%assert(deliv%smoothing_factor(smooth), 1._dp)
-       call test%assert(deliv%smoothing_factor(2._dp * smooth), 1._dp)
+       call test%assert(deliv%smoothed_pressure_difference(-0.5e5_dp), 0._dp, '-0.5 bar')
+       call test%assert(deliv%smoothed_pressure_difference(-0.1e5_dp), 0._dp, '-0.1 bar')
+       call test%assert(deliv%smoothed_pressure_difference(-0.05e5_dp), 0.0625_dp * smooth, '0.05 bar')
+       call test%assert(deliv%smoothed_pressure_difference(0._dp), 0.25_dp * smooth, '0')
+       call test%assert(deliv%smoothed_pressure_difference(0.05e5_dp), 0.5625_dp * smooth, '0.05 bar')
+       call test%assert(deliv%smoothed_pressure_difference(0.1e5_dp), 0.1e5_dp, '0.1 bar')
+       call test%assert(deliv%smoothed_pressure_difference(0.5e5_dp), 0.5e5_dp, '0.5 bar')
 
        call deliv%destroy()
        call objects%destroy()

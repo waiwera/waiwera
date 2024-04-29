@@ -102,7 +102,7 @@ module source_control_module
    contains
      private
      procedure :: flow_rate => deliverability_source_control_flow_rate
-     procedure, public :: smoothing_factor => deliverability_source_control_smoothing_factor
+     procedure, public :: smoothed_pressure_difference => deliverability_source_control_smoothed_pressure_difference
      procedure, public :: calculate_PI_from_rate => &
           deliverability_source_control_calculate_PI_from_rate
      procedure, public :: init => deliverability_source_control_init
@@ -348,27 +348,36 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function deliverability_source_control_smoothing_factor(self, &
-       pressure_difference) result(smooth)
-    !! Computes smoothing factor for deliverability relation as
+  PetscReal function deliverability_source_control_smoothed_pressure_difference(self, &
+       pressure_difference) result(spd)
+    !! Computes smoothed pressure difference for deliverability relation as
     !! pressure approaches the reference pressure. Below the smoothing
-    !! threshold pressure difference, a quadratic smoothing factor is
-    !! applied so that the flow rate has continuous derivative at the
-    !! reference pressure.
+    !! threshold pressure difference, a cubic Hermite smoothing factor
+    !! is applied so that the flow rate has continuous derivative.
 
     class(deliverability_source_control_type), intent(in out) :: self
     PetscReal, intent(in)  :: pressure_difference !! Pressure difference (above reference)
+    ! Locals:
+    PetscReal :: xi2, h01, h11
 
-    smooth = 1._dp
     if (self%smooth > 0._dp) then
-       if (pressure_difference < self%smooth) then
-          associate(pr => pressure_difference / self%smooth)
-            smooth = pr * (2._dp - pr)
+       if (pressure_difference < -self%smooth) then
+          spd = 0._dp
+       else if (pressure_difference < self%smooth) then
+          associate(xi => (pressure_difference + self%smooth) / (2._dp * self%smooth))
+            xi2 = xi * xi
+            h01 = xi2 * (3._dp - 2._dp * xi)
+            h11 = xi2 * (xi - 1._dp)
+            spd = self%smooth * (h01 + 2._dp * h11)
           end associate
+       else
+          spd = pressure_difference
        end if
+    else
+       spd = pressure_difference
     end if
 
-  end function deliverability_source_control_smoothing_factor
+  end function deliverability_source_control_smoothed_pressure_difference
 
 !------------------------------------------------------------------------
 
@@ -384,7 +393,7 @@ contains
     PetscInt :: p, phases
     PetscReal :: h, reference_pressure, pressure_difference
     PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
-    PetscReal :: effective_productivity, smooth
+    PetscReal :: effective_productivity, smoothed_pressure_difference
 
     allocate(phase_mobilities(source%fluid%num_phases))
     allocate(phase_flow_fractions(source%fluid%num_phases))
@@ -401,14 +410,14 @@ contains
 
     effective_productivity = productivity * source%fluid%permeability_factor
     pressure_difference = source%fluid%pressure - reference_pressure
-    smooth = self%smoothing_factor(pressure_difference)
+    smoothed_pressure_difference = self%smoothed_pressure_difference(pressure_difference)
     flow_rate = 0._dp
 
     phases = nint(source%fluid%phase_composition)
     do p = 1, source%fluid%num_phases
        if (btest(phases, p - 1)) then
           flow_rate = flow_rate - effective_productivity * &
-               phase_mobilities(p) * smooth * pressure_difference
+               phase_mobilities(p) * smoothed_pressure_difference
        end if
     end do
 
