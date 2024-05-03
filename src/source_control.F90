@@ -478,10 +478,6 @@ contains
              qd = self%flow_rate(source, self%threshold_productivity)
              if (qd > source%rate) then
                 call source%set_rate(qd)
-             else ! don't use qd, but update PI
-                call self%calculate_PI_from_rate(self%time, source%rate, &
-                     self%local_fluid_data, self%local_fluid_section, -1, &
-                     self%threshold_productivity)
              end if
           else
              call self%calculate_PI_from_rate(self%time, source%rate, &

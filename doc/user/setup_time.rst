@@ -704,7 +704,7 @@ Sub-preconditioners
 
 In a parallel simulation, the matrix is effectively treated as a block matrix, with one block on each processor by default (so the blocks are determined by the :ref:`mesh_partitioning`). The parallel preconditioner operates at the block level, and each block has its own sub-preconditioner, which operates in serial.
 
-By default, the PETSc implementations of the Block Jacobi and Additive Schwarz parallel preconditioners use ILU(0) sub-preconditioning on each block by default (i.e. incomplete LU factorisation with no fill-in). Other sub-preconditioner types are available, but in general the ILU sub-preconditioner works adequately and there is little reason to use anything else.
+By default, the PETSc implementations of the Block Jacobi and Additive Schwarz parallel preconditioners use ILU(0) sub-preconditioning on each block (i.e. incomplete LU factorisation with no fill-in). Other sub-preconditioner types are available, but in general the ILU sub-preconditioner works adequately and there is little reason to use anything else.
 
 For very demanding problems it may be necessary, however, to increase the level of fill-in in the ILU sub-preconditioner. The level of fill-in may be specified via the **"sub.preconditioner"** value in the "time.step.solver.linear.preconditioner" object. This is itself an object, which contains a **"factor.levels"** value specifying the level of fill-in. (There is also a **"type"** string value which can be used for changing the sub-preconditioner type.)
 
