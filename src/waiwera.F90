@@ -96,9 +96,18 @@ contains
 
     character(:), allocatable, intent(out) :: filename !! JSON input filename
     ! Locals:
-    PetscInt :: num_args, len_arg, len_filename, ierr
+    PetscInt :: i, num_args, len_arg, len_filename, ierr
     character(:), allocatable :: arg
     PetscMPIInt :: rank
+    character(16) :: ignore_options(4) = ['       -v', '--version', &
+         '       -h', '   --help']
+    PetscBool :: has
+
+    ! Tell PETSc to ignore -v, -h etc. command line options:
+    do i = 1, size(ignore_options)
+       call PetscOptionsHasName(PETSC_NULL_OPTIONS, PETSC_NULL_CHARACTER, &
+         trim(adjustl(ignore_options(i))), has, ierr)
+    end do
 
     len_filename = 0
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
