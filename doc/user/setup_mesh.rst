@@ -182,7 +182,7 @@ Mesh partitioning
 
 When running Waiwera in parallel, the mesh is "partitioned" so that each parallel process contains only part of the mesh. The mesh partitioning algorithm attempts to balance the computational load between the different processes, while also making the interfaces between the partitions as small as possible, so that the minimum amount of data need be communicated between partitions during the solution process.
 
-Waiwera uses the mesh partitioning algorithms provided by PETSc. By default, the Chaco partitioner is used.
+Waiwera uses the mesh partitioning algorithms provided by PETSc. By default, the Chaco partitioner is used. The partitioner may be selected at run time using the PETSc command line parameter ``-petscpartitioner_type``, which can be given the values ``chaco`` or ``ptscotch``.
 
 .. index:: mesh; rebalancing
 .. _mesh_rebalancing:

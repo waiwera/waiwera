@@ -905,6 +905,7 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: mesh_type
+    PetscPartitioner :: part
     PetscErrorCode :: ierr
 
     if (fson_has_mpi(json, "mesh")) then
@@ -935,6 +936,8 @@ contains
        self%dof = eos%num_primary_variables
        call DMGetDimension(self%serial_dm, self%dim, ierr); CHKERRQ(ierr)
        call dm_set_default_data_layout(self%serial_dm, self%dof)
+       call DMPlexGetPartitioner(self%serial_dm, part, ierr); CHKERRQ(ierr)
+       call PetscPartitionerSetFromOptions(part, ierr); CHKERRQ(ierr)
        call self%setup_coordinate_parameters(json, logfile)
        call self%set_permeability_rotation(json, logfile)
        call self%read_overridden_face_properties(json, logfile)
