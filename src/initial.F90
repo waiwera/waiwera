@@ -589,7 +589,8 @@ contains
            original_tracer_vector, original_tracer_range_start)
 
       call VecGetDM(original_tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
-      call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(tracer_dm, effective_index, t, &
+           ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_tracer_vector, tracer_field_indices, &
            "/cell_fields", viewer, original_cell_index, output_cell_index)
       call vec_copy_subvector(original_tracer_vector, tracer_vector)
@@ -607,7 +608,8 @@ contains
       PetscErrorCode :: ierr
 
       call VecGetDM(tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
-      call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(tracer_dm, effective_index, t, &
+           ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(tracer_vector, tracer_field_indices, &
            "/cell_fields", viewer, mesh%cell_index, output_cell_index)
 
