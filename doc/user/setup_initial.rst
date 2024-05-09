@@ -131,6 +131,12 @@ For example:
 
 restarts a simulation from a Waiwera HDF5 output file named "previous_run.h5", starting from the set of results in the file with zero-based index 99.
 
+.. code-block:: json
+
+   {"initial": {"filename": "previous_run.h5", "index": -1}}
+
+restarts the simulation from the last set of results in the previous output file.
+
 Note that if *both* the **"primary"** and **"filename"** values are specified, the simulation will be restarted from the results in the specified previous output file, and the **"primary"** values will be ignored.
 
 .. index:: initial conditions; default
