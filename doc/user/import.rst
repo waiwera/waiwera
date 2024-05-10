@@ -59,7 +59,7 @@ The following Python script reads in a MULgrid geometry file, together with a TO
    jsondata = dat.json(geo, mesh_filename, mesh_coords = 'xz', incons = inc)
    jsondata['mesh']['thickness'] = 10
 
-   json.dump(jsondata, file('model.json', 'w'), indent = 2, sort_keys = True)
+   json.dump(jsondata, open('model.json', 'w'), indent = 2, sort_keys = True)
 
 After the necessary Python modules have been imported at the start of the script, a line is added to change the way floating point values are written out by the ``json`` module, essentially suppressing unnecessary digits after the decimal point. This is optional but can make the resulting JSON files easier to read.
 
