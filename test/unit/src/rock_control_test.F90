@@ -80,10 +80,11 @@ contains
     PetscErrorCode :: ierr, err
     PetscMPIInt :: rank
     DMLabel :: ghost_label
+    PetscReal :: time
     PetscInt, parameter :: expected_num_rocks = 3
     character(10), parameter :: rock_names(expected_num_rocks) = &
          ["constant", "scalar  ", "array   "]
-    PetscReal, parameter :: start_time = 0._dp, t = 4500._dp
+    PetscReal, parameter :: start_time = 0._dp, test_time = 4500._dp
     PetscReal, parameter :: expected_initial_permeability(expected_num_rocks, 3) = reshape([ &
          1.e-13_dp, 1.e-13_dp, 1.e-14_dp, &
          1.e-13_dp, 1.e-13_dp, 2.e-14_dp, &
@@ -110,7 +111,7 @@ contains
     call DMCreateLabel(mesh%serial_dm, open_boundary_label_name, ierr); CHKERRQ(ierr)
     call mesh%configure(gravity, json, err = err)
 
-    call setup_rocks(json, mesh%dm, start_time, rock_vector, mesh%rock_types, &
+    call setup_rocks(json, mesh%dm, rock_vector, mesh%rock_types, &
          rock_controls, rock_range_start, mesh%ghost_cell, err = err)
     call test%assert(0, err, "rock setup error")
     num_rock_types = mesh%rock_types%count()
@@ -123,8 +124,11 @@ contains
     call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr); CHKERRQ(ierr)
     call rock%init()
 
+    time = start_time
+    call rock_controls%traverse(rock_control_iterator)
     call rock_test("t = 0", expected_initial_permeability, expected_initial_porosity)
 
+    time = test_time
     call rock_controls%traverse(rock_control_iterator)
     call rock_test("t > 0", expected_permeability, expected_porosity)
 
@@ -146,7 +150,7 @@ contains
       PetscBool, intent(out) :: stopped
       select type (rock_control => node%data)
       class is (table_vector_control_type)
-         call rock_control%update(t, rock_array, rock_section, rock_range_start)
+         call rock_control%update(time, rock_array, rock_section, rock_range_start)
       end select
       stopped = PETSC_FALSE
     end subroutine rock_control_iterator

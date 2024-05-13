@@ -233,7 +233,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rocks_from_types(json, dm, start_time, rock_vector, &
+  subroutine setup_rocks_from_types(json, dm, rock_vector, &
        rock_dict, rock_controls, range_start, logfile)
     !! Sets up rock vector on DM and rock controls from rock types in
     !! JSON input.
@@ -249,7 +249,6 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
-    PetscReal, intent(in) :: start_time
     Vec, intent(in out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     type(list_type), intent(in out) :: rock_controls
@@ -309,8 +308,7 @@ contains
                 call fson_get_mpi(r, "permeability", default_permeability, &
                      permeability, logfile, trim(rockstr) // "permeability")
              case (2) ! table of permeabilities vs. time
-                call setup_permeability_rock_control(r, ir, num_cells, &
-                     start_time)
+                call setup_permeability_rock_control(r, ir, num_cells)
                 permeability_init = PETSC_FALSE
              end select
           case default ! real or null
@@ -323,7 +321,7 @@ contains
           porosity_type = fson_type_mpi(r, "porosity")
           select case (porosity_type)
           case (TYPE_ARRAY)
-             call setup_porosity_rock_control(r, ir, num_cells, start_time)
+             call setup_porosity_rock_control(r, ir, num_cells)
              porosity_init = PETSC_FALSE
           case default
              call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
@@ -382,14 +380,11 @@ contains
 
   contains
 
-    subroutine setup_permeability_rock_control(rock_json, ir, num_rock_cells, &
-         start_time)
-      !! Sets up permeability rock control from JSON input. Also
-      !! initialises the controlled permeabilities.
+    subroutine setup_permeability_rock_control(rock_json, ir, num_rock_cells)
+      !! Sets up permeability rock control from JSON input.
 
       type(fson_value), pointer, intent(in) :: rock_json
       PetscInt, intent(in) :: ir, num_rock_cells
-      PetscReal, intent(in) :: start_time
       ! Locals:
       PetscReal, allocatable :: permeability_table(:,:)
       type(permeability_table_rock_control_type), pointer :: control
@@ -420,7 +415,6 @@ contains
          call control%init(permeability_table, rock_cell, interpolation_type)
          deallocate(rock_cell, ghost_cell)
          call rock_controls%append(control)
-         call control%update(start_time, rock_array, section, range_start)
       end if
       deallocate(permeability_table)
 
@@ -428,14 +422,11 @@ contains
 
 !........................................................................
 
-    subroutine setup_porosity_rock_control(rock_json, ir, num_rock_cells, &
-         start_time)
-      !! Sets up porosity rock control from JSON input. Also
-      !! initialises the controlled porosities.
+    subroutine setup_porosity_rock_control(rock_json, ir, num_rock_cells)
+      !! Sets up porosity rock control from JSON input.
 
       type(fson_value), pointer, intent(in) :: rock_json
       PetscInt, intent(in) :: ir, num_rock_cells
-      PetscReal, intent(in) :: start_time
       ! Locals:
       PetscReal, allocatable :: porosity_table(:,:)
       type(porosity_table_rock_control_type), pointer :: control
@@ -466,7 +457,6 @@ contains
          call control%init(porosity_table, rock_cell, interpolation_type)
          deallocate(rock_cell, ghost_cell)
          call rock_controls%append(control)
-         call control%update(start_time, rock_array, section, range_start)
       end if
       deallocate(porosity_table)
 
@@ -506,7 +496,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine setup_rocks(json, dm, start_time, rock_vector, rock_dict, &
+  subroutine setup_rocks(json, dm, rock_vector, rock_dict, &
        rock_controls, range_start, ghost_cell, logfile, err)
 
     !! Sets up rock vector on specified DM and rock controls from JSON
@@ -521,7 +511,6 @@ contains
 
     type(fson_value), pointer, intent(in) :: json
     DM, intent(in out) :: dm
-    PetscReal, intent(in) :: start_time
     Vec, intent(in out) :: rock_vector
     type(dictionary_type), intent(in out) :: rock_dict
     type(list_type), intent(in out) :: rock_controls
@@ -541,7 +530,7 @@ contains
 
        if (fson_has_mpi(json, "rock.types")) then
 
-          call setup_rocks_from_types(json, dm, start_time, rock_vector, &
+          call setup_rocks_from_types(json, dm, rock_vector, &
                rock_dict, rock_controls, range_start, logfile)
 
        else
