@@ -960,6 +960,8 @@ contains
 
                 if (err == 0) then
 
+                   call self%update_rock_properties(self%time)
+
                    if (self%mesh%rebalance) then
                       call self%redistribute(redist_err)
                       if (redist_err > 0) then
