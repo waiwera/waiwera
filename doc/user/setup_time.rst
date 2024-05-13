@@ -35,7 +35,7 @@ All time-related parameters are specified in the Waiwera JSON input file via the
 
 The **"start"** and **"stop"** values in the "time" object are numbers specifying the start and stop times for the simulation.
 
-If initial conditions are being read from a previous HDF5 output file (see :ref:`restarting`), the "start" value can also be set to the string "initial", in which case the start time will be taken from the time in the previous output file corresponding to the specified start index. (If the "start" value is set to "initial" when the simulation is not being restarted from previous results, the default start time will be used.)
+If initial conditions are being read from a previous HDF5 output file (see :ref:`restarting`), the "start" value can also be set to the string "initial", in which case the start time will be taken from the time in the previous output file corresponding to the specified (zero-based) start index. (If the "start" value is set to "initial" when the simulation is not being restarted from previous results, the default start time will be used.)
 
 The "stop" value can also be set to ``null`` (or simply not specified), in which case the simulation will not stop at a prescribed time -- other criteria will determine when the simulation stops (e.g. how many time steps have been taken).
 
@@ -45,7 +45,14 @@ For example:
 
    {"time": {"start": 86400, "stop": 172800}}
 
-specifies a simulation starting at time 86400 s and ending at 172800 s.
+specifies a simulation starting at time 86400 s and ending at 172800 s. In the following example:
+
+.. code-block:: json
+
+   {"initial": {"filename": "previous.h5", "index": 25},
+    "time": {"start": "initial", "stop": null}}
+
+the simulation is restarted from the file "previous.h5", at time index 25, and the start time is taken from index 25 of the time dataset in that file. No specific stop time is set.
 
 All parameters related to time-stepping are specified via the **"step"** value in the "time" object. The "step" value is itself an object.
 
