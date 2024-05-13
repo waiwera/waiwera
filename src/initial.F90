@@ -420,9 +420,10 @@ contains
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
        tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-       index, use_original_dm, tracers)
+       index, use_original_dm, tracers, initial_time)
     !! Initializes fluid vector, solution vector y and tracer vector
-    !! (if tracers are being simulated) from HDF5 file.
+    !! (if tracers are being simulated) from HDF5 file. If initial_time is true,
+    !! also read the time t from the file, at the time index.
 
     use mesh_module
     use dm_utils_module, only: global_vec_section, global_section_offset, &
@@ -432,25 +433,26 @@ contains
          max_phase_name_length
     use fluid_module, only: fluid_type, create_fluid_vector
     use utils_module, only: str_array_index, str_to_lower
-    use hdf5io_module, only: max_field_name_length, vec_load_fields_hdf5
+    use hdf5io_module, only: max_field_name_length, vec_load_fields_hdf5, get_hdf5_time
     use tracer_module, only: tracer_type
 
     character(len = *), intent(in) :: filename
     type(mesh_type), intent(in) :: mesh
     class(eos_type), intent(in) :: eos
-    PetscReal, intent(in) :: t
+    PetscReal, intent(in out) :: t
     Vec, intent(in out) :: y, fluid_vector, tracer_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start, tracer_range_start
     PetscInt, intent(in) :: index !! time index to fetch initial conditions from
     PetscBool, intent(in) :: use_original_dm !! Whether file results correspond to original_dm
     type(tracer_type), intent(in) :: tracers(:)
+    PetscBool, intent(in) :: initial_time !! Whether to overwrite time t from file
     ! Locals:
     PetscViewer :: viewer
     PetscInt, allocatable :: field_indices(:)
     PetscInt :: tracer_field_indices(size(tracers))
     PetscInt :: i, num_tracers
     IS :: original_cell_index, output_cell_index
-    PetscErrorCode :: ierr
+    PetscErrorCode :: ierr, err
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
@@ -483,6 +485,8 @@ contains
        call load_fluid()
        if (num_tracers > 0) call load_tracers()
     end if
+
+    if (initial_time) call get_hdf5_time(index, viewer, t)
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
@@ -732,6 +736,7 @@ contains
     use dm_utils_module, only: global_vec_section, global_section_offset
     use tracer_module, only: tracer_type
     use logfile_module
+    use fson_value_m, only: TYPE_REAL, TYPE_INTEGER, TYPE_STRING
 
     type(fson_value), pointer, intent(in) :: json
     type(mesh_type), intent(in) :: mesh
@@ -745,7 +750,7 @@ contains
     ! Locals:
     PetscReal, parameter :: default_start_time = 0.0_dp
     PetscReal, allocatable :: primary(:)
-    PetscInt :: region, num_tracers
+    PetscInt :: region, num_tracers, time_type
     PetscReal :: primary_scalar, tracer_scalar
     PetscInt :: primary_rank, region_rank, tracer_rank
     PetscReal, allocatable :: tracer_values(:)
@@ -753,13 +758,41 @@ contains
     character(len = max_filename_length) :: filename
     PetscInt, parameter :: default_index = 0
     PetscInt :: index, tracer_array_size
-    PetscBool :: minc_specified, use_original_dm, has_file
+    PetscBool :: minc_specified, use_original_dm, has_file, initial_time
+    character(8) :: time_str
     PetscBool, parameter :: default_minc_specified = PETSC_FALSE
     PetscReal, parameter :: default_tracer = 0._dp
 
     err = 0
     num_tracers = size(tracers)
-    call fson_get_mpi(json, "time.start", default_start_time, t, logfile)
+
+    initial_time = PETSC_FALSE
+    has_file = fson_has_mpi(json, "initial.filename")
+
+    time_type = fson_type_mpi(json, "time.start")
+    select case (time_type)
+    case (TYPE_REAL, TYPE_INTEGER)
+       call fson_get_mpi(json, "time.start", val = t)
+    case (TYPE_STRING)
+       call fson_get_mpi(json, "time.start", val = time_str)
+       if ((time_str == "initial") .and. has_file) then
+          initial_time = PETSC_TRUE
+       else
+          t = default_start_time
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  real_keys = ['time.start'], &
+                  real_values = [default_start_time])
+          end if
+       end if
+    case default
+       t = default_start_time
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               real_keys = ['time.start'], &
+               real_values = [default_start_time])
+       end if
+    end select
 
     if (fson_has_mpi(json, "initial")) then
 
@@ -771,8 +804,6 @@ contains
           minc_specified = PETSC_FALSE
           use_original_dm = PETSC_FALSE
        end if
-
-       has_file = fson_has_mpi(json, "initial.filename")
 
        primary_rank = fson_mpi_array_rank(json, "initial.primary")
        select case (primary_rank)
@@ -873,7 +904,7 @@ contains
                 call fson_get_mpi(json, "initial.index", default_index, index, logfile)
                 call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
                      tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-                     index, use_original_dm, tracers)
+                     index, use_original_dm, tracers, initial_time)
              end if
 
           end if

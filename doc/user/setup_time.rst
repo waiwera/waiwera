@@ -20,8 +20,8 @@ All time-related parameters are specified in the Waiwera JSON input file via the
    +------------+------------+------------+--------------------------+
    |**name**    |**type**    |**default** |**value**                 |
    +------------+------------+------------+--------------------------+
-   |"start"     |number      |0           |simulation start time (s) |
-   |            |            |            |                          |
+   |"start"     |number |    |0           |simulation start time (s) |
+   |            |string      |            |or "initial"              |
    |            |            |            |                          |
    +------------+------------+------------+--------------------------+
    |"stop"      |number |    |``null``    |simulation stop time (s)  |
@@ -33,7 +33,11 @@ All time-related parameters are specified in the Waiwera JSON input file via the
 
 .. index:: time; start, time; stop
 
-The **"start"** and **"stop"** values in the "time" object are numbers specifying the start and stop times for the simulation. The "stop" value can also be given the ``null`` value (or simply not specified), in which case the simulation will not stop at a prescribed time -- other criteria will determine when the simulation stops (e.g. how many time steps have been taken).
+The **"start"** and **"stop"** values in the "time" object are numbers specifying the start and stop times for the simulation.
+
+If initial conditions are being read from a previous HDF5 output file (see :ref:`restarting`), the "start" value can also be set to the string "initial", in which case the start time will be taken from the time in the previous output file corresponding to the specified start index. (If the "start" value is set to "initial" when the simulation is not being restarted from previous results, the default start time will be used.)
+
+The "stop" value can also be set to ``null`` (or simply not specified), in which case the simulation will not stop at a prescribed time -- other criteria will determine when the simulation stops (e.g. how many time steps have been taken).
 
 For example:
 
