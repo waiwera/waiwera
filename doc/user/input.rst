@@ -112,12 +112,12 @@ In the example script below, the JSON object in the previous example (see :ref:`
 
    import json
 
-   data = json.load(file('input.json', 'r'))
+   data = json.load(open('input.json', 'r'))
 
    data["dimensions"]["depth"] = 17.3
    data["age"] = 3.5
 
-   json.dump(data, file('edited.json', 'w'))
+   json.dump(data, open('edited.json', 'w'))
 
 .. index:: JSON; validation
 

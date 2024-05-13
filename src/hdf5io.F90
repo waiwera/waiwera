@@ -27,10 +27,51 @@ module hdf5io_module
 
   PetscInt, parameter, public :: max_field_name_length = 128
 
-  public :: vec_view_fields_hdf5, vec_load_fields_hdf5, &
+  public :: get_hdf5_time, vec_view_fields_hdf5, vec_load_fields_hdf5, &
        vec_sequence_view_hdf5
 
 contains
+
+!------------------------------------------------------------------------
+
+  subroutine get_hdf5_time(time_index, viewer, t)
+    !! Reads time from HDF5 viewer at specified time index.
+
+    PetscInt, intent(in) :: time_index
+    PetscViewer, intent(in) :: viewer
+    PetscReal, intent(out) :: t
+    ! Locals:
+    Vec :: times
+    PetscInt :: localsize
+    PetscMPIInt :: rank
+    PetscReal, pointer, contiguous :: times_array(:)
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr); CHKERRQ(ierr)
+
+    if (time_index >= 0) then
+       if (rank == 0) then
+          localsize = 1
+       else
+          localsize = 0
+       end if
+       call VecCreateMPI(PETSC_COMM_WORLD, localsize, 1, times, ierr)
+       CHKERRQ(ierr)
+       call VecSetBlockSize(times, 1, ierr); CHKERRQ(ierr)
+       call PetscObjectSetName(times, "time", ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5SetTimestep(viewer, time_index, ierr)
+       CHKERRQ(ierr)
+       call VecLoad(times, viewer, ierr); CHKERRQ(ierr)
+       call VecGetArrayReadF90(times, times_array, ierr); CHKERRQ(ierr)
+       if (rank == 0) t = times_array(1)
+       call MPI_bcast(t, 1, MPI_DOUBLE_PRECISION, 0, PETSC_COMM_WORLD, ierr)
+       call VecRestoreArrayReadF90(times, times_array, ierr); CHKERRQ(ierr)
+       call VecDestroy(times, ierr); CHKERRQ(ierr)
+       call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine get_hdf5_time
 
 !------------------------------------------------------------------------
 

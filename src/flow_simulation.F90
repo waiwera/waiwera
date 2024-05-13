@@ -938,7 +938,7 @@ contains
                self%relative_permeability, self%logfile)
           call setup_capillary_pressures(json, &
                self%capillary_pressure, self%logfile)
-          call setup_rocks(json, self%mesh%dm, self%time, self%rock, &
+          call setup_rocks(json, self%mesh%dm, self%rock, &
                self%mesh%rock_types, self%rock_controls, &
                self%rock_range_start, self%mesh%ghost_cell, &
                self%logfile, err)
@@ -959,6 +959,8 @@ contains
                      self%logfile, err)
 
                 if (err == 0) then
+
+                   call self%update_rock_properties(self%time)
 
                    if (self%mesh%rebalance) then
                       call self%redistribute(redist_err)

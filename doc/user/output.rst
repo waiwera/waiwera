@@ -226,7 +226,7 @@ For more complex post-processing tasks, libraries are also available for handlin
    import yaml
    import matplotlib.pyplot as plt
 
-   lg = yaml.load(file('model.yaml'))
+   lg = yaml.load(open('model.yaml'))
    endmsgs = [msg for msg in lg if msg[1:3] == ['timestep', 'end']]
    times = [msg[-1]['time'] for msg in endmsgs]
    sizes = [msg[-1]['size'] for msg in endmsgs]

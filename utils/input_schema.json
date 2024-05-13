@@ -1146,7 +1146,8 @@
         "time": {
             "type": "object",
             "properties": {
-                "start": {"type": "number"},
+                "start": {"oneOf": [{"type": "number"},
+                                    {"type": "string", "enum": ["initial"]}]},
                 "stop": {"oneOf": [{"type": "number"}, {"type": "null"}]},
                 "step": {
                     "type": "object",
