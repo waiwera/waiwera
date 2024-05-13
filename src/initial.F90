@@ -494,7 +494,7 @@ contains
        if (num_tracers > 0) call load_tracers()
     end if
 
-    if (initial_time) call get_hdf5_time(index, viewer, t)
+    if (initial_time) call get_hdf5_time(effective_index, viewer, t)
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
