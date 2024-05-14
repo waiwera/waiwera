@@ -51,7 +51,7 @@ The following Python script reads in a MULgrid geometry file, together with a TO
 
    geo = mulgrid('geometry.dat')
    mesh_filename = 'geometry.msh'
-   geo.write_mesh(mesh_filename, dimension = 2, slice = 'x')
+   geo.write_mesh(mesh_filename, dimension = 2, slice = 'x', file_format = 'gmsh22')
 
    dat = t2data('model.dat')
    inc = t2incon('model.incon')
@@ -65,6 +65,8 @@ After the necessary Python modules have been imported at the start of the script
 
 In this example the mesh is a 2-D Cartesian vertical slice mesh, so the ``dimension`` parameter of the ``write_mesh()`` method is set to 2, and the ``slice`` parameter is set to 'x'. The ``mesh_coords`` parameter is also set to 'xz' in the ``json()`` method call, to define the orientation of the mesh.
 
-After the ``jsondata`` dictionary variable has been created, containing a JSON representation of the simulation, this variable is edited to add a value for the 2-D mesh thickness. Other aspects of the simulation could be altered as desired here by editing the ``jsondata`` variable. 
+After the ``jsondata`` dictionary variable has been created, containing a JSON representation of the simulation, this variable is edited to add a value for the 2-D mesh thickness. Other aspects of the simulation could be altered as desired here by editing the ``jsondata`` variable.
+
+The GMSH mesh file is written out in GMSH format version 2.2 to avoid issues with later versions of the format (see :ref:`gmsh_versions`).
 
 The last line of the script writes the Waiwera input JSON file, "model.json". Two optional parameters are added here, one to specify the size of the indenting, and the other to sort the keys in the JSON file. Since the ``jsondata`` variable is a Python dictionary, and dictionary variables have no implied order, the keys could otherwise be written out in arbitrary order. Setting the ``sort_keys`` parameter ensures the keys are written out in alphabetical order, which can make particular keys easier to find in the file.
