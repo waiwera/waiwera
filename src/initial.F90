@@ -420,7 +420,7 @@ contains
 
   subroutine setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
        tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-       index, use_original_dm, tracers, initial_time)
+       index, use_original_dm, tracers, initial_time, err)
     !! Initializes fluid vector, solution vector y and tracer vector
     !! (if tracers are being simulated) from HDF5 file. If initial_time is true,
     !! also read the time t from the file, at the time index.
@@ -435,6 +435,7 @@ contains
     use utils_module, only: str_array_index, str_to_lower
     use hdf5io_module, only: max_field_name_length, vec_load_fields_hdf5, get_hdf5_time
     use tracer_module, only: tracer_type
+    use mpi_utils_module, only: mpi_broadcast_error_flag
 
     character(len = *), intent(in) :: filename
     type(mesh_type), intent(in) :: mesh
@@ -446,6 +447,7 @@ contains
     PetscBool, intent(in) :: use_original_dm !! Whether file results correspond to original_dm
     type(tracer_type), intent(in) :: tracers(:)
     PetscBool, intent(in) :: initial_time !! Whether to overwrite time t from file
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscViewer :: viewer
     PetscInt, allocatable :: field_indices(:)
@@ -454,6 +456,7 @@ contains
     IS :: original_cell_index, output_cell_index
     PetscErrorCode :: ierr
 
+    err = 1
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushGroup(viewer, "/", ierr); CHKERRQ(ierr)
@@ -487,6 +490,9 @@ contains
     end if
 
     if (initial_time) call get_hdf5_time(index, viewer, t)
+
+    err = 0
+    call mpi_broadcast_error_flag(err)
 
     call PetscViewerHDF5PopGroup(viewer, ierr); CHKERRQ(ierr)
     call PetscViewerDestroy(viewer, ierr); CHKERRQ(ierr)
@@ -904,7 +910,15 @@ contains
                 call fson_get_mpi(json, "initial.index", default_index, index, logfile)
                 call setup_initial_file(filename, mesh, eos, t, y, fluid_vector, &
                      tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-                     index, use_original_dm, tracers, initial_time)
+                     index, use_original_dm, tracers, initial_time, err)
+                if (err > 0) then
+                   if (present(logfile)) then
+                      call logfile%write(LOG_LEVEL_ERR, 'input', &
+                           'initial.filename', &
+                           str_key = trim(adjustl(filename)), &
+                           str_value = 'not found')
+                   end if
+                end if
              end if
 
           end if
@@ -932,12 +946,14 @@ contains
 
     end if
 
-    if (mesh%has_minc .and. (.not. minc_specified)) then
-       call setup_minc_initial(mesh, eos, y, fluid_vector, y_range_start, &
-            fluid_range_start)
-       if (num_tracers > 0) then
-          call setup_minc_initial_tracer(mesh, tracer_vector, &
-               tracer_range_start, num_tracers)
+    if (err == 0) then
+       if (mesh%has_minc .and. (.not. minc_specified)) then
+          call setup_minc_initial(mesh, eos, y, fluid_vector, y_range_start, &
+               fluid_range_start)
+          if (num_tracers > 0) then
+             call setup_minc_initial_tracer(mesh, tracer_vector, &
+                  tracer_range_start, num_tracers)
+          end if
        end if
     end if
 
