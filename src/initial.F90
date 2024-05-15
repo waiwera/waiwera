@@ -452,7 +452,7 @@ contains
     PetscInt :: tracer_field_indices(size(tracers))
     PetscInt :: i, num_tracers
     IS :: original_cell_index, output_cell_index
-    PetscErrorCode :: ierr, err
+    PetscErrorCode :: ierr
 
     call PetscViewerHDF5Open(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &
          viewer, ierr); CHKERRQ(ierr)
