@@ -123,6 +123,7 @@ module flow_simulation_module
      procedure, public :: output_source_constant_integer_fields => flow_simulation_output_source_constant_integer_fields
      procedure, public :: output => flow_simulation_output
      procedure, public :: get_dof => flow_simulation_get_dof
+     procedure, public :: modify_jacobian => flow_simulation_modify_jacobian
   end type flow_simulation_type
 
 contains
@@ -3002,6 +3003,57 @@ contains
     dof_imbalance = dble(dof_max - dof_min) / dble(dof_min)
 
   end subroutine flow_simulation_get_dof
+
+!------------------------------------------------------------------------
+
+  subroutine flow_simulation_modify_jacobian(self)
+    !! Modifies Jacobian matrix for dependencies between sources in
+    !! the source network.
+
+    use source_module, only: source_dependency_type
+
+    class(flow_simulation_type), intent(in out) :: self
+    ! Locals:
+    PetscErrorCode :: ierr
+    PetscReal, allocatable :: values(:)
+
+    allocate(values(self%eos%num_primary_variables * &
+         self%eos%num_primary_variables))
+    values = 0._dp
+
+    call MatSetOption(self%jacobian, MAT_NEW_NONZERO_LOCATION_ERR, &
+         PETSC_FALSE, ierr)
+
+    call self%source_network%dependencies%traverse( &
+         source_dependencies_iterator)
+
+    call MatAssemblyBegin(self%jacobian, MAT_FINAL_ASSEMBLY, &
+         ierr); CHKERRQ(ierr)
+    call MatAssemblyEnd(self%jacobian, MAT_FINAL_ASSEMBLY, &
+         ierr); CHKERRQ(ierr)
+
+    deallocate(values)
+
+  contains
+
+    subroutine source_dependencies_iterator(node, stopped)
+      !! Adds extra Jacobian entries corresponding to source network
+      !! dependencies.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type(dependency => node%data)
+      type is (source_dependency_type)
+         call MatSetValuesBlocked(self%jacobian, 1, [dependency%row], &
+              1, [dependency%column], values, INSERT_VALUES, ierr)
+         CHKERRQ(ierr)
+      end select
+
+    end subroutine source_dependencies_iterator
+
+  end subroutine flow_simulation_modify_jacobian
 
 !------------------------------------------------------------------------
 
