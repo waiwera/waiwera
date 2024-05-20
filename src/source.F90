@@ -109,6 +109,13 @@ module source_module
      procedure, public :: destroy => source_destroy
   end type source_type
 
+  type, public :: source_dependency_type
+     !! Type for dependencies between sources.
+     private
+     PetscInt, public :: row !! Jacobian (block) row index
+     PetscInt, public :: column !! Jacobian (block) column index
+  end type source_dependency_type
+
 contains
 
 !------------------------------------------------------------------------
