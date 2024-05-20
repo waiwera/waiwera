@@ -3046,8 +3046,8 @@ contains
       stopped = PETSC_FALSE
       select type(dependency => node%data)
       type is (source_dependency_type)
-         call MatSetValuesBlocked(self%jacobian, 1, [dependency%row], &
-              1, [dependency%column], values, INSERT_VALUES, ierr)
+         call MatSetValuesBlocked(self%jacobian, 1, [dependency%equation], &
+              1, [dependency%cell], values, INSERT_VALUES, ierr)
          CHKERRQ(ierr)
       end select
 

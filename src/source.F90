@@ -112,8 +112,8 @@ module source_module
   type, public :: source_dependency_type
      !! Type for dependencies between sources.
      private
-     PetscInt, public :: row !! Jacobian (block) row index
-     PetscInt, public :: column !! Jacobian (block) column index
+     PetscInt, public :: equation !! Global (block) equation index
+     PetscInt, public :: cell !! Global (block) cell index
   end type source_dependency_type
 
 contains
