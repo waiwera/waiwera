@@ -42,6 +42,7 @@ module source_network_module
      type(list_type), public :: source_controls !! Controls on sources/sinks
      type(list_type), public :: network_controls !! Controls on source network nodes
      type(list_type), public :: reinjectors !! Reinjectors distributing flows to injection sources
+     type(list_type), public :: dependencies !! Dependencies between sources
      Vec, public :: source !! Vector for source/sink data
      Vec, public :: group !! Vector for source network group data
      Vec, public :: reinjector !! Vector for source network reinjector data
@@ -78,6 +79,7 @@ contains
        call self%source_controls%init(owner = PETSC_TRUE)
        call self%network_controls%init(owner = PETSC_TRUE)
        call self%reinjectors%init(owner = PETSC_TRUE)
+       call self%dependencies%init(owner = PETSC_TRUE)
 
   end subroutine source_network_init
 
@@ -387,6 +389,7 @@ contains
     call self%reinjectors%destroy( &
          source_network_node_list_node_data_destroy, reverse = PETSC_TRUE)
     call self%sources%destroy(source_network_node_list_node_data_destroy)
+    call self%dependencies%destroy()
 
   end subroutine source_network_destroy
   
