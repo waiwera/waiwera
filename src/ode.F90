@@ -68,6 +68,7 @@ module ode_module
      procedure, public :: pre_retry_timestep => ode_pre_retry_timestep
      procedure, public :: post_linesearch => ode_post_linesearch
      procedure, public :: setup_jacobian => ode_setup_jacobian
+     procedure, public :: modify_jacobian => ode_modify_jacobian
      procedure, public :: setup_auxiliary => ode_setup_auxiliary
      procedure(ode_output_procedure), public, deferred :: output
   end type ode_type
@@ -280,9 +281,21 @@ contains
     call DMSetMatType(self%mesh%interior_dm, mat_type, ierr); CHKERRQ(ierr)
     call DMCreateMatrix(self%mesh%interior_dm, self%jacobian, ierr)
     CHKERRQ(ierr)
+    call self%modify_jacobian()
     call MatSetFromOptions(self%jacobian, ierr); CHKERRQ(ierr)
 
   end subroutine ode_setup_jacobian
+
+!------------------------------------------------------------------------
+
+  subroutine ode_modify_jacobian(self)
+    !! Carries out any required modification of the Jacobian matrix.
+
+    class(ode_type), intent(in out) :: self
+
+    ! Do nothing
+
+  end subroutine ode_modify_jacobian
 
 !------------------------------------------------------------------------
 
