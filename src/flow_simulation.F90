@@ -3042,13 +3042,21 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: row(1), col(1)
 
       stopped = PETSC_FALSE
       select type(dependency => node%data)
       type is (source_dependency_type)
-         call MatSetValuesBlocked(self%jacobian, 1, [dependency%equation], &
-              1, [dependency%cell], values, INSERT_VALUES, ierr)
-         CHKERRQ(ierr)
+         row = dependency%equation
+         ! Convert natural -> global indices:
+         call AOApplicationToPetsc(self%mesh%cell_natural_global, 1, &
+              row, ierr); CHKERRQ(ierr)
+         col = dependency%cell
+         call AOApplicationToPetsc(self%mesh%cell_natural_global, 1, &
+              col, ierr); CHKERRQ(ierr)
+         call MatSetValuesBlocked(self%jacobian, 1, row, 1, col, values, &
+              INSERT_VALUES, ierr); CHKERRQ(ierr)
       end select
 
     end subroutine source_dependencies_iterator
