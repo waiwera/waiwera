@@ -66,6 +66,7 @@ contains
     use mesh_module
     use tracer_module
     use dm_utils_module, only: global_vec_section, global_section_offset
+    use utils_module, only: array_is_permutation_of
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -286,6 +287,19 @@ contains
 
 !........................................................................
 
+    subroutine group_cell_indices_test(group, indices)
+
+      class(source_network_group_type), intent(in) :: group
+      PetscInt, intent(in) :: indices(:)
+
+      call test%assert(array_is_permutation_of(indices, &
+           group%source_cell_indices), &
+           trim(group%name) // " cell_indices")
+
+    end subroutine group_cell_indices_test
+
+!........................................................................
+
     subroutine source_test_iterator(node, stopped)
 
       type(list_node_type), pointer, intent(in out) :: node
@@ -360,33 +374,46 @@ contains
          if (group%rank == 0) then
             select case (group%name)
             case ("group1")
+               call group_cell_indices_test(group, [0, 11])
                call flow_test(group, -8.0_dp, 0.0_dp, 0.0_dp)
             case ("group2a")
+               call group_cell_indices_test(group, [8, 3])
                call flow_test(group, -5.0_dp, 0.0_dp, 0.0_dp)
             case ("group2b")
+               call group_cell_indices_test(group, [5, 6])
                call flow_test(group, -6.5_dp, 0.0_dp, 0.0_dp)
             case ("group2")
+               call group_cell_indices_test(group, [8, 3, 5, 6])
                call flow_test(group, -11.5_dp, 0.0_dp, 0.0_dp)
             case ("group3")
+               call group_cell_indices_test(group, [4, 7])
                call flow_test(group, -2.9298129229454917_dp, &
                     -1.7298129229454917_dp, -1.2_dp)
             case ("group4a")
+               call group_cell_indices_test(group, [0, 11])
                call flow_test(group, -2.8_dp, 0.0_dp, 0.0_dp)
             case ("group4")
+               call group_cell_indices_test(group, [0, 11, 4])
                call flow_test(group, -7.8_dp, 0.0_dp, 0.0_dp)
             case ("group5a")
+               call group_cell_indices_test(group, [0, 11])
                call flow_test(group, -0.9_dp, 0.0_dp, 0.0_dp)
             case ("group5")
+               call group_cell_indices_test(group, [5, 0, 11])
                call flow_test(group, -4.5_dp, 0.0_dp, 0.0_dp)
             case ("group6")
+               call group_cell_indices_test(group, [3, 8])
                call flow_test(group, -6.921957482012667_dp, -4.0_dp, &
                     -2.921957482012667_dp)
             case ("group7")
+               call group_cell_indices_test(group, [0, 11])
                call flow_test(group, -7.0_dp, 0.0_dp, 0.0_dp)
             case ("w20")
+               call group_cell_indices_test(group, [8, 9])
                call flow_test(group, -6.615763391938951_dp, &
                     -3.2473504254501706_dp, -3.3684129664887807_dp)
             case ("group8")
+               call group_cell_indices_test(group, [3, 8, 9, 6])
                call flow_test(group, -10.615763391938952_dp, &
                     -5.615763391938952_dp, -5.0_dp)
             end select
