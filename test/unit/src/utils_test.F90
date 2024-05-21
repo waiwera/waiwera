@@ -21,7 +21,8 @@ module utils_test
        test_array_pair_sum, test_array_cumulative_sum, &
        test_array_exclusive_products, test_array_sorted, &
        test_array_indices_in_int_array, test_is_permutation, &
-       test_array_progressive_limit, test_newton1d
+       test_array_progressive_limit, test_newton1d, &
+       test_is_permutation_of
 
 contains
 
@@ -541,6 +542,29 @@ contains
     end if
 
   end subroutine test_is_permutation
+
+!------------------------------------------------------------------------
+
+  subroutine test_is_permutation_of(test)
+    ! Test array_is_permutation_of
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert(array_is_permutation_of([0], [0]), 'case 1')
+       call test%assert(.not. array_is_permutation_of([0], [1]), 'case 2')
+       call test%assert(.not. array_is_permutation_of([0], [0, 1]), 'case 3')
+       call test%assert(array_is_permutation_of([1, 3, -2], [3, -2, 1]), 'case 4')
+       call test%assert(array_is_permutation_of([1, 3, 3], [3, 1, 3]), 'case 5')
+
+    end if
+
+  end subroutine test_is_permutation_of
 
 !------------------------------------------------------------------------
 
