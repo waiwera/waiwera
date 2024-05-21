@@ -62,7 +62,7 @@ module utils_module
        array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
-       array_is_permutation, invert_indices, &
+       array_is_permutation, array_is_permutation_of, invert_indices, &
        array_progressive_limit, newton1d
 
 contains
@@ -507,6 +507,31 @@ contains
     end associate
 
   end function array_is_permutation
+
+!------------------------------------------------------------------------
+
+  PetscBool function array_is_permutation_of(a, b)
+    !! Returns true if the integer arrays a and b are permutations of
+    !! each other.
+
+    PetscInt, intent(in) :: a(:), b(:)
+    ! Locals:
+    PetscInt :: asort(size(a)), bsort(size(b))
+    PetscErrorCode :: ierr
+
+    associate (na => size(a), nb => size(b))
+      if (na == nb) then
+         asort = a
+         bsort = b
+         call PetscSortInt(na, asort, ierr); CHKERRQ(ierr)
+         call PetscSortInt(nb, bsort, ierr); CHKERRQ(ierr)
+         array_is_permutation_of = all(asort == bsort)
+      else
+         array_is_permutation_of = PETSC_FALSE
+      end if
+    end associate
+
+  end function array_is_permutation_of
 
 !------------------------------------------------------------------------
 
