@@ -63,6 +63,7 @@ module source_network_group_module
      PetscMPIInt :: root_world_rank !! Rank in world communicator of group root rank
      PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
      PetscReal, pointer, public :: group_index !! Index of source group in input
+     PetscInt, allocatable, public :: source_cell_indices(:) !! Natural cell indices of sources feeding the group (including those from inputs that are also groups)
    contains
      private
      procedure, public :: init => source_network_group_init

@@ -903,7 +903,8 @@ contains
       type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
       ! Locals:
-      PetscInt :: ig, i, g, group_index
+      PetscInt :: ig, i, g, group_index, num_nodes, comm_size
+      PetscInt, allocatable :: source_cell_indices(:)
       type(fson_value), pointer :: group_json
       character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
@@ -946,8 +947,11 @@ contains
             call group%init(name)
             call setup_inline_source_group_controls(group_json, group, &
                  source_network, logfile)
+            num_nodes = size(node_names)
+            allocate(source_cell_indices(num_nodes))
+            source_cell_indices = -1
 
-            do i = 1, size(node_names)
+            do i = 1, num_nodes
                associate(node_name => node_names(i))
                  if (source_dict_all%has(node_name)) then
                     if (group_source_dict%has(node_name)) then
@@ -966,6 +970,7 @@ contains
                           type is (source_type)
                              source%link_index = i
                              call group%in%append(source)
+                             source_cell_indices(i) = source%natural_cell_index
                           end select
                        end if
                        call group_source_dict%add(node_name)
@@ -986,7 +991,11 @@ contains
                              exit
                           else
                              in_group%out => group
-                             if (in_group%rank == 0) in_group%link_index = i
+                             if (in_group%rank == 0) then
+                                in_group%link_index = i
+                                source_cell_indices = [source_cell_indices, &
+                                     in_group%source_cell_indices]
+                             end if
                              call group%in%append(in_group)
                           end if
                        end select
@@ -1015,6 +1024,10 @@ contains
                end if
                group%local_group_index = g
 
+               source_cell_indices = pack(source_cell_indices, &
+                    source_cell_indices >= 0)
+               group%source_cell_indices = group%gatherv(source_cell_indices)
+
                call source_network%groups%append(group)
                if (name /= "") then
                   call group_dict%add(name, group)
@@ -1032,7 +1045,7 @@ contains
             exit
          end if
 
-         deallocate(node_names)
+         deallocate(node_names, source_cell_indices)
 
       end do
 
