@@ -76,6 +76,7 @@ module source_network_group_module
      procedure, public :: get_separated_flows => source_network_group_get_separated_flows
      procedure, public :: add_separated_flows => source_network_group_add_separated_flows
      procedure, public :: add_flows => source_network_group_add_flows
+     procedure, public :: gatherv => source_network_group_gatherv
      procedure, public :: destroy => source_network_group_destroy
   end type source_network_group_type
 
@@ -436,6 +437,46 @@ contains
     end if
 
   end subroutine source_network_group_add_separated_flows
+
+!------------------------------------------------------------------------
+
+  function source_network_group_gatherv(self, v) result(vall)
+    !! Gathers integer array v from all processes in the group onto
+    !! the group root rank.
+
+    use mpi_utils_module, only: get_mpi_int_gather_array
+    use utils_module, only: array_cumulative_sum
+
+    class(source_network_group_type), intent(in) :: self
+    PetscInt, intent(in) :: v(:)
+    PetscInt, allocatable :: vall(:)
+    ! Locals:
+    PetscMPIInt :: comm_size
+    PetscInt :: local_count, count
+    PetscInt, allocatable :: counts(:), displacements(:)
+    PetscErrorCode :: ierr
+
+    call mpi_comm_size(self%comm, comm_size, ierr)
+    counts = get_mpi_int_gather_array(self%comm)
+    displacements = get_mpi_int_gather_array(self%comm)
+    local_count = size(v)
+
+    call MPI_gather(local_count, 1, MPI_INTEGER, &
+         counts, 1, MPI_INTEGER, 0, self%comm, ierr)
+    if (self%rank == 0) then
+       displacements = [[0], &
+            array_cumulative_sum(counts(1: comm_size - 1))]
+       count = sum(counts)
+    else
+       count = 1
+    end if
+
+    allocate(vall(count))
+    call MPI_gatherv(v, local_count, MPI_INTEGER, &
+         vall, counts, displacements, &
+         MPI_INTEGER, 0, self%comm, ierr)
+
+  end function source_network_group_gatherv
 
 !------------------------------------------------------------------------
 
