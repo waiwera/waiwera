@@ -56,7 +56,7 @@ contains
 
     use dm_utils_module
     use dictionary_module
-    use utils_module, only: invert_indices
+    use mpi_utils_module, only: invert_indices
     use dag_module
     use fson_utils_module, only: pfson_value_type
 
