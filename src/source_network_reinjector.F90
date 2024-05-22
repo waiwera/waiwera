@@ -156,6 +156,7 @@ module source_network_reinjector_module
      PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
      PetscInt, allocatable :: gather_displacements(:) !! Process displacements for gather operations
      PetscInt, allocatable :: gather_index(:) !! Sort index for gather operations
+     PetscInt, allocatable, public :: source_cell_indices(:) !! Natural cell indices of sources fed by the reinjector (including those from outputs that are also reinjectors), unsorted
    contains
      private
      procedure, public :: init => source_network_reinjector_init
@@ -647,6 +648,7 @@ contains
     call self%out%init(owner = PETSC_TRUE)
     allocate(self%overflow)
     call self%overflow%init(self)
+    allocate(self%source_cell_indices(0))
 
   end subroutine source_network_reinjector_init
 
