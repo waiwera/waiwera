@@ -67,6 +67,7 @@ contains
     use mesh_module
     use tracer_module
     use dm_utils_module, only: global_vec_section, global_section_offset
+    use utils_module, only: array_is_permutation_of
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -351,15 +352,19 @@ contains
 !........................................................................
 
     subroutine reinjector_test(reinjector, overflow_water_rate, &
-         overflow_steam_rate)
+         overflow_steam_rate, source_cell_indices)
 
       class(source_network_reinjector_type), intent(in) :: reinjector
       PetscReal, intent(in) :: overflow_water_rate, overflow_steam_rate
+      PetscInt, intent(in) :: source_cell_indices(:)
 
       call test%assert(overflow_water_rate, reinjector%overflow%water_rate, &
            trim(reinjector%name) // " overflow water rate")
       call test%assert(overflow_steam_rate, reinjector%overflow%steam_rate, &
            trim(reinjector%name) // " overflow steam rate")
+      call test%assert(array_is_permutation_of(source_cell_indices, &
+           reinjector%source_cell_indices), &
+           trim(reinjector%name) // " cell_indices")
 
     end subroutine reinjector_test
 
@@ -490,26 +495,31 @@ contains
             select case (reinjector%name)
             case ("re1")
                call reinjector_test(reinjector, 3.26784763965_dp, &
-                    0.140190450435_dp)
+                    0.140190450435_dp, [11, 8, 6, 3])
             case ("re2")
-               call reinjector_test(reinjector, 0._dp, 0._dp)
+               call reinjector_test(reinjector, 0._dp, 0._dp, [10, 9, 8, 2])
             case ("re3")
                call reinjector_test(reinjector, 0.46446499954_dp, &
-                    0.635535000462524_dp)
+                    0.635535000462524_dp, [11, 3])
             case ("re4")
-               call reinjector_test(reinjector, 0._dp, 1.1186187148189581_dp)
+               call reinjector_test(reinjector, 0._dp, 1.1186187148189581_dp, &
+                    [11, 8, 2])
             case ("re5")
-               call reinjector_test(reinjector, 0._dp, 0._dp)
+               call reinjector_test(reinjector, 0._dp, 0._dp, [8, 2])
             case ("re6")
-               call reinjector_test(reinjector, 1.58138128518_dp, 1.1186187148189581_dp)
+               call reinjector_test(reinjector, 1.58138128518_dp, &
+                    1.1186187148189581_dp, [1, 3, 8, 11])
             case ("re7")
-               call reinjector_test(reinjector, 0._dp, 0._dp)
+               call reinjector_test(reinjector, 0._dp, 0._dp, [3, 8])
             case ("re8")
-               call reinjector_test(reinjector, 1.58138128518_dp, 1.1186187148189581_dp)
+               call reinjector_test(reinjector, 1.58138128518_dp, &
+                    1.1186187148189581_dp, [1, 5, 11, 7])
             case ("re9")
-               call reinjector_test(reinjector, 1.58138128518_dp, 1.1186187148189581_dp)
+               call reinjector_test(reinjector, 1.58138128518_dp, &
+                    1.1186187148189581_dp, [10, 2, 4, 7])
             case ("re10")
-               call reinjector_test(reinjector, 0._dp, 1.1186187148189581_dp)
+               call reinjector_test(reinjector, 0._dp, &
+                    1.1186187148189581_dp, [4, 7])
             end select
          end if
       end select
