@@ -63,7 +63,7 @@ module source_network_group_module
      PetscMPIInt :: root_world_rank !! Rank in world communicator of group root rank
      PetscInt, public :: local_group_index !! Index of group in local part of source group vector (-1 if not a root group)
      PetscReal, pointer, public :: group_index !! Index of source group in input
-     PetscInt, allocatable, public :: source_cell_indices(:) !! Natural cell indices of sources feeding the group (including those from inputs that are also groups)
+     PetscInt, allocatable, public :: source_cell_indices(:) !! Natural cell indices of sources feeding the group (including those from inputs that are also groups), unsorted
    contains
      private
      procedure, public :: init => source_network_group_init
@@ -445,37 +445,13 @@ contains
     !! Gathers integer array v from all processes in the group onto
     !! the group root rank.
 
-    use mpi_utils_module, only: get_mpi_int_gather_array
-    use utils_module, only: array_cumulative_sum
+    use mpi_utils_module, only: mpi_int_gatherv
 
     class(source_network_group_type), intent(in) :: self
     PetscInt, intent(in) :: v(:)
     PetscInt, allocatable :: vall(:)
-    ! Locals:
-    PetscMPIInt :: comm_size
-    PetscInt :: local_count, count
-    PetscInt, allocatable :: counts(:), displacements(:)
-    PetscErrorCode :: ierr
 
-    call mpi_comm_size(self%comm, comm_size, ierr)
-    counts = get_mpi_int_gather_array(self%comm)
-    displacements = get_mpi_int_gather_array(self%comm)
-    local_count = size(v)
-
-    call MPI_gather(local_count, 1, MPI_INTEGER, &
-         counts, 1, MPI_INTEGER, 0, self%comm, ierr)
-    if (self%rank == 0) then
-       displacements = [[0], &
-            array_cumulative_sum(counts(1: comm_size - 1))]
-       count = sum(counts)
-    else
-       count = 1
-    end if
-
-    allocate(vall(count))
-    call MPI_gatherv(v, local_count, MPI_INTEGER, &
-         vall, counts, displacements, &
-         MPI_INTEGER, 0, self%comm, ierr)
+    vall = mpi_int_gatherv(self%comm, self%rank, v)
 
   end function source_network_group_gatherv
 
