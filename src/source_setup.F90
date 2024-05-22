@@ -1371,6 +1371,7 @@ contains
       type(source_network_type), intent(in out) :: source_network
       type(source_network_reinjector_type), intent(in out) :: reinjector
       PetscInt, intent(in out) :: output_index
+      PetscInt, allocatable :: source_cell_indices(:)
       PetscErrorCode, intent(in out) :: err
       ! Locals:
       PetscInt :: flow_type, num_outputs, i, out_type
@@ -1388,6 +1389,8 @@ contains
 
          call fson_get_mpi(reinjector_json, trim(flow_type_str), outputs_json)
          num_outputs = fson_value_count_mpi(outputs_json, ".")
+         allocate(source_cell_indices(num_outputs))
+         source_cell_indices = -1
          output_json => fson_value_children_mpi(outputs_json)
 
          do i = 1, num_outputs
@@ -1431,6 +1434,7 @@ contains
                               output%out => source
                               source%link_index = output_index
                               call reinjector%out%append(output)
+                              source_cell_indices(i) = source%natural_cell_index
                            end select
                         else ! source is not on this process:
                            deallocate(output)
@@ -1445,6 +1449,8 @@ contains
                                  output%out => out_reinjector
                                  out_reinjector%in => output
                                  out_reinjector%link_index = output_index
+                                 source_cell_indices = [source_cell_indices, &
+                                     out_reinjector%source_cell_indices]
                                  call reinjector%out%append(output)
                               else
                                  deallocate(output)
@@ -1478,6 +1484,12 @@ contains
             output_json => fson_value_next_mpi(output_json)
             output_index = output_index + 1
          end do
+
+         source_cell_indices = pack(source_cell_indices, &
+              source_cell_indices >= 0)
+         reinjector%source_cell_indices = [reinjector%source_cell_indices, &
+              source_cell_indices]
+         deallocate(source_cell_indices)
 
       end if
 
@@ -1716,10 +1728,12 @@ contains
       PetscErrorCode, intent(out) :: err
       ! Locals:
       PetscInt :: overflow_type
+      PetscInt, allocatable :: source_cell_indices(:)
       character(max_source_network_node_name_length) :: node_name
       type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
 
       err = 0
+      allocate(source_cell_indices(0))
       if (fson_has_mpi(reinjector_json, "overflow")) then
          overflow_type = fson_type_mpi(reinjector_json, "overflow")
          node_name = ""
@@ -1748,6 +1762,7 @@ contains
                      type is (source_type)
                         reinjector%overflow%out => source
                         source%link_index = 0 ! not used
+                        source_cell_indices = [source%natural_cell_index]
                      end select
                   end if
                   call reinjector_output_dict%add(node_name)
@@ -1760,6 +1775,7 @@ contains
                            reinjector%overflow%out => out_reinjector
                            out_reinjector%in => reinjector%overflow
                            out_reinjector%link_index = 0 ! not used
+                           source_cell_indices = out_reinjector%source_cell_indices
                         end if
                         call reinjector_output_dict%add(node_name)
                      end select
@@ -1777,7 +1793,11 @@ contains
 
       call mpi_broadcast_error_flag(err)
 
-      if (err == 0) call reinjector%overflow%get_world_rank()
+      if (err == 0) then
+         call reinjector%overflow%get_world_rank()
+         reinjector%source_cell_indices = [reinjector%source_cell_indices, &
+              source_cell_indices]
+      end if
 
     end subroutine init_reinjector_overflow
 
@@ -1874,6 +1894,8 @@ contains
                      r = -1
                   end if
                   reinjector%local_reinjector_index = r
+                  reinjector%source_cell_indices = reinjector%gatherv( &
+                       reinjector%source_cell_indices)
                   call source_network%reinjectors%append(reinjector)
                   if (name /= "") then
                      call reinjector_dict%add(name, reinjector)
