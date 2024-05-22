@@ -18,16 +18,16 @@
 module mpi_utils_module
   !! MPI utilities.
 
-#include <petsc/finclude/petscsys.h>
+#include <petsc/finclude/petsc.h>
 
-  use petscsys
+  use petsc
 
   implicit none
   private
 
   public :: mpi_broadcast_error_flag, mpi_broadcast_logical
   public :: get_mpi_int_gather_array, mpi_comm_root_world_rank
-  public :: mpi_comm_send, mpi_int_gatherv
+  public :: mpi_comm_send, mpi_int_gatherv, invert_indices
 
 contains
 
@@ -195,6 +195,63 @@ contains
          MPI_INTEGER, 0, comm, ierr)
 
   end function mpi_int_gatherv
+
+!------------------------------------------------------------------------
+
+  IS function invert_indices(indices, name)
+    !! Returns index set containing the inverse of the mapping
+    !! represented by the values contained in the indices array on all
+    !! processes. The resulting index set contains values only on the
+    !! root process and is given the specified object name.
+
+    use utils_module, only: array_cumulative_sum
+
+    PetscInt, intent(in) :: indices(:)
+    character(*), intent(in) :: name
+    ! Locals:
+    PetscInt :: i, local_size
+    PetscMPIInt :: rank, num_procs, num_all, is_count
+    PetscInt, allocatable :: counts(:), displacements(:)
+    PetscInt, allocatable :: indices_all(:), global_indices(:)
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    call MPI_COMM_SIZE(PETSC_COMM_WORLD, num_procs, ierr)
+    local_size = size(indices)
+
+    counts = get_mpi_int_gather_array()
+    displacements = get_mpi_int_gather_array()
+    call MPI_gather(local_size, 1, MPI_INTEGER, counts, 1, &
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       displacements = [[0], &
+            array_cumulative_sum(counts(1: num_procs - 1))]
+       num_all = sum(counts)
+       is_count = num_all
+    else
+       num_all = 1
+       is_count = 0
+    end if
+
+    allocate(indices_all(0: num_all - 1), global_indices(0: num_all - 1))
+    global_indices = -1
+    call MPI_gatherv(indices, local_size, MPI_INTEGER, &
+         indices_all, counts, displacements, &
+         MPI_INTEGER, 0, PETSC_COMM_WORLD, ierr)
+    if (rank == 0) then
+       do i = 0, num_all - 1
+          global_indices(indices_all(i)) = i
+       end do
+    end if
+    deallocate(indices_all, counts, displacements)
+
+    call ISCreateGeneral(PETSC_COMM_WORLD, is_count, &
+         global_indices, PETSC_COPY_VALUES, invert_indices, ierr)
+    CHKERRQ(ierr)
+    call PetscObjectSetName(invert_indices, name, ierr)
+    deallocate(global_indices)
+
+  end function invert_indices
 
 !------------------------------------------------------------------------
 
