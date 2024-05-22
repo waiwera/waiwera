@@ -166,6 +166,7 @@ module source_network_reinjector_module
      procedure, public :: overflow_output => source_network_reinjector_overflow_output
      procedure, public :: capacity => source_network_reinjector_capacity
      procedure, public :: distribute => source_network_reinjector_distribute
+     procedure, public :: gatherv => source_network_reinjector_gatherv
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
 
@@ -1235,6 +1236,22 @@ contains
     end subroutine local_update_iterator
 
   end subroutine source_network_reinjector_distribute
+
+!------------------------------------------------------------------------
+
+  function source_network_reinjector_gatherv(self, v) result(vall)
+    !! Gathers integer array v from all processes in the reinjector
+    !! onto the reinjector root rank.
+
+    use mpi_utils_module, only: mpi_int_gatherv
+
+    class(source_network_reinjector_type), intent(in) :: self
+    PetscInt, intent(in) :: v(:)
+    PetscInt, allocatable :: vall(:)
+
+    vall = mpi_int_gatherv(self%comm, self%rank, v)
+
+  end function source_network_reinjector_gatherv
 
 !------------------------------------------------------------------------
 
