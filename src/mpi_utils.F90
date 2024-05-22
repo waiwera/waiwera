@@ -27,7 +27,7 @@ module mpi_utils_module
 
   public :: mpi_broadcast_error_flag, mpi_broadcast_logical
   public :: get_mpi_int_gather_array, mpi_comm_root_world_rank
-  public :: mpi_comm_send
+  public :: mpi_comm_send, mpi_int_gatherv
 
 contains
 
@@ -155,6 +155,46 @@ contains
     end if
 
   end subroutine mpi_comm_send
+
+!------------------------------------------------------------------------
+
+  function mpi_int_gatherv(comm, rank, v) result(vall)
+    !! Gathers integer array v from all processes in the communicator
+    !! onto the root rank. A convenience wrapper for MPI_gatherv().
+
+    use utils_module, only: array_cumulative_sum
+
+    MPI_Comm, intent(in) :: comm
+    PetscMPIInt, intent(in) :: rank
+    PetscInt, intent(in) :: v(:)
+    PetscInt, allocatable :: vall(:)
+    ! Locals:
+    PetscMPIInt :: comm_size
+    PetscInt :: local_count, count
+    PetscInt, allocatable :: counts(:), displacements(:)
+    PetscErrorCode :: ierr
+
+    call mpi_comm_size(comm, comm_size, ierr)
+    counts = get_mpi_int_gather_array(comm)
+    displacements = get_mpi_int_gather_array(comm)
+    local_count = size(v)
+
+    call MPI_gather(local_count, 1, MPI_INTEGER, &
+         counts, 1, MPI_INTEGER, 0, comm, ierr)
+    if (rank == 0) then
+       displacements = [[0], &
+            array_cumulative_sum(counts(1: comm_size - 1))]
+       count = sum(counts)
+    else
+       count = 1
+    end if
+
+    allocate(vall(count))
+    call MPI_gatherv(v, local_count, MPI_INTEGER, &
+         vall, counts, displacements, &
+         MPI_INTEGER, 0, comm, ierr)
+
+  end function mpi_int_gatherv
 
 !------------------------------------------------------------------------
 
