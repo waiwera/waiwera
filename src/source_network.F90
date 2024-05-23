@@ -60,6 +60,8 @@ module source_network_module
      procedure, public :: init => source_network_init
      procedure, public :: update => source_network_update
      procedure, public :: assemble_cell_inflows => source_network_assemble_cell_inflows
+     procedure, public :: identify_source_dependencies => &
+          source_network_identify_source_dependencies
      procedure, public :: destroy => source_network_destroy
   end type source_network_type
 
@@ -358,6 +360,60 @@ contains
     end subroutine source_assembly_iterator
 
   end subroutine source_network_assemble_cell_inflows
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_identify_source_dependencies(self)
+    !! Identifies dependencies between sources which need to be added
+    !! to the Jacobian matrix.
+
+    class(source_network_type), intent(in out) :: self
+    ! Locals:
+
+    call self%reinjectors%traverse(reinjection_production_dependency_iterator)
+
+  contains
+
+!........................................................................
+
+    subroutine reinjection_production_dependency_iterator(node, stopped)
+      !! Adds dependencies between reinjection and production sources.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt, allocatable :: production_source_cell_indices(:)
+      PetscInt :: ir, ip
+      type(source_dependency_type), pointer :: dep
+
+      stopped = PETSC_FALSE
+      select type (reinjector => node%data)
+      class is (source_network_reinjector_type)
+         if (associated(reinjector%in)) then
+
+            select type (input => reinjector%in)
+            type is (source_type)
+               production_source_cell_indices = [input%natural_cell_index]
+            type is (source_network_group_type)
+               production_source_cell_indices = input%source_cell_indices
+            end select
+
+            if (allocated(production_source_cell_indices)) then
+               do ip = 1, size(production_source_cell_indices)
+                  do ir = 1, size(reinjector%source_cell_indices)
+                     allocate(dep)
+                     dep%equation = reinjector%source_cell_indices(ir)
+                     dep%cell = production_source_cell_indices(ip)
+                     call self%dependencies%append(dep)
+                  end do
+               end do
+            end if
+         end if
+      end select
+
+    end subroutine reinjection_production_dependency_iterator
+
+  end subroutine source_network_identify_source_dependencies
 
 !------------------------------------------------------------------------
 
