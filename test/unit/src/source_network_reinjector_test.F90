@@ -77,7 +77,7 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector
-    PetscInt :: fluid_range_start
+    PetscInt :: fluid_range_start, total_num_dependencies
     PetscReal, pointer, contiguous :: source_array(:), group_array(:), reinjector_array(:)
     PetscSection :: source_section, group_section, reinjector_section
     type(source_network_type) :: source_network
@@ -89,6 +89,7 @@ contains
     PetscInt, parameter :: expected_num_sources = 39
     PetscInt, parameter :: expected_num_groups = 6
     PetscInt, parameter :: expected_num_reinjectors = 10
+    PetscInt, parameter :: expected_num_dependencies = 52
     PetscBool, parameter :: update_reinjection = PETSC_TRUE
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -141,6 +142,12 @@ contains
        call VecRestoreArrayF90(source_network%reinjector, reinjector_array, ierr); CHKERRQ(ierr)
        call VecRestoreArrayF90(source_network%group, group_array, ierr); CHKERRQ(ierr)
        call VecRestoreArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
+
+       call MPI_reduce(source_network%dependencies%count, &
+            total_num_dependencies, 1, MPI_INTEGER, MPI_SUM, &
+            0, PETSC_COMM_WORLD, ierr)
+       call test%assert(expected_num_dependencies, &
+            total_num_dependencies, "num_dependencies")
 
     end if
 
