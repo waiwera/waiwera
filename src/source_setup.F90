@@ -1918,6 +1918,7 @@ contains
       end do
 
       call source_network%reinjectors%traverse(init_reinjector_in_comms_iterator)
+      call source_network%reinjectors%traverse(reinjector_send_cell_indices_iterator)
       call reinjector_input_dict%destroy()
       call reinjector_output_dict%destroy()
 
@@ -1941,6 +1942,23 @@ contains
       end select
 
     end subroutine init_reinjector_in_comms_iterator
+
+!........................................................................
+
+    subroutine reinjector_send_cell_indices_iterator(node, stopped)
+      !! Sends source cell indices from reinjector roots to their
+      !! input ranks.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type(reinjector => node%data)
+      class is (source_network_reinjector_type)
+         call reinjector%send_cell_indices()
+      end select
+
+    end subroutine reinjector_send_cell_indices_iterator
 
   end subroutine setup_source_network
 
