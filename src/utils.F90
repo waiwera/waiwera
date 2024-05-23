@@ -63,7 +63,7 @@ module utils_module
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
        array_is_permutation, array_is_permutation_of, &
-       array_progressive_limit, newton1d
+       array_unique, array_progressive_limit, newton1d
 
 contains
 
@@ -532,6 +532,33 @@ contains
     end associate
 
   end function array_is_permutation_of
+
+!------------------------------------------------------------------------
+
+  function array_unique(v)
+    !! Returns an array of the unique values in the integer array v.
+
+    PetscInt, intent(in) :: v(:)
+    PetscInt, allocatable :: array_unique(:)
+    ! Locals:
+    PetscInt :: i, n, num
+    PetscBool :: mask(size(v))
+
+    mask = PETSC_FALSE
+    n = size(v)
+
+    do i = 1, n
+       num = count(v == v(i))
+       if (num == 1) then
+          mask(i) = PETSC_TRUE
+       else
+          mask(i) = (.not. any(v(i) == v .and. mask))
+       end if
+    end do
+
+    array_unique = pack(v, mask)
+
+  end function array_unique
 
 !------------------------------------------------------------------------
 

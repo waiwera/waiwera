@@ -22,7 +22,7 @@ module utils_test
        test_array_exclusive_products, test_array_sorted, &
        test_array_indices_in_int_array, test_is_permutation, &
        test_array_progressive_limit, test_newton1d, &
-       test_is_permutation_of
+       test_is_permutation_of, test_array_unique
 
 contains
 
@@ -567,6 +567,31 @@ contains
   end subroutine test_is_permutation_of
 
 !------------------------------------------------------------------------
+
+  subroutine test_array_unique(test)
+    ! Test array_uniquie
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscInt, allocatable :: empty(:)
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       allocate(empty(0))
+       call test%assert(empty, array_unique(empty), 'case 0')
+       call test%assert([0], array_unique([0]), 'case 1')
+       call test%assert([0, 1], array_unique([0, 1]), 'case 2')
+       call test%assert([0, 1], array_unique([0, 1, 0]), 'case 3')
+       call test%assert([0, 1], array_unique([0, 1, 0, 1]), 'case 4')
+       call test%assert([-1], array_unique([-1, -1, -1]), 'case 5')
+    end if
+
+  end subroutine test_array_unique
+
+!------------------------------------------------------------------------
+
 
   subroutine test_array_progressive_limit(test)
     ! Test array progressive limit
