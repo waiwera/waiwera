@@ -27,7 +27,8 @@ module mpi_utils_module
 
   public :: mpi_broadcast_error_flag, mpi_broadcast_logical
   public :: get_mpi_int_gather_array, mpi_comm_root_world_rank
-  public :: mpi_comm_send, mpi_int_gatherv, invert_indices
+  public :: mpi_comm_send_real, mpi_comm_send_int_array
+  public :: mpi_int_gatherv, invert_indices
 
 contains
 
@@ -130,13 +131,13 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine mpi_comm_send(comm, data, from_rank, to_rank)
-    !! Sends PetscReal data from from_rank to to_rank, using the
-    !! specified communicator.  (Note that from_rank and to_rank must
-    !! be the same on all processes.)
+  subroutine mpi_comm_send_real(comm, data, from_rank, to_rank)
+    !! Sends PetscReal scalar data from from_rank to to_rank, using
+    !! the specified communicator.  (Note that from_rank and to_rank
+    !! must be the same on all processes.)
 
     MPI_Comm, intent(in) :: comm
-    PetscReal, intent(in out) :: data !! PetscReal data to send
+    PetscReal, intent(in out) :: data !! PetscReal data to send and receive
     PetscMPIInt, intent(in) :: from_rank !! Rank to send from
     PetscMPIInt, intent(in) :: to_rank !! Rank to send to
     ! Locals:
@@ -147,14 +148,54 @@ contains
 
     if (from_rank /= to_rank) then
        if (rank == from_rank) then
-          call MPI_send(data, 1, MPI_DOUBLE_PRECISION, to_rank, 0, comm, ierr)
+          call MPI_send(data, 1, MPI_DOUBLE_PRECISION, to_rank, 0, &
+               comm, ierr)
        else if (rank == to_rank) then
-          call MPI_recv(data, 1, MPI_DOUBLE_PRECISION, from_rank, 0, comm, &
-               MPI_STATUS_IGNORE, ierr)
+          call MPI_recv(data, 1, MPI_DOUBLE_PRECISION, from_rank, 0, &
+               comm, MPI_STATUS_IGNORE, ierr)
        end if
     end if
 
-  end subroutine mpi_comm_send
+  end subroutine mpi_comm_send_real
+
+!------------------------------------------------------------------------
+
+  subroutine mpi_comm_send_int_array(comm, data, from_rank, to_rank)
+    !! Sends PetscInt array data from from_rank to to_rank, using the
+    !! specified communicator.  (Note that from_rank and to_rank must
+    !! be the same on all processes.)
+
+    MPI_Comm, intent(in) :: comm
+    PetscInt, intent(in out), allocatable :: data(:) !! PetscInt data to send and receive
+    PetscMPIInt, intent(in) :: from_rank !! Rank to send from
+    PetscMPIInt, intent(in) :: to_rank !! Rank to send to
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: len
+    PetscErrorCode :: ierr
+
+    call MPI_comm_rank(comm, rank, ierr)
+
+    if (from_rank /= to_rank) then
+       if (rank == from_rank) then
+          len = size(data)
+          call MPI_send(len, 1, MPI_INTEGER, to_rank, 0, comm, ierr)
+       else if (rank == to_rank) then
+          call MPI_recv(len, 1, MPI_INTEGER, from_rank, 0, comm, &
+               MPI_STATUS_IGNORE, ierr)
+          if (allocated(data)) deallocate(data)
+          allocate(data(len))
+       end if
+       if (rank == from_rank) then
+          call MPI_send(data, len, MPI_INTEGER, to_rank, 0, &
+               comm, ierr)
+       else if (rank == to_rank) then
+          call MPI_recv(data, len, MPI_INTEGER, from_rank, 0, &
+               comm, MPI_STATUS_IGNORE, ierr)
+       end if
+    end if
+
+  end subroutine mpi_comm_send_int_array
 
 !------------------------------------------------------------------------
 
