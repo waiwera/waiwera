@@ -142,6 +142,7 @@ module source_network_reinjector_module
      PetscMPIInt, public :: in_comm_rank !! Rank of reinjector in self%in_comm
      PetscMPIInt, public :: in_comm_input_rank !! Rank of input node process in self%in_comm
      PetscMPIInt :: root_world_rank !! Rank in world communicator of reinjector root rank
+     PetscMPIInt :: input_world_rank !! Rank in world communicator of input node
      PetscInt, public :: local_reinjector_index !! Index of reinjector in local part of reinjector vector (-1 if not a root reinjector)
      PetscReal, pointer, public :: reinjector_index !! Index of reinjector in input
      PetscReal, pointer, public :: output_rate !! Sum of output rates
@@ -677,6 +678,7 @@ contains
        self%rank = -1
     end if
     self%root_world_rank = mpi_comm_root_world_rank(self%comm)
+    self%input_world_rank = input_world_rank()
 
     call get_gather_parameters()
 
@@ -711,6 +713,28 @@ contains
       end select
 
     end subroutine reinjector_comm_iterator
+
+!........................................................................
+
+    PetscMPIInt function input_world_rank()
+      !! Returns rank of input node on world communicator, on all
+      !! processes.
+
+      ! Locals:
+      PetscMPIInt :: rank, max_input_world_rank
+      PetscErrorCode :: ierr
+
+      call MPI_comm_rank(PETSC_COMM_WORLD, rank, ierr)
+      if (associated(self%in)) then
+         input_world_rank = rank
+      else
+         input_world_rank = -1
+      end if
+      call MPI_allreduce(input_world_rank, max_input_world_rank, 1, &
+           MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr)
+      input_world_rank = max_input_world_rank
+
+    end function input_world_rank
 
 !........................................................................
 
