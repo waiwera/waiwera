@@ -939,13 +939,13 @@ contains
 
     if (self%overflow%out_world_rank >= 0) then
 
-       call mpi_comm_send(PETSC_COMM_WORLD, water_balance, &
+       call mpi_comm_send_real(PETSC_COMM_WORLD,  water_balance, &
             self%root_world_rank, self%overflow%out_world_rank)
-       call mpi_comm_send(PETSC_COMM_WORLD, water_enthalpy, &
+       call mpi_comm_send_real(PETSC_COMM_WORLD, water_enthalpy, &
             self%root_world_rank, self%overflow%out_world_rank)
-       call mpi_comm_send(PETSC_COMM_WORLD, steam_balance, &
+       call mpi_comm_send_real(PETSC_COMM_WORLD, steam_balance, &
             self%root_world_rank, self%overflow%out_world_rank)
-       call mpi_comm_send(PETSC_COMM_WORLD, steam_enthalpy, &
+       call mpi_comm_send_real(PETSC_COMM_WORLD, steam_enthalpy, &
             self%root_world_rank, self%overflow%out_world_rank)
 
        if (rank == self%overflow%out_world_rank) then
