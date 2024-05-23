@@ -227,6 +227,8 @@ contains
 
        end if
 
+       call source_network%identify_source_dependencies()
+
        call VecRestoreArrayF90(source_network%source, source_data, ierr); CHKERRQ(ierr)
        call VecRestoreArrayReadF90(fluid_vector, fluid_data, ierr)
        CHKERRQ(ierr)
