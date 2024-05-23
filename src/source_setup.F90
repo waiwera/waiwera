@@ -898,7 +898,7 @@ contains
       !! number of local root groups. An error is returned if any
       !! unrecognised group input nodes are specified.
 
-      use utils_module, only: str_to_lower
+      use utils_module, only: str_to_lower, array_unique
 
       type(source_network_type), intent(in out) :: source_network
       PetscInt, intent(in out) :: num_local_root_groups
@@ -1029,6 +1029,8 @@ contains
                source_cell_indices = pack(source_cell_indices, &
                     source_cell_indices >= 0)
                group%source_cell_indices = group%gatherv(source_cell_indices)
+               group%source_cell_indices = array_unique( &
+                    group%source_cell_indices)
 
                call source_network%groups%append(group)
                if (name /= "") then
@@ -1813,7 +1815,7 @@ contains
       !! reinjector is not assigned an input node name, or a
       !! reinjector input is used by more than one reinjector.
 
-      use utils_module, only: str_to_lower
+      use utils_module, only: str_to_lower, array_unique
 
       type(source_network_type), intent(in out) :: source_network
       PetscInt, intent(in out) :: num_local_root_reinjectors
@@ -1897,6 +1899,8 @@ contains
                   end if
                   reinjector%local_reinjector_index = r
                   reinjector%source_cell_indices = reinjector%gatherv( &
+                       reinjector%source_cell_indices)
+                  reinjector%source_cell_indices = array_unique( &
                        reinjector%source_cell_indices)
                   call source_network%reinjectors%append(reinjector)
                   if (name /= "") then
