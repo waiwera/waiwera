@@ -920,7 +920,7 @@ contains
     !! Updates overflow data in reinjection vector, and assigns to
     !! overflow output node if there is one.
 
-    use mpi_utils_module, only: mpi_comm_send
+    use mpi_utils_module, only: mpi_comm_send_real
 
     class(source_network_reinjector_type), intent(in out) :: self
     PetscReal, intent(in out) :: water_balance, water_enthalpy
