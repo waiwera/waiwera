@@ -163,6 +163,7 @@ module source_network_reinjector_module
      procedure, public :: init => source_network_reinjector_init
      procedure, public :: init_comm => source_network_reinjector_init_comm
      procedure, public :: init_in_comm => source_network_reinjector_init_in_comm
+     procedure, public :: send_cell_indices => source_network_reinjector_send_cell_indices
      procedure, public :: assign => source_network_reinjector_assign
      procedure, public :: init_data => source_network_reinjector_init_data
      procedure, public :: overflow_output => source_network_reinjector_overflow_output
@@ -888,6 +889,24 @@ contains
     end if
 
   end subroutine source_network_reinjector_init_in_comm
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_reinjector_send_cell_indices(self)
+    !! Sends source_cell_indices array from reinjector root rank to
+    !! input rank (where they are needed to identify dependencies
+    !! between reinjector outputs and the production sources feeding
+    !! them).
+
+    use mpi_utils_module, only: mpi_comm_send_int_array
+
+    class(source_network_reinjector_type), intent(in out) :: self
+
+    call mpi_comm_send_int_array(PETSC_COMM_WORLD, &
+         self%source_cell_indices, &
+         self%root_world_rank, self%input_world_rank)
+
+  end subroutine source_network_reinjector_send_cell_indices
 
 !------------------------------------------------------------------------
 
