@@ -146,8 +146,10 @@ contains
        call MPI_reduce(source_network%dependencies%count, &
             total_num_dependencies, 1, MPI_INTEGER, MPI_SUM, &
             0, PETSC_COMM_WORLD, ierr)
-       call test%assert(expected_num_dependencies, &
-            total_num_dependencies, "num_dependencies")
+       if (rank == 0) then
+          call test%assert(expected_num_dependencies, &
+               total_num_dependencies, "num_dependencies")
+       end if
 
     end if
 
