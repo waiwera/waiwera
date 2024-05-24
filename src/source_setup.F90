@@ -1029,9 +1029,10 @@ contains
                source_cell_indices = pack(source_cell_indices, &
                     source_cell_indices >= 0)
                group%source_cell_indices = group%gatherv(source_cell_indices)
-               group%source_cell_indices = array_unique( &
-                    group%source_cell_indices)
-
+               if (group%rank == 0) then
+                  group%source_cell_indices = array_unique( &
+                       group%source_cell_indices)
+               end if
                call source_network%groups%append(group)
                if (name /= "") then
                   call group_dict%add(name, group)
@@ -1900,8 +1901,10 @@ contains
                   reinjector%local_reinjector_index = r
                   reinjector%source_cell_indices = reinjector%gatherv( &
                        reinjector%source_cell_indices)
-                  reinjector%source_cell_indices = array_unique( &
-                       reinjector%source_cell_indices)
+                  if (reinjector%rank == 0) then
+                     reinjector%source_cell_indices = array_unique( &
+                          reinjector%source_cell_indices)
+                  end if
                   call source_network%reinjectors%append(reinjector)
                   if (name /= "") then
                      call reinjector_dict%add(name, reinjector)
