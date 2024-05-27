@@ -30,10 +30,10 @@ module source_network_control_module
   PetscInt, parameter, public :: max_limiter_type_length = 5
   character(max_limiter_type_length), parameter, public :: &
        default_source_control_limiter_type_str = "total"
-    PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
+  PetscReal, parameter, public :: default_source_control_limiter_limit = 1._dp
 
-    type, public, extends(multi_table_object_control_type) :: &
-         limiter_table_source_network_control_type
+  type, public, extends(multi_table_object_control_type) :: &
+       limiter_table_source_network_control_type
      !! Limits flows (total, separated water or steam) through a source network node.
      private
      PetscInt, allocatable, public :: flow_type(:) !! Types of flow being limited - total, water or steam
