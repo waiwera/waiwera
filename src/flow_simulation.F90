@@ -3060,11 +3060,9 @@ contains
       stopped = PETSC_FALSE
       select type(dependency => node%data)
       type is (source_dependency_type)
-         if (i == 1) then
-            rows(i) = dependency%equation
-            cols(i) = dependency%cell
-            i = i + 1
-         end if
+         rows(i) = dependency%equation
+         cols(i) = dependency%cell
+         i = i + 1
       end select
 
     end subroutine source_dependencies_iterator
