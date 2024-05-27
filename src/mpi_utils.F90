@@ -215,25 +215,31 @@ contains
     PetscInt, allocatable :: counts(:), displacements(:)
     PetscErrorCode :: ierr
 
-    call mpi_comm_size(comm, comm_size, ierr)
-    counts = get_mpi_int_gather_array(comm)
-    displacements = get_mpi_int_gather_array(comm)
-    local_count = size(v)
+    if (rank >= 0) then
 
-    call MPI_gather(local_count, 1, MPI_INTEGER, &
-         counts, 1, MPI_INTEGER, 0, comm, ierr)
-    if (rank == 0) then
-       displacements = [[0], &
-            array_cumulative_sum(counts(1: comm_size - 1))]
-       count = sum(counts)
+       call mpi_comm_size(comm, comm_size, ierr)
+       counts = get_mpi_int_gather_array(comm)
+       displacements = get_mpi_int_gather_array(comm)
+       local_count = size(v)
+
+       call MPI_gather(local_count, 1, MPI_INTEGER, &
+            counts, 1, MPI_INTEGER, 0, comm, ierr)
+       if (rank == 0) then
+          displacements = [[0], &
+               array_cumulative_sum(counts(1: comm_size - 1))]
+          count = sum(counts)
+       else
+          count = 1
+       end if
+
+       allocate(vall(count))
+       call MPI_gatherv(v, local_count, MPI_INTEGER, &
+            vall, counts, displacements, &
+            MPI_INTEGER, 0, comm, ierr)
+
     else
-       count = 1
+       allocate(vall(0))
     end if
-
-    allocate(vall(count))
-    call MPI_gatherv(v, local_count, MPI_INTEGER, &
-         vall, counts, displacements, &
-         MPI_INTEGER, 0, comm, ierr)
 
   end function mpi_int_gatherv
 
