@@ -371,6 +371,7 @@ contains
     ! Locals:
 
     call self%reinjectors%traverse(reinjection_production_dependency_iterator)
+    call self%network_controls%traverse(group_dependency_iterator)
 
   contains
 
@@ -412,6 +413,43 @@ contains
       end select
 
     end subroutine reinjection_production_dependency_iterator
+
+!........................................................................
+
+    subroutine group_dependency_iterator(node, stopped)
+      !! Adds dependencies between sources in limited network groups.
+
+      use source_network_control_module, only: &
+           limiter_table_source_network_control_type
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt, allocatable :: production_source_cell_indices(:)
+      PetscInt :: i1, i2
+      type(source_dependency_type), pointer :: dep
+
+      stopped = PETSC_FALSE
+      select type (control => node%data)
+      type is (limiter_table_source_network_control_type)
+         select type (group => control%objects%head%data)
+         type is (source_network_group_type)
+            if (group%rank == 0) then
+               do i1 = 1, size(group%source_cell_indices)
+                  do i2 = 1, size(group%source_cell_indices)
+                     if (i1 /= i2) then
+                        allocate(dep)
+                        dep%equation = group%source_cell_indices(i1)
+                        dep%cell = group%source_cell_indices(i2)
+                        call self%dependencies%append(dep)
+                     end if
+                  end do
+               end do
+            end if
+         end select
+      end select
+
+    end subroutine group_dependency_iterator
 
   end subroutine source_network_identify_source_dependencies
 
