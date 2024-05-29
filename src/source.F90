@@ -81,6 +81,7 @@ module source_module
      PetscInt, public :: num_primary_variables !! Number of primary thermodynamic variables
      PetscInt, public :: num_tracers !! Number of tracers
      PetscBool, public :: isothermal !! Whether equation of state is isothermal
+     PetscBool, public :: fluid_dependent !! Whether flow rate / enthalpy depend on fluid state
      PetscReal, pointer, public :: source_index !! Index of source in input
      PetscReal, pointer, public :: natural_cell_index !! Natural index of cell the source is in
      PetscReal, pointer, public :: component !! Mass (or energy) component being produced or injected
@@ -157,6 +158,7 @@ contains
     self%specified_enthalpy = specified_enthalpy
     self%production_component = production_component
     self%isothermal = eos%isothermal
+    self%fluid_dependent = PETSC_FALSE ! default - can be overridden by source controls
 
     if (present(num_tracers)) then
        self%num_tracers = num_tracers

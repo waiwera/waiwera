@@ -2848,6 +2848,7 @@ contains
                   deliv%productivity%interpolate(start_time, 1)
           end if
           source%rate_specified = PETSC_TRUE
+          source%fluid_dependent = PETSC_TRUE
           call source_network%source_controls%append(deliv)
 
       end select
@@ -3017,6 +3018,7 @@ contains
                  fluid_section, fluid_range_start)
          end if
          source%rate_specified = PETSC_TRUE
+         source%fluid_dependent = PETSC_TRUE
 
          call source_network%source_controls%append(recharge)
 
