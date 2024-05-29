@@ -372,6 +372,7 @@ contains
 
     call self%reinjectors%traverse(reinjection_production_dependency_iterator)
     call self%network_controls%traverse(group_dependency_iterator)
+    call self%reinjectors%traverse(fluid_dep_reinjection_dependency_iterator)
 
   contains
 
@@ -449,6 +450,40 @@ contains
       end select
 
     end subroutine group_dependency_iterator
+
+!........................................................................
+
+    subroutine fluid_dep_reinjection_dependency_iterator(node, stopped)
+      !! Adds dependencies between reinjection sources and any
+      !! fluid-dependent reinjection sources in their reinjectors.
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+      ! Locals:
+      PetscInt :: i1, i2, row, col
+      type(source_dependency_type), pointer :: dep
+
+      stopped = PETSC_FALSE
+      select type (reinjector => node%data)
+      class is (source_network_reinjector_type)
+         if (reinjector%rank == 0) then
+            do i1 = 1, size(reinjector%fluid_dep_source_cell_indices)
+               do i2 = 1, size(reinjector%source_cell_indices)
+                  row = reinjector%fluid_dep_source_cell_indices(i1)
+                  col = reinjector%source_cell_indices(i2)
+                  if (row /= col) then
+                     allocate(dep)
+                     dep%equation = row
+                     dep%cell = col
+                     call self%dependencies%append(dep)
+                     write(*,*) 'reinjection dependency:', dep%equation, dep%cell
+                  end if
+               end do
+            end do
+         end if
+      end select
+
+    end subroutine fluid_dep_reinjection_dependency_iterator
 
   end subroutine source_network_identify_source_dependencies
 

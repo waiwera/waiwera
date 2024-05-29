@@ -1376,7 +1376,7 @@ contains
       type(source_network_type), intent(in out) :: source_network
       type(source_network_reinjector_type), intent(in out) :: reinjector
       PetscInt, intent(in out) :: output_index
-      PetscInt, allocatable :: source_cell_indices(:)
+      PetscInt, allocatable :: source_cell_indices(:), fluid_dep_source_cell_indices(:)
       PetscErrorCode, intent(in out) :: err
       ! Locals:
       PetscInt :: flow_type, num_outputs, i, out_type
@@ -1394,8 +1394,10 @@ contains
 
          call fson_get_mpi(reinjector_json, trim(flow_type_str), outputs_json)
          num_outputs = fson_value_count_mpi(outputs_json, ".")
-         allocate(source_cell_indices(num_outputs))
+         allocate(source_cell_indices(num_outputs), &
+              fluid_dep_source_cell_indices(num_outputs))
          source_cell_indices = -1
+         fluid_dep_source_cell_indices = -1
          output_json => fson_value_children_mpi(outputs_json)
 
          do i = 1, num_outputs
@@ -1440,6 +1442,9 @@ contains
                               source%link_index = output_index
                               call reinjector%out%append(output)
                               source_cell_indices(i) = source%natural_cell_index
+                              if (source%fluid_dependent) then
+                                 fluid_dep_source_cell_indices(i) = source%natural_cell_index
+                              end if
                            end select
                         else ! source is not on this process:
                            deallocate(output)
@@ -1456,6 +1461,8 @@ contains
                                  out_reinjector%link_index = output_index
                                  source_cell_indices = [source_cell_indices, &
                                      out_reinjector%source_cell_indices]
+                                 fluid_dep_source_cell_indices = [fluid_dep_source_cell_indices, &
+                                     out_reinjector%fluid_dep_source_cell_indices]
                                  call reinjector%out%append(output)
                               else
                                  deallocate(output)
@@ -1495,6 +1502,11 @@ contains
          reinjector%source_cell_indices = [reinjector%source_cell_indices, &
               source_cell_indices]
          deallocate(source_cell_indices)
+         fluid_dep_source_cell_indices = pack(fluid_dep_source_cell_indices, &
+              fluid_dep_source_cell_indices >= 0)
+         reinjector%fluid_dep_source_cell_indices = [ &
+              reinjector%fluid_dep_source_cell_indices, &
+              fluid_dep_source_cell_indices]
 
       end if
 
@@ -1733,12 +1745,13 @@ contains
       PetscErrorCode, intent(out) :: err
       ! Locals:
       PetscInt :: overflow_type
-      PetscInt, allocatable :: source_cell_indices(:)
+      PetscInt, allocatable :: source_cell_indices(:), &
+           fluid_dep_source_cell_indices(:)
       character(max_source_network_node_name_length) :: node_name
       type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
 
       err = 0
-      allocate(source_cell_indices(0))
+      allocate(source_cell_indices(0), fluid_dep_source_cell_indices(0))
       if (fson_has_mpi(reinjector_json, "overflow")) then
          overflow_type = fson_type_mpi(reinjector_json, "overflow")
          node_name = ""
@@ -1768,6 +1781,9 @@ contains
                         reinjector%overflow%out => source
                         source%link_index = 0 ! not used
                         source_cell_indices = [source%natural_cell_index]
+                        if (source%fluid_dependent) then
+                           fluid_dep_source_cell_indices = [source%natural_cell_index]
+                        end if
                      end select
                   end if
                   call reinjector_output_dict%add(node_name)
@@ -1781,6 +1797,8 @@ contains
                            out_reinjector%in => reinjector%overflow
                            out_reinjector%link_index = 0 ! not used
                            source_cell_indices = out_reinjector%source_cell_indices
+                           fluid_dep_source_cell_indices = &
+                                out_reinjector%fluid_dep_source_cell_indices
                         end if
                         call reinjector_output_dict%add(node_name)
                      end select
@@ -1802,6 +1820,9 @@ contains
          call reinjector%overflow%get_world_rank()
          reinjector%source_cell_indices = [reinjector%source_cell_indices, &
               source_cell_indices]
+         reinjector%fluid_dep_source_cell_indices = [ &
+              reinjector%fluid_dep_source_cell_indices, &
+              fluid_dep_source_cell_indices]
       end if
 
     end subroutine init_reinjector_overflow
@@ -1904,6 +1925,12 @@ contains
                   if (reinjector%rank == 0) then
                      reinjector%source_cell_indices = array_unique( &
                           reinjector%source_cell_indices)
+                  end if
+                  reinjector%fluid_dep_source_cell_indices = reinjector%gatherv( &
+                       reinjector%fluid_dep_source_cell_indices)
+                  if (reinjector%rank == 0) then
+                     reinjector%fluid_dep_source_cell_indices = array_unique( &
+                          reinjector%fluid_dep_source_cell_indices)
                   end if
                   call source_network%reinjectors%append(reinjector)
                   if (name /= "") then
