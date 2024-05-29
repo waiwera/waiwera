@@ -425,7 +425,6 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt, allocatable :: production_source_cell_indices(:)
       PetscInt :: i1, i2
       type(source_dependency_type), pointer :: dep
 

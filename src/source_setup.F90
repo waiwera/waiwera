@@ -905,7 +905,7 @@ contains
       type(logfile_type), intent(in out), optional :: logfile
       PetscErrorCode, intent(out) :: err
       ! Locals:
-      PetscInt :: ig, i, g, group_index, num_nodes, comm_size
+      PetscInt :: ig, i, g, group_index, num_nodes
       PetscInt, allocatable :: source_cell_indices(:)
       type(fson_value), pointer :: group_json
       character(max_source_network_node_name_length) :: name
