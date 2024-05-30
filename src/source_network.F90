@@ -384,7 +384,8 @@ contains
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
       ! Locals:
-      PetscInt, allocatable :: production_source_cell_indices(:)
+      PetscInt, allocatable :: production_cell_indices(:), &
+           reinjector_cell_indices(:)
       PetscInt :: ir, ip
       type(source_dependency_type), pointer :: dep
 
@@ -395,20 +396,23 @@ contains
 
             select type (input => reinjector%in)
             type is (source_type)
-               production_source_cell_indices = [input%natural_cell_index]
+               production_cell_indices = [input%natural_cell_index]
             type is (source_network_group_type)
-               production_source_cell_indices = input%source_cell_indices
+               production_cell_indices = input%source_cell_indices
             end select
 
-            if (allocated(production_source_cell_indices)) then
-               do ip = 1, size(production_source_cell_indices)
-                  do ir = 1, size(reinjector%source_cell_indices)
+            if (allocated(production_cell_indices)) then
+               reinjector_cell_indices = [reinjector%water_source_cell_indices, &
+                    reinjector%steam_source_cell_indices]
+               do ip = 1, size(production_cell_indices)
+                  do ir = 1, size(reinjector_cell_indices)
                      allocate(dep)
-                     dep%equation = reinjector%source_cell_indices(ir)
-                     dep%cell = production_source_cell_indices(ip)
+                     dep%equation = reinjector_cell_indices(ir)
+                     dep%cell = production_cell_indices(ip)
                      call self%dependencies%append(dep)
                   end do
                end do
+               deallocate(reinjector_cell_indices)
             end if
          end if
       end select
@@ -467,10 +471,11 @@ contains
       select type (reinjector => node%data)
       class is (source_network_reinjector_type)
          if (reinjector%rank == 0) then
-            do i1 = 1, size(reinjector%fluid_dep_source_cell_indices)
-               do i2 = 1, size(reinjector%source_cell_indices)
-                  row = reinjector%fluid_dep_source_cell_indices(i1)
-                  col = reinjector%source_cell_indices(i2)
+
+            do i1 = 1, size(reinjector%water_fluid_dep_source_cell_indices)
+               do i2 = 1, size(reinjector%water_source_cell_indices)
+                  row = reinjector%water_fluid_dep_source_cell_indices(i1)
+                  col = reinjector%water_source_cell_indices(i2)
                   if (row /= col) then
                      allocate(dep)
                      dep%equation = row
@@ -480,6 +485,21 @@ contains
                   end if
                end do
             end do
+
+            do i1 = 1, size(reinjector%steam_fluid_dep_source_cell_indices)
+               do i2 = 1, size(reinjector%steam_source_cell_indices)
+                  row = reinjector%steam_fluid_dep_source_cell_indices(i1)
+                  col = reinjector%steam_source_cell_indices(i2)
+                  if (row /= col) then
+                     allocate(dep)
+                     dep%equation = row
+                     dep%cell = col
+                     call self%dependencies%append(dep)
+                     write(*,*) 'reinjection dependency:', dep%equation, dep%cell
+                  end if
+               end do
+            end do
+
          end if
       end select
 

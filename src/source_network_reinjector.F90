@@ -157,8 +157,9 @@ module source_network_reinjector_module
      PetscInt :: gather_count !! Total count for gather operations (only computed on root rank)
      PetscInt, allocatable :: gather_displacements(:) !! Process displacements for gather operations
      PetscInt, allocatable :: gather_index(:) !! Sort index for gather operations
-     PetscInt, allocatable, public :: source_cell_indices(:) !! Natural cell indices of output sources (including those from outputs that are also reinjectors), unsorted
-     PetscInt, allocatable, public :: fluid_dep_source_cell_indices(:) !! Natural cell indices of fluid-dependent (e.g. with injectivity controls) output sources
+     PetscInt, allocatable, public :: water_source_cell_indices(:), steam_source_cell_indices(:) !! Natural cell indices of output sources (including those from outputs that are also reinjectors), unsorted
+     PetscInt, allocatable, public :: water_fluid_dep_source_cell_indices(:), &
+          steam_fluid_dep_source_cell_indices(:) !! Natural cell indices of fluid-dependent (e.g. with injectivity controls) output sources
    contains
      private
      procedure, public :: init => source_network_reinjector_init
@@ -171,6 +172,7 @@ module source_network_reinjector_module
      procedure, public :: capacity => source_network_reinjector_capacity
      procedure, public :: distribute => source_network_reinjector_distribute
      procedure, public :: gatherv => source_network_reinjector_gatherv
+     procedure, public :: gather_cell_indices => source_network_reinjector_gather_cell_indices
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
 
@@ -651,8 +653,10 @@ contains
     call self%out%init(owner = PETSC_TRUE)
     allocate(self%overflow)
     call self%overflow%init(self)
-    allocate(self%source_cell_indices(0), &
-         self%fluid_dep_source_cell_indices(0))
+    allocate(self%water_source_cell_indices(0), &
+         self%water_fluid_dep_source_cell_indices(0))
+    allocate(self%steam_source_cell_indices(0), &
+         self%steam_fluid_dep_source_cell_indices(0))
 
   end subroutine source_network_reinjector_init
 
@@ -895,7 +899,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine source_network_reinjector_send_cell_indices(self)
-    !! Sends source_cell_indices array from reinjector root rank to
+    !! Sends source_cell_indices arrays from reinjector root rank to
     !! input rank (where they are needed to identify dependencies
     !! between reinjector outputs and the production sources feeding
     !! them).
@@ -905,7 +909,10 @@ contains
     class(source_network_reinjector_type), intent(in out) :: self
 
     call mpi_comm_send_int_array(PETSC_COMM_WORLD, &
-         self%source_cell_indices, &
+         self%water_source_cell_indices, &
+         self%root_world_rank, self%input_world_rank)
+    call mpi_comm_send_int_array(PETSC_COMM_WORLD, &
+         self%steam_source_cell_indices, &
          self%root_world_rank, self%input_world_rank)
 
   end subroutine source_network_reinjector_send_cell_indices
@@ -1286,19 +1293,37 @@ contains
 
 !------------------------------------------------------------------------
 
-  function source_network_reinjector_gatherv(self, v) result(vall)
+  subroutine source_network_reinjector_gatherv(self, v)
     !! Gathers integer array v from all processes in the reinjector
-    !! onto the reinjector root rank.
+    !! onto the reinjector root rank, and remove duplicates.
 
     use mpi_utils_module, only: mpi_int_gatherv
+    use utils_module, only: array_unique
 
     class(source_network_reinjector_type), intent(in) :: self
-    PetscInt, intent(in) :: v(:)
-    PetscInt, allocatable :: vall(:)
+    PetscInt, allocatable, intent(in out) :: v(:)
 
-    vall = mpi_int_gatherv(self%comm, self%rank, v)
+    v = mpi_int_gatherv(self%comm, self%rank, v)
+    if (self%rank == 0) then
+       v = array_unique(v)
+    end if
 
-  end function source_network_reinjector_gatherv
+  end subroutine source_network_reinjector_gatherv
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_reinjector_gather_cell_indices(self)
+    !! Gathers source cell indices arrays to root rank and removes
+    !! duplicates.
+
+    class(source_network_reinjector_type), intent(in out) :: self
+
+    call self%gatherv(self%water_source_cell_indices)
+    call self%gatherv(self%water_fluid_dep_source_cell_indices)
+    call self%gatherv(self%steam_source_cell_indices)
+    call self%gatherv(self%steam_fluid_dep_source_cell_indices)
+
+  end subroutine source_network_reinjector_gather_cell_indices
 
 !------------------------------------------------------------------------
 

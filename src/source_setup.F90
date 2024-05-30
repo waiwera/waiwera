@@ -1459,10 +1459,20 @@ contains
                                  output%out => out_reinjector
                                  out_reinjector%in => output
                                  out_reinjector%link_index = output_index
-                                 source_cell_indices = [source_cell_indices, &
-                                     out_reinjector%source_cell_indices]
-                                 fluid_dep_source_cell_indices = [fluid_dep_source_cell_indices, &
-                                     out_reinjector%fluid_dep_source_cell_indices]
+                                 select case (flow_type)
+                                 case (SEPARATED_FLOW_TYPE_WATER)
+                                    source_cell_indices = [source_cell_indices, &
+                                         out_reinjector%water_source_cell_indices]
+                                    fluid_dep_source_cell_indices = [ &
+                                         fluid_dep_source_cell_indices, &
+                                         out_reinjector%water_fluid_dep_source_cell_indices]
+                                 case (SEPARATED_FLOW_TYPE_STEAM)
+                                    source_cell_indices = [source_cell_indices, &
+                                         out_reinjector%steam_source_cell_indices]
+                                    fluid_dep_source_cell_indices = [ &
+                                         fluid_dep_source_cell_indices, &
+                                         out_reinjector%steam_fluid_dep_source_cell_indices]
+                                 end select
                                  call reinjector%out%append(output)
                               else
                                  deallocate(output)
@@ -1497,22 +1507,37 @@ contains
             output_index = output_index + 1
          end do
 
-         source_cell_indices = pack(source_cell_indices, &
-              source_cell_indices >= 0)
-         reinjector%source_cell_indices = [reinjector%source_cell_indices, &
-              source_cell_indices]
+         select case (flow_type)
+         case (SEPARATED_FLOW_TYPE_WATER)
+            call pack_array_append(source_cell_indices, &
+                 reinjector%water_source_cell_indices)
+            call pack_array_append(fluid_dep_source_cell_indices, &
+                 reinjector%water_fluid_dep_source_cell_indices)
+         case (SEPARATED_FLOW_TYPE_STEAM)
+            call pack_array_append(source_cell_indices, &
+                 reinjector%steam_source_cell_indices)
+            call pack_array_append(fluid_dep_source_cell_indices, &
+                 reinjector%steam_fluid_dep_source_cell_indices)
+         end select
          deallocate(source_cell_indices)
-         fluid_dep_source_cell_indices = pack(fluid_dep_source_cell_indices, &
-              fluid_dep_source_cell_indices >= 0)
-         reinjector%fluid_dep_source_cell_indices = [ &
-              reinjector%fluid_dep_source_cell_indices, &
-              fluid_dep_source_cell_indices]
+         deallocate(fluid_dep_source_cell_indices)
 
       end if
 
       call mpi_broadcast_error_flag(err)
 
     end subroutine init_reinjector_outputs
+
+!........................................................................
+
+    subroutine pack_array_append(v, vall)
+
+      PetscInt, allocatable, intent(in) :: v(:)
+      PetscInt, allocatable, intent(in out) :: vall(:)
+
+      vall = [vall, pack(v, v >= 0)]
+
+    end subroutine pack_array_append
 
 !------------------------------------------------------------------------
 
@@ -1745,13 +1770,15 @@ contains
       PetscErrorCode, intent(out) :: err
       ! Locals:
       PetscInt :: overflow_type
-      PetscInt, allocatable :: source_cell_indices(:), &
-           fluid_dep_source_cell_indices(:)
+      PetscInt, allocatable :: water_source_cell_indices(:), &
+           steam_source_cell_indices(:), water_fluid_dep_source_cell_indices(:), &
+           steam_fluid_dep_source_cell_indices(:)
       character(max_source_network_node_name_length) :: node_name
       type(list_node_type), pointer :: source_dict_node, reinjector_dict_node
 
       err = 0
-      allocate(source_cell_indices(0), fluid_dep_source_cell_indices(0))
+      allocate(water_source_cell_indices(0), water_fluid_dep_source_cell_indices(0))
+      allocate(steam_source_cell_indices(0), steam_fluid_dep_source_cell_indices(0))
       if (fson_has_mpi(reinjector_json, "overflow")) then
          overflow_type = fson_type_mpi(reinjector_json, "overflow")
          node_name = ""
@@ -1780,9 +1807,11 @@ contains
                      type is (source_type)
                         reinjector%overflow%out => source
                         source%link_index = 0 ! not used
-                        source_cell_indices = [source%natural_cell_index]
+                        water_source_cell_indices = [source%natural_cell_index]
+                        steam_source_cell_indices = [source%natural_cell_index]
                         if (source%fluid_dependent) then
-                           fluid_dep_source_cell_indices = [source%natural_cell_index]
+                           water_fluid_dep_source_cell_indices = [source%natural_cell_index]
+                           steam_fluid_dep_source_cell_indices = [source%natural_cell_index]
                         end if
                      end select
                   end if
@@ -1796,9 +1825,12 @@ contains
                            reinjector%overflow%out => out_reinjector
                            out_reinjector%in => reinjector%overflow
                            out_reinjector%link_index = 0 ! not used
-                           source_cell_indices = out_reinjector%source_cell_indices
-                           fluid_dep_source_cell_indices = &
-                                out_reinjector%fluid_dep_source_cell_indices
+                           water_source_cell_indices = out_reinjector%water_source_cell_indices
+                           steam_source_cell_indices = out_reinjector%steam_source_cell_indices
+                           water_fluid_dep_source_cell_indices = &
+                                out_reinjector%water_fluid_dep_source_cell_indices
+                           steam_fluid_dep_source_cell_indices = &
+                                out_reinjector%steam_fluid_dep_source_cell_indices
                         end if
                         call reinjector_output_dict%add(node_name)
                      end select
@@ -1818,11 +1850,18 @@ contains
 
       if (err == 0) then
          call reinjector%overflow%get_world_rank()
-         reinjector%source_cell_indices = [reinjector%source_cell_indices, &
-              source_cell_indices]
-         reinjector%fluid_dep_source_cell_indices = [ &
-              reinjector%fluid_dep_source_cell_indices, &
-              fluid_dep_source_cell_indices]
+         call pack_array_append(water_source_cell_indices, &
+              reinjector%water_source_cell_indices)
+         call pack_array_append(water_fluid_dep_source_cell_indices, &
+              reinjector%water_fluid_dep_source_cell_indices)
+         call pack_array_append(water_fluid_dep_source_cell_indices, &
+              reinjector%water_fluid_dep_source_cell_indices)
+         call pack_array_append(steam_source_cell_indices, &
+              reinjector%steam_source_cell_indices)
+         call pack_array_append(steam_fluid_dep_source_cell_indices, &
+              reinjector%steam_fluid_dep_source_cell_indices)
+         call pack_array_append(steam_fluid_dep_source_cell_indices, &
+              reinjector%steam_fluid_dep_source_cell_indices)
       end if
 
     end subroutine init_reinjector_overflow
@@ -1920,18 +1959,7 @@ contains
                      r = -1
                   end if
                   reinjector%local_reinjector_index = r
-                  reinjector%source_cell_indices = reinjector%gatherv( &
-                       reinjector%source_cell_indices)
-                  if (reinjector%rank == 0) then
-                     reinjector%source_cell_indices = array_unique( &
-                          reinjector%source_cell_indices)
-                  end if
-                  reinjector%fluid_dep_source_cell_indices = reinjector%gatherv( &
-                       reinjector%fluid_dep_source_cell_indices)
-                  if (reinjector%rank == 0) then
-                     reinjector%fluid_dep_source_cell_indices = array_unique( &
-                          reinjector%fluid_dep_source_cell_indices)
-                  end if
+                  call reinjector%gather_cell_indices()
                   call source_network%reinjectors%append(reinjector)
                   if (name /= "") then
                      call reinjector_dict%add(name, reinjector)
