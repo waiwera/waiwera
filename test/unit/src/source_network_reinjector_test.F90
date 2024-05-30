@@ -77,7 +77,7 @@ contains
     type(mesh_type) :: mesh
     type(tracer_type), allocatable :: tracers(:)
     Vec :: fluid_vector
-    PetscInt :: fluid_range_start, total_num_dependencies
+    PetscInt :: fluid_range_start
     PetscReal, pointer, contiguous :: source_array(:), group_array(:), reinjector_array(:)
     PetscSection :: source_section, group_section, reinjector_section
     type(source_network_type) :: source_network
@@ -89,7 +89,16 @@ contains
     PetscInt, parameter :: expected_num_sources = 39
     PetscInt, parameter :: expected_num_groups = 6
     PetscInt, parameter :: expected_num_reinjectors = 10
-    PetscInt, parameter :: expected_num_dependencies = 52
+    PetscInt, parameter :: expected_num_deps = 52
+    PetscInt, parameter :: expected_deps(expected_num_deps, 2) = transpose(reshape( &
+         [11, 0,  11, 1,  11, 7,  8, 0,  8, 1,  8, 7,  6, 0,  6, 1,  6, 7,  3, 0,  3, 1, 3, 7, &
+         10, 2,  10, 5,  9, 2,  9, 5,  8, 2, 8, 5,  2, 2, 2, 5, &
+         11, 0,  3, 0, &
+         11, 0,  11, 10,  8, 0,  8, 10, 2, 0,  2, 10, &
+         1, 9,  1, 1,  3, 9,  3, 1,  8, 9,  8, 1,  11, 9,  11, 1, &
+         1, 8,  1, 2,  5, 8,  5, 2,  11, 8,  11, 2,  7, 8,  7, 2, &
+         10, 9,  10, 1,  2, 9,  2, 1,  4, 9,  4, 1,  7, 9,  7, 1 &
+         ], [2, expected_num_deps]))
     PetscBool, parameter :: update_reinjection = PETSC_TRUE
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -143,13 +152,7 @@ contains
        call VecRestoreArrayF90(source_network%group, group_array, ierr); CHKERRQ(ierr)
        call VecRestoreArrayF90(source_network%source, source_array, ierr); CHKERRQ(ierr)
 
-       call MPI_reduce(source_network%dependencies%count, &
-            total_num_dependencies, 1, MPI_INTEGER, MPI_SUM, &
-            0, PETSC_COMM_WORLD, ierr)
-       if (rank == 0) then
-          call test%assert(expected_num_dependencies, &
-               total_num_dependencies, "num_dependencies")
-       end if
+       call source_network_dependency_test(test, source_network, expected_deps, rank)
 
     end if
 
@@ -361,19 +364,24 @@ contains
 !........................................................................
 
     subroutine reinjector_test(reinjector, overflow_water_rate, &
-         overflow_steam_rate, source_cell_indices)
+         overflow_steam_rate, water_source_cell_indices, &
+         steam_source_cell_indices)
 
       class(source_network_reinjector_type), intent(in) :: reinjector
       PetscReal, intent(in) :: overflow_water_rate, overflow_steam_rate
-      PetscInt, intent(in) :: source_cell_indices(:)
+      PetscInt, intent(in) :: water_source_cell_indices(:)
+      PetscInt, intent(in) :: steam_source_cell_indices(:)
 
       call test%assert(overflow_water_rate, reinjector%overflow%water_rate, &
            trim(reinjector%name) // " overflow water rate")
       call test%assert(overflow_steam_rate, reinjector%overflow%steam_rate, &
            trim(reinjector%name) // " overflow steam rate")
-      call test%assert(array_is_permutation_of(source_cell_indices, &
-           reinjector%source_cell_indices), &
-           trim(reinjector%name) // " cell_indices")
+      call test%assert(array_is_permutation_of(water_source_cell_indices, &
+           reinjector%water_source_cell_indices), &
+           trim(reinjector%name) // " water cell_indices")
+      call test%assert(array_is_permutation_of(steam_source_cell_indices, &
+           reinjector%steam_source_cell_indices), &
+           trim(reinjector%name) // " steam cell_indices")
 
     end subroutine reinjector_test
 
@@ -504,31 +512,31 @@ contains
             select case (reinjector%name)
             case ("re1")
                call reinjector_test(reinjector, 3.26784763965_dp, &
-                    0.140190450435_dp, [11, 8, 6, 3])
+                    0.140190450435_dp, [11, 8], [6, 3])
             case ("re2")
-               call reinjector_test(reinjector, 0._dp, 0._dp, [10, 9, 8, 2])
+               call reinjector_test(reinjector, 0._dp, 0._dp, [10, 9, 8], [2])
             case ("re3")
                call reinjector_test(reinjector, 0.46446499954_dp, &
-                    0.635535000462524_dp, [11, 3])
+                    0.635535000462524_dp, [11, 3], [PetscInt::])
             case ("re4")
                call reinjector_test(reinjector, 0._dp, 1.1186187148189581_dp, &
-                    [11, 8, 2])
+                    [11, 8, 2], [PetscInt::])
             case ("re5")
-               call reinjector_test(reinjector, 0._dp, 0._dp, [8, 2])
+               call reinjector_test(reinjector, 0._dp, 0._dp, [8, 2], [PetscInt::])
             case ("re6")
                call reinjector_test(reinjector, 1.58138128518_dp, &
-                    1.1186187148189581_dp, [1, 3, 8, 11])
+                    1.1186187148189581_dp, [1, 3, 8, 11], [PetscInt::])
             case ("re7")
-               call reinjector_test(reinjector, 0._dp, 0._dp, [3, 8])
+               call reinjector_test(reinjector, 0._dp, 0._dp, [3, 8], [PetscInt::])
             case ("re8")
                call reinjector_test(reinjector, 1.58138128518_dp, &
-                    1.1186187148189581_dp, [1, 5, 11, 7])
+                    1.1186187148189581_dp, [1, 5, 11, 7], [7])
             case ("re9")
                call reinjector_test(reinjector, 1.58138128518_dp, &
-                    1.1186187148189581_dp, [10, 2, 4, 7])
+                    1.1186187148189581_dp, [10, 2, 4, 7], [PetscInt::])
             case ("re10")
                call reinjector_test(reinjector, 0._dp, &
-                    1.1186187148189581_dp, [4, 7])
+                    1.1186187148189581_dp, [4, 7], [PetscInt::])
             end select
          end if
       end select
@@ -536,6 +544,61 @@ contains
     end subroutine reinjector_test_iterator
 
   end subroutine test_source_network_reinjector
+
+!------------------------------------------------------------------------
+
+  subroutine source_network_dependency_test(test, source_network, &
+       expected_deps, rank)
+
+    class(unit_test_type), intent(in out) :: test
+    type(source_network_type), intent(in out) :: source_network
+    PetscInt, intent(in) :: expected_deps(:,:)
+    PetscMPIInt, intent(in) :: rank
+    ! Locals:
+    PetscInt, parameter :: max_num_cells = 20
+    PetscInt, parameter :: n2 = max_num_cells * max_num_cells
+    PetscBool :: nonzero(max_num_cells, max_num_cells)
+    PetscBool :: nonzero_exp(max_num_cells, max_num_cells)
+    PetscBool, allocatable :: nonzero1(:), nonzero1_all(:), nonzero_exp1(:)
+    PetscInt :: i
+    PetscErrorCode :: ierr
+
+    nonzero = PETSC_FALSE
+    call source_network%dependencies%traverse(dependency_iterator)
+    nonzero1 = reshape(nonzero, [n2])
+    if (rank == 0) then
+       allocate(nonzero1_all(n2))
+    else
+       allocate(nonzero1_all(1))
+    end if
+    call MPI_reduce(nonzero1, nonzero1_all, n2, MPI_LOGICAL, MPI_LOR, &
+         0, PETSC_COMM_WORLD, ierr)
+
+    if (rank == 0) then
+       nonzero_exp = PETSC_FALSE
+       do i = 1, size(expected_deps, 1)
+          nonzero_exp(expected_deps(i,1) + 1, expected_deps(i,2) + 1) = PETSC_TRUE
+       end do
+       nonzero_exp1 = reshape(nonzero_exp, [n2])
+       call test%assert(nonzero_exp1, nonzero1_all, "source network dependencies")
+    end if
+
+  contains
+
+    subroutine dependency_iterator(node, stopped)
+
+      type(list_node_type), pointer, intent(in out) :: node
+      PetscBool, intent(out) :: stopped
+
+      stopped = PETSC_FALSE
+      select type (dep => node%data)
+      class is (source_dependency_type)
+         nonzero(dep%equation + 1, dep%cell + 1) = PETSC_TRUE
+      end select
+
+    end subroutine dependency_iterator
+
+  end subroutine source_network_dependency_test
 
 !------------------------------------------------------------------------
 
