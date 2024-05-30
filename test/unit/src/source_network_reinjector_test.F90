@@ -559,7 +559,7 @@ contains
     PetscInt, parameter :: n2 = max_num_cells * max_num_cells
     PetscBool :: nonzero(max_num_cells, max_num_cells)
     PetscBool :: nonzero_exp(max_num_cells, max_num_cells)
-    PetscBool, allocatable :: nonzero1(:), nonzero1_all(:), nonzero_exp1(:)
+    PetscBool, allocatable :: nonzero1(:), nonzero1_all(:)
     PetscInt :: i
     PetscErrorCode :: ierr
 
@@ -575,12 +575,12 @@ contains
          0, PETSC_COMM_WORLD, ierr)
 
     if (rank == 0) then
+       nonzero = reshape(nonzero1_all, [max_num_cells, max_num_cells])
        nonzero_exp = PETSC_FALSE
        do i = 1, size(expected_deps, 1)
           nonzero_exp(expected_deps(i,1) + 1, expected_deps(i,2) + 1) = PETSC_TRUE
        end do
-       nonzero_exp1 = reshape(nonzero_exp, [n2])
-       call test%assert(nonzero_exp1, nonzero1_all, "source network dependencies")
+       call test%assert(nonzero_exp, nonzero, "source network dependencies")
     end if
 
   contains
