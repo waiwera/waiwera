@@ -437,7 +437,7 @@ contains
       select type (control => node%data)
       type is (limiter_table_source_network_control_type)
          select type (group => control%objects%head%data)
-         type is (source_network_group_type)
+         class is (source_network_group_type)
             if (group%rank == 0) then
                do i1 = 1, size(group%source_cell_indices)
                   do i2 = 1, size(group%source_cell_indices)
