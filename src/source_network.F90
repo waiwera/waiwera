@@ -494,7 +494,6 @@ contains
                      dep%equation = row
                      dep%cell = col
                      call self%dependencies%append(dep)
-                     write(*,*) 'reinjection dependency:', dep%equation, dep%cell
                   end if
                end do
             end do
