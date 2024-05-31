@@ -396,7 +396,7 @@ contains
 
             select type (input => reinjector%in)
             type is (source_type)
-               production_cell_indices = [input%natural_cell_index]
+               production_cell_indices = [nint(input%natural_cell_index)]
             type is (source_network_group_type)
                production_cell_indices = input%source_cell_indices
             end select
