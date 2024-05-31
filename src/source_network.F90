@@ -87,13 +87,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_update(self, t, interval, fluid_data, fluid_section, &
-       update_reinjection)
+  subroutine source_network_update(self, t, interval, fluid_data, fluid_section)
     !! Updates flows through source network, applying controls and
-    !! updating source rates. If update_reinjection is true then
-    !! reinjector inputs and capacities are updated (this is not done
-    !! for perturbed primary variables during Jacobian calculations,
-    !! as it results in poor non-linear solver performance).
+    !! updating source rates.
 
     use dm_utils_module, only: global_vec_section, global_section_offset
 
@@ -102,7 +98,6 @@ contains
     PetscReal, intent(in) :: interval(2) !! time interval bounds
     PetscReal, pointer, contiguous, intent(in out) :: fluid_data(:) !! array on fluid vector
     PetscSection, intent(in out) :: fluid_section !! fluid section
-    PetscBool, intent(in) :: update_reinjection !! Whether to update reinjection inputs and capacities
     ! Locals:
     PetscSection :: source_section, group_section, reinjector_section
     PetscReal, pointer, contiguous :: source_data(:), group_data(:), reinjector_data(:)
@@ -123,9 +118,7 @@ contains
     call self%source_controls%traverse(control_iterator)
     call self%groups%traverse(group_iterator)
     call self%network_controls%traverse(control_iterator)
-    if (update_reinjection) then
-       call self%reinjectors%traverse(reinjector_capacity_iterator)
-    end if
+    call self%reinjectors%traverse(reinjector_capacity_iterator)
     call self%reinjectors%traverse(reinjector_iterator, backwards = PETSC_TRUE)
 
     call VecRestoreArrayF90(self%reinjector, reinjector_data, ierr); CHKERRQ(ierr)
@@ -291,7 +284,7 @@ contains
       stopped = PETSC_FALSE
       select type (reinjector => node%data)
       class is (source_network_reinjector_type)
-         call reinjector%distribute(update_reinjection)
+         call reinjector%distribute()
       end select
 
     end subroutine reinjector_iterator

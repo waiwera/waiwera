@@ -99,7 +99,6 @@ contains
          1, 8,  1, 2,  5, 8,  5, 2,  11, 8,  11, 2,  7, 8,  7, 2, &
          10, 9,  10, 1,  2, 9,  2, 1,  4, 9,  4, 1,  7, 9,  7, 1 &
          ], [2, expected_num_deps]))
-    PetscBool, parameter :: update_reinjection = PETSC_TRUE
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_reinjector.json")
@@ -331,7 +330,7 @@ contains
       stopped = PETSC_FALSE
       select type (reinjector => node%data)
       class is (source_network_reinjector_type)
-         call reinjector%distribute(update_reinjection)
+         call reinjector%distribute()
       end select
 
     end subroutine reinjector_iterator
@@ -582,7 +581,6 @@ contains
     PetscInt, parameter :: expected_deps(expected_num_deps, 2) = transpose(reshape( &
          [42, 0,  2, 4,  4, 2,  45, 6,  48, 6, 45, 17,  48, 17, 31, 6, 31, 17, 48, 45], &
          [2, expected_num_deps]))
-    PetscBool, parameter :: update_reinjection = PETSC_TRUE
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     json => fson_parse_mpi(trim(adjustl(data_path)) // "source/test_source_network_deps.json")

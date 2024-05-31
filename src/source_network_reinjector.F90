@@ -1112,13 +1112,11 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine source_network_reinjector_distribute(self, update_inputs)
+  subroutine source_network_reinjector_distribute(self)
     !! Distributes reinjector input flow to outputs (and overflow if
-    !! needed). If update_inputs is true, the inputs to the reinjector
-    !! are updated.
+    !! needed).
 
     class(source_network_reinjector_type), intent(in out) :: self
-    PetscBool, intent(in) :: update_inputs
     ! Locals:
     PetscReal :: water_balance
     PetscReal :: steam_balance
@@ -1127,7 +1125,7 @@ contains
     PetscInt :: i, j
     PetscErrorCode :: ierr
 
-    if (associated(self%in) .and. update_inputs) then
+    if (associated(self%in)) then
        self%in_water_rate = abs(self%in%water_rate)
        self%in_water_enthalpy = self%in%water_enthalpy
        self%in_steam_rate = abs(self%in%steam_rate)
