@@ -1,0 +1,37 @@
+{
+    "title": "Test network dependencies",
+    "mesh": {"filename": "../test/unit/data/mesh/7x7grid.exo"},
+    "source": [
+        {"name": "p1", "cell": 0, "rate": -5},
+        {"name": "p2", "cell": 2, "deliverability": {"pressure": 1e5,
+                                                     "productivity": 1e-12}},
+        {"name": "p3", "cell": 4, "deliverability": {"pressure": 1e5,
+                                                     "productivity": 1e-12}},
+        {"name": "p4", "cell": 6, "rate": -6},
+        {"name": "p5", "cell": 17, "deliverability": {"pressure": 1e5,
+                                                     "productivity": 1e-12}},
+        {"name": "i1", "cell": 42},
+        {"name": "i2", "cell": 45, "injectivity": {"pressure": 1e5,
+                                                   "coefficient": 1e-7}},
+        {"name": "i3", "cell": 48},
+        {"name": "i4", "cell": 31}
+    ],
+    "network": {
+        "group": [
+            {"name": "g1", "in": ["p2", "p3"], "limiter": {"steam": 10}},
+            {"name": "g2", "in": ["p4", "p5"]}
+        ],
+        "reinject": [
+            {"name": "r1", "in": "p1",
+             "water": [{"out": "i1", "rate": 2, "enthalpy": 1e4}]},
+            {"name": "r2", "in": "g2",
+             "water": [
+                 {"out": "i2", "enthalpy": 1e4},
+                 {"out": "i3", "rate": 2, "enthalpy": 1e4}
+             ],
+             "steam": [
+                 {"out": "i4", "rate": 3, "enthalpy": 1500e3}
+             ]}
+        ]
+    }
+}
