@@ -474,8 +474,8 @@ contains
 
             do i1 = 1, size(reinjector%water_fluid_dep_source_cell_indices)
                do i2 = 1, size(reinjector%water_source_cell_indices)
-                  row = reinjector%water_fluid_dep_source_cell_indices(i1)
-                  col = reinjector%water_source_cell_indices(i2)
+                  col = reinjector%water_fluid_dep_source_cell_indices(i1)
+                  row = reinjector%water_source_cell_indices(i2)
                   if (row /= col) then
                      allocate(dep)
                      dep%equation = row
@@ -487,8 +487,8 @@ contains
 
             do i1 = 1, size(reinjector%steam_fluid_dep_source_cell_indices)
                do i2 = 1, size(reinjector%steam_source_cell_indices)
-                  row = reinjector%steam_fluid_dep_source_cell_indices(i1)
-                  col = reinjector%steam_source_cell_indices(i2)
+                  col = reinjector%steam_fluid_dep_source_cell_indices(i1)
+                  row = reinjector%steam_source_cell_indices(i2)
                   if (row /= col) then
                      allocate(dep)
                      dep%equation = row
