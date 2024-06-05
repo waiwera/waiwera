@@ -62,6 +62,7 @@ module mesh_module
      IS, public :: cell_index !! Index set defining natural to global cell ordering (without boundary cells)
      AO, public :: cell_natural_global !! Application ordering to convert between natural and global cell indices
      AO, public :: original_cell_natural_global !! Natural-to-global AO for original DM
+     AO, public :: interior_cell_natural_global !! Natural-to-global AO for interior DM
      IS, public :: cell_natural !! Natural indices of local cells
      IS, public :: cell_parent_natural !! Natural indices of parent cells (e.g. MINC fracture cells)
      PetscSF, public :: dist_sf !! Distribution star forest
@@ -74,6 +75,7 @@ module mesh_module
      type(dictionary_type), public :: rock_types !! Dictionary of rock types by name
      PetscBool, public :: radial !! If mesh coordinate system is radial or Cartesian
      PetscBool, public :: has_minc !! If mesh has any MINC cells
+     PetscBool, public :: has_interior_dm !! If mesh has an interior DM
      PetscBool, public :: rebalance !! Set false to disable MINC mesh rebalancing
      PetscInt, public :: dof !! Degrees of freedom for default section
    contains
@@ -227,7 +229,8 @@ contains
     !! Sets up DM for interior cells (not boundary ghost cells). This
     !! is a clone of the main DM but with a different section.
 
-    use dm_utils_module, only: dm_set_default_data_layout
+    use dm_utils_module, only: dm_set_default_data_layout, &
+         dm_get_natural_to_global_ao
 
     class(mesh_type), intent(in out) :: self
     ! Locals:
@@ -254,6 +257,10 @@ contains
          ierr); CHKERRQ(ierr)
     call dm_set_default_data_layout(self%interior_dm, self%dof, &
          interior_label)
+
+    self%interior_cell_natural_global = dm_get_natural_to_global_ao( &
+         self%interior_dm, self%cell_natural)
+    self%has_interior_dm = PETSC_TRUE
 
   end subroutine mesh_setup_interior_dm
 
@@ -948,6 +955,7 @@ contains
        call self%label_sources(json)
        call self%setup_cell_natural()
        self%has_minc = PETSC_FALSE
+       self%has_interior_dm = PETSC_FALSE
     end if
 
   end subroutine mesh_init
@@ -1015,6 +1023,9 @@ contains
 
     call ISDestroy(self%cell_natural, ierr); CHKERRQ(ierr)
     call AODestroy(self%cell_natural_global, ierr); CHKERRQ(ierr)
+    if (self%has_interior_dm) then
+       call AODestroy(self%interior_cell_natural_global, ierr); CHKERRQ(ierr)
+    end if
 
     if (allocated(self%ghost_cell)) then
        deallocate(self%ghost_cell)
