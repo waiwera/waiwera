@@ -3032,10 +3032,10 @@ contains
     call self%source_network%dependencies%traverse( &
          source_dependencies_iterator)
 
-    call AOApplicationToPetsc(self%mesh%cell_natural_global, num_deps, &
-         rows, ierr); CHKERRQ(ierr)
-    call AOApplicationToPetsc(self%mesh%cell_natural_global, num_deps, &
-         cols, ierr); CHKERRQ(ierr)
+    call AOApplicationToPetsc(self%mesh%interior_cell_natural_global, &
+         num_deps, rows, ierr); CHKERRQ(ierr)
+    call AOApplicationToPetsc(self%mesh%interior_cell_natural_global, &
+         num_deps, cols, ierr); CHKERRQ(ierr)
 
     call MatSetValuesBlocked(self%jacobian, num_deps, rows, num_deps, &
          cols, values, INSERT_VALUES, ierr); CHKERRQ(ierr)
