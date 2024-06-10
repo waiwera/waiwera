@@ -29,7 +29,7 @@ There are two ways of doing this. However, both ways specify the initial conditi
    |"filename"  |string          | (`no default`) |name of Waiwera output HDF5    |
    |            |                |                |file to restart from           |
    +------------+----------------+----------------+-------------------------------+
-   |"index"     |integer         |0               |results index (zero-based)     |
+   |"index"     |integer         |-1              |results index (zero-based)     |
    |            |                |                |in file to restart from        |
    +------------+----------------+----------------+-------------------------------+
    |"minc"      |boolean         |false           |whether initial conditions     |
@@ -113,9 +113,9 @@ In this case, the "initial" object in the JSON input file for the restarted simu
 .. index::
    pair: MINC; initial conditions
 
-The filename of the output from the previous simulation is specified using the **"filename"** value. In general, an output file may contain results for more than one time. The new simulation can be restarted from any of the results in the previous output file. The index of the desired set of results can be specified using the **"index"** value, which defaults to zero.
+The filename of the output from the previous simulation is specified using the **"filename"** value. In general, an output file may contain results for more than one time. The new simulation can be restarted from any of the results in the previous output file. The index of the desired set of results can be specified using the **"index"** value.
 
-In many cases the new simulation is to be restarted from the last set of results in the previous output file. This can be done by specifying the **index** value as -1. (Similarly, setting **index** to -2 will restart the simulation from the second-to-last set of results in the previous output file, etc.)
+In many cases the new simulation is to be restarted from the last set of results in the previous output file. This can be done by specifying the **index** value as -1, which is the default from Waiwera version 1.5.0. (Similarly, setting **index** to -2 will restart the simulation from the second-to-last set of results in the previous output file, etc.)
 
 Restarting from a previous output file will read both the primary variables and the thermodynamic regions from the file. Clearly, the output file should contain results for the same number of cells as the restarted simulation (except in the case of restarting a MINC simulation from single-porosity initial conditions -- see :ref:`minc_initial_conditions`).
 

@@ -774,7 +774,7 @@ contains
     PetscReal, allocatable :: tracer_values(:)
     PetscInt, parameter :: max_filename_length = 240
     character(len = max_filename_length) :: filename
-    PetscInt, parameter :: default_index = 0
+    PetscInt, parameter :: default_index = -1
     PetscInt :: index, tracer_array_size
     PetscBool :: minc_specified, use_original_dm, has_file, initial_time
     character(8) :: time_str
