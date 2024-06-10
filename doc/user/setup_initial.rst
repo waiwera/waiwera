@@ -115,6 +115,8 @@ In this case, the "initial" object in the JSON input file for the restarted simu
 
 The filename of the output from the previous simulation is specified using the **"filename"** value. In general, an output file may contain results for more than one time. The new simulation can be restarted from any of the results in the previous output file. The index of the desired set of results can be specified using the **"index"** value, which defaults to zero.
 
+In many cases the new simulation is to be restarted from the last set of results in the previous output file. This can be done by specifying the **index** value as -1. (Similarly, setting **index** to -2 will restart the simulation from the second-to-last set of results in the previous output file, etc.)
+
 Restarting from a previous output file will read both the primary variables and the thermodynamic regions from the file. Clearly, the output file should contain results for the same number of cells as the restarted simulation (except in the case of restarting a MINC simulation from single-porosity initial conditions -- see :ref:`minc_initial_conditions`).
 
 Initial conditions read from an HDF5 output file via the **filename** value will override any initial conditions specified directly in the JSON input file (via the **primary** or **region** values).
@@ -128,6 +130,12 @@ For example:
    {"initial": {"filename": "previous_run.h5", "index": 99}}
 
 restarts a simulation from a Waiwera HDF5 output file named "previous_run.h5", starting from the set of results in the file with zero-based index 99.
+
+.. code-block:: json
+
+   {"initial": {"filename": "previous_run.h5", "index": -1}}
+
+restarts the simulation from the last set of results in the previous output file.
 
 Note that if *both* the **"primary"** and **"filename"** values are specified, the simulation will be restarted from the results in the specified previous output file, and the **"primary"** values will be ignored.
 

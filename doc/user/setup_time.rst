@@ -49,10 +49,10 @@ specifies a simulation starting at time 86400 s and ending at 172800 s. In the f
 
 .. code-block:: json
 
-   {"initial": {"filename": "previous.h5", "index": 25},
+   {"initial": {"filename": "previous.h5", "index": -1},
     "time": {"start": "initial", "stop": null}}
 
-the simulation is restarted from the file "previous.h5", at time index 25, and the start time is taken from index 25 of the time dataset in that file. No specific stop time is set.
+the simulation is restarted from the file "previous.h5", at the last time index, and the start time is taken from last index of the time dataset in that file. No specific stop time is set.
 
 All parameters related to time-stepping are specified via the **"step"** value in the "time" object. The "step" value is itself an object.
 

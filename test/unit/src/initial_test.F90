@@ -134,7 +134,7 @@ contains
          '          "boundaries": [{"faces": {"cells": [0], ' // &
          '                          "normal": [0, 1, 0]}}]},' // &
          ' "eos": {"name": "we"}, ' // &
-         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid_minimal.h5"}}'
+         ' "initial": {"filename": "' // trim(adjustl(data_path)) // 'initial/fluid_minimal.h5", "index": -1}}'
     call initial_test_case('single porosity minimal boundary', json_str)
 
     ! JSON initial tests:

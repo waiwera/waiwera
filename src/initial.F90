@@ -452,7 +452,7 @@ contains
     PetscViewer :: viewer
     PetscInt, allocatable :: field_indices(:)
     PetscInt :: tracer_field_indices(size(tracers))
-    PetscInt :: i, num_tracers
+    PetscInt :: i, num_tracers, num_times, effective_index
     IS :: original_cell_index, output_cell_index
     PetscErrorCode :: ierr
 
@@ -480,6 +480,14 @@ contains
     call PetscViewerHDF5SetDefaultTimestepping(viewer, PETSC_TRUE, ierr); CHKERRQ(ierr)
     call PetscViewerHDF5PushTimestepping(viewer, ierr); CHKERRQ(ierr)
 
+    if (index < 0) then
+       call DMGetOutputSequenceLength(mesh%original_dm, viewer, 'time', &
+            num_times, ierr); CHKERRQ(ierr)
+       effective_index = num_times + index
+    else
+       effective_index = index
+    end if
+
     if (use_original_dm) then
        call load_fluid_original_dm()
        if (num_tracers > 0) call load_tracers_original_dm()
@@ -489,7 +497,7 @@ contains
        if (num_tracers > 0) call load_tracers()
     end if
 
-    if (initial_time) call get_hdf5_time(index, viewer, t)
+    if (initial_time) call get_hdf5_time(effective_index, viewer, t)
 
     err = 0
     call mpi_broadcast_error_flag(err)
@@ -548,7 +556,8 @@ contains
            eos%phase_names, original_fluid_vector, original_fluid_range_start)
 
       call VecGetDM(original_fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
-      call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(fluid_dm, effective_index, t, &
+           ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_fluid_vector, field_indices, &
            "/cell_fields", viewer, original_cell_index, output_cell_index)
       call vec_copy_subvector(original_fluid_vector, fluid_vector)
@@ -566,7 +575,8 @@ contains
       PetscErrorCode :: ierr
 
       call VecGetDM(fluid_vector, fluid_dm, ierr); CHKERRQ(ierr)
-      call DMSetOutputSequenceNumber(fluid_dm, index, t, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(fluid_dm, effective_index, t, &
+           ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(fluid_vector, field_indices, &
            "/cell_fields", viewer, mesh%cell_index, output_cell_index)
 
@@ -589,7 +599,8 @@ contains
            original_tracer_vector, original_tracer_range_start)
 
       call VecGetDM(original_tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
-      call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(tracer_dm, effective_index, t, &
+           ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(original_tracer_vector, tracer_field_indices, &
            "/cell_fields", viewer, original_cell_index, output_cell_index)
       call vec_copy_subvector(original_tracer_vector, tracer_vector)
@@ -607,7 +618,8 @@ contains
       PetscErrorCode :: ierr
 
       call VecGetDM(tracer_vector, tracer_dm, ierr); CHKERRQ(ierr)
-      call DMSetOutputSequenceNumber(tracer_dm, index, t, ierr); CHKERRQ(ierr)
+      call DMSetOutputSequenceNumber(tracer_dm, effective_index, t, &
+           ierr); CHKERRQ(ierr)
       call vec_load_fields_hdf5(tracer_vector, tracer_field_indices, &
            "/cell_fields", viewer, mesh%cell_index, output_cell_index)
 
