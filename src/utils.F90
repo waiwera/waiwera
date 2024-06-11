@@ -63,7 +63,7 @@ module utils_module
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
        array_is_permutation, array_is_permutation_of, &
-       array_unique, array_progressive_limit, newton1d
+       array_unique, array_progressive_limit, newton1d, sign_test
 
 contains
 
@@ -714,6 +714,24 @@ contains
     end if
 
   end subroutine newton1d_polynomial
+
+!------------------------------------------------------------------------
+
+  PetscInt function sign_test(a, b)
+    !! Return -1 if a and b are of opposite sign, 0 if either argument
+    !! is zero or 1 if a, b are of the same sign.
+
+    PetscReal, intent(in) :: a, b
+    ! Locals:
+    PetscReal, parameter :: tol = 1.e-16_dp
+
+    if ((abs(a) < tol) .or. (abs(b) < tol)) then
+       sign_test = 0
+    else
+       sign_test = nint(sign(1._dp, a) * sign(1._dp, b))
+    end if
+
+  end function sign_test
 
 !------------------------------------------------------------------------
 

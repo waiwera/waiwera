@@ -757,25 +757,9 @@ contains
 
 !........................................................................
 
-    PetscInt function sign_test(a, b)
-      !! Return -1 if a and b are of opposite sign, 0 if either argument
-      !! is zero or 1 if a, b are of the same sign.
-
-      PetscReal, intent(in) :: a, b
-      ! Locals:
-      PetscReal, parameter :: tol = 1.e-16_dp
-
-      if ((abs(a) < tol) .or. (abs(b) < tol)) then
-         sign_test = 0
-      else
-         sign_test = int(sign(1._dp, a)) * int(sign(1._dp, b))
-      end if
-
-    end function sign_test
-
-!........................................................................
-
     subroutine pchip_deriv(x, f, d)
+
+      use utils_module, only: sign_test
 
       PetscReal, intent(in) :: x(:), f(:)
       PetscReal, intent(out) :: d(:)

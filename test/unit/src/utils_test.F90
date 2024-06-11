@@ -22,7 +22,7 @@ module utils_test
        test_array_exclusive_products, test_array_sorted, &
        test_array_indices_in_int_array, test_is_permutation, &
        test_array_progressive_limit, test_newton1d, &
-       test_is_permutation_of, test_array_unique
+       test_is_permutation_of, test_array_unique, test_sign_test
 
 contains
 
@@ -693,6 +693,30 @@ contains
     end function f2
 
   end subroutine test_newton1d
+
+!------------------------------------------------------------------------
+
+  subroutine test_sign_test(test)
+    ! Test sign_test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert(1, sign_test(1._dp, 1._dp), '1,1')
+       call test%assert(0, sign_test(0._dp, 0._dp), '0,0')
+       call test%assert(0, sign_test(0._dp, 2._dp), '0,2')
+       call test%assert(1, sign_test(-2._dp, -1._dp), '-2,-1')
+       call test%assert(-1, sign_test(-1.5_dp, 2._dp), '-1.5,2')
+       call test%assert(-1, sign_test(1.5_dp, -2._dp), '1.5,-2')
+
+    end if
+
+  end subroutine test_sign_test
 
 !------------------------------------------------------------------------
 
