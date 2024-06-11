@@ -410,7 +410,11 @@
                                        "vapour": {"type": "array",
                                                   "items": {"type": "number",
                                                             "minimum": 0, "maximum": 1},
-                                                  "minItems": 2, "maxItems": 2}
+                                                  "minItems": 2, "maxItems": 2},
+                                       "interpolation": {"type": "string",
+                                                         "enum": ["linear", "Linear",
+                                                                  "step", "Step",
+                                                                  "pchip", "PCHIP"]}
                           }, "additionalProperties": false},
                          {"type": "object",
                           "properties": {
@@ -483,8 +487,12 @@
                                        "enum": ["table", "Table"]},
                               "pressure": {"type": "array", "items": {
                                   "type": "array", "items": {"type": "number"},
-                                  "minItems": 2, "maxItems": 2}
-                                          }}, "additionalProperties": false
+                                  "minItems": 2, "maxItems": 2}},
+                              "interpolation": {"type": "string",
+                                                "enum": ["linear", "Linear",
+                                                         "step", "Step",
+                                                         "pchip", "PCHIP"]}
+                                        }, "additionalProperties": false
                           }
                          ]
                      },
@@ -509,7 +517,8 @@
                                                              ]},
                                  "interpolation": {"type": "string",
                                                    "enum": ["linear", "Linear",
-                                                            "step", "Step"]},
+                                                            "step", "Step",
+                                                            "pchip", "PCHIP"]},
                                  "wet_conductivity": {"type": "number", "minimum": 0},
                                  "dry_conductivity": {"type": "number", "minimum": 0},
                                  "porosity": {"oneOf": [
@@ -642,7 +651,8 @@
                                  ]},
                            "interpolation": {"type": "string",
                                              "enum": ["linear", "Linear",
-                                                      "step", "Step"]},
+                                                      "step", "Step",
+                                                      "pchip", "PCHIP"]},
                            "averaging": {"type": "string",
                                          "enum": ["endpoint", "Endpoint",
                                                   "integrate", "Integrate"]},
@@ -850,7 +860,8 @@
                                          "minItems": 2, "maxItems": 2}]},
                                     "interpolation": {"type": "string",
                                                       "enum": ["linear", "Linear",
-                                                               "step", "Step"]},
+                                                               "step", "Step",
+                                                               "pchip", "PCHIP"]},
                                     "averaging": {"type": "string",
                                                   "enum": ["endpoint", "Endpoint",
                                                            "integrate", "Integrate"]}
@@ -880,7 +891,8 @@
                                          "minItems": 2, "maxItems": 2}]},
                                     "interpolation": {"type": "string",
                                                       "enum": ["linear", "Linear",
-                                                               "step", "Step"]},
+                                                               "step", "Step",
+                                                               "pchip", "PCHIP"]},
                                     "averaging": {"type": "string",
                                                   "enum": ["endpoint", "Endpoint",
                                                            "integrate", "Integrate"]}
@@ -907,7 +919,8 @@
                                                      }},
                                    "interpolation": {"type": "string",
                                                      "enum": ["linear", "Linear",
-                                                              "step", "Step"]},
+                                                              "step", "Step",
+                                                              "pchip", "PCHIP"]},
                                    "averaging": {"type": "string",
                                                  "enum": ["endpoint", "Endpoint",
                                                           "integrate", "Integrate"]}
@@ -950,7 +963,8 @@
                                                  "minItems": 2, "maxItems": 2}]},
                                             "interpolation": {"type": "string",
                                                               "enum": ["linear", "Linear",
-                                                                       "step", "Step"]},
+                                                                       "step", "Step",
+                                                                       "pchip", "PCHIP"]},
                                             "averaging": {"type": "string",
                                                           "enum": ["endpoint", "Endpoint",
                                                                    "integrate", "Integrate"]}
@@ -981,7 +995,8 @@
                                           "minItems": 2, "maxItems": 2}]},
                                      "interpolation": {"type": "string",
                                                        "enum": ["linear", "Linear",
-                                                                "step", "Step"]},
+                                                                "step", "Step",
+                                                                "pchip", "PCHIP"]},
                                      "averaging": {"type": "string",
                                                    "enum": ["endpoint", "Endpoint",
                                                             "integrate", "Integrate"]}
@@ -1022,7 +1037,8 @@
                                                         "minItems": 2, "maxItems": 2}}]},
                                          "interpolation": {"type": "string",
                                                            "enum": ["linear", "Linear",
-                                                                    "step", "Step"]},
+                                                                    "step", "Step",
+                                                                    "pchip", "PCHIP"]},
                                          "averaging": {"type": "string",
                                                        "enum": ["endpoint", "Endpoint",
                                                                 "integrate", "Integrate"]}
@@ -1046,7 +1062,8 @@
                                                         "minItems": 2, "maxItems": 2}}]},
                                          "interpolation": {"type": "string",
                                                            "enum": ["linear", "Linear",
-                                                                    "step", "Step"]},
+                                                                    "step", "Step",
+                                                                    "pchip", "PCHIP"]},
                                          "averaging": {"type": "string",
                                                        "enum": ["endpoint", "Endpoint",
                                                                 "integrate", "Integrate"]}
@@ -1076,7 +1093,8 @@
                                                         "minItems": 2, "maxItems": 2}}]},
                                          "interpolation": {"type": "string",
                                                            "enum": ["linear", "Linear",
-                                                                    "step", "Step"]},
+                                                                    "step", "Step",
+                                                                    "pchip", "PCHIP"]},
                                          "averaging": {"type": "string",
                                                        "enum": ["endpoint", "Endpoint",
                                                                 "integrate", "Integrate"]}
@@ -1100,7 +1118,8 @@
                                                         "minItems": 2, "maxItems": 2}}]},
                                          "interpolation": {"type": "string",
                                                            "enum": ["linear", "Linear",
-                                                                    "step", "Step"]},
+                                                                    "step", "Step",
+                                                                    "pchip", "PCHIP"]},
                                          "averaging": {"type": "string",
                                                        "enum": ["endpoint", "Endpoint",
                                                                 "integrate", "Integrate"]}
