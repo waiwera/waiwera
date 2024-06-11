@@ -77,7 +77,7 @@ module source_control_module
 
   type, public, extends(object_control_type) :: pressure_reference_source_control_type
      private
-     type(interpolation_table_type), public :: reference_pressure !! Reference pressure vs. time
+     class(interpolation_table_type), allocatable, public :: reference_pressure !! Reference pressure vs. time
      PetscReal :: time !! Time
      PetscReal :: interval(2) !! Time interval
      PetscReal, pointer, contiguous :: local_fluid_data(:)
@@ -95,7 +95,7 @@ module source_control_module
      !! Controls a source on deliverability.
      private
      PetscInt, public :: pressure_table_coordinate !! Coordinate variable of pressure table
-     type(interpolation_table_type), public :: productivity !! Productivity index vs. time
+     class(interpolation_table_type), allocatable, public :: productivity !! Productivity index vs. time
      PetscReal, public :: threshold !! Pressure threshold below which deliverability is switched on (< 0 for always on)
      PetscReal, public :: threshold_productivity !! Productivity index computed from flow rate and used when pressure drops below threshold
    contains
@@ -112,7 +112,7 @@ module source_control_module
        recharge_source_control_type
      !! Controls a source simulating recharge through a model boundary.
      private
-     type(interpolation_table_type), public :: coefficient !! Recharge coefficient vs. time
+     class(interpolation_table_type), allocatable, public :: coefficient !! Recharge coefficient vs. time
    contains
      private
      procedure, public :: init => recharge_source_control_init
@@ -309,6 +309,7 @@ contains
 
     call self%objects%destroy()
     call self%reference_pressure%destroy()
+    deallocate(self%reference_pressure)
     self%local_fluid_data => null()
     self%local_fluid_section => null()
 
@@ -332,10 +333,19 @@ contains
     PetscReal, intent(in) :: threshold
 
     self%objects = objects
-    call self%productivity%init(productivity_data, &
-         interpolation_type, averaging_type)
+
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%reference_pressure)
+       allocate(interpolation_table_step_type :: self%productivity)
+    case default
+       allocate(interpolation_table_type :: self%reference_pressure)
+       allocate(interpolation_table_type :: self%productivity)
+    end select
+
+    call self%productivity%init(productivity_data, averaging_type)
     call self%reference_pressure%init(reference_pressure_data, &
-         interpolation_type, averaging_type)
+         averaging_type)
     self%pressure_table_coordinate = pressure_table_coordinate
     self%threshold = threshold
 
@@ -498,6 +508,7 @@ contains
 
     call self%pressure_reference_source_control_type%destroy()
     call self%productivity%destroy()
+    deallocate(self%productivity)
 
   end subroutine deliverability_source_control_destroy
   
@@ -516,10 +527,19 @@ contains
     PetscReal, intent(in) :: reference_pressure_data(:,:)
 
     self%objects = objects
-    call self%coefficient%init(recharge_data, &
-         interpolation_type, averaging_type)
+
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%reference_pressure)
+       allocate(interpolation_table_step_type :: self%coefficient)
+    case default
+       allocate(interpolation_table_type :: self%reference_pressure)
+       allocate(interpolation_table_type :: self%coefficient)
+    end select
+
+    call self%coefficient%init(recharge_data, averaging_type)
     call self%reference_pressure%init(reference_pressure_data, &
-         interpolation_type, averaging_type)
+         averaging_type)
 
   end subroutine recharge_source_control_init
 
@@ -559,6 +579,7 @@ contains
 
     call self%pressure_reference_source_control_type%destroy()
     call self%coefficient%destroy()
+    deallocate(self%coefficient)
 
   end subroutine recharge_source_control_destroy
 

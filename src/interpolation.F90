@@ -49,7 +49,7 @@ module interpolation_module
   end type interpolation_coordinate_type
 
   type, public :: interpolation_table_type
-     !! Interpolation table type.
+     !! Interpolation table type, with default linear interpolation.
      private
      type(interpolation_coordinate_type), public :: coord !! Data coordinates
      PetscReal, allocatable, public :: val(:,:) !! Data values
@@ -57,18 +57,15 @@ module interpolation_module
      PetscInt, public :: interpolation_type !! Interpolation type
      PetscInt, public :: averaging_type !! Averaging type
      PetscBool, public :: continuous !! Whether interpolant is continuous or not
-     procedure(interpolation_function), pointer, nopass, public :: interpolant
-     procedure(inverse_interpolation_function), pointer, nopass, public :: inverse_interpolant
      procedure(averaging_function), pointer, public :: average_array_internal
    contains
      private
      procedure :: interpolation_table_init
      procedure :: interpolation_table_init_default_averaging
-     procedure :: interpolation_table_init_default_all
      generic, public :: init => interpolation_table_init, &
-          interpolation_table_init_default_averaging, &
-          interpolation_table_init_default_all
-     procedure, public :: set_interpolation_type => interpolation_table_set_interpolation_type
+          interpolation_table_init_default_averaging
+     procedure, public :: interpolant => interpolation_table_linear_interpolant
+     procedure, public :: inverse_interpolant => interpolation_table_linear_inverse_interpolant
      procedure, public :: set_averaging_type => interpolation_table_set_averaging_type
      procedure, public :: destroy => interpolation_table_destroy
      procedure, public :: interpolate_at_index => interpolation_table_interpolate_at_index
@@ -87,26 +84,20 @@ module interpolation_module
      generic, public :: average => average_array, average_component
   end type interpolation_table_type
 
+  type, public :: pinterpolation_table_type
+     !! Pointer to interpolation table.
+     class(interpolation_table_type), pointer, public :: ptr
+  end type pinterpolation_table_type
+
+  type, public, extends(interpolation_table_type) :: interpolation_table_step_type
+     !! Step (piecewise constant) interpolation table
+   contains
+     procedure, public :: interpolation_table_init => interpolation_table_step_init
+     procedure, public :: interpolant => interpolation_table_step_interpolant
+     procedure, public :: inverse_interpolant => interpolation_table_step_inverse_interpolant
+  end type interpolation_table_step_type
+
   interface
-
-     function interpolation_function(coord, val, x, dim, index)
-       !! Function for interpolating value array at a given coordinate
-       !! value x between index and index + 1.
-       PetscReal, intent(in) :: coord(:), val(:,:)
-       PetscReal, intent(in) :: x
-       PetscInt, intent(in) :: dim, index
-       PetscReal :: interpolation_function(dim)
-     end function interpolation_function
-
-     subroutine inverse_interpolation_function(coord, val, y, index, &
-          component, x, err)
-       !! Routine for inverting interpolation function.
-       PetscReal, intent(in) :: coord(:), val(:,:)
-       PetscReal, intent(in) :: y
-       PetscInt, intent(in) :: index, component
-       PetscReal, intent(out) :: x
-       PetscErrorCode, intent(out) :: err
-     end subroutine inverse_interpolation_function
 
      function averaging_function(self, interval)
        !! Function for averaging data value array over a given x
@@ -156,73 +147,6 @@ contains
     end select
 
   end function averaging_type_from_str
-
-
-!------------------------------------------------------------------------
-! Interpolation functions:
-!------------------------------------------------------------------------
-
-  function interpolant_linear(coord, val, x, dim, index) result(y)
-    !! Linear interpolation function.
-
-    PetscReal, intent(in) :: coord(:), val(:,:)
-    PetscReal, intent(in) :: x
-    PetscInt, intent(in) :: dim, index
-    PetscReal :: y(dim)
-    ! Locals:
-    PetscReal :: xi
-
-    xi = (x - coord(index)) / (coord(index + 1) - coord(index))
-    y = (1._dp - xi) * val(:, index) + xi * val(:, index + 1)
-
-  end function interpolant_linear
-
-!------------------------------------------------------------------------
-
-  subroutine inverse_interpolant_linear(coord, val, y, index, &
-       component, x, err)
-    !! Routine for inverting linear interpolation function. Values are
-    !! normalised before inverting.
-
-    PetscReal, intent(in) :: coord(:), val(:,:)
-    PetscReal, intent(in) :: y
-    PetscInt, intent(in) :: index, component
-    PetscReal, intent(out) :: x
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: xi, vmax, vs(2), ys
-    PetscReal, parameter :: tol = 1.e-8_dp
-
-    err = 0
-
-    associate(v => val(component, index : index + 1))
-      vmax = max(abs(v(1)), abs(v(2)))
-      if (abs(v(2) - v(1)) >= tol * vmax) then
-         vs = v / vmax
-         ys = y / vmax
-         xi = (ys - vs(1)) / (vs(2) - vs(1))
-         x = (1._dp - xi) * coord(index) + xi * coord(index + 1)
-      else
-         err = 1
-      end if
-    end associate
-
-  end subroutine inverse_interpolant_linear
-
-!------------------------------------------------------------------------
-
-  function interpolant_step(coord, val, x, dim, index) result(y)
-    !! Piecewise constant step interpolation function, with constant
-    !! value set to the data value at index.
-
-    PetscReal, intent(in) :: coord(:), val(:,:)
-    PetscReal, intent(in) :: x
-    PetscInt, intent(in) :: dim, index
-    PetscReal :: y(dim)
-
-    y = val(:, index)
-
-  end function interpolant_step
 
 !------------------------------------------------------------------------
 ! interpolation_coordinate_type:
@@ -362,8 +286,7 @@ contains
 ! interpolation_table_type:  
 !------------------------------------------------------------------------
   
-  subroutine interpolation_table_init(self, array, interpolation_type, &
-       averaging_type)
+  subroutine interpolation_table_init(self, array, averaging_type)
     !! Initialises interpolation table.  The values of array(:, 1) are
     !! the x coordinate values to interpolate between, while
     !! array(:, 2:) are the corresponding data values. The array is
@@ -373,7 +296,6 @@ contains
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
-    PetscInt, intent(in) :: interpolation_type
     PetscInt, intent(in) :: averaging_type
     ! Locals:
     PetscInt :: n(2), i
@@ -402,59 +324,21 @@ contains
     allocate(self%val(self%dim, n(1)))
     self%val = transpose(sorted_array(:, 2:))
     deallocate(sorted_array)
-    call self%set_interpolation_type(interpolation_type)
+    self%interpolation_type = INTERP_LINEAR
     call self%set_averaging_type(averaging_type)
+    self%continuous = PETSC_TRUE
 
   end subroutine interpolation_table_init
 
-  subroutine interpolation_table_init_default_averaging(self, array, &
-       interpolation_type)
+  subroutine interpolation_table_init_default_averaging(self, array)
     !! Initialises with default endpoint averaging.
 
     class(interpolation_table_type), intent(in out) :: self
     PetscReal, intent(in) :: array(:,:)
-    PetscInt, intent(in) :: interpolation_type
 
-    call self%init(array, interpolation_type, INTERP_AVERAGING_ENDPOINT)
+    call self%init(array, INTERP_AVERAGING_ENDPOINT)
 
   end subroutine interpolation_table_init_default_averaging
-
-  subroutine interpolation_table_init_default_all(self, array)
-    !! Initialises with default linear interpolation and endpoint averaging.
-
-    class(interpolation_table_type), intent(in out) :: self
-    PetscReal, intent(in) :: array(:,:)
-
-    call self%init(array, INTERP_LINEAR, INTERP_AVERAGING_ENDPOINT)
-
-  end subroutine interpolation_table_init_default_all
-
-!------------------------------------------------------------------------
-
-  subroutine interpolation_table_set_interpolation_type(self, interpolation_type)
-    !! Sets interpolation function for the table.
-
-    class(interpolation_table_type), intent(in out) :: self
-    PetscInt, intent(in) :: interpolation_type
-
-    self%interpolation_type = interpolation_type
-
-    select case (interpolation_type)
-    case (INTERP_LINEAR)
-       self%interpolant => interpolant_linear
-       self%inverse_interpolant => inverse_interpolant_linear
-       self%continuous = PETSC_TRUE
-    case (INTERP_STEP)
-       self%interpolant => interpolant_step
-       self%inverse_interpolant => null()
-       self%continuous = PETSC_FALSE
-    case default
-       self%interpolant => interpolant_linear
-       self%inverse_interpolant => inverse_interpolant_linear
-       self%continuous = PETSC_TRUE
-    end select
-
-  end subroutine interpolation_table_set_interpolation_type
 
 !------------------------------------------------------------------------
 
@@ -476,6 +360,57 @@ contains
     end select
 
   end subroutine interpolation_table_set_averaging_type
+
+!------------------------------------------------------------------------
+
+  function interpolation_table_linear_interpolant(self, x) result(y)
+    !! Piecewise linear interpolant.
+
+    class(interpolation_table_type), intent(in) :: self
+    PetscReal, intent(in) :: x
+    PetscReal :: y(self%dim)
+    ! Locals:
+    PetscReal :: xi
+
+    associate(xv => self%coord%val(self%coord%index: self%coord%index + 1), &
+         v => self%val(:, self%coord%index: self%coord%index + 1))
+      xi = (x - xv(1)) / (xv(2) - xv(1))
+      y = (1._dp - xi) * v(:, 1) + xi * v(:, 2)
+    end associate
+
+  end function interpolation_table_linear_interpolant
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_linear_inverse_interpolant(self, y, &
+       component, x, err)
+    !! Piecewise linear inverse interpolant.
+
+    class(interpolation_table_type), intent(in) :: self
+    PetscReal, intent(in) :: y
+    PetscInt, intent(in) :: component
+    PetscReal, intent(out) :: x
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: xi, vmax, vs(2), ys
+    PetscReal, parameter :: tol = 1.e-8_dp
+
+    err = 0
+
+    associate(xv => self%coord%val(self%coord%index: self%coord%index + 1), &
+         v => self%val(component, self%coord%index : self%coord%index + 1))
+      vmax = max(abs(v(1)), abs(v(2)))
+      if (abs(v(2) - v(1)) >= tol * vmax) then
+         vs = v / vmax
+         ys = y / vmax
+         xi = (ys - vs(1)) / (vs(2) - vs(1))
+         x = (1._dp - xi) * xv(1) + xi * xv(2)
+      else
+         err = 1
+      end if
+    end associate
+
+  end subroutine interpolation_table_linear_inverse_interpolant
 
 !------------------------------------------------------------------------
 
@@ -504,8 +439,7 @@ contains
     else if (self%coord%index >= self%coord%size) then
        y = self%val(:, self%coord%size)
     else
-       y = self%interpolant(self%coord%val, self%val, x, self%dim, &
-            self%coord%index)
+       y = self%interpolant(x)
     end if
 
   end function interpolation_table_interpolate_at_index
@@ -576,8 +510,7 @@ contains
          (self%coord%index >= self%coord%size)) then
        err = 1
     else
-       call self%inverse_interpolant(self%coord%val, self%val, &
-            yi, self%coord%index, component, x, err)
+       call self%inverse_interpolant(yi, component, x, err)
     end if
 
   end subroutine interpolation_table_find_component_at_index
@@ -707,6 +640,53 @@ contains
     yi = y(index)
 
   end function interpolation_table_average_component
+
+!------------------------------------------------------------------------
+! Step interpolation
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_step_init(self, array, averaging_type)
+    !! Initialises piecewise constant interpolation table.
+
+    class(interpolation_table_step_type), intent(in out) :: self
+    PetscReal, intent(in) :: array(:,:)
+    PetscInt, intent(in) :: averaging_type
+
+    call self%interpolation_table_type%init(array, averaging_type)
+    self%interpolation_type = INTERP_STEP
+    self%continuous = PETSC_FALSE
+
+  end subroutine interpolation_table_step_init
+
+!------------------------------------------------------------------------
+
+  function interpolation_table_step_interpolant(self, x) result(y)
+    !! Piecewise constant interpolant.
+
+    class(interpolation_table_step_type), intent(in) :: self
+    PetscReal, intent(in) :: x
+    PetscReal :: y(self%dim)
+
+    y = self%val(:, self%coord%index)
+
+  end function interpolation_table_step_interpolant
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_step_inverse_interpolant(self, y, &
+       component, x, err)
+    !! Piecewise constant inverse interpolant (undefined).
+
+    class(interpolation_table_step_type), intent(in) :: self
+    PetscReal, intent(in) :: y
+    PetscInt, intent(in) :: component
+    PetscReal, intent(out) :: x
+    PetscErrorCode, intent(out) :: err
+
+    x = 0._dp
+    err = 1
+
+  end subroutine interpolation_table_step_inverse_interpolant
 
 !------------------------------------------------------------------------
   

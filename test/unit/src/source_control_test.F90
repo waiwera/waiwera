@@ -561,10 +561,10 @@ contains
       type is (limiter_table_source_network_control_type)
          select case (source_control%flow_type(1))
             case (SEPARATED_FLOW_TYPE_TOTAL)
-               call test%assert(10._dp, source_control%table(1)%average(interval, 1), &
+               call test%assert(10._dp, source_control%table(1)%ptr%average(interval, 1), &
                     "total limiter limit")
             case (SEPARATED_FLOW_TYPE_STEAM)
-               call test%assert(5._dp, source_control%table(1)%average(interval, 1), &
+               call test%assert(5._dp, source_control%table(1)%ptr%average(interval, 1), &
                     "steam limiter limit")
             end select
       end select

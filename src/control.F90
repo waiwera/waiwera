@@ -61,7 +61,7 @@ module control_module
      !! Controls object parameters using an interpolation table of
      !! time-dependent values.
      private
-     type(interpolation_table_type), public :: table !! Table of values vs. time
+     class(interpolation_table_type), allocatable, public :: table !! Table of values vs. time
      PetscReal, allocatable, public :: value(:) !! Interpolated value
    contains
      private
@@ -76,7 +76,7 @@ module control_module
      !! time-dependent values.
      private
      PetscInt, public :: num_tables !! Number of interpolation tables
-     type(interpolation_table_type), allocatable, public :: table(:) !! Tables of values vs. time
+     type(pinterpolation_table_type), allocatable, public :: table(:) !! Pointers to Tables of values vs. time
      PetscReal, allocatable, public :: value(:) !! Interpolated scalar values for each table
    contains
      private
@@ -101,7 +101,7 @@ module control_module
      !! Controls vector values using an interpolation table of
      !! time-dependent values.
      private
-     type(interpolation_table_type), public :: table !! Table of values vs. time
+     class(interpolation_table_type), allocatable, public :: table !! Table of values vs. time
    contains
      private
      procedure, public :: init => table_vector_control_init
@@ -231,7 +231,13 @@ contains
     PetscInt, intent(in) :: averaging_type
 
     self%objects = objects
-    call self%table%init(data, interpolation_type, averaging_type)
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%table)
+    case default
+       allocate(interpolation_table_type :: self%table)
+    end select
+    call self%table%init(data, averaging_type)
     allocate(self%value(self%table%dim))
 
   end subroutine table_object_control_init
@@ -285,6 +291,7 @@ contains
     call self%objects%destroy()
     if (allocated(self%value)) deallocate(self%value)
     call self%table%destroy()
+    deallocate(self%table)
 
   end subroutine table_object_control_destroy
 
@@ -318,7 +325,14 @@ contains
     PetscInt, intent(in) :: interpolation_type !! Table interpolation type
     PetscInt, intent(in) :: averaging_type !! Table averaging type
 
-    call self%table(index)%init(data, interpolation_type, averaging_type)
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%table(index)%ptr)
+    case default
+       allocate(interpolation_table_type :: self%table(index)%ptr)
+    end select
+
+    call self%table(index)%ptr%init(data, averaging_type)
 
   end subroutine multi_table_object_control_init_table
 
@@ -349,7 +363,7 @@ contains
     PetscInt :: i
 
     do i = 1, self%num_tables
-       self%value(i) = self%table(i)%average(interval, 1)
+       self%value(i) = self%table(i)%ptr%average(interval, 1)
     end do
     call self%objects%traverse(iterator)
 
@@ -379,7 +393,8 @@ contains
     if (allocated(self%value)) deallocate(self%value)
     if (allocated(self%table)) then
        do i = 1, self%num_tables
-          call self%table(i)%destroy()
+          call self%table(i)%ptr%destroy()
+          deallocate(self%table(i)%ptr)
        end do
        deallocate(self%table)
     end if
@@ -399,7 +414,13 @@ contains
     PetscInt, intent(in) :: indices(:) !! Vector indices
     PetscInt, intent(in) :: interpolation_type !! Interpolation type for data
 
-    call self%table%init(data, interpolation_type)
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%table)
+    case default
+       allocate(interpolation_table_type :: self%table)
+    end select
+    call self%table%init(data)
     self%indices = indices
 
   end subroutine table_vector_control_init
@@ -429,6 +450,7 @@ contains
 
     if (allocated(self%indices)) deallocate(self%indices)
     call self%table%destroy()
+    deallocate(self%table)
 
   end subroutine table_vector_control_destroy
 

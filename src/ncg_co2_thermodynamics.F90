@@ -63,7 +63,7 @@ contains
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
     self%num_constituents = 1
-    call self%viscosity_table%init(viscosity_data, err)
+    call self%viscosity_table%init(viscosity_data)
     self%henry_derivative_data = polynomial_derivative(henry_data)
     self%henry_salt_derivative_data = polynomial_derivative(henry_salt_data)
 

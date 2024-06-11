@@ -151,14 +151,14 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    type(interpolation_table_type) :: table
+    type(interpolation_table_step_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data5, INTERP_STEP)
+       call table%init(data5)
 
        call test%assert(1._dp, table%interpolate(-0.5_dp, 1), "-0.5")
        call test%assert(.not. table%continuous, "continuous")
@@ -228,7 +228,7 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    type(interpolation_table_type) :: table
+    type(interpolation_table_step_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -236,7 +236,7 @@ contains
 
     if (rank == 0) then
 
-       call table%init(data5, INTERP_STEP)
+       call table%init(data5)
 
        call test%assert(1._dp, table%average([-0.5_dp, -0.1_dp], 1), "[-0.5, -0.1]")
 
@@ -273,7 +273,7 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call table%init(data5, INTERP_LINEAR, INTERP_AVERAGING_INTEGRATE)
+       call table%init(data5, INTERP_AVERAGING_INTEGRATE)
 
        call test%assert(1._dp, table%average([-0.5_dp, -0.1_dp], 1), "[-0.5, -0.1]")
 
@@ -305,7 +305,7 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    type(interpolation_table_type) :: table
+    type(interpolation_table_step_type) :: table
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -313,7 +313,7 @@ contains
 
     if (rank == 0) then
 
-       call table%init(data5, INTERP_STEP, INTERP_AVERAGING_INTEGRATE)
+       call table%init(data5, INTERP_AVERAGING_INTEGRATE)
 
        call test%assert(1._dp, table%average([-0.5_dp, -0.1_dp], 1), "[-0.5, -0.1]")
 
