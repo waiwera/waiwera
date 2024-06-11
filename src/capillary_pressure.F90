@@ -365,7 +365,7 @@ contains
     class(capillary_pressure_table_type), intent(in out) :: self
 
     call self%pressure%destroy()
-    call deallocate(self%pressure)
+    deallocate(self%pressure)
 
   end subroutine capillary_pressure_table_destroy
 
