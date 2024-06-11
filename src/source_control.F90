@@ -338,6 +338,9 @@ contains
     case (INTERP_STEP)
        allocate(interpolation_table_step_type :: self%reference_pressure)
        allocate(interpolation_table_step_type :: self%productivity)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%reference_pressure)
+       allocate(interpolation_table_pchip_type :: self%productivity)
     case default
        allocate(interpolation_table_type :: self%reference_pressure)
        allocate(interpolation_table_type :: self%productivity)

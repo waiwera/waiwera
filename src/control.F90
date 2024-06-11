@@ -234,6 +234,8 @@ contains
     select case (interpolation_type)
     case (INTERP_STEP)
        allocate(interpolation_table_step_type :: self%table)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%table)
     case default
        allocate(interpolation_table_type :: self%table)
     end select
@@ -328,6 +330,8 @@ contains
     select case (interpolation_type)
     case (INTERP_STEP)
        allocate(interpolation_table_step_type :: self%table(index)%ptr)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%table(index)%ptr)
     case default
        allocate(interpolation_table_type :: self%table(index)%ptr)
     end select
@@ -417,6 +421,8 @@ contains
     select case (interpolation_type)
     case (INTERP_STEP)
        allocate(interpolation_table_step_type :: self%table)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%table)
     case default
        allocate(interpolation_table_type :: self%table)
     end select
