@@ -123,8 +123,8 @@ module relative_permeability_module
        relative_permeability_table_type
      !! Piecewise linear table relative permeability curves.
      private
-     type(interpolation_table_type), public :: liquid
-     type(interpolation_table_type), public :: vapour
+     class(interpolation_table_type), allocatable, public :: liquid
+     class(interpolation_table_type), allocatable :: vapour
    contains
      procedure, public :: init => relative_permeability_table_init
      procedure, public :: values => relative_permeability_table_values
@@ -508,6 +508,8 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, allocatable :: liquid_array(:,:), vapour_array(:,:)
+    character(max_interpolation_str_length) :: interpolation_str
+    PetscInt :: interpolation_type
     PetscReal, parameter :: default_liquid_array(2, 2) = reshape( &
          [0._dp, 1._dp, 0._dp, 1._dp], [2, 2])
     PetscReal, parameter :: default_vapour_array(2, 2) = reshape( &
@@ -519,6 +521,21 @@ contains
          liquid_array, logfile, "rock.relative_permeability.liquid")
     call fson_get_mpi(json, "vapour", default_vapour_array, &
          vapour_array, logfile, "rock.relative_permeability.vapour")
+    call fson_get_mpi(json, "interpolation", &
+         default_interpolation_str, interpolation_str)
+    interpolation_type = interpolation_type_from_str(interpolation_str)
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%liquid)
+       allocate(interpolation_table_step_type :: self%vapour)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%liquid)
+       allocate(interpolation_table_pchip_type :: self%vapour)
+    case default
+       allocate(interpolation_table_type :: self%liquid)
+       allocate(interpolation_table_type :: self%vapour)
+    end select
+
     call self%liquid%init(liquid_array)
     call self%vapour%init(vapour_array)
     deallocate(liquid_array, vapour_array)
@@ -548,7 +565,9 @@ contains
     class(relative_permeability_table_type), intent(in out) :: self
 
     call self%liquid%destroy()
+    deallocate(self%liquid)
     call self%vapour%destroy()
+    deallocate(self%vapour)
 
   end subroutine relative_permeability_table_destroy
 

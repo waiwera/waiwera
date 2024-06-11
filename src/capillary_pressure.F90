@@ -88,7 +88,7 @@ module capillary_pressure_module
        capillary_pressure_table_type
      !! Table capillary pressure function.
      private
-     type(interpolation_table_type), public :: pressure
+     class(interpolation_table_type), allocatable, public :: pressure
    contains
      procedure, public :: init => capillary_pressure_table_init
      procedure, public :: value => capillary_pressure_table_value
@@ -319,6 +319,8 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscReal, allocatable :: pressure_array(:,:)
+    character(max_interpolation_str_length) :: interpolation_str
+    PetscInt :: interpolation_type
     PetscReal, parameter :: default_pressure_array(2, 2) = reshape( &
          [0._dp, 1._dp, 0._dp, 0._dp], [2, 2])
 
@@ -326,6 +328,17 @@ contains
 
     call fson_get_mpi(json, "pressure", default_pressure_array, &
          pressure_array, logfile, "rock.capillary_pressure.pressure")
+    call fson_get_mpi(json, "interpolation", &
+         default_interpolation_str, interpolation_str)
+    interpolation_type = interpolation_type_from_str(interpolation_str)
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%pressure)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%pressure)
+    case default
+       allocate(interpolation_table_type :: self%pressure)
+    end select
     call self%pressure%init(pressure_array)
     deallocate(pressure_array)
 
@@ -352,6 +365,7 @@ contains
     class(capillary_pressure_table_type), intent(in out) :: self
 
     call self%pressure%destroy()
+    call deallocate(self%pressure)
 
   end subroutine capillary_pressure_table_destroy
 
