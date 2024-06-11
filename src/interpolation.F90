@@ -26,7 +26,7 @@ module interpolation_module
   implicit none
   private
 
-  PetscInt, parameter, public :: INTERP_LINEAR = 0, INTERP_STEP = 1
+  PetscInt, parameter, public :: INTERP_LINEAR = 0, INTERP_STEP = 1, INTERP_PCHIP = 2
   PetscInt, parameter, public :: INTERP_AVERAGING_ENDPOINT = 0, &
        INTERP_AVERAGING_INTEGRATE = 1
   PetscInt, parameter, public :: max_interpolation_str_length = 16
@@ -97,6 +97,18 @@ module interpolation_module
      procedure, public :: inverse_interpolant => interpolation_table_step_inverse_interpolant
   end type interpolation_table_step_type
 
+  type, public, extends(interpolation_table_type) :: interpolation_table_pchip_type
+     !! PCHIP (Piecewise Cubic Hermite Interpolation Polynomial) interpolation table
+     private
+     PetscReal, allocatable :: deriv(:,:) !! Derivatives array for each dimension
+   contains
+     procedure :: get_derivatives => interpolation_table_pchip_get_derivatives
+     procedure, public :: interpolation_table_init => interpolation_table_pchip_init
+     procedure, public :: interpolant => interpolation_table_pchip_interpolant
+     procedure, public :: inverse_interpolant => interpolation_table_pchip_inverse_interpolant
+     procedure, public :: destroy => interpolation_table_pchip_destroy
+  end type interpolation_table_pchip_type
+
   interface
 
      function averaging_function(self, interval)
@@ -127,6 +139,8 @@ contains
        interpolation_type = INTERP_LINEAR
     case ("step")
        interpolation_type = INTERP_STEP
+    case ("pchip")
+       interpolation_type = INTERP_PCHIP
     end select
 
   end function interpolation_type_from_str
@@ -687,6 +701,233 @@ contains
     err = 1
 
   end subroutine interpolation_table_step_inverse_interpolant
+
+!------------------------------------------------------------------------
+! PCHIP (Piecewise Cubic Hermite Interpolation Polynomial) interpolation
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_pchip_get_derivatives(self)
+    !! Gets PCHIP derivatives arrays for each data dimension.
+
+    ! Adapted from routines originally in the public-domain SLATEC
+    ! library (https://www.netlib.org/slatec/pchip/) and translated
+    ! into modern Fortran in:
+
+    ! PCHIP: Piecewise Cubic Hermite Interpolation Package
+    ! https://github.com/jacobwilliams/PCHIP
+
+    ! Copyright (c) 2019-2024, Jacob Williams
+    ! All rights reserved.
+
+    ! Redistribution and use in source and binary forms, with or without modification,
+    ! are permitted provided that the following conditions are met:
+
+    ! * Redistributions of source code must retain the above copyright notice, this
+    !   list of conditions and the following disclaimer.
+
+    ! * Redistributions in binary form must reproduce the above copyright notice, this
+    !   list of conditions and the following disclaimer in the documentation and/or
+    !   other materials provided with the distribution.
+
+    ! * The names of its contributors may not be used to endorse or promote products
+    !   derived from this software without specific prior written permission.
+
+    ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ! ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    ! WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    ! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+    ! ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    ! (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    ! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+    ! ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    ! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    ! SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+    ! Locals:
+    PetscInt :: c
+
+    allocate(self%deriv(self%dim, self%coord%size))
+
+    do c = 1, self%dim
+       call pchip_deriv(self%coord%val, self%val(c, :), self%deriv(c, :))
+    end do
+
+  contains
+
+!........................................................................
+
+    PetscInt function sign_test(a, b)
+      !! Return -1 if a and b are of opposite sign, 0 if either argument
+      !! is zero or 1 if a, b are of the same sign.
+
+      PetscReal, intent(in) :: a, b
+      ! Locals:
+      PetscReal, parameter :: tol = 1.e-16_dp
+
+      if ((abs(a) < tol) .or. (abs(b) < tol)) then
+         sign_test = 0
+      else
+         sign_test = int(sign(1._dp, a)) * int(sign(1._dp, b))
+      end if
+
+    end function sign_test
+
+!........................................................................
+
+    subroutine pchip_deriv(x, f, d)
+
+      PetscReal, intent(in) :: x(:), f(:)
+      PetscReal, intent(out) :: d(:)
+      ! Locals:
+      integer :: n, i, s
+      PetscReal :: h1, h2, del1, del2, drat1, drat2
+      PetscReal :: hsum, w1, w2, dmin, dmax
+
+      n = size(x)
+
+      if (n == 1) then
+         d = 0._dp ! constant
+      else
+         h1 = x(2) - x(1)
+         del1 = (f(2) - f(1)) / h1
+
+         if (n == 2) then
+            d = del1 ! linear
+         else
+            ! n >= 3:
+            h2 = x(3) - x(2)
+            del2 = (f(3) - f(2)) / h2
+
+            hsum = h1 + h2
+            w1 = (h1 + hsum) / hsum
+            w2 = -h1 / hsum
+            d(1) = w1 * del1 + w2 * del2
+            if (sign_test(d(1), del1) <= 0) then
+               d(1) = 0._dp
+            else if (sign_test(del1, del2) < 0) then
+               dmax = 3._dp * del1
+               if (abs(d(1)) > abs(dmax))  d(1) = dmax
+            end if
+
+            do i = 2, n - 1
+
+               if (i > 2) then
+                  h1 = h2
+                  h2 = x(i + 1) - x(i)
+                  hsum = h1 + h2
+                  del1 = del2
+                  del2 = (f(i+1) - f(i)) / h2
+               end if
+
+               s = sign_test(del1, del2)
+               if (s > 0) then
+                  w1 = (hsum + h1) / (3._dp * hsum)
+                  w2 = (hsum + h2) / (3._dp * hsum)
+                  dmax = max(abs(del1), abs(del2))
+                  dmin = min(abs(del1), abs(del2))
+                  drat1 = del1 / dmax
+                  drat2 = del2 / dmax
+                  d(i) = dmin / (w1 * drat1 + w2 * drat2)
+               else
+                  d(i) = 0._dp
+               end if
+
+            end do
+
+            w1 = -h2 / hsum
+            w2 = (h2 + hsum) / hsum
+            d(n) = w1 * del1 + w2 * del2
+            if (sign_test(d(n), del2) <= 0) then
+               d(n) = 0._dp
+            else if (sign_test(del1, del2) < 0) then
+               dmax = 3._dp * del2
+               if (abs(d(n)) > abs(dmax)) d(n) = dmax
+            end if
+
+         end if
+      end if
+
+    end subroutine pchip_deriv
+
+  end subroutine interpolation_table_pchip_get_derivatives
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_pchip_init(self, array, averaging_type)
+    !! Initialises PCHIP interpolation table.
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+    PetscReal, intent(in) :: array(:,:)
+    PetscInt, intent(in) :: averaging_type
+
+    call self%interpolation_table_type%init(array, averaging_type)
+    self%interpolation_type = INTERP_PCHIP
+    call self%get_derivatives()
+
+  end subroutine interpolation_table_pchip_init
+
+!------------------------------------------------------------------------
+
+  function interpolation_table_pchip_interpolant(self, x) result(y)
+    !! PCHIP interpolant.
+
+    class(interpolation_table_pchip_type), intent(in) :: self
+    PetscReal, intent(in) :: x
+    PetscReal :: y(self%dim)
+    ! Locals:
+    PetscInt :: c
+    PetscReal :: h, dx, delta, del1, del2, c2, c3
+
+    associate(xv => self%coord%val(self%coord%index: self%coord%index + 1))
+
+      h = xv(2) - xv(1)
+      dx = x - xv(1)
+
+      do c = 1, self%dim
+         associate(v => self%val(c, self%coord%index: self%coord%index + 1), &
+              d => self%deriv(c, self%coord%index: self%coord%index + 1))
+           delta = (v(2) - v(1)) / h
+           del1 = (d(1) - delta) / h
+           del2 = (d(2) - delta)  / h
+           c2 = -(2._dp * del1 + del2)
+           c3 = (del1 + del2) / h
+           y(c) = v(1) + dx * (d(1) + dx * (c2 + dx * c3))
+         end associate
+      end do
+
+    end associate
+
+  end function interpolation_table_pchip_interpolant
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_pchip_inverse_interpolant(self, y, &
+       component, x, err)
+    !! PCHIP inverse interpolant (undefined).
+
+    class(interpolation_table_pchip_type), intent(in) :: self
+    PetscReal, intent(in) :: y
+    PetscInt, intent(in) :: component
+    PetscReal, intent(out) :: x
+    PetscErrorCode, intent(out) :: err
+
+    x = 0._dp
+    err = 1
+
+  end subroutine interpolation_table_pchip_inverse_interpolant
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_pchip_destroy(self)
+    !! Destroys PCHIP interpolation table.
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+
+    call self%interpolation_table_type%destroy()
+    deallocate(self%deriv)
+
+  end subroutine interpolation_table_pchip_destroy
 
 !------------------------------------------------------------------------
   
