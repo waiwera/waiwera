@@ -168,7 +168,7 @@ Time-dependent rock permeabilities and porosities may be specified by using tabl
                      [1e10, 2e-15],
                      [3e10, 1e-15]]}
 
-defines a rock type with time-dependent isotropic permeability (reducing from 3 mD to 1 mD) defined by a table of three times. Permeabilities at times in between these values are interpolated using the default linear interpolation (this can be changed using the **"interpolation"** value). In the following example:
+defines a rock type with time-dependent isotropic permeability (reducing from 3 mD to 1 mD) defined by a table of three times. Permeabilities at times in between these values are interpolated using the default linear interpolation (this can be changed using the **"interpolation"** value -- see :ref:`interpolation_tables`). In the following example:
 
 .. code-block:: json
 
@@ -490,7 +490,7 @@ specifies Van Genuchten relative permeability curves with :math:`\lambda = 0.4` 
 
 Table
 -----
-Setting the relative permeability **"type"** value to "table" allows specification of relative permeability curves defined as general piecewise-linear tables. For each phase :math:`p`, the relative permeability curve is specified as a table of :math:`(S_p, k^r_p)` values. In the Waiwera JSON input file these tables take the form of rank-2 arrays (i.e. arrays of arrays), specified via the **"liquid"** and **"vapour"** values.
+Setting the relative permeability **"type"** value to "table" allows specification of relative permeability curves defined as general interpolation tables. For each phase :math:`p`, the relative permeability curve is specified as a table of :math:`(S_p, k^r_p)` values. In the Waiwera JSON input file these tables take the form of rank-2 arrays (i.e. arrays of arrays), specified via the **"liquid"** and **"vapour"** values. The type of interpolation can be specified using the **"interpolation"** value (see :ref:`interpolation_tables`), e.g. piecewise linear or PCHIP (piecewise cubic).
 
 .. admonition:: JSON input
 
@@ -498,19 +498,23 @@ Setting the relative permeability **"type"** value to "table" allows specificati
 
    **JSON path**: rock.relative_permeability
 
-   +------------+------------+---------------+-----------------------------------+
-   |**name**    |**type**    |**default**    |**value**                          |
-   +------------+------------+---------------+-----------------------------------+
-   |"type"      |string      |"table"        |relative permeability curve type   |
-   +------------+------------+---------------+-----------------------------------+
-   |"liquid"    |array       |[[0,0], [1,1]] |table of liquid relative           |
-   |            |            |               |permeability :math:`k_r^1`         |
-   |            |            |               |vs. liquid saturation :math:`S_1`  |
-   +------------+------------+---------------+-----------------------------------+
-   |"vapour"    |array       |[[0,0], [1,1]] |table of vapour relative           |
-   |            |            |               |permeability :math:`k_r^2`         |
-   |            |            |               |vs. vapour saturation :math:`S_2`  |
-   +------------+------------+---------------+-----------------------------------+
+   +---------------+------------+---------------+-----------------------------------+
+   |**name**       |**type**    |**default**    |**value**                          |
+   +---------------+------------+---------------+-----------------------------------+
+   |"type"         |string      |"table"        |relative permeability curve type   |
+   +---------------+------------+---------------+-----------------------------------+
+   |"liquid"       |array       |[[0,0], [1,1]] |table of liquid relative           |
+   |               |            |               |permeability :math:`k_r^1`         |
+   |               |            |               |vs. liquid saturation :math:`S_1`  |
+   +---------------+------------+---------------+-----------------------------------+
+   |"vapour"       |array       |[[0,0], [1,1]] |table of vapour relative           |
+   |               |            |               |permeability :math:`k_r^2`         |
+   |               |            |               |vs. vapour saturation :math:`S_2`  |
+   +---------------+------------+---------------+-----------------------------------+
+   |"interpolation"|string      |"linear"       |interpolation type                 |
+   |               |            |               |                                   |
+   |               |            |               |                                   |
+   +---------------+------------+---------------+-----------------------------------+
 
 For example:
 
@@ -688,7 +692,7 @@ gives the Van Genuchten capillary pressure function with :math:`\lambda = 0.5`, 
 Table
 -----
 
-Setting the capillary pressure **"type"** value to "table" allows specification of a capillary pressure function defined by a general piecewise-linear table. The capillary pressure function is specified as a table of :math:`(S_1, P_c)` values (i.e. capillary pressure vs. liquid saturation). In the Waiwera JSON input file this table takes the form of a rank-2 array (i.e. array of arrays), specified via the **"pressure"** value.
+Setting the capillary pressure **"type"** value to "table" allows specification of a capillary pressure function defined by a general interpolationtable. The capillary pressure function is specified as a table of :math:`(S_1, P_c)` values (i.e. capillary pressure vs. liquid saturation). In the Waiwera JSON input file this table takes the form of a rank-2 array (i.e. array of arrays), specified via the **"pressure"** value. The type of interpolation can be specified using the **"interpolation"** value (see :ref:`interpolation_tables`), e.g. piecewise linear or PCHIP (piecewise cubic).
 
 .. admonition:: JSON input
 
@@ -696,17 +700,21 @@ Setting the capillary pressure **"type"** value to "table" allows specification 
 
    **JSON path**: rock.capillary_pressure
 
-   +------------+------------+---------------+--------------------+
-   |**name**    |**type**    |**default**    |**value**           |
-   +------------+------------+---------------+--------------------+
-   |"type"      |string      |"table"        |capillary pressure  |
-   |            |            |               |function type       |
-   |            |            |               |                    |
-   +------------+------------+---------------+--------------------+
-   |"pressure"  |array       |[[0,0], [1,0]] |table of capillary  |
-   |            |            |               |pressure vs. liquid |
-   |            |            |               |saturation          |
-   +------------+------------+---------------+--------------------+
+   +---------------+------------+---------------+--------------------+
+   |**name**       |**type**    |**default**    |**value**           |
+   +---------------+------------+---------------+--------------------+
+   |"type"         |string      |"table"        |capillary pressure  |
+   |               |            |               |function type       |
+   |               |            |               |                    |
+   +---------------+------------+---------------+--------------------+
+   |"pressure"     |array       |[[0,0], [1,0]] |table of capillary  |
+   |               |            |               |pressure vs. liquid |
+   |               |            |               |saturation          |
+   +---------------+------------+---------------+--------------------+
+   |"interpolation"|string      |"linear"       |interpolation type  |
+   |               |            |               |                    |
+   |               |            |               |                    |
+   +---------------+------------+---------------+--------------------+
 
 If the table does not cover the entire liquid saturation range :math:`0 \le S_1 \le 1`, the values at the limits of the table are used outside the table range.
 
