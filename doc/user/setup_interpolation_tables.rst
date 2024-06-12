@@ -28,10 +28,11 @@ Waiwera provides different options for both interpolation and averaging of tabul
 Interpolation
 =============
 
-Waiwera offers two types of interpolation (see :numref:`interpolation_fig`), depending on how the data are assumed to vary between their tabulated values.
+Waiwera offers three types of interpolation (see :numref:`interpolation_fig`), depending on how the data are assumed to vary between their tabulated values:
 
-* The simplest is **step** interpolation, in which the data are assumed to have a piecewise constant variation. This may be appropriate for quantities which generally remain constant but are adjusted at particular times. The value in between two tabulated times is simply assumed equal to the last tabulated value.
-* The other type is **linear** interpolation, in which the data are assumed to vary linearly between the tabulated values. This is often appropriate for quantities that change continuously, with the tabulated values representing time-series measurements of the quantity over time.
+#. **Step** interpolation, in which the data are assumed to have a simple piecewise constant variation. This may be appropriate for quantities which generally remain constant but are adjusted at particular times. The value in between two tabulated times is simply assumed equal to the last tabulated value.
+#. **Linear** interpolation, in which the data are assumed to vary linearly between the tabulated values. This is often appropriate for quantities that change continuously, with the tabulated values representing time-series measurements of the quantity over time.
+#. **PCHIP** (Piecewise Cubic Hermite Interpolation Polynomial), a method which gives a smooth, differentiable curve between data points, without introducing any local extrema (i.e. oscillations) between them. The PCHIP method was introduced by Fritsch and Carlson (1980) [1]_ and refined by Fritsch and Butland (1984) [2]_.
 
 .. _interpolation_fig:
 .. figure:: interpolation.*
@@ -42,7 +43,7 @@ Waiwera offers two types of interpolation (see :numref:`interpolation_fig`), dep
 
 For points outside the table (i.e. before the first tabulated time or after the last one), the data are extrapolated by assuming a piecewise constant variation, regardless of the interpolation type.
  
-Usually a JSON value containing tabulated data in the Waiwera input file will also have an associated **"interpolation"** string value. This can be set to either **"step"** or **"linear"** to control the interpolation type. If the interpolation type is not specified, linear interpolation is used by default.
+Usually a JSON value containing tabulated data in the Waiwera input file will also have an associated **"interpolation"** string value. This can be set to **"step"**, **"linear"** or **"pchip"** to control the interpolation type. If the interpolation type is not specified, linear interpolation is used by default.
 
 For example:
 
@@ -80,3 +81,6 @@ For example:
    ]}
 
 specifies a source with linear interpolation and the integration averaging method.
+
+.. [1] Fritsch, F.N. and Carlson, R.E. (1980), *Monotone piecewise cubic interpolation*, SIAM Journal on Numerical Analysis 17(2), pp. 238--246.
+.. [2] Fritsch, F.N. and Butland, J. (1984), *A method for constructing local monotone piecewise cubic interpolants*, SIAM Journal on Scientific and Statistical Computing 5(2), pp. 300--304.
