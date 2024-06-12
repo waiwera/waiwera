@@ -57,8 +57,6 @@ contains
     use utils_module, only: polynomial_derivative
     
     class(ncg_co2_thermodynamics_type), intent(in out) :: self
-    ! Locals:
-    PetscErrorCode :: err
 
     self%name = "CO2"
     self%molecular_weight = co2_molecular_weight
