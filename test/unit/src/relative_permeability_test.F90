@@ -285,6 +285,31 @@ contains
 
     call rp%destroy()
 
+    json_str = '{"type": "table", ' // &
+         '"liquid": [[0,0], [0.7, 0.01], [0.95, 0.99], [1,1]], ' // &
+         '"vapour": [[0,0], [0.05, 0.01], [0.3, 0.99], [1,1]], ' // &
+         '"interpolation": "pchip"}'
+
+    json => fson_parse(str = json_str)
+    call rp%init(json)
+    call fson_destroy(json)
+
+    if (rank == 0) then
+
+       call test%assert("table", rp%name, "Name")
+       call relative_permeability_case(test, 0._dp, rp, [0._dp, 1._dp])
+       call relative_permeability_case(test, 0.3_dp, rp, &
+            [0.001455577219037893_dp, 0.9985444227809621_dp])
+       call relative_permeability_case(test, 0.7_dp, rp, &
+            [0.01_dp, 0.99_dp])
+       call relative_permeability_case(test, 0.9_dp, rp, &
+            [0.8782066790160834_dp, 0.12179332098391649_dp])
+       call relative_permeability_case(test, 1._dp, rp, [1._dp, 0._dp])
+
+    end if
+
+    call rp%destroy()
+
   end subroutine test_relative_permeability_table
 
 !------------------------------------------------------------------------
