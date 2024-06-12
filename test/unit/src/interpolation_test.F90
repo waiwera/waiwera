@@ -25,7 +25,8 @@ module interpolation_test
 
   public :: setup, teardown, setup_test
   public :: test_interpolation_linear, test_interpolation_single, &
-       test_interpolation_step, test_average_linear, test_average_step, &
+       test_interpolation_step, test_interpolation_pchip, &
+       test_average_linear, test_average_step, &
        test_average_linear_integration, test_average_step_integration, &
        test_interpolation_linear_array, test_find, test_unsorted, &
        test_duplicate
@@ -180,6 +181,43 @@ contains
     end if
 
   end subroutine test_interpolation_step
+
+!------------------------------------------------------------------------
+
+  subroutine test_interpolation_pchip(test)
+
+    ! PCHIP interpolation
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(interpolation_table_pchip_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call table%init(data5)
+
+       call test%assert(1._dp, table%interpolate(-0.5_dp, 1), "-0.5")
+
+       call test%assert(1._dp, table%interpolate(0.0_dp, 1), "0.0")
+
+       call test%assert(1.8151181429242655_dp, table%interpolate(1.0_dp, 1), "1.0")
+
+       call test%assert(-0.15089163120635768_dp, table%interpolate(4.5_dp, 1), "4.5")
+
+       call test%assert(0.5832445364416781_dp, table%interpolate(3.6_dp, 1), "3.6")
+
+       call test%assert(-1.1_dp, table%interpolate(6.3_dp, 1), "6.3")
+
+       call test%assert(-0.1_dp, table%interpolate(10.0_dp, 1), "10.0")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_interpolation_pchip
 
 !------------------------------------------------------------------------
 
