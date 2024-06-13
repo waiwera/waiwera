@@ -56,7 +56,6 @@ module interpolation_module
      PetscInt, public :: dim !! Dimension of arrays being interpolated
      PetscInt, public :: interpolation_type !! Interpolation type
      PetscInt, public :: averaging_type !! Averaging type
-     PetscBool, public :: continuous !! Whether interpolant is continuous or not
      procedure(averaging_function), pointer, public :: average_array_internal
    contains
      private
@@ -66,8 +65,11 @@ module interpolation_module
           interpolation_table_init_default_averaging
      procedure, public :: interpolant => interpolation_table_linear_interpolant
      procedure, public :: inverse_interpolant => interpolation_table_linear_inverse_interpolant
+     procedure, public :: integral => interpolation_table_linear_integral
      procedure, public :: set_averaging_type => interpolation_table_set_averaging_type
      procedure, public :: destroy => interpolation_table_destroy
+     procedure, public :: set_index => interpolation_table_set_index
+     procedure, public :: find => interpolation_table_find
      procedure, public :: interpolate_at_index => interpolation_table_interpolate_at_index
      procedure, public :: interpolate_component_at_index => &
           interpolation_table_interpolate_component_at_index
@@ -95,18 +97,25 @@ module interpolation_module
      procedure, public :: interpolation_table_init => interpolation_table_step_init
      procedure, public :: interpolant => interpolation_table_step_interpolant
      procedure, public :: inverse_interpolant => interpolation_table_step_inverse_interpolant
+     procedure, public :: integral => interpolation_table_step_integral
   end type interpolation_table_step_type
 
   type, public, extends(interpolation_table_type) :: interpolation_table_pchip_type
      !! PCHIP (Piecewise Cubic Hermite Interpolation Polynomial) interpolation table
      private
      PetscReal, allocatable :: deriv(:,:) !! Derivatives array for each dimension
+     PetscReal, allocatable :: polynomial(:, :) !! Cubic interpolation polynomial coefficients
+     PetscReal, allocatable :: integral_polynomial(:, :) !! Quartic integration polynomial coefficients
    contains
      procedure :: get_derivatives => interpolation_table_pchip_get_derivatives
+     procedure :: get_polynomial => interpolation_table_pchip_get_polynomial
      procedure, public :: interpolation_table_init => interpolation_table_pchip_init
      procedure, public :: interpolant => interpolation_table_pchip_interpolant
      procedure, public :: inverse_interpolant => interpolation_table_pchip_inverse_interpolant
+     procedure, public :: integral => interpolation_table_pchip_integral
      procedure, public :: destroy => interpolation_table_pchip_destroy
+     procedure, public :: set_index => interpolation_table_pchip_set_index
+     procedure, public :: find => interpolation_table_pchip_find
   end type interpolation_table_pchip_type
 
   interface
@@ -340,7 +349,6 @@ contains
     deallocate(sorted_array)
     self%interpolation_type = INTERP_LINEAR
     call self%set_averaging_type(averaging_type)
-    self%continuous = PETSC_TRUE
 
   end subroutine interpolation_table_init
 
@@ -428,6 +436,25 @@ contains
 
 !------------------------------------------------------------------------
 
+  function interpolation_table_linear_integral(self, x1, x2) result(integral)
+    !! Piecewise linear interpolant integral over specified interval
+    !! [x1, x2], assumed to be within the current interpolation
+    !! interval.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: x1, x2
+    PetscReal :: integral(self%dim)
+    ! Locals:
+    PetscReal :: y1(self%dim), y2(self%dim)
+
+    y1 = self%interpolate_at_index(x1)
+    y2 = self%interpolate_at_index(x2)
+    integral = 0.5_dp * (x2 - x1) * (y1 + y2)
+
+  end function interpolation_table_linear_integral
+
+!------------------------------------------------------------------------
+
   subroutine interpolation_table_destroy(self)
     !! Destroys interpolation table.
 
@@ -437,6 +464,30 @@ contains
     if (allocated(self%val)) deallocate(self%val)
 
   end subroutine interpolation_table_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_set_index(self, i)
+    !! Sets interpolation table coordinate index.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscInt, intent(in) :: i
+
+    self%coord%index = i
+
+  end subroutine interpolation_table_set_index
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_find(self, x)
+    !! Finds interpolation interval for specified x value.
+
+    class(interpolation_table_type), intent(in out) :: self
+    PetscReal, intent(in) :: x
+
+    call self%coord%find(x)
+
+  end subroutine interpolation_table_find
 
 !------------------------------------------------------------------------
 
@@ -486,7 +537,7 @@ contains
     PetscReal, intent(in) :: x !! x value to interpolate at
     PetscReal :: y(self%dim)
 
-    call self%coord%find(x)
+    call self%find(x)
     y = self%interpolate_at_index(x)
 
   end function interpolation_table_interpolate
@@ -502,7 +553,7 @@ contains
     PetscInt, intent(in) :: component !! Component to interpolate
     PetscReal :: yi
 
-    call self%coord%find(x)
+    call self%find(x)
     yi = self%interpolate_component_at_index(x, component)
 
   end function interpolation_table_interpolate_component
@@ -563,7 +614,7 @@ contains
     PetscReal :: y(self%dim)
     ! Locals:
     PetscReal :: integral(self%dim), dx, xav
-    PetscReal :: x1, x2, y1(self%dim), y2(self%dim)
+    PetscReal :: x1, x2
     PetscInt :: istart, i
     PetscBool :: finished
     PetscReal, parameter :: tol = 1.e-15_dp
@@ -573,52 +624,36 @@ contains
 
        integral = 0._dp
        x1 = interval(1)
-       y1 = self%interpolate(x1)
+       call self%find(x1)
        istart = self%coord%index
        finished = PETSC_FALSE
 
        do i = istart, self%coord%size - 1
+          call self%set_index(i)
           x2 = self%coord%val(i + 1)
           if (x2 > interval(2)) then
              x2 = interval(2)
              finished = PETSC_TRUE
           end if
-          self%coord%index = i
-          y2 = self%interpolate_at_index(x2)
-          call update_integral(x1, x2, y1, y2, integral)
+          integral = integral + self%integral(x1, x2)
           x1 = x2
-          if (self%continuous) then
-             y1 = y2
-          else
-             self%coord%index = i + 1
-             y1 = self%interpolate_at_index(x1)
-          end if
           if (finished) exit
        end do
 
        if (x1 < interval(2)) then
           ! data ran out before end of interval:
           x2 = interval(2)
-          y2 = self%interpolate(x2)
-          call update_integral(x1, x2, y1, y2, integral)
+          call self%set_index(self%coord%size)
+          integral = integral + self%integral(x1, x2)
        end if
 
        y = integral / dx
 
     else
        ! Interval close to zero- just interpolate at midpoint:
-       xav = 0.5_dp *(interval(1) + interval(2))
+       xav = 0.5_dp * (interval(1) + interval(2))
        y = self%interpolate(xav)
     end if
-
-  contains
-
-    subroutine update_integral(x1, x2, y1, y2, integral)
-      !! Add contribution from last data interval to integral.
-      PetscReal, intent(in) :: x1, x2, y1(:), y2(:)
-      PetscReal, intent(in out) :: integral(:)
-      integral = integral + (x2 - x1) * 0.5_dp * (y1 + y2)
-    end subroutine update_integral
 
   end function interpolation_table_average_integrate
 
@@ -668,7 +703,6 @@ contains
 
     call self%interpolation_table_type%init(array, averaging_type)
     self%interpolation_type = INTERP_STEP
-    self%continuous = PETSC_FALSE
 
   end subroutine interpolation_table_step_init
 
@@ -701,6 +735,24 @@ contains
     err = 1
 
   end subroutine interpolation_table_step_inverse_interpolant
+
+!------------------------------------------------------------------------
+
+  function interpolation_table_step_integral(self, x1, x2) result(integral)
+    !! Piecewise constant interpolant integral over specified interval
+    !! [x1, x2], assumed to be within the current interpolation
+    !! interval.
+
+    class(interpolation_table_step_type), intent(in out) :: self
+    PetscReal, intent(in) :: x1, x2
+    PetscReal :: integral(self%dim)
+    ! Locals:
+    PetscReal :: y(self%dim)
+
+    y = self%interpolate_at_index(x1)
+    integral = (x2 - x1) * y
+
+  end function interpolation_table_step_integral
 
 !------------------------------------------------------------------------
 ! PCHIP (Piecewise Cubic Hermite Interpolation Polynomial) interpolation
@@ -746,8 +798,6 @@ contains
     class(interpolation_table_pchip_type), intent(in out) :: self
     ! Locals:
     PetscInt :: c
-
-    allocate(self%deriv(self%dim, self%coord%size))
 
     do c = 1, self%dim
        call pchip_deriv(self%coord%val, self%val(c, :), self%deriv(c, :))
@@ -838,6 +888,46 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine interpolation_table_pchip_get_polynomial(self)
+    !! Gets PCHIP polynomial coefficients (and integral polynomial)
+    !! for current interpolation interval.
+
+    use utils_module, only: polynomial_integral
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+    ! Locals:
+    PetscReal :: h
+    PetscReal :: delta(self%dim), del1(self%dim), del2(self%dim)
+    PetscReal :: c2(self%dim), c3(self%dim)
+
+    if ((self%coord%index > 0) .and. &
+         (self%coord%index < self%coord%size)) then
+
+       associate(xv => self%coord%val(self%coord%index: self%coord%index + 1), &
+            v => self%val(:, self%coord%index: self%coord%index + 1), &
+            d => self%deriv(:, self%coord%index: self%coord%index + 1))
+
+         h = xv(2) - xv(1)
+
+         delta = (v(:, 2) - v(:, 1)) / h
+         del1 = (d(:, 1) - delta) / h
+         del2 = (d(:, 2) - delta)  / h
+         c2 = -(2._dp * del1 + del2)
+         c3 = (del1 + del2) / h
+
+         self%polynomial = reshape([v(:, 1), d(:, 1), c2, c3], [self%dim, 4])
+         self%integral_polynomial = polynomial_integral(self%polynomial)
+
+       end associate
+
+    else
+       self%polynomial = 0._dp
+    end if
+
+  end subroutine interpolation_table_pchip_get_polynomial
+
+!------------------------------------------------------------------------
+
   subroutine interpolation_table_pchip_init(self, array, averaging_type)
     !! Initialises PCHIP interpolation table.
 
@@ -847,7 +937,11 @@ contains
 
     call self%interpolation_table_type%init(array, averaging_type)
     self%interpolation_type = INTERP_PCHIP
+
+    allocate(self%deriv(self%dim, self%coord%size))
     call self%get_derivatives()
+    allocate(self%polynomial(self%dim, 4)) ! cubic
+    allocate(self%integral_polynomial(self%dim, 5)) ! quartic
 
   end subroutine interpolation_table_pchip_init
 
@@ -856,30 +950,17 @@ contains
   function interpolation_table_pchip_interpolant(self, x) result(y)
     !! PCHIP interpolant.
 
+    use utils_module, only: polynomial
+
     class(interpolation_table_pchip_type), intent(in) :: self
     PetscReal, intent(in) :: x
     PetscReal :: y(self%dim)
     ! Locals:
-    PetscInt :: c
-    PetscReal :: h, dx, delta, del1, del2, c2, c3
+    PetscReal :: dx
 
     associate(xv => self%coord%val(self%coord%index: self%coord%index + 1))
-
-      h = xv(2) - xv(1)
       dx = x - xv(1)
-
-      do c = 1, self%dim
-         associate(v => self%val(c, self%coord%index: self%coord%index + 1), &
-              d => self%deriv(c, self%coord%index: self%coord%index + 1))
-           delta = (v(2) - v(1)) / h
-           del1 = (d(1) - delta) / h
-           del2 = (d(2) - delta)  / h
-           c2 = -(2._dp * del1 + del2)
-           c3 = (del1 + del2) / h
-           y(c) = v(1) + dx * (d(1) + dx * (c2 + dx * c3))
-         end associate
-      end do
-
+      y = polynomial(self%polynomial, dx)
     end associate
 
   end function interpolation_table_pchip_interpolant
@@ -903,15 +984,70 @@ contains
 
 !------------------------------------------------------------------------
 
+  function interpolation_table_pchip_integral(self, x1, x2) result(integral)
+    !! PCHIP interpolant integral over specified interval
+    !! [x1, x2], assumed to be within the current interpolation
+    !! interval.
+
+    use utils_module, only: polynomial
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+    PetscReal, intent(in) :: x1, x2
+    PetscReal :: integral(self%dim)
+    ! Locals:
+    PetscReal :: I1(self%dim), I2(self%dim)
+
+    if (self%coord%index <= 0) then
+       integral = self%val(:, 1) * (x2 - x1)
+    else if (self%coord%index < self%coord%size) then
+       associate(xv1 => self%coord%val(self%coord%index))
+         I1 = polynomial(self%integral_polynomial, x1 - xv1)
+         I2 = polynomial(self%integral_polynomial, x2 - xv1)
+       end associate
+       integral = I2 - I1
+    else
+       integral = self%val(:, self%coord%size) * (x2 - x1)
+    end if
+
+  end function interpolation_table_pchip_integral
+
+!------------------------------------------------------------------------
+
   subroutine interpolation_table_pchip_destroy(self)
     !! Destroys PCHIP interpolation table.
 
     class(interpolation_table_pchip_type), intent(in out) :: self
 
     call self%interpolation_table_type%destroy()
-    deallocate(self%deriv)
+    deallocate(self%deriv, self%polynomial, self%integral_polynomial)
 
   end subroutine interpolation_table_pchip_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_pchip_set_index(self, i)
+    !! Sets PCHIP interpolation table coordinate index.
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+    PetscInt, intent(in) :: i
+
+    call self%interpolation_table_type%set_index(i)
+    call self%get_polynomial()
+
+  end subroutine interpolation_table_pchip_set_index
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_pchip_find(self, x)
+    !! Finds PCHIP interpolation interval for specified x value.
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+    PetscReal, intent(in) :: x
+
+    call self%interpolation_table_type%find(x)
+    call self%get_polynomial()
+
+  end subroutine interpolation_table_pchip_find
 
 !------------------------------------------------------------------------
   

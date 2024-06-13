@@ -28,6 +28,7 @@ module interpolation_test
        test_interpolation_step, test_interpolation_pchip, &
        test_average_linear, test_average_step, &
        test_average_linear_integration, test_average_step_integration, &
+       test_average_pchip_integration, &
        test_interpolation_linear_array, test_find, test_unsorted, &
        test_duplicate
 
@@ -85,7 +86,6 @@ contains
        call table%init(data5) ! default linear interpolation
 
        call test%assert(1, table%dim, "dim")
-       call test%assert(table%continuous, "continuous")
 
        call test%assert(1._dp, table%interpolate(-0.5_dp, 1), "-0.5")
        call test%assert(0, table%coord%index, "-0.5 index")
@@ -162,7 +162,6 @@ contains
        call table%init(data5)
 
        call test%assert(1._dp, table%interpolate(-0.5_dp, 1), "-0.5")
-       call test%assert(.not. table%continuous, "continuous")
 
        call test%assert(1._dp, table%interpolate(0.0_dp, 1), "0.0")
 
@@ -372,6 +371,42 @@ contains
     end if
 
   end subroutine test_average_step_integration
+
+!------------------------------------------------------------------------
+
+  subroutine test_average_pchip_integration(test)
+
+    ! PCHIP interpolation integration averaging
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(interpolation_table_pchip_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, dimension(3,2), parameter :: data = reshape([&
+       0._dp, 1._dp, 3._dp, &
+       1._dp, 41.0_dp / 30._dp, 4.9_dp], &
+       [3,2])
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call table%init(data, INTERP_AVERAGING_INTEGRATE)
+
+       call test%assert(1.0196349110032363_dp, &
+            table%average([-0.5_dp, 0.5_dp], 1), "[-0.5, 0.5]")
+
+       call test%assert(2.0222251719255664_dp, &
+            table%average([0.5_dp, 2.5_dp], 1), "[0.5, 2.5]")
+
+       call test%assert(2.8739566478313514_dp, &
+            table%average([0.5_dp, 3.5_dp], 1), "[0.5, 3.5]")
+
+       call table%destroy()
+
+    end if
+
+  end subroutine test_average_pchip_integration
 
 !------------------------------------------------------------------------
 
