@@ -39,6 +39,11 @@ module utils_module
      module procedure polynomial_derivative_multiple
   end interface polynomial_derivative
 
+  interface polynomial_integral
+     module procedure polynomial_integral_single
+     module procedure polynomial_integral_multiple
+  end interface polynomial_integral
+
   interface array_cumulative_sum
      module procedure array_cumulative_sum_real
      module procedure array_cumulative_sum_integer
@@ -58,7 +63,7 @@ module utils_module
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
        date_time_str, degrees_to_radians, rotation_matrix_2d, &
-       polynomial, polynomial_derivative, &
+       polynomial, polynomial_derivative, polynomial_integral, &
        array_pair_sum, array_cumulative_sum, &
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
@@ -314,6 +319,42 @@ contains
     end do
 
   end function polynomial_derivative_multiple
+
+!------------------------------------------------------------------------
+
+  function polynomial_integral_single(a) result(ai)
+    !! Takes coefficient array of a polynomial and returns the
+    !! coefficient array of its integral.
+
+    PetscReal, intent(in) :: a(:)
+    PetscReal :: ai(size(a) + 1)
+    ! Locals:
+    PetscInt :: i
+
+    ai(1) = 0._dp
+    do i = 2, size(a) + 1
+       ai(i) = a(i - 1) / real(i - 1)
+    end do
+
+  end function polynomial_integral_single
+
+!------------------------------------------------------------------------
+
+  function polynomial_integral_multiple(a) result(ai)
+    !! Takes coefficient array for multiple polynomials and returns
+    !! the coefficient array of their integrals.
+
+    PetscReal, intent(in) :: a(:, :)
+    PetscReal :: ai(size(a, 1), size(a, 2) + 1)
+    ! Locals:
+    PetscInt :: i
+
+    ai(:, 1) = 0._dp
+    do i = 2, size(a) + 1
+       ai(:, i) = a(:, i - 1) / real(i - 1)
+    end do
+
+  end function polynomial_integral_multiple
 
 !------------------------------------------------------------------------
 

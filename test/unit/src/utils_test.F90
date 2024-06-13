@@ -18,6 +18,7 @@ module utils_test
        test_int_str_len, test_str_array_index, &
        test_degrees_to_radians, test_rotation_matrix_2d, &
        test_polynomial, test_multipolynomial, test_polynomial_derivative, &
+       test_polynomial_integral, &
        test_array_pair_sum, test_array_cumulative_sum, &
        test_array_exclusive_products, test_array_sorted, &
        test_array_indices_in_int_array, test_is_permutation, &
@@ -352,7 +353,6 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscReal :: x
     PetscReal, parameter :: a(5) = [1._dp, 1._dp, 0.5_dp, &
          1._dp / 6._dp, 1._dp / 24._dp]
     PetscReal, allocatable :: da(:)
@@ -363,22 +363,34 @@ contains
     if (rank == 0) then
 
        da = polynomial_derivative(a)
-
-       x = 0._dp
-       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '0')
-
-       x = 1._dp
-       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '1')
-
-       x = -1._dp
-       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '-1')
-
-       x = 2.3_dp
-       call test%assert(polynomial(a(1:4), x), polynomial(da, x), '2.3')
+       call test%assert([1._dp, 1._dp, 0.5_dp, 1._dp / 6._dp], da, 'coefs')
 
     end if
 
   end subroutine test_polynomial_derivative
+
+!------------------------------------------------------------------------
+
+  subroutine test_polynomial_integral(test)
+    ! Test polynomial integral
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscReal, parameter :: a(4) = [-1._dp, 2._dp, 0.5_dp, -0.25_dp]
+    PetscReal, allocatable :: ai(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       ai = polynomial_integral(a)
+       call test%assert([0._dp, -1._dp, 1._dp, 1._dp / 6._dp, &
+            -1._dp / 16._dp], ai, 'coefs')
+
+    end if
+
+  end subroutine test_polynomial_integral
 
 !------------------------------------------------------------------------
 
