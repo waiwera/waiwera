@@ -1654,7 +1654,7 @@ contains
                     irow = tracer_offsets(i) + it - 1
                     icol = tracer_offsets(up) + it - 1
                     Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
-                    call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                    call MatSetValuesLocal(Ar, 1, [irow], 1, [icol], [Ft], &
                          ADD_VALUES, ierr); CHKERRQ(ierr)
                     ! Diffusive flux:
                     do j = 1, 2
@@ -1662,7 +1662,7 @@ contains
                        Ft = -flux_sign(i) * flux_sign(j) * &
                             face%area * diffusion_factor * tracer%diffusion / &
                             (face%distance12 * face%cell(i)%volume)
-                       call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
+                       call MatSetValuesLocal(Ar, 1, [irow], 1, [icol], [Ft], &
                             ADD_VALUES, ierr); CHKERRQ(ierr)
                     end do
                  end if
@@ -1740,7 +1740,7 @@ contains
                      irow = tracer_offset_i + it - 1
                      q = phase_flow_fractions(self%tracers(it)%phase_index) * &
                           source%rate / cell%volume
-                     call MatSetValuesLocal(Ar, 1, irow, 1, irow, q, &
+                     call MatSetValuesLocal(Ar, 1, [irow], 1, [irow], [q], &
                           ADD_VALUES, ierr); CHKERRQ(ierr)
                   end do
                else ! injection:
@@ -1805,7 +1805,7 @@ contains
             do it = 1, nt
                a = -self%tracers(it)%decay(cell%fluid%temperature) * cell_coefs(it)
                irow = tracer_offset + it - 1
-               call MatSetValuesLocal(Ar, 1, irow, 1, irow, a, &
+               call MatSetValuesLocal(Ar, 1, [irow], 1, [irow], [a], &
                     ADD_VALUES, ierr); CHKERRQ(ierr)
             end do
          end if
