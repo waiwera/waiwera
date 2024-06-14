@@ -1151,7 +1151,7 @@ contains
 
        call self%mesh%redistribute(sf)
 
-       if (sf .ne. PETSC_NULL_SF) then
+       if (.not. PetscObjectIsNull(sf)) then
 
           call dm_distribute_global_vec(self%mesh%dm, sf, self%solution)
           call global_vec_range_start(self%solution, self%solution_range_start)
@@ -2573,7 +2573,7 @@ contains
     DM :: geom_dm
     Vec :: global_geom
 
-    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+    if (.not. PetscObjectIsNull(self%hdf5_viewer)) then
 
        call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
        call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
@@ -2625,7 +2625,7 @@ contains
     DMLabel :: ghost_label, minc_level_label
     PetscErrorCode :: ierr
 
-    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
+    if ((.not. PetscObjectIsNull(self%hdf5_viewer)) .and. &
          (self%mesh%has_minc)) then
 
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/minc", &
@@ -2684,7 +2684,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+    if (.not. PetscObjectIsNull(self%hdf5_viewer)) then
        call ISView(self%mesh%cell_index, self%hdf5_viewer, &
             ierr); CHKERRQ(ierr)
     end if
@@ -2713,7 +2713,7 @@ contains
     PetscInt, pointer, contiguous :: fc(:), natural(:)
     PetscErrorCode :: ierr
 
-    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
+    if ((.not. PetscObjectIsNull(self%hdf5_viewer)) .and. &
          self%flux_output) then
 
        num_faces = size(self%mesh%flux_face)
@@ -2784,7 +2784,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
+    if (.not. PetscObjectIsNull(self%hdf5_viewer)) then
          if (self%source_network%num_sources > 0) then
             call ISView(self%source_network%source_index, &
                  self%hdf5_viewer, ierr); CHKERRQ(ierr)
