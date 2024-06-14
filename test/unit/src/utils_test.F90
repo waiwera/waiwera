@@ -377,7 +377,7 @@ contains
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     PetscReal, parameter :: a(4) = [-1._dp, 2._dp, 0.5_dp, -0.25_dp]
-    PetscReal, allocatable :: ai(:)
+    PetscReal, allocatable :: ai(:), a2(:)
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -387,6 +387,8 @@ contains
        ai = polynomial_integral(a)
        call test%assert([0._dp, -1._dp, 1._dp, 1._dp / 6._dp, &
             -1._dp / 16._dp], ai, 'coefs')
+       a2 = polynomial_derivative(ai)
+       call test%assert(a, a2, 'deriv of integral')
 
     end if
 
