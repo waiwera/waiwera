@@ -159,7 +159,7 @@ contains
 
     call DMPlexDistribute(self%serial_dm, partition_overlap, self%dist_sf, &
          self%original_dm, ierr); CHKERRQ(ierr)
-    if (PetscObjectIsNull(self%original_dm)) then
+    if (self%original_dm .eq. PETSC_NULL_DM) then
        self%original_dm = self%serial_dm
     else
        call dm_distribute_index_set(self%original_dm, self%dist_sf, &
@@ -209,7 +209,7 @@ contains
 
     call DMPlexConstructGhostCells(self%dm, open_boundary_label_name, &
          PETSC_NULL_INTEGER, ghost_dm, ierr); CHKERRQ(ierr)
-    if (.not. PetscObjectIsNull(ghost_dm)) then
+    if (ghost_dm .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr);
        self%dm = ghost_dm
        call dm_set_fv_adjacency(self%dm)
@@ -3618,7 +3618,7 @@ contains
     call DMGetSection(dm_is, section, ierr); CHKERRQ(ierr)
 
     call self%redistribute_dm(sf)
-    if (.not. PetscObjectIsNull(sf)) then
+    if (sf .ne. PETSC_NULL_SF) then
        call self%redistribute_geometry(sf)
        call dm_distribute_index_set(self%dm, sf, section, self%cell_natural)
        if (self%has_minc) then
@@ -3653,7 +3653,7 @@ contains
 
     call DMPlexDistribute(self%dm, partition_overlap, sf, &
          dm_dist, ierr); CHKERRQ(ierr)
-    if (.not. PetscObjectIsNull(dm_dist)) then
+    if (dm_dist .ne. PETSC_NULL_DM) then
        call DMDestroy(self%dm, ierr); CHKERRQ(ierr)
        self%dm = dm_dist
        call dm_set_fv_adjacency(self%dm)
@@ -3674,7 +3674,7 @@ contains
     class(mesh_type), intent(in out) :: self
     PetscSF, intent(in out) :: sf !! Redistribution star forest
 
-    if (.not. PetscObjectIsNull(sf)) then
+    if (sf .ne. PETSC_NULL_SF) then
        call dm_distribute_local_vec(self%dm, sf, self%cell_geom)
        call dm_distribute_local_vec(self%dm, sf, self%face_geom)
        call self%check_face_orientations()

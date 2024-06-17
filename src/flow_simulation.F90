@@ -1151,7 +1151,7 @@ contains
 
        call self%mesh%redistribute(sf)
 
-       if (.not. PetscObjectIsNull(sf)) then
+       if (sf .ne. PETSC_NULL_SF) then
 
           call dm_distribute_global_vec(self%mesh%dm, sf, self%solution)
           call global_vec_range_start(self%solution, self%solution_range_start)
@@ -1654,7 +1654,7 @@ contains
                     irow = tracer_offsets(i) + it - 1
                     icol = tracer_offsets(up) + it - 1
                     Ft = flux_sign(i) * tracer_flow / face%cell(i)%volume
-                    call MatSetValuesLocal(Ar, 1, [irow], 1, [icol], [Ft], &
+                    call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
                          ADD_VALUES, ierr); CHKERRQ(ierr)
                     ! Diffusive flux:
                     do j = 1, 2
@@ -1662,7 +1662,7 @@ contains
                        Ft = -flux_sign(i) * flux_sign(j) * &
                             face%area * diffusion_factor * tracer%diffusion / &
                             (face%distance12 * face%cell(i)%volume)
-                       call MatSetValuesLocal(Ar, 1, [irow], 1, [icol], [Ft], &
+                       call MatSetValuesLocal(Ar, 1, irow, 1, icol, Ft, &
                             ADD_VALUES, ierr); CHKERRQ(ierr)
                     end do
                  end if
@@ -1740,7 +1740,7 @@ contains
                      irow = tracer_offset_i + it - 1
                      q = phase_flow_fractions(self%tracers(it)%phase_index) * &
                           source%rate / cell%volume
-                     call MatSetValuesLocal(Ar, 1, [irow], 1, [irow], [q], &
+                     call MatSetValuesLocal(Ar, 1, irow, 1, irow, q, &
                           ADD_VALUES, ierr); CHKERRQ(ierr)
                   end do
                else ! injection:
@@ -1805,7 +1805,7 @@ contains
             do it = 1, nt
                a = -self%tracers(it)%decay(cell%fluid%temperature) * cell_coefs(it)
                irow = tracer_offset + it - 1
-               call MatSetValuesLocal(Ar, 1, [irow], 1, [irow], [a], &
+               call MatSetValuesLocal(Ar, 1, irow, 1, irow, a, &
                     ADD_VALUES, ierr); CHKERRQ(ierr)
             end do
          end if
@@ -2573,7 +2573,7 @@ contains
     DM :: geom_dm
     Vec :: global_geom
 
-    if (.not. PetscObjectIsNull(self%hdf5_viewer)) then
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
 
        call VecGetDM(self%mesh%cell_geom, geom_dm, ierr); CHKERRQ(ierr)
        call DMGetGlobalVector(geom_dm, global_geom, ierr); CHKERRQ(ierr)
@@ -2625,7 +2625,7 @@ contains
     DMLabel :: ghost_label, minc_level_label
     PetscErrorCode :: ierr
 
-    if ((.not. PetscObjectIsNull(self%hdf5_viewer)) .and. &
+    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
          (self%mesh%has_minc)) then
 
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/minc", &
@@ -2684,7 +2684,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    if (.not. PetscObjectIsNull(self%hdf5_viewer)) then
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
        call ISView(self%mesh%cell_index, self%hdf5_viewer, &
             ierr); CHKERRQ(ierr)
     end if
@@ -2713,7 +2713,7 @@ contains
     PetscInt, pointer, contiguous :: fc(:), natural(:)
     PetscErrorCode :: ierr
 
-    if ((.not. PetscObjectIsNull(self%hdf5_viewer)) .and. &
+    if ((self%hdf5_viewer /= PETSC_NULL_VIEWER) .and. &
          self%flux_output) then
 
        num_faces = size(self%mesh%flux_face)
@@ -2784,7 +2784,7 @@ contains
     ! Locals:
     PetscErrorCode :: ierr
 
-    if (.not. PetscObjectIsNull(self%hdf5_viewer)) then
+    if (self%hdf5_viewer /= PETSC_NULL_VIEWER) then
          if (self%source_network%num_sources > 0) then
             call ISView(self%source_network%source_index, &
                  self%hdf5_viewer, ierr); CHKERRQ(ierr)

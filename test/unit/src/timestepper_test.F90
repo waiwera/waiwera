@@ -211,8 +211,7 @@ contains
     self%test => test
 
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, self%dim, self%dof, &
-         self%stencil, PETSC_NULL_INTEGER_ARRAY, self%mesh%interior_dm, &
-         ierr); CHKERRQ(ierr)
+         self%stencil, PETSC_NULL_INTEGER, self%mesh%interior_dm, ierr); CHKERRQ(ierr)
     call DMSetUp(self%mesh%interior_dm, ierr); CHKERRQ(ierr)
     call DMCreateGlobalVector(self%mesh%interior_dm, self%solution, ierr); CHKERRQ(ierr)
     call VecDuplicate(self%solution, self%exact_solution, ierr); CHKERRQ(ierr)
@@ -615,7 +614,7 @@ contains
     self%a = 1._dp / (dx*dx)
 
     call DMDACreate1d(PETSC_COMM_WORLD, DM_BOUNDARY_GHOSTED, self%dim-2, &
-         self%dof, self%stencil, PETSC_NULL_INTEGER_ARRAY, self%mesh%interior_dm, &
+         self%dof, self%stencil, PETSC_NULL_INTEGER, self%mesh%interior_dm, &
          ierr); CHKERRQ(ierr)
     call DMSetUp(self%mesh%interior_dm, ierr); CHKERRQ(ierr)
     call DMDASetUniformCoordinates(self%mesh%interior_dm, dx, self%L - dx, &
