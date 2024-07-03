@@ -1504,12 +1504,14 @@ contains
     PetscInt :: start_cell, end_cell, c
     PetscInt :: tracer_offset, fluid_offset, rock_offset
     PetscInt :: nt, nc
+    PetscInt, allocatable :: phase_indices(:)
     type(cell_type) :: cell
     PetscErrorCode :: ierr
 
     err = 0
     nc = self%eos%num_components
     nt = size(self%tracers)
+    phase_indices = self%tracers%phase_index
 
     call global_vec_section(Al, tracer_section)
     call VecGetArrayF90(Al, Al_array, ierr); CHKERRQ(ierr)
@@ -1538,7 +1540,7 @@ contains
 
           call cell%rock%assign(rock_array, rock_offset)
           call cell%fluid%assign(fluid_array, fluid_offset)
-          cell_coefs = cell%tracer_balance_coefs(self%tracers%phase_index)
+          cell_coefs = cell%tracer_balance_coefs(phase_indices)
 
        end if
 
@@ -1582,6 +1584,7 @@ contains
     PetscInt :: cell_geom_offsets(2), face_geom_offset, flux_offset
     PetscInt :: tracer_offsets(2), fluid_offsets(2), rock_offsets(2)
     PetscInt :: np, nf, nt, up, i, it, irow, icol, j, iface
+    PetscInt, allocatable :: phase_indices(:)
     DM :: dm_tracer
     type(face_type) :: face
     PetscInt, pointer :: cells(:)
@@ -1595,6 +1598,7 @@ contains
     np = self%eos%num_primary_variables
     nf = np + self%eos%num_mobile_phases ! total number of fluxes stored
     nt = size(self%tracers)
+    phase_indices = self%tracers%phase_index
 
     call MatZeroEntries(Ar, ierr); CHKERRQ(ierr)
     call VecSet(br, 0._dp, ierr); CHKERRQ(ierr)
@@ -1805,7 +1809,7 @@ contains
 
             call cell%rock%assign(rock_array, rock_offset)
             call cell%fluid%assign(fluid_array, fluid_offset)
-            cell_coefs = cell%tracer_balance_coefs(self%tracers%phase_index)
+            cell_coefs = cell%tracer_balance_coefs(phase_indices)
             call PetscSectionGetOffset(local_tracer_section, c, &
                  tracer_offset, ierr); CHKERRQ(ierr)
             do it = 1, nt
@@ -1966,7 +1970,10 @@ contains
     PetscSection :: fluid_section, tracer_section, source_section
     PetscReal, pointer, contiguous :: fluid_array(:), tracer_array(:), &
          source_data(:)
+    PetscInt, allocatable :: phase_indices(:)
     PetscErrorCode :: ierr
+
+    phase_indices = self%tracers%phase_index
 
     call global_vec_section(self%current_fluid, fluid_section)
     call VecGetArrayReadF90(self%current_fluid, fluid_array, ierr)
@@ -2002,7 +2009,7 @@ contains
          call source%assign(source_data, source_offset)
          call source%update_tracer_flow(fluid_array, fluid_section, &
               self%fluid_range_start, tracer_array, tracer_section, &
-              self%aux_solution_range_start, self%tracers%phase_index)
+              self%aux_solution_range_start, phase_indices)
       end select
 
     end subroutine source_tracer_flow_iterator
