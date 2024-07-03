@@ -40,6 +40,7 @@ module flow_simulation_module
 
   PetscInt, parameter, public :: max_title_length = 120
   PetscInt, parameter :: max_output_filename_length = 200
+  PetscInt, parameter :: max_initial_filename_length = 240
 
   type, public, extends(ode_type) :: flow_simulation_type
      !! Type for simulation of fluid mass and energy flows in porous media.
@@ -81,6 +82,7 @@ module flow_simulation_module
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
      PetscBool :: source_tracer_output !! Whether to output source tracer flow rates
      PetscBool :: flux_output !! Whether to output fluxes
+     character(max_initial_filename_length) :: initial_filename !! Initial conditions filename
    contains
      private
      procedure :: create_solution_vector => flow_simulation_create_solution_vector
@@ -689,6 +691,10 @@ contains
        call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
             str_key = 'mesh.filename', str_value = self%mesh%filename)
     end if
+    if (self%initial_filename /= '') then
+       call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
+            str_key = 'initial.filename', str_value = self%initial_filename)
+    end if
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
          str_key = 'eos.name', str_value = self%eos%name)
     call self%logfile%write(LOG_LEVEL_INFO, 'input', 'summary', &
@@ -957,7 +963,7 @@ contains
                      self%time, self%solution, self%fluid, self%aux_solution, &
                      self%solution_range_start, self%fluid_range_start, &
                      self%aux_solution_range_start, self%tracers, &
-                     self%logfile, err)
+                     self%initial_filename, self%logfile, err)
 
                 if (err == 0) then
 

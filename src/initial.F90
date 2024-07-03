@@ -740,7 +740,7 @@ contains
 
   subroutine setup_initial(json, mesh, eos, t, y, fluid_vector, &
        tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-       tracers, logfile, err)
+       tracers, filename, logfile, err)
     !! Initializes time t and a Vec y with initial conditions read
     !! from JSON input 'initial'.  A full set of initial conditions
     !! may be read in from an HDF5 file, or a constant set of primary
@@ -763,6 +763,7 @@ contains
     Vec, intent(in out) :: y, fluid_vector, tracer_vector
     PetscInt, intent(in) :: y_range_start, fluid_range_start, tracer_range_start
     type(tracer_type), intent(in) :: tracers(:)
+    character(*), intent(out) :: filename
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
     ! Locals:
@@ -772,8 +773,6 @@ contains
     PetscReal :: primary_scalar, tracer_scalar
     PetscInt :: primary_rank, region_rank, tracer_rank
     PetscReal, allocatable :: tracer_values(:)
-    PetscInt, parameter :: max_filename_length = 240
-    character(len = max_filename_length) :: filename
     PetscInt, parameter :: default_index = -1
     PetscInt :: index, tracer_array_size
     PetscBool :: minc_specified, use_original_dm, has_file, initial_time
@@ -783,6 +782,7 @@ contains
 
     err = 0
     num_tracers = size(tracers)
+    filename = ''
 
     initial_time = PETSC_FALSE
     has_file = fson_has_mpi(json, "initial.filename")

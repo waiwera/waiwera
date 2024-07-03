@@ -247,6 +247,7 @@ contains
       PetscReal, pointer, contiguous :: cell_geom_array(:)
       type(cell_type) :: cell
       PetscReal :: t
+      character(240) :: filename
       type(logfile_type) :: logfile
       PetscErrorCode :: err
       PetscInt, parameter :: expected_region = 1
@@ -269,7 +270,7 @@ contains
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
            tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-           tracers, logfile, err)
+           tracers, filename, logfile, err)
       call test%assert(0, err, name // ': err = 0')
 
       if (err == 0) then
@@ -520,6 +521,7 @@ contains
     PetscInt :: start_cell, end_cell, end_interior_cell, c
     PetscInt :: cell_geom_offset, fluid_offset, expected_region
     PetscReal :: t
+    character(240) :: filename
     type(fluid_type) :: fluid
     type(cell_type) :: cell
     DMLabel :: ghost_label
@@ -556,7 +558,8 @@ contains
 
     t = 0._dp
     call setup_initial(json, mesh, eos, t, y, fluid_vector, tracer_vector, &
-         y_range_start, fluid_range_start, tracer_range_start, tracers, logfile, err)
+         y_range_start, fluid_range_start, tracer_range_start, tracers, filename, &
+         logfile, err)
 
     call fson_destroy_mpi(json)
     call mesh%destroy_distribution_data()
@@ -735,6 +738,7 @@ contains
       PetscReal, pointer, contiguous :: cell_geom_array(:)
       type(cell_type) :: cell
       PetscReal :: t
+      character(240) :: filename
       type(logfile_type) :: logfile
       PetscErrorCode :: err
 
@@ -755,7 +759,8 @@ contains
 
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, tracer_vector, &
-           y_range_start, fluid_range_start, tracer_range_start, tracers, logfile, err)
+           y_range_start, fluid_range_start, tracer_range_start, tracers, filename, &
+           logfile, err)
 
       call global_vec_section(fluid_vector, fluid_section)
       call VecGetArrayF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
@@ -911,6 +916,7 @@ contains
       PetscSection :: section
       PetscReal, pointer, contiguous :: tracer_array(:), tracer(:)
       character(24) :: msg
+      character(240) :: filename
       type(logfile_type) :: logfile
       PetscErrorCode :: err, ierr
 
@@ -935,7 +941,7 @@ contains
       t = 0._dp
       call setup_initial(json, mesh, eos, t, y, fluid_vector, &
            tracer_vector, y_range_start, fluid_range_start, tracer_range_start, &
-           tracers, logfile, err)
+           tracers, filename, logfile, err)
 
       num_tracers = size(tracers)
       call test%assert(expected_num_tracers, num_tracers, &
