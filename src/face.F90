@@ -462,6 +462,7 @@ contains
     flux = 0._dp
     nc = eos%num_components
     np = eos%num_primary_variables
+    k = self%permeability()
 
     if (.not. eos%isothermal) then
        ! Heat conduction:
@@ -489,7 +490,6 @@ contains
 
             if (btest(phases(up), p - 1)) then
 
-               k = self%permeability()
                associate(upstream => self%cell(up)%fluid%phase(p))
                  ! Mass flows:
                  F = -k * upstream%mobility() * G
