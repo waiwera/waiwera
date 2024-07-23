@@ -972,7 +972,7 @@ contains
                           type is (source_type)
                              source%link_index = i
                              call group%in%append(source)
-                             source_cell_indices(i) = source%natural_cell_index
+                             source_cell_indices(i) = nint(source%natural_cell_index)
                           end select
                        end if
                        call group_source_dict%add(node_name)
@@ -1441,9 +1441,9 @@ contains
                               output%out => source
                               source%link_index = output_index
                               call reinjector%out%append(output)
-                              source_cell_indices(i) = source%natural_cell_index
+                              source_cell_indices(i) = nint(source%natural_cell_index)
                               if (source%fluid_dependent) then
-                                 fluid_dep_source_cell_indices(i) = source%natural_cell_index
+                                 fluid_dep_source_cell_indices(i) = nint(source%natural_cell_index)
                               end if
                            end select
                         else ! source is not on this process:
@@ -1807,11 +1807,11 @@ contains
                      type is (source_type)
                         reinjector%overflow%out => source
                         source%link_index = 0 ! not used
-                        water_source_cell_indices = [source%natural_cell_index]
-                        steam_source_cell_indices = [source%natural_cell_index]
+                        water_source_cell_indices = [nint(source%natural_cell_index)]
+                        steam_source_cell_indices = [nint(source%natural_cell_index)]
                         if (source%fluid_dependent) then
-                           water_fluid_dep_source_cell_indices = [source%natural_cell_index]
-                           steam_fluid_dep_source_cell_indices = [source%natural_cell_index]
+                           water_fluid_dep_source_cell_indices = [nint(source%natural_cell_index)]
+                           steam_fluid_dep_source_cell_indices = [nint(source%natural_cell_index)]
                         end if
                      end select
                   end if
