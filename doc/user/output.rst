@@ -65,6 +65,8 @@ The **"face_fields"** group in a Waiwera HDF5 output file contains output data d
 
 As for the cell fields, the flux datasets are usually time-dependent, so there is one row for each output time (see :ref:`time_output`), and on each row there is one column per face.
 
+For a face between cell :math:`i` and cell :math:`j`, the sign convention for flux values is that they are positive if the flow is from cell :math:`i` to cell :math:`j`. The natural indices of cells for each face are given by the **"face_cell_1"** and **"face_cell_2"** index datasets (see :ref:`index_datasets`).
+
 The "face_fields" group also contains datasets related to **face geometry**, which have names beginning with "face_geometry". For example, the "face_geometry_area" dataset contains the face areas. These datasets are not time-dependent, so there is just one row per face. Some of the face geometry datasets (e.g. "face_geometry_distance", "face_geometry_normal", "face_geometry_centroid") contain arrays for each face, so there are multiple columns on each row.
 
 .. index:: output; time, HDF5; time
