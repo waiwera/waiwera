@@ -45,6 +45,7 @@ contains
     use eos_module
     use eos_w_module
     use eos_we_module
+    use eos_se_module
     use eos_wce_module
     use eos_wae_module
     use eos_wse_module
@@ -77,6 +78,8 @@ contains
        allocate(eos_w_type :: eos)
     case ("we")
        allocate(eos_we_type :: eos)
+    case ("se")
+       allocate(eos_se_type :: eos)
     case ("wce")
        allocate(eos_wce_type :: eos)
     case ("wae")
