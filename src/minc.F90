@@ -183,10 +183,13 @@ contains
        end if
 
     else
-       call logfile%write(LOG_LEVEL_ERR, 'minc', 'init', &
-            str_key = 'stop', &
-            str_value = 'Could not compute MINC geometry.', &
-            rank = 0)
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_ERR, 'minc', 'init', &
+               str_key = 'stop', &
+               str_value = 'Could not compute MINC geometry.', &
+               rank = 0)
+       end if
+       stop
     end if
 
   contains
