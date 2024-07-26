@@ -73,7 +73,7 @@ contains
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
     PetscReal, parameter :: default_density_scale = critical%density !! Default scale factor for non-dimensionalising density
 
-    self%name = "we"
+    self%name = "se"
     self%description = "Pure supercritical water and energy"
     self%primary_variable_names = ["pressure/density             ", &
          "temperature/vapour_saturation"]
