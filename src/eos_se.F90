@@ -23,18 +23,16 @@ module eos_se_module
   use petscsys
   use kinds_module
   use eos_module
+  use eos_we_module
   use root_finder_module
   use thermodynamics_module
 
   implicit none
   private
 
-  type, public, extends(eos_type) :: eos_se_type
+  type, public, extends(eos_we_type) :: eos_se_type
      !! Pure supercritical water and energy equation of state type.
      private
-     type(root_finder_type), public :: saturation_line_finder
-     class(primary_variable_interpolator_type), pointer, public :: &
-          primary_variable_interpolator
    contains
      private
      procedure, public :: init => eos_se_init
