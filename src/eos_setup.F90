@@ -32,7 +32,7 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine setup_eos(json, thermo, eos, logfile)
+  subroutine setup_eos(json, thermo, eos, logfile, err)
     !! Reads equation of state from JSON input file.  If not present,
     !! a default value is assigned.
 
@@ -41,7 +41,9 @@ contains
     use fson_mpi_module, only: fson_get_mpi, fson_type_mpi
     use logfile_module
     use thermodynamics_module
+    use IAPWS_module
     use utils_module, only : str_to_lower
+    use mpi_utils_module, only: mpi_broadcast_error_flag
     use eos_module
     use eos_w_module
     use eos_we_module
@@ -56,11 +58,14 @@ contains
     class(thermodynamics_type), intent(in) :: thermo
     class(eos_type), allocatable, intent(in out) :: eos
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: eos_json_type
     character(max_eos_name_length), parameter :: &
          default_eos_name = "we"
     character(max_eos_name_length) :: eos_name
+
+    err = 0
 
     eos_json_type = fson_type_mpi(json, "eos")
     select case (eos_json_type)
@@ -79,7 +84,14 @@ contains
     case ("we")
        allocate(eos_we_type :: eos)
     case ("se")
-       allocate(eos_se_type :: eos)
+       ! Check using IAPWS thermodynamics:
+       select type (thermo)
+       type is (IAPWS_type)
+          allocate(eos_se_type :: eos)
+       class default
+          err = 1
+          call mpi_broadcast_error_flag(err)
+       end select
     case ("wce")
        allocate(eos_wce_type :: eos)
     case ("wae")
@@ -94,7 +106,9 @@ contains
        allocate(eos_we_type :: eos)
     end select
 
-    call eos%init(json, thermo, logfile)
+    if (err == 0) then
+       call eos%init(json, thermo, logfile)
+    end if
 
   end subroutine setup_eos
 

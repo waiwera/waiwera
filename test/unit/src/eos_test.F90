@@ -178,18 +178,24 @@ contains
       type(IAPWS_type) :: thermo
       class(eos_type), allocatable :: eos
       PetscReal, allocatable :: scaled_primary(:), unscaled_primary(:)
+      PetscErrorCode :: err
 
       call thermo%init()
-      call setup_eos(json, thermo, eos)
-      associate (n => size(primary))
-        allocate(scaled_primary(n), unscaled_primary(n))
-      end associate
+      call setup_eos(json, thermo, eos, err = err)
+      call test%assert(0, err, title // ": error")
+      if (err == 0) then
 
-      scaled_primary = eos%scale(primary, region)
-      call test%assert(expected_scaled_primary, scaled_primary, title // ": scaled")
+         associate (n => size(primary))
+           allocate(scaled_primary(n), unscaled_primary(n))
+         end associate
 
-      unscaled_primary = eos%unscale(scaled_primary, region)
-      call test%assert(primary, unscaled_primary, title // ": unscaled")
+         scaled_primary = eos%scale(primary, region)
+         call test%assert(expected_scaled_primary, scaled_primary, title // ": scaled")
+
+         unscaled_primary = eos%unscale(scaled_primary, region)
+         call test%assert(primary, unscaled_primary, title // ": unscaled")
+
+      end if
 
       call eos%destroy()
       deallocate(eos, scaled_primary, unscaled_primary)
