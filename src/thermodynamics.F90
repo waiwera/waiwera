@@ -33,11 +33,21 @@ module thermodynamics_module
 ! Physical constants
 !------------------------------------------------------------------------
 
-  PetscReal, parameter, public :: tc_k       = 273.15_dp         !! Conversion from Celsius to Kelvin
+  PetscReal, parameter, public :: tc_k = 273.15_dp         !! Conversion from Celsius to Kelvin
   PetscReal, parameter, public :: water_molecular_weight = 18.01528_dp !! Molecular weight of water (g/mol)
   PetscReal, parameter, public :: gas_constant = 8.3144598_dp    !! Gas constant R
   PetscReal, parameter, public :: specific_gas_constant = 0.461526e3_dp !! Specific gas constant R for water
   PetscReal, parameter, public :: ttriple = 0.01_dp              !! Triple point of water
+
+!------------------------------------------------------------------------
+! Critical point type
+!------------------------------------------------------------------------
+
+  type, public :: critical_point_type
+     !! Type for critical point data.
+     private
+     PetscReal, public :: temperature_k, temperature, pressure, density
+  end type critical_point_type
 
 !------------------------------------------------------------------------
 ! Saturation curve type
@@ -85,10 +95,7 @@ module thermodynamics_module
      !! Thermodynamics type.
      private
      character(max_thermodynamics_name_length), public :: name
-     PetscReal, public :: tcriticalk !! Critical temperature (Kelvin)
-     PetscReal, public :: tcritical !! Critical temperature (\(^\circ C\))
-     PetscReal, public :: pcritical !! Critical pressure (Pa)
-     PetscReal, public :: dcritical !! Critical density (\(kg.m^{-3}\))
+     type(critical_point_type), public :: critical !! Critical point
      class(saturation_type), allocatable, public :: saturation !! Saturation curve
      PetscInt, public :: num_regions  !! Number of thermodynamic regions
      class(region_type), allocatable, public :: water !! Pure water region

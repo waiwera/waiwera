@@ -38,6 +38,13 @@ module IAPWS_module
   private
 
 !------------------------------------------------------------------------
+! Constants
+!------------------------------------------------------------------------
+
+  type(critical_point_type), parameter, public :: critical = &
+       critical_point_type(647.096_dp, 373.946_dp, 22.064e6_dp, 322.0_dp)
+
+!------------------------------------------------------------------------
 ! Saturation curve type
 !------------------------------------------------------------------------
 
@@ -270,10 +277,7 @@ contains
 
     self%name = "IAPWS-97"
 
-    self%tcriticalk = 647.096_dp
-    self%tcritical  = self%tcriticalk - tc_k
-    self%pcritical  = 22.064e6_dp
-    self%dcritical  = 322.0_dp
+    self%critical = critical
 
     allocate(IAPWS_saturation_type :: self%saturation)
     call self%saturation%init(self)
@@ -334,7 +338,7 @@ contains
     if (region == 4) then
        phases = int(b'011')
     else
-       if (temperature <= self%tcritical) then
+       if (temperature <= self%critical%temperature) then
           select case(region)
              case (1)
                 phases = int(b'001')
@@ -354,7 +358,7 @@ contains
                 end if
              end select
        else
-          if (pressure <= self%pcritical) then
+          if (pressure <= self%critical%pressure) then
              phases = int(b'010')
           else
              phases = int(b'100')
@@ -423,8 +427,8 @@ contains
     PetscReal:: mu0, mu1, s0, s1
 
     tk = temperature + tc_k
-    tau = tk / self%thermo%tcriticalk
-    del = density / self%thermo%dcritical
+    tau = tk / self%thermo%critical%temperature_k
+    del = density / self%thermo%critical%density
 
     call self%visc%pk%compute(1._dp / tau)
     call self%visc%pi%compute(self%visc%pk%power(1) - 1._dp)
@@ -665,8 +669,8 @@ contains
     call self%pj%configure(self%J)
     call self%pj%configure(self%J_1)
 
-    self%dstar = self%thermo%dcritical
-    self%tstar = self%thermo%tcriticalk
+    self%dstar = self%thermo%critical%density
+    self%tstar = self%thermo%critical%temperature_k
 
   end subroutine region3_init
 
@@ -771,7 +775,7 @@ contains
     PetscReal:: tk
     PetscReal:: theta, theta2, a, b, c, x
 
-    if ((t >= 0._dp).and.(t <= self%thermo%tcritical)) then
+    if ((t >= 0._dp).and.(t <= self%thermo%critical%temperature)) then
        tk = t + tc_k      
        theta = tk + self%n(9) / (tk - self%n(10))
        theta2 = theta * theta
@@ -801,7 +805,7 @@ contains
     ! Locals:
     PetscReal:: beta, beta2, d, e, f, g, x
 
-    if ((p >= 611.213_dp).and.(p <= self%thermo%pcritical)) then
+    if ((p >= 611.213_dp).and.(p <= self%thermo%critical%pressure)) then
        beta2 = dsqrt(p / self%pstar)
        beta = dsqrt(beta2)
        e = beta2 + self%n(3) * beta + self%n(6)

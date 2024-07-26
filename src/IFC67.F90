@@ -33,6 +33,13 @@ module IFC67_module
   private
 
 !------------------------------------------------------------------------
+! Constants
+!------------------------------------------------------------------------
+
+  type(critical_point_type), parameter :: critical = critical_point_type( &
+       647.3_dp, 374.15_dp, 22.12e6_dp, 322.0_dp)
+
+!------------------------------------------------------------------------
 ! Saturation curve type
 !------------------------------------------------------------------------
 
@@ -154,10 +161,7 @@ contains
 
     self%name = 'IFC-67'
 
-    self%tcriticalk = 647.3_dp
-    self%tcritical = self%tcriticalk - tc_k
-    self%pcritical  = 22.12e6_dp
-    self%dcritical  = 322.0_dp
+    self%critical = critical
 
     allocate(IFC67_saturation_type :: self%saturation)
     call self%saturation%init(self)
@@ -285,7 +289,7 @@ contains
 
       if ((t <= self%max_temperature).and.(p <= 100.e6_dp)) then
 
-         TKR = (t + tc_k) / self%thermo%tcriticalk
+         TKR = (t + tc_k) / self%thermo%critical%temperature_k
          TKR2 = TKR * TKR
          TKR3 = TKR * TKR2
          TKR4 = TKR2 * TKR2
@@ -299,7 +303,7 @@ contains
          TKR18 = TKR8 * TKR10
          TKR19 = TKR8 * TKR11
          TKR20 = TKR10 * TKR10
-         PNMR = p / self%thermo%pcritical
+         PNMR = p / self%thermo%critical%pressure
          PNMR2 = PNMR * PNMR
          PNMR3 = PNMR * PNMR2
          PNMR4 = PNMR * PNMR3
@@ -444,8 +448,8 @@ contains
       ! Check input:
       if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
 
-         THETA = (T + tc_k) / self%thermo%tcriticalk
-         BETA = P / self%thermo%pcritical
+         THETA = (T + tc_k) / self%thermo%critical%temperature_k
+         BETA = P / self%thermo%critical%pressure
          RI1 = 4.260321148_dp
          X = exp(self%SB * (1.0_dp - THETA))
          X2 = X * X
@@ -614,8 +618,8 @@ subroutine saturation_pressure(self, t, p, err)
   ! Locals:
   PetscReal :: PC, SC, TC, X1, X2
 
-  if ((t >= 1._dp).and.(t <= self%thermo%tcritical)) then
-     TC = (t + tc_k) / self%thermo%tcriticalk
+  if ((t >= 1._dp).and.(t <= self%thermo%critical%temperature)) then
+     TC = (t + tc_k) / self%thermo%critical%temperature_k
      X1 = 1._dp - TC
      X2 = X1 * X1
      SC = self%A5 * X1 + self%A4
@@ -624,7 +628,7 @@ subroutine saturation_pressure(self, t, p, err)
      SC = SC * X1 + self%A1
      SC = SC * X1
      PC = exp(SC / (TC * (1._dp + self%A6 * X1 + self%A7 * X2)) - X1 / (self%A8 * X2 + self%A9))
-     p = PC * self%thermo%pcritical
+     p = PC * self%thermo%critical%pressure
      err = 0
   else
      err = 1
@@ -649,7 +653,7 @@ subroutine saturation_temperature(self, p, t, err)
   PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
   PetscReal, parameter :: inc = 1.e-8_dp
 
-  if ((p >= 0.0061e5_dp) .and. (p <= self%thermo%pcritical)) then
+  if ((p >= 0.0061e5_dp) .and. (p <= self%thermo%critical%pressure)) then
 
      ! Initial estimate:
      t = max(4606.0_dp / (24.02_dp - dlog(p)) - tc_k, 5._dp)
