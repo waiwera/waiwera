@@ -33,10 +33,10 @@ module thermodynamics_module
 ! Physical constants
 !------------------------------------------------------------------------
 
-  PetscReal, parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
   PetscReal, parameter, public :: tc_k       = 273.15_dp         !! Conversion from Celsius to Kelvin
   PetscReal, parameter, public :: water_molecular_weight = 18.01528_dp !! Molecular weight of water (g/mol)
   PetscReal, parameter, public :: gas_constant = 8.3144598_dp    !! Gas constant R
+  PetscReal, parameter, public :: specific_gas_constant = 0.461526e3_dp !! Specific gas constant R for water
   PetscReal, parameter, public :: ttriple = 0.01_dp              !! Triple point of water
 
 !------------------------------------------------------------------------

@@ -519,7 +519,7 @@ contains
       if ((t <= self%max_temperature).and.(p <= 100.e6_dp)) then
          !      
          tk = t + tc_k
-         rt = rconst * tk
+         rt = specific_gas_constant * tk
          pi = p / self%pstar
          tau = self%tstar / tk
 
@@ -612,7 +612,7 @@ contains
       if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
 
          tk = t + tc_k
-         rt = rconst * tk
+         rt = specific_gas_constant * tk
          pi = p / self%pstar
          tau = self%tstar / tk
 
@@ -703,7 +703,7 @@ contains
     associate (d => param(1), t => param(2))
 
       tk = t + tc_k
-      rt = rconst * tk
+      rt = specific_gas_constant * tk
       tau = self%tstar / tk
       delta = d / self%dstar
 
