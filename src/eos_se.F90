@@ -56,6 +56,7 @@ contains
     use fson_mpi_module, only: fson_get_mpi
     use logfile_module
     use thermodynamics_module
+    use IAPWS_module, only: critical
 
     class(eos_se_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
@@ -65,21 +66,22 @@ contains
     procedure(root_finder_function), pointer :: f
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
-    PetscReal :: pressure_scale, temperature_scale
+    PetscReal :: pressure_scale, temperature_scale, density_scale
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
+    PetscReal, parameter :: default_density_scale = critical%density !! Default scale factor for non-dimensionalising density
 
     self%name = "we"
-    self%description = "Pure water and energy"
-    self%primary_variable_names = ["pressure                     ", &
+    self%description = "Pure supercritical water and energy"
+    self%primary_variable_names = ["pressure/density             ", &
          "temperature/vapour_saturation"]
 
     self%num_primary_variables = size(self%primary_variable_names)
-    self%num_phases = 2
-    self%num_mobile_phases = 2
-    self%phase_names = ["liquid", "vapour"]
+    self%num_phases = 3
+    self%num_mobile_phases = 3
+    self%phase_names = ["liquid       ", "vapour       ", "supercritical"]
     self%num_components = 1
     self%component_names = ["water"]
 
@@ -87,21 +89,25 @@ contains
     self%default_region = 1
     self%default_tracer_phase = "liquid"
     self%required_output_fluid_fields = [ &
-         "pressure         ", "temperature      ", &
-         "region           ", "vapour_saturation"]
+         "pressure             ", "temperature          ", &
+         "region               ", "vapour_saturation    ", &
+         "supercritical_density"]
     self%default_output_fluid_fields = [ &
-         "pressure              ", "temperature           ", &
-         "region                ", "vapour_saturation     "]
+         "pressure             ", "temperature          ", &
+         "region               ", "vapour_saturation    ", &
+         "supercritical_density"]
 
     call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
          pressure_scale, logfile)
     call fson_get_mpi(json, "eos.primary.scale.temperature", default_temperature_scale, &
          temperature_scale, logfile)
+    call fson_get_mpi(json, "eos.primary.scale.density", default_density_scale, &
+         density_scale, logfile)
     allocate(self%primary_scale(2, 4))
     self%primary_scale = reshape([ &
           pressure_scale, temperature_scale, &
           pressure_scale, temperature_scale, &
-          0._dp, 0._dp, &
+          density_scale, temperature_scale, &
           pressure_scale, 1._dp], [2, 4])
 
     self%thermo => thermo
@@ -115,7 +121,7 @@ contains
     call self%primary_variable_interpolator%init(data)
     deallocate(data)
     self%primary_variable_interpolator%thermo => self%thermo
-    f => eos_se_saturation_difference
+    f => eos_we_saturation_difference
     pinterp => self%primary_variable_interpolator
     call self%saturation_line_finder%init(f, context = pinterp)
 
@@ -397,33 +403,6 @@ contains
     end associate
 
   end subroutine eos_se_check_primary_variables
-
-!------------------------------------------------------------------------
-
-  PetscReal function eos_se_saturation_difference(x, context) result(dp)
-    !! Returns difference between saturation pressure and pressure at
-    !! normalised point 0 <= x <= 1 along line between start and end
-    !! primary variables.
-
-    PetscReal, intent(in) :: x
-    class(*), pointer, intent(in out) :: context
-    ! Locals:
-    PetscReal, allocatable :: var(:)
-    PetscReal :: Ps
-    PetscInt :: err
-
-    select type (context)
-    type is (primary_variable_interpolator_type)
-       allocate(var(context%dim))
-       var = context%interpolate_at_index(x)
-       associate(P => var(1), T => var(2))
-         call context%thermo%saturation%pressure(T, Ps, err)
-         dp = P - Ps
-       end associate
-       deallocate(var)
-    end select
-
-  end function eos_se_saturation_difference
 
 !------------------------------------------------------------------------
 

@@ -49,6 +49,8 @@ module eos_we_module
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
   end type eos_we_type
 
+  public :: eos_we_saturation_difference
+
 contains
 
 !------------------------------------------------------------------------
