@@ -96,6 +96,7 @@ contains
                   str_value = 'Invalid thermodynamics type for EOS se: ' // &
                   trim(thermo%name), rank = 0)
           end if
+          stop
        end select
     case ("wce")
        allocate(eos_wce_type :: eos)
