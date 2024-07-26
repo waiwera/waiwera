@@ -84,13 +84,18 @@ contains
     case ("we")
        allocate(eos_we_type :: eos)
     case ("se")
-       ! Check using IAPWS thermodynamics:
        select type (thermo)
        type is (IAPWS_type)
           allocate(eos_se_type :: eos)
        class default
           err = 1
           call mpi_broadcast_error_flag(err)
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_ERR, 'simulation', &
+                  'init', str_key = 'stop', &
+                  str_value = 'Invalid thermodynamics type for EOS se: ' // &
+                  trim(thermo%name), rank = 0)
+          end if
        end select
     case ("wce")
        allocate(eos_wce_type :: eos)
