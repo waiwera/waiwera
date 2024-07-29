@@ -422,15 +422,23 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
+    PetscReal :: p, t, props(2)
 
     changed = PETSC_FALSE
     err = 0
 
-    associate (p => primary(1))
+    region = nint(fluid%region)
+    if (region == 3) then
+       call self%thermo%region(region)%ptr%properties(primary, props, err)
+       if (err == 0) p = props(1)
+    else
+       p = primary(1)
+    end if
+
+    if (err == 0) then
       if ((p < 0._dp) .or. (p > 100.e6_dp)) then
          err = 1
       else
-         region = nint(fluid%region)
          if (region == 4) then
             associate (vapour_saturation => primary(2))
               if ((vapour_saturation < -1._dp) .or. &
@@ -446,7 +454,7 @@ contains
             end associate
          end if
       end if
-    end associate
+   end if
 
   end subroutine eos_se_check_primary_variables
 
