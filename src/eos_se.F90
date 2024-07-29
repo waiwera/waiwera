@@ -251,20 +251,46 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
     PetscInt :: region
+    PetscReal :: saturation_pressure
+    PetscErrorCode :: err
 
     region = nint(fluid%region)
 
     select case (region)
     case (1)
-       fluid%phase(1)%saturation = 1._dp
-       fluid%phase(2)%saturation = 0._dp
+       call set_saturations(1._dp, 0._dp, 0._dp)
     case (2)
-       fluid%phase(1)%saturation = 0._dp
-       fluid%phase(2)%saturation = 1._dp
+       call set_saturations(0._dp, 1._dp, 0._dp)
+    case (3)
+       if (fluid%temperature <= self%thermo%critical%temperature) then
+         call self%thermo%saturation%pressure(fluid%temperature, &
+              saturation_pressure, err)
+         if (fluid%pressure > saturation_pressure) then
+            call set_saturations(1._dp, 0._dp, 0._dp)
+         else
+            call set_saturations(0._dp, 1._dp, 0._dp)
+         end if
+       else
+          if (fluid%pressure <= self%thermo%critical%pressure) then
+            call set_saturations(0._dp, 1._dp, 0._dp)
+          else
+            call set_saturations(0._dp, 0._dp, 1._dp)
+          end if
+       end if
     case (4)
-       fluid%phase(1)%saturation = 1._dp - primary(2)
-       fluid%phase(2)%saturation = primary(2)
+       call set_saturations(1._dp - primary(2), primary(2), 0._dp)
     end select
+
+  contains
+
+    subroutine set_saturations(s1, s2, s3)
+      PetscReal, intent(in) :: s1, s2, s3
+
+      fluid%phase(1)%saturation = s1
+      fluid%phase(2)%saturation = s2
+      fluid%phase(3)%saturation = s3
+
+    end subroutine set_saturations
 
   end subroutine eos_se_phase_saturations
 
