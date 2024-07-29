@@ -374,15 +374,35 @@ contains
     PetscReal, intent(out) :: primary(self%num_primary_variables)
     ! Locals:
     PetscInt :: region
-
-    primary(1) = fluid%pressure
+    PetscReal :: saturation_pressure
+    PetscErrorCode :: err
 
     region = nint(fluid%region)
-    if (region == 4) then
-       primary(2) = fluid%phase(2)%saturation
-    else
+    select case (region)
+    case (1, 2)
+       primary(1) = fluid%pressure
        primary(2) = fluid%temperature
-    end if
+    case (3)
+       primary(2) = fluid%temperature
+       if (fluid%temperature <= self%thermo%critical%temperature) then
+         call self%thermo%saturation%pressure(fluid%temperature, &
+              saturation_pressure, err)
+         if (fluid%pressure > saturation_pressure) then
+            primary(1) = fluid%phase(1)%density
+         else
+            primary(1) = fluid%phase(2)%density
+         end if
+      else
+          if (fluid%pressure <= self%thermo%critical%pressure) then
+            primary(1) = fluid%phase(2)%density
+         else
+            primary(1) = fluid%phase(3)%density
+         end if
+      end if
+    case (4)
+       primary(1) = fluid%pressure
+       primary(2) = fluid%phase(2)%saturation
+    end select
 
   end subroutine eos_se_primary_variables
 
