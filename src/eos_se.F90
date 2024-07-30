@@ -328,32 +328,23 @@ contains
     PetscErrorCode :: err
 
     region = nint(fluid%region)
-
     select case (region)
     case (1)
-       call set_saturations([1._dp, 0._dp, 0._dp])
+       s = [1._dp, 0._dp, 0._dp]
     case (2)
-       call set_saturations([0._dp, 1._dp, 0._dp])
+       s = [0._dp, 1._dp, 0._dp]
     case (3)
+       s = 0._dp
        phases = nint(fluid%phase_composition)
        p = self%region3_phase(phases)
-       s = 0._dp
        s(p) = 1._dp
-       call set_saturations(s)
     case (4)
-       call set_saturations([1._dp - primary(2), primary(2), 0._dp])
+       s = [1._dp - primary(2), primary(2), 0._dp]
     end select
 
-  contains
-
-    subroutine set_saturations(s)
-      PetscReal, intent(in) :: s(3)
-
-      fluid%phase(1)%saturation = s(1)
-      fluid%phase(2)%saturation = s(2)
-      fluid%phase(3)%saturation = s(3)
-
-    end subroutine set_saturations
+    fluid%phase(1)%saturation = s(1)
+    fluid%phase(2)%saturation = s(2)
+    fluid%phase(3)%saturation = s(3)
 
   end subroutine eos_se_phase_saturations
 
