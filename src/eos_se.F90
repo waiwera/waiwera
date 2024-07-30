@@ -262,14 +262,13 @@ contains
          associate(pressure => properties(1), internal_energy => properties(2))
 
            fluid%pressure = pressure
+           fluid%partial_pressure(1) = fluid%pressure
            fluid%permeability_factor = 1._dp
+
            call self%phase_composition(fluid, err)
            if (err == 0) then
 
-              call self%phase_saturations(primary, fluid)
-              fluid%partial_pressure(1) = fluid%pressure
-
-              do p = 1, 3
+              do p = 1, self%num_phases
                  associate(phase => fluid%phase(p))
                    phase%saturation = 0._dp
                    phase%density = 0._dp
@@ -282,14 +281,18 @@ contains
                  end associate
               end do
 
+              call self%phase_saturations(primary, fluid)
+
               p = self%region3_phase(nint(fluid%phase_composition))
               associate(phase => fluid%phase(p))
                 phase%saturation = 1._dp
                 phase%density = density
-                phase%internal_energy = properties(2)
+                phase%internal_energy = internal_energy
                 phase%specific_enthalpy = phase%internal_energy + &
                      fluid%pressure / phase%density
                 phase%mass_fraction(1) = 1._dp
+                call region%viscosity(fluid%temperature, fluid%pressure, &
+                     phase%density, phase%viscosity)
 
                 if (fluid%temperature <= self%thermo%critical%temperature) then
                    sl = fluid%phase(1)%saturation
@@ -300,8 +303,6 @@ contains
                    phase%capillary_pressure =  capillary_pressure(p)
                 end if
 
-                call region%viscosity(fluid%temperature, fluid%pressure, &
-                     phase%density, phase%viscosity)
               end associate
 
            end if
