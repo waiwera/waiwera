@@ -26,8 +26,9 @@ module eos_wge_module
      procedure, public :: transition => eos_wge_transition
      procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
-     procedure, public :: bulk_properties => eos_wge_bulk_properties
-     procedure, public :: phase_properties => eos_wge_phase_properties
+     procedure, public :: fluid_properties => eos_wge_fluid_properties
+     procedure :: bulk_properties => eos_wge_bulk_properties
+     procedure :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
      procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
@@ -343,6 +344,29 @@ contains
     end if
 
   end subroutine eos_wge_transition
+
+!------------------------------------------------------------------------
+
+  subroutine eos_wge_fluid_properties(self, primary, rock, fluid, err)
+    !! Calculate fluid properties from region and primary variables
+    !! for non-isothermal water and non-condensible gas.
+
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
+    class(eos_wge_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    call self%bulk_properties(primary, fluid, err)
+    if (err == 0) then
+       call self%phase_properties(primary, rock, fluid, err)
+    end if
+
+  end subroutine eos_wge_fluid_properties
 
 !------------------------------------------------------------------------
 

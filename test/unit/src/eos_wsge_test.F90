@@ -124,17 +124,14 @@ contains
 
     fluid_wse%region = dble(region)
     fluid_wsce%region = dble(region)
-    call eos_wse%bulk_properties(primary_wse, fluid_wse, err)
-    call eos_wse%phase_composition(fluid_wse, err)
-    call eos_wse%phase_properties(primary_wse, rock, fluid_wse, err)
+    call eos_wse%fluid_properties(primary_wse, rock, fluid_wse, err)
     call eos_wse%primary_variables(fluid_wse, primary2_wse)
-    call eos_wsce%bulk_properties(primary_wsce, fluid_wsce, err)
-    call eos_wsce%phase_composition(fluid_wsce, err)
-    call eos_wsce%phase_properties(primary_wsce, rock, fluid_wsce, err)
+    call eos_wsce%fluid_properties(primary_wsce, rock, fluid_wsce, err)
     call eos_wsce%primary_variables(fluid_wsce, primary2_wsce)
 
     if (rank == 0) then
 
+       call test%assert(0, err, "Error code")
        call test%assert(fluid_wse%pressure, fluid_wsce%pressure, "Pressure")
        call test%assert(fluid_wse%temperature, fluid_wsce%temperature, "Temperature")
        call test%assert(nint(fluid_wse%phase_composition), &

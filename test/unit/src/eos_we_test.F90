@@ -120,13 +120,12 @@ contains
     primary = [pressure, vapour_saturation]
     fluid%region = dble(region)
     fluid%permeability_factor = 1._dp
-    call eos%bulk_properties(primary, fluid, err)
-    call eos%phase_composition(fluid, err)
-    call eos%phase_properties(primary, rock, fluid, err)
+    call eos%fluid_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)
 
     if (rank == 0) then
 
+       call test%assert(0, err, "Error code")
        call test%assert(pressure, fluid%pressure, "Pressure")
        call test%assert(temperature, fluid%temperature, "Temperature")
        call test%assert(phase_composition, nint(fluid%phase_composition), "Phase composition")
@@ -375,9 +374,7 @@ contains
     do i = 1, n
        primary = data(i, :)
        fluid%region = dble(region(i))
-       call eos%bulk_properties(primary, fluid, err)
-       call eos%phase_composition(fluid, err)
-       call eos%phase_properties(primary, rock, fluid, err)
+       call eos%fluid_properties(primary, rock, fluid, err)
        if (rank == 0) then
           call test%assert(1, err, "error code")
        end if

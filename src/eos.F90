@@ -67,9 +67,8 @@ module eos_module
      procedure(eos_init_procedure), public, deferred :: init
      procedure, public :: destroy => eos_destroy
      procedure(eos_transition_procedure), public, deferred :: transition
-     procedure(eos_bulk_properties_procedure), public, deferred :: bulk_properties
      procedure, public :: phase_composition => eos_phase_composition
-     procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
+     procedure(eos_fluid_properties_procedure), public, deferred :: fluid_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
      procedure, public :: conductivity => eos_conductivity
@@ -114,18 +113,8 @@ module eos_module
        PetscErrorCode, intent(out) :: err
      end subroutine eos_transition_procedure
 
-     subroutine eos_bulk_properties_procedure(self, primary, fluid, err)
-       !! Calculate bulk fluid properties from primary variables.
-       use fluid_module, only: fluid_type
-       import :: eos_type
-       class(eos_type), intent(in out) :: self
-       PetscReal, intent(in) :: primary(self%num_primary_variables)
-       type(fluid_type), intent(in out) :: fluid
-       PetscErrorCode, intent(out) :: err
-     end subroutine eos_bulk_properties_procedure
-
-     subroutine eos_phase_properties_procedure(self, primary, rock, fluid, err)
-       !! Calculate phase fluid properties from primary variables.
+     subroutine eos_fluid_properties_procedure(self, primary, rock, fluid, err)
+       !! Calculate fluid properties from primary variables.
        use rock_module, only: rock_type
        use fluid_module, only: fluid_type
        import :: eos_type
@@ -134,7 +123,7 @@ module eos_module
        type(rock_type), intent(in out) :: rock
        type(fluid_type), intent(in out) :: fluid
        PetscErrorCode, intent(out) :: err
-     end subroutine eos_phase_properties_procedure
+     end subroutine eos_fluid_properties_procedure
 
      subroutine eos_primary_variables_procedure(self, fluid, primary)
        !! Determine primary variables from fluid properties.

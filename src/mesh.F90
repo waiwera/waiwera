@@ -1192,32 +1192,22 @@ contains
                       call rock%assign_relative_permeability(relative_permeability)
                       call rock%assign_capillary_pressure(capillary_pressure)
                       call fluid%assign(fluid_array, fluid_offset)
-                      ! Set fluid region, bulk and phase properties:
+                      ! Set fluid region and properties:
                       fluid%region = dble(region)
-                      call eos%bulk_properties(primary, fluid, err)
+                      call eos%fluid_properties(primary, rock, fluid, err)
                       if (err == 0) then
-                         call eos%phase_properties(primary, rock, fluid, err)
-                         if (err == 0) then
-                            if (num_tracers > 0) then
-                               ! Set tracer boundary conditions:
-                               tracer_offset = global_section_offset(tracer_section, cells(2), &
-                                    tracer_range_start)
-                               cell_tracer => tracer_array(tracer_offset: tracer_offset + &
-                                    num_tracers - 1)
-                               cell_tracer = tracer
-                            end if
-                         else
-                            if (present(logfile)) then
-                               call logfile%write(LOG_LEVEL_ERR, 'boundary', &
-                                    'phase_properties_not_found', &
-                                    str_key = 'index', str_value = bdystr)
-                            end if
-                            exit
+                         if (num_tracers > 0) then
+                            ! Set tracer boundary conditions:
+                            tracer_offset = global_section_offset(tracer_section, cells(2), &
+                                 tracer_range_start)
+                            cell_tracer => tracer_array(tracer_offset: tracer_offset + &
+                                 num_tracers - 1)
+                            cell_tracer = tracer
                          end if
                       else
                          if (present(logfile)) then
                             call logfile%write(LOG_LEVEL_ERR, 'boundary', &
-                                 'bulk_properties_not_found', &
+                                 'fluid_properties_not_found', &
                                  str_key = 'index', str_value = bdystr)
                          end if
                          exit

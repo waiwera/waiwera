@@ -35,9 +35,10 @@ module eos_w_module
      private
      procedure, public :: init => eos_w_init
      procedure, public :: transition => eos_w_transition
-     procedure, public :: bulk_properties => eos_w_bulk_properties
+     procedure, public :: fluid_properties => eos_w_fluid_properties
+     procedure :: bulk_properties => eos_w_bulk_properties
+     procedure :: phase_properties => eos_w_phase_properties
      procedure, public :: phase_saturations => eos_w_phase_saturations
-     procedure, public :: phase_properties => eos_w_phase_properties
      procedure, public :: primary_variables => eos_w_primary_variables
      procedure, public :: check_primary_variables => eos_w_check_primary_variables
      procedure, public :: conductivity => eos_w_conductivity
@@ -120,6 +121,29 @@ contains
     transition = PETSC_FALSE
 
   end subroutine eos_w_transition
+
+!------------------------------------------------------------------------
+
+  subroutine eos_w_fluid_properties(self, primary, rock, fluid, err)
+    !! Calculate fluid properties from region and primary variables
+    !! for isothermal pure water.
+
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
+    class(eos_w_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    call self%bulk_properties(primary, fluid, err)
+    if (err == 0) then
+       call self%phase_properties(primary, rock, fluid, err)
+    end if
+
+  end subroutine eos_w_fluid_properties
 
 !------------------------------------------------------------------------
 

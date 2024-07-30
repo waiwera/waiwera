@@ -44,8 +44,8 @@ module eos_wsge_module
      procedure, public :: transition_to_single_phase => eos_wsge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wsge_transition_to_two_phase
      procedure, public :: halite_transition => eos_wsge_halite_transition
-     procedure, public :: bulk_properties => eos_wsge_bulk_properties
-     procedure, public :: phase_properties => eos_wsge_phase_properties
+     procedure :: bulk_properties => eos_wsge_bulk_properties
+     procedure :: phase_properties => eos_wsge_phase_properties
      procedure, public :: primary_variables => eos_wsge_primary_variables
      procedure, public :: check_primary_variables => eos_wsge_check_primary_variables
   end type eos_wsge_type

@@ -2239,31 +2239,14 @@ contains
           call cell%fluid%assign(fluid_array, fluid_offset)
           cell_primary = self%eos%unscale(scaled_cell_primary, nint(cell%fluid%region))
 
-          call self%eos%bulk_properties(cell_primary, cell%fluid, err)
-
-          if (err == 0) then
-             call self%eos%phase_properties(cell_primary, cell%rock, &
-                  cell%fluid, err)
-             if (err > 0) then
-                natural = self%mesh%local_to_parent_natural(c)
-                minc_level = self%mesh%local_cell_minc_level(c)
-                call self%mesh%natural_cell_output_arrays( &
-                     natural, minc_level, cell_keys, cell_values)
-                call self%logfile%write(LOG_LEVEL_ERR, &
-                     'initialize', 'fluid_phase_properties', &
-                     [cell_keys, ['region']], &
-                     [cell_values, [int(cell%fluid%region)]], &
-                     real_array_key = 'primary', real_array_value = cell_primary, &
-                     rank = rank)
-                exit
-             end if
-          else
+          call self%eos%fluid_properties(cell_primary, cell%rock, cell%fluid, err)
+          if (err > 0) then
              natural = self%mesh%local_to_parent_natural(c)
              minc_level = self%mesh%local_cell_minc_level(c)
              call self%mesh%natural_cell_output_arrays( &
                   natural, minc_level, cell_keys, cell_values)
              call self%logfile%write(LOG_LEVEL_ERR, &
-                  'initialize', 'fluid_bulk_properties', &
+                  'initialize', 'fluid_properties', &
                   [cell_keys, ['region']], &
                   [cell_values, [int(cell%fluid%region)]], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
@@ -2368,30 +2351,15 @@ contains
              call cell%fluid%assign(fluid_array, fluid_offset)
              cell_primary = self%eos%unscale(scaled_cell_primary, nint(cell%fluid%region))
 
-             call self%eos%bulk_properties(cell_primary, cell%fluid, err)
+             call self%eos%fluid_properties(cell_primary, cell%rock, cell%fluid, err)
 
-             if (err == 0) then
-                call self%eos%phase_properties(cell_primary, cell%rock, &
-                     cell%fluid, err)
-                if (err > 0) then
-                   natural = self%mesh%local_to_parent_natural(c)
-                   minc_level = self%mesh%local_cell_minc_level(c)
-                   call self%mesh%natural_cell_output_arrays( &
-                        natural, minc_level, cell_keys, cell_values)
-                   call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                        'phase_properties_not_found', &
-                        cell_keys, cell_values, &
-                        real_array_key = 'primary         ', &
-                        real_array_value = cell_primary, rank = rank)
-                   exit
-                end if
-             else
+             if (err > 0) then
                 natural = self%mesh%local_to_parent_natural(c)
                 minc_level = self%mesh%local_cell_minc_level(c)
                 call self%mesh%natural_cell_output_arrays( &
                      natural, minc_level, cell_keys, cell_values)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'bulk_properties_not_found', &
+                     'properties_not_found', &
                      cell_keys, cell_values, &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)
