@@ -39,8 +39,8 @@ module eos_se_module
      procedure, public :: init => eos_se_init
      procedure, public :: destroy => eos_se_destroy
      procedure, public :: transition => eos_se_transition
-     procedure, public :: bulk_properties => eos_se_bulk_properties
-     procedure, public :: phase_properties => eos_se_phase_properties
+     procedure, public :: fluid_properties => eos_se_fluid_properties
+     procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
@@ -204,42 +204,113 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_bulk_properties(self, primary, fluid, err)
-    !! Calculate fluid bulk properties from region and primary variables
-    !! for non-isothermal pure supercritical water.
+  subroutine eos_se_fluid_properties(self, primary, rock, fluid, err)
+    !! Calculate fluid properties from region and primary variables
+    !! for pure supercritical water and energy EOS.
 
     use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
 
     class(eos_se_type), intent(in out) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err !! Error code
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
 
     err = 0
-    fluid%pressure = primary(1)
     region = nint(fluid%region)
 
-    if (region == 4) then
-       ! Two-phase
-       call self%thermo%saturation%temperature(fluid%pressure, &
-            fluid%temperature, err)
+    if (region == 3) then
+       call self%region3_fluid_properties(primary, rock, fluid, err)
     else
-       ! Single-phase
-       fluid%temperature = primary(2)
+       call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
     end if
 
-    if (err == 0) then
-       fluid%permeability_factor = 1._dp
-       call self%phase_composition(fluid, err)
-       if (err == 0) then
-          call self%phase_saturations(primary, fluid)
-          fluid%partial_pressure(1) = fluid%pressure
-       end if
-    end if
+  end subroutine eos_se_fluid_properties
 
-  end subroutine eos_se_bulk_properties
+  !------------------------------------------------------------------------
+
+  subroutine eos_se_region3_fluid_properties(self, primary, rock, fluid, err)
+    !! Calculate region 3 fluid properties from region and primary variables
+    !! for pure supercritical water and energy EOS.
+
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: p
+    PetscReal :: properties(2), saturation_pressure, sl
+    PetscReal :: relative_permeability(2), capillary_pressure(2)
+
+    err = 0
+
+    associate(density => primary(1), temperature => primary(2), &
+         region => self%thermo%region(3)%ptr)
+
+      fluid%temperature = temperature
+      call region%properties(primary, properties, err)
+
+      if (err == 0) then
+
+         associate(pressure => properties(1), internal_energy => properties(2))
+
+           fluid%pressure = pressure
+           fluid%permeability_factor = 1._dp
+           call self%phase_composition(fluid, err)
+           if (err == 0) then
+
+              call self%phase_saturations(primary, fluid)
+              fluid%partial_pressure(1) = fluid%pressure
+
+              do p = 1, 3
+                 associate(phase => fluid%phase(p))
+                   phase%saturation = 0._dp
+                   phase%density = 0._dp
+                   phase%internal_energy = 0._dp
+                   phase%specific_enthalpy = 0._dp
+                   phase%relative_permeability = 0._dp
+                   phase%capillary_pressure = 0._dp
+                   phase%viscosity = 0._dp
+                   phase%mass_fraction(1) = 0._dp
+                 end associate
+              end do
+
+              p = self%region3_phase(nint(fluid%phase_composition))
+              associate(phase => fluid%phase(p))
+                phase%saturation = 1._dp
+                phase%density = density
+                phase%internal_energy = properties(2)
+                phase%specific_enthalpy = phase%internal_energy + &
+                     fluid%pressure / phase%density
+                phase%mass_fraction(1) = 1._dp
+
+                if (fluid%temperature <= self%thermo%critical%temperature) then
+                   sl = fluid%phase(1)%saturation
+                   relative_permeability = rock%relative_permeability%values(sl)
+                   capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
+                        0._dp]
+                   phase%relative_permeability = relative_permeability(p)
+                   phase%capillary_pressure =  capillary_pressure(p)
+                end if
+
+                call region%viscosity(fluid%temperature, fluid%pressure, &
+                     phase%density, phase%viscosity)
+              end associate
+
+           end if
+         end associate
+      end if
+
+    end associate
+
+  end subroutine eos_se_region3_fluid_properties
 
 !------------------------------------------------------------------------
 
@@ -284,74 +355,6 @@ contains
     end subroutine set_saturations
 
   end subroutine eos_se_phase_saturations
-
-!------------------------------------------------------------------------
-
-  subroutine eos_se_phase_properties(self, primary, rock, fluid, err)
-    !! Calculate fluid phase properties from updated fluid region and primary variables.
-    !! Bulk properties need to be calculated before calling this routine.
-
-    use rock_module, only: rock_type
-    use fluid_module, only: fluid_type
-
-    class(eos_se_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(rock_type), intent(in out) :: rock !! Rock object
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscInt :: p, phases
-    PetscReal :: properties(2), sl, relative_permeability(2), capillary_pressure(2)
-
-    err = 0
-    phases = nint(fluid%phase_composition)
-
-    sl = fluid%phase(1)%saturation
-    relative_permeability = rock%relative_permeability%values(sl)
-    capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
-         0._dp]
-
-    do p = 1, self%num_phases
-       associate(phase => fluid%phase(p), &
-            region => self%thermo%region(p)%ptr)
-
-         if (btest(phases, p - 1)) then
-
-            call region%properties([fluid%pressure, fluid%temperature], &
-                 properties, err)
-
-            if (err == 0) then
-
-               phase%density = properties(1)
-               phase%internal_energy = properties(2)
-               phase%specific_enthalpy = phase%internal_energy + &
-                    fluid%pressure / phase%density
-
-               phase%mass_fraction(1) = 1._dp
-               phase%relative_permeability = relative_permeability(p)
-               phase%capillary_pressure =  capillary_pressure(p)
-
-               call region%viscosity(fluid%temperature, fluid%pressure, &
-                    phase%density, phase%viscosity)
-
-            else
-               exit
-            end if
-
-         else
-            phase%density = 0._dp
-            phase%internal_energy = 0._dp
-            phase%specific_enthalpy = 0._dp
-            phase%relative_permeability = 0._dp
-            phase%capillary_pressure = 0._dp
-            phase%viscosity = 0._dp
-            phase%mass_fraction(1) = 0._dp
-         end if
-
-       end associate
-    end do
-
-  end subroutine eos_se_phase_properties
 
 !------------------------------------------------------------------------
 
