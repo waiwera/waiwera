@@ -33,6 +33,7 @@ module eos_se_module
   type, public, extends(eos_we_type) :: eos_se_type
      !! Pure supercritical water and energy equation of state type.
      private
+     PetscInt :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
    contains
      private
      procedure, public :: init => eos_se_init
@@ -250,45 +251,35 @@ contains
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
-    PetscInt :: region
-    PetscReal :: saturation_pressure
+    PetscInt :: region, phases, p
+    PetscReal :: saturation_pressure, s(3)
     PetscErrorCode :: err
 
     region = nint(fluid%region)
 
     select case (region)
     case (1)
-       call set_saturations(1._dp, 0._dp, 0._dp)
+       call set_saturations([1._dp, 0._dp, 0._dp])
     case (2)
-       call set_saturations(0._dp, 1._dp, 0._dp)
+       call set_saturations([0._dp, 1._dp, 0._dp])
     case (3)
-       if (fluid%temperature <= self%thermo%critical%temperature) then
-         call self%thermo%saturation%pressure(fluid%temperature, &
-              saturation_pressure, err)
-         if (fluid%pressure > saturation_pressure) then
-            call set_saturations(1._dp, 0._dp, 0._dp)
-         else
-            call set_saturations(0._dp, 1._dp, 0._dp)
-         end if
-       else
-          if (fluid%pressure <= self%thermo%critical%pressure) then
-            call set_saturations(0._dp, 1._dp, 0._dp)
-          else
-            call set_saturations(0._dp, 0._dp, 1._dp)
-          end if
-       end if
+       phases = nint(fluid%phase_composition)
+       p = self%region3_phase(phases)
+       s = 0._dp
+       s(p) = 1._dp
+       call set_saturations(s)
     case (4)
-       call set_saturations(1._dp - primary(2), primary(2), 0._dp)
+       call set_saturations([1._dp - primary(2), primary(2), 0._dp])
     end select
 
   contains
 
-    subroutine set_saturations(s1, s2, s3)
-      PetscReal, intent(in) :: s1, s2, s3
+    subroutine set_saturations(s)
+      PetscReal, intent(in) :: s(3)
 
-      fluid%phase(1)%saturation = s1
-      fluid%phase(2)%saturation = s2
-      fluid%phase(3)%saturation = s3
+      fluid%phase(1)%saturation = s(1)
+      fluid%phase(2)%saturation = s(2)
+      fluid%phase(3)%saturation = s(3)
 
     end subroutine set_saturations
 
@@ -373,9 +364,7 @@ contains
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(out) :: primary(self%num_primary_variables)
     ! Locals:
-    PetscInt :: region
-    PetscReal :: saturation_pressure
-    PetscErrorCode :: err
+    PetscInt :: region, phases, p
 
     region = nint(fluid%region)
     select case (region)
@@ -384,21 +373,10 @@ contains
        primary(2) = fluid%temperature
     case (3)
        primary(2) = fluid%temperature
-       if (fluid%temperature <= self%thermo%critical%temperature) then
-         call self%thermo%saturation%pressure(fluid%temperature, &
-              saturation_pressure, err)
-         if (fluid%pressure > saturation_pressure) then
-            primary(1) = fluid%phase(1)%density
-         else
-            primary(1) = fluid%phase(2)%density
-         end if
-      else
-          if (fluid%pressure <= self%thermo%critical%pressure) then
-            primary(1) = fluid%phase(2)%density
-         else
-            primary(1) = fluid%phase(3)%density
-         end if
-      end if
+       phases = self%thermo%phase_composition(region, fluid%pressure, &
+            fluid%temperature)
+       p = self%region3_phase(phases)
+       primary(1) = fluid%phase(p)%density
     case (4)
        primary(1) = fluid%pressure
        primary(2) = fluid%phase(2)%saturation
@@ -422,7 +400,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
-    PetscReal :: p, t, props(2)
+    PetscReal :: p, props(2)
 
     changed = PETSC_FALSE
     err = 0
