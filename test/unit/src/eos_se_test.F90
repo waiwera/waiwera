@@ -22,7 +22,8 @@ module eos_se_test_module
 
   public :: setup, teardown, setup_test
   public :: test_eos_se_fluid_properties, test_eos_se_transition, &
-       test_eos_se_errors, test_eos_se_conductivity
+       test_eos_se_errors, test_eos_se_conductivity, &
+       test_eos_se_phase_saturations
 
 contains
 
@@ -470,5 +471,73 @@ contains
   end subroutine test_eos_se_conductivity
 
 !------------------------------------------------------------------------
-  
+
+  subroutine test_eos_se_phase_saturations(test)
+    ! Test eos_se phase saturations in region 3.
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_se_type) :: eos
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    type(fluid_type) :: fluid
+    PetscInt :: offset = 1
+    PetscInt, parameter :: region = 3
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{}')
+    call thermo%init()
+    call eos%init(json, thermo)
+    call fluid%init(eos%num_components, eos%num_phases)
+    allocate(fluid_data(fluid%dof))
+    fluid_data = 0._dp
+    call fluid%assign(fluid_data, offset)
+    fluid%region = dble(region)
+
+    call saturations_test([700._dp, 360._dp], [1._dp, 0._dp, 0._dp], "case 1")
+    call saturations_test([550._dp, 370._dp], [1._dp, 0._dp, 0._dp], "case 2")
+    call saturations_test([150._dp, 370._dp], [0._dp, 1._dp, 0._dp], "case 3")
+    call saturations_test([150._dp, 380._dp], [0._dp, 1._dp, 0._dp], "case 4")
+    call saturations_test([400._dp, 500._dp], [0._dp, 0._dp, 1._dp], "case 5")
+    call saturations_test([600._dp, 450._dp], [0._dp, 0._dp, 1._dp], "case 6")
+
+    call fluid%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(fluid_data)
+
+  contains
+
+    subroutine saturations_test(primary, expected_saturations, name)
+
+      PetscReal, intent(in) :: primary(eos%num_primary_variables)
+      PetscReal, intent(in) :: expected_saturations(eos%num_phases)
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: saturations(eos%num_phases), props(2)
+      PetscInt :: i
+      PetscErrorCode :: err
+
+      call thermo%region(3)%ptr%properties(primary, props, err)
+      fluid%pressure = props(1)
+      fluid%temperature = primary(2)
+      call fluid%update_phase_composition(thermo)
+      call eos%phase_saturations(primary, fluid)
+
+      do i = 1, eos%num_phases
+         saturations(i) = fluid%phase(i)%saturation
+      end do
+      call test%assert(expected_saturations, saturations, name)
+
+    end subroutine saturations_test
+
+  end subroutine test_eos_se_phase_saturations
+
+! ------------------------------------------------------------------------
+
 end module eos_se_test_module
