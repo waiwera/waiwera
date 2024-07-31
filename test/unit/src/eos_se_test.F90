@@ -498,12 +498,16 @@ contains
     call fluid%assign(fluid_data, offset)
     fluid%region = dble(region)
 
-    call saturations_test([700._dp, 360._dp], [1._dp, 0._dp, 0._dp], "case 1")
-    call saturations_test([550._dp, 370._dp], [1._dp, 0._dp, 0._dp], "case 2")
-    call saturations_test([150._dp, 370._dp], [0._dp, 1._dp, 0._dp], "case 3")
-    call saturations_test([150._dp, 380._dp], [0._dp, 1._dp, 0._dp], "case 4")
-    call saturations_test([400._dp, 500._dp], [0._dp, 0._dp, 1._dp], "case 5")
-    call saturations_test([600._dp, 450._dp], [0._dp, 0._dp, 1._dp], "case 6")
+    if (rank == 0) then
+
+       call saturations_test([700._dp, 360._dp], [1._dp, 0._dp, 0._dp], "case 1")
+       call saturations_test([550._dp, 370._dp], [1._dp, 0._dp, 0._dp], "case 2")
+       call saturations_test([150._dp, 370._dp], [0._dp, 1._dp, 0._dp], "case 3")
+       call saturations_test([150._dp, 380._dp], [0._dp, 1._dp, 0._dp], "case 4")
+       call saturations_test([400._dp, 500._dp], [0._dp, 0._dp, 1._dp], "case 5")
+       call saturations_test([600._dp, 450._dp], [0._dp, 0._dp, 1._dp], "case 6")
+
+    end if
 
     call fluid%destroy()
     call eos%destroy()
