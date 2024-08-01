@@ -71,7 +71,7 @@ contains
     ! Locals:
     type(fluid_type) :: fluid
     type(rock_type) :: rock
-    PetscInt,  parameter :: offset = 1, region = 4, phase_composition = int(b'011')
+    PetscInt,  parameter :: offset = 1, region = 3, phase_composition = int(b'100')
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, allocatable:: primary(:), primary2(:)
     type(eos_se_type) :: eos
@@ -82,21 +82,14 @@ contains
     character(120) :: json_str = &
          '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
     PetscErrorCode :: err
-    PetscReal, parameter :: temperature = 230._dp
-    PetscReal, parameter :: pressure = 27.967924557686445e5_dp
-    PetscReal, parameter :: vapour_saturation = 0.25
-    PetscReal, parameter :: expected_liquid_density = 827.12247049977032_dp
-    PetscReal, parameter :: expected_liquid_internal_energy = 986828.18916209263_dp
-    PetscReal, parameter :: expected_liquid_specific_enthalpy = 990209.54144729744_dp
-    PetscReal, parameter :: expected_liquid_viscosity = 1.1619412513757267e-4_dp
-    PetscReal, parameter :: expected_liquid_relative_permeability = 11._dp / 12._dp
-    PetscReal, parameter :: expected_liquid_capillary_pressure = 0._dp
-    PetscReal, parameter :: expected_vapour_density = 13.984012253728331_dp
-    PetscReal, parameter :: expected_vapour_internal_energy = 2603010.010356456_dp
-    PetscReal, parameter :: expected_vapour_specific_enthalpy = 2803009.2956133024_dp
-    PetscReal, parameter :: expected_vapour_viscosity = 1.6704837258831552e-5_dp
-    PetscReal, parameter :: expected_vapour_relative_permeability = 1._dp / 12._dp
-    PetscReal, parameter :: expected_vapour_capillary_pressure = 0._dp
+    PetscReal, parameter :: temperature = 500._dp
+    PetscReal, parameter :: density = 400._dp
+    PetscReal, parameter :: expected_pressure = 68.98524210481558e6_dp
+    PetscReal, parameter :: expected_internal_energy = 2302.4381901101337e3_dp
+    PetscReal, parameter :: expected_specific_enthalpy = 2474.9012953721726e3_dp
+    PetscReal, parameter :: expected_viscosity = 5.293000292993047e-5_dp
+    PetscReal, parameter :: expected_relative_permeability = 1._dp
+    PetscReal, parameter :: expected_capillary_pressure = 0._dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -118,7 +111,7 @@ contains
     call rock%assign_relative_permeability(rp)
     call rock%assign_capillary_pressure(cp)
 
-    primary = [pressure, vapour_saturation]
+    primary = [density, temperature]
     fluid%region = dble(region)
     fluid%permeability_factor = 1._dp
     call eos%fluid_properties(primary, rock, fluid, err)
@@ -127,50 +120,29 @@ contains
     if (rank == 0) then
 
        call test%assert(0, err, "Error code")
-       call test%assert(pressure, fluid%pressure, "Pressure")
+       call test%assert(expected_pressure, fluid%pressure, "Pressure")
        call test%assert(temperature, fluid%temperature, "Temperature")
        call test%assert(phase_composition, nint(fluid%phase_composition), "Phase composition")
 
-       call test%assert(expected_liquid_density, fluid%phase(1)%density, &
-            "Liquid density")
-       call test%assert(expected_liquid_internal_energy, &
-            fluid%phase(1)%internal_energy, "Liquid internal energy")
-       call test%assert(expected_liquid_specific_enthalpy, &
-            fluid%phase(1)%specific_enthalpy, "Liquid specific enthalpy")
-       call test%assert(expected_liquid_viscosity, fluid%phase(1)%viscosity, &
-            "Liquid viscosity")
-       call test%assert(1._dp - vapour_saturation, &
-            fluid%phase(1)%saturation, "Liquid saturation")
-       call test%assert(expected_liquid_relative_permeability, &
-            fluid%phase(1)%relative_permeability, &
-            "Liquid relative permeability")
-       call test%assert(expected_liquid_capillary_pressure, &
-            fluid%phase(1)%capillary_pressure, &
-            "Liquid capillary pressure")
-       call test%assert(1._dp, fluid%phase(1)%mass_fraction(1), &
-            "Liquid mass fraction")
+       call test%assert(density, fluid%phase(3)%density, "density")
+       call test%assert(expected_internal_energy, &
+            fluid%phase(3)%internal_energy, "internal energy")
+       call test%assert(expected_specific_enthalpy, &
+            fluid%phase(3)%specific_enthalpy, "specific enthalpy")
+       call test%assert(expected_viscosity, fluid%phase(3)%viscosity, "viscosity")
+       call test%assert(1._dp, fluid%phase(3)%saturation, "saturation")
+       call test%assert(expected_relative_permeability, &
+            fluid%phase(3)%relative_permeability, "relative permeability")
+       call test%assert(expected_capillary_pressure, &
+            fluid%phase(3)%capillary_pressure, "capillary pressure")
+       call test%assert(1._dp, fluid%phase(3)%mass_fraction(1), &
+            "mass fraction")
 
-       call test%assert(expected_vapour_density, fluid%phase(2)%density, &
-            "Vapour density")
-       call test%assert(expected_vapour_internal_energy, &
-            fluid%phase(2)%internal_energy, "Vapour internal energy")
-       call test%assert(expected_vapour_specific_enthalpy, &
-            fluid%phase(2)%specific_enthalpy, "Vapour specific enthalpy")
-       call test%assert(expected_vapour_viscosity, fluid%phase(2)%viscosity, &
-            "Vapour viscosity")
-       call test%assert(vapour_saturation, fluid%phase(2)%saturation, &
-            "Vapour saturation")
-       call test%assert(expected_vapour_relative_permeability, &
-            fluid%phase(2)%relative_permeability, &
-            "Vapour relative permeability")
-       call test%assert(expected_vapour_capillary_pressure, &
-            fluid%phase(2)%capillary_pressure, &
-            "Vapour capillary pressure")
-       call test%assert(1._dp, fluid%phase(2)%mass_fraction(1), &
-            "Vapour mass fraction")
+       call test%assert(0._dp, fluid%phase(1)%density, "liquid density")
+       call test%assert(0._dp, fluid%phase(2)%density, "vapour density")
 
-       call test%assert(pressure, primary2(1), "Primary 1")
-       call test%assert(vapour_saturation, primary2(2), "Primary 2")
+       call test%assert(density, primary2(1), "Primary 1")
+       call test%assert(temperature, primary2(2), "Primary 2")
 
     end if
 
