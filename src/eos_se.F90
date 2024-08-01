@@ -324,8 +324,7 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     ! Locals:
     PetscInt :: region, phases, p
-    PetscReal :: saturation_pressure, s(3)
-    PetscErrorCode :: err
+    PetscReal :: s(3)
 
     region = nint(fluid%region)
     select case (region)
