@@ -165,40 +165,132 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
-    PetscReal :: saturation_pressure
 
     err = 0
     transition = PETSC_FALSE
     old_region = nint(old_fluid%region)
 
-    if (old_region == 4) then  ! Two-phase
-       associate (vapour_saturation => primary(2))
+    select case (old_region)
+    case (1)
+       call region_1_transitions()
+    case (2)
+       call region_2_transitions()
+    case (3)
+       call region_3_transitions()
+    case (4)
+       call region_4_transitions()
+    end select
 
-         if (vapour_saturation < 0._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 1, primary, fluid, transition, err)
-         else if (vapour_saturation > 1._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 2, primary, fluid, transition, err)
-         end if
+  contains
 
-     end associate
-    else  ! Single-phase
+!........................................................................
+
+    subroutine region_1_transitions()
+      !! Transitions from region 1 to 3 or 4
+
+      ! Locals:
+      PetscReal :: saturation_pressure
+      PetscReal, parameter :: max_region_1_temp = 350._dp, &
+           temp_tol = 0.1_dp
+
        associate (pressure => primary(1), temperature => primary(2))
 
-         call self%thermo%saturation%pressure(temperature, &
-              saturation_pressure, err)
+         if (temperature > max_region_1_temp) then
 
-         if (err == 0) then
-            if (((old_region == 1) .and. (pressure < saturation_pressure)) .or. &
-                 ((old_region == 2) .and. (pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, &
-                    old_primary, old_fluid, primary, fluid, transition, err)
+            if (temperature > self%thermo%critical%temperature - temp_tol) then
+               err = 1
+            else
+
+               call self%thermo%saturation%pressure(temperature, &
+                    saturation_pressure, err)
+               if (err == 0) then
+
+                  if (pressure < saturation_pressure) then
+                     call self%transition_to_two_phase(saturation_pressure, &
+                          old_primary, old_fluid, primary, fluid, transition, err)
+                  else
+                     fluid%region = dble(3)
+                     ! TODO: solve for region 3 density corresponding to primary (P,T)
+                     ! and assign to primary(1) - or err = 1 if solve fails
+                     transition = PETSC_TRUE
+                  end if
+
+               end if
+            end if
+
+         else
+
+            call self%thermo%saturation%pressure(temperature, &
+                 saturation_pressure, err)
+            if (err == 0) then
+               if (pressure < saturation_pressure) then
+                  call self%transition_to_two_phase(saturation_pressure, &
+                       old_primary, old_fluid, primary, fluid, transition, err)
+               end if
+            end if
+
+         end if
+       end associate
+
+     end subroutine region_1_transitions
+
+!........................................................................
+
+    subroutine region_2_transitions()
+      !! Transitions from region 2 to 3 or 4
+
+      ! Locals:
+      PetscReal :: saturation_pressure
+
+       associate (pressure => primary(1), temperature => primary(2))
+
+         if (temperature <= self%thermo%critical%temperature) then
+            call self%thermo%saturation%pressure(temperature, &
+                 saturation_pressure, err)
+            if (err == 0) then
+               if (pressure > saturation_pressure) then
+                  call self%transition_to_two_phase(saturation_pressure, &
+                       old_primary, old_fluid, primary, fluid, transition, err)
+               end if
             end if
          end if
 
+         ! TODO: check for 2 -> 3
+
        end associate
-    end if
+
+     end subroutine region_2_transitions
+
+!........................................................................
+
+    subroutine region_3_transitions()
+      !! Transitions from region 3 to 1, 2 or 4
+
+      ! Locals:
+
+      continue
+
+    end subroutine region_3_transitions
+
+!........................................................................
+
+    subroutine region_4_transitions()
+      !! Transitions from region 4 to 1, 2 or 3
+
+      ! Locals:
+
+      associate (vapour_saturation => primary(2))
+        if (vapour_saturation < 0._dp) then
+           call self%transition_to_single_phase(old_primary, old_fluid, &
+                1, primary, fluid, transition, err)
+        else if (vapour_saturation > 1._dp) then
+           call self%transition_to_single_phase(old_primary, old_fluid, &
+                2, primary, fluid, transition, err)
+        end if
+        ! TODO: check for 4 -> 3
+      end associate
+
+    end subroutine region_4_transitions
 
   end subroutine eos_se_transition
 
