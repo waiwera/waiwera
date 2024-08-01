@@ -23,7 +23,7 @@ module eos_se_test_module
   public :: setup, teardown, setup_test
   public :: test_eos_se_fluid_properties, test_eos_se_transition, &
        test_eos_se_errors, test_eos_se_conductivity, &
-       test_eos_se_phase_saturations
+       test_eos_se_phase_saturations, test_eos_se_check_primary_variables
 
 contains
 
@@ -543,5 +543,72 @@ contains
   end subroutine test_eos_se_phase_saturations
 
 ! ------------------------------------------------------------------------
+
+  subroutine test_eos_se_check_primary_variables(test)
+    ! Test eos_se check_primary_variables in region 3.
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_se_type) :: eos
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    type(fluid_type) :: fluid
+    PetscInt :: offset = 1
+    PetscInt, parameter :: region = 3
+    PetscMPIInt :: rank
+    PetscReal, allocatable :: primary(:)
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{}')
+    call thermo%init()
+    call eos%init(json, thermo)
+    call fluid%init(eos%num_components, eos%num_phases)
+    allocate(fluid_data(fluid%dof))
+    fluid_data = 0._dp
+    call fluid%assign(fluid_data, offset)
+    fluid%region = dble(region)
+    allocate(primary(eos%num_primary_variables))
+
+    if (rank == 0) then
+
+       primary = [550._dp, 360._dp]
+       call check_primary_test(primary, 0, "case 1")
+       primary = [400._dp, 500._dp]
+       call check_primary_test(primary, 0, "case 2")
+       primary = [1000._dp, 360._dp]
+       call check_primary_test(primary, 1, "case 3")
+       primary = [200._dp, 810._dp]
+       call check_primary_test(primary, 1, "case 4")
+
+    end if
+
+    call fluid%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(fluid_data, primary)
+
+  contains
+
+    subroutine check_primary_test(primary, expected_err, name)
+
+      PetscReal, intent(in out) :: primary(eos%num_primary_variables)
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscErrorCode :: err
+      PetscBool :: changed
+
+      call eos%check_primary_variables(fluid, primary, changed, err)
+      call test%assert(expected_err, err, name)
+
+    end subroutine check_primary_test
+
+  end subroutine test_eos_se_check_primary_variables
+
+!------------------------------------------------------------------------
 
 end module eos_se_test_module
