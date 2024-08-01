@@ -301,6 +301,9 @@ contains
                         0._dp]
                    phase%relative_permeability = relative_permeability(p)
                    phase%capillary_pressure =  capillary_pressure(p)
+                else
+                   phase%relative_permeability = 1._dp
+                   phase%capillary_pressure =  0._dp
                 end if
 
               end associate
