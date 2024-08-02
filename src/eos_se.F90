@@ -26,6 +26,7 @@ module eos_se_module
   use eos_we_module
   use root_finder_module
   use thermodynamics_module
+  use IAPWS_module
 
   implicit none
   private
@@ -189,7 +190,7 @@ contains
       !! Transitions from region 1 to 3 or 4
 
       ! Locals:
-      PetscReal :: saturation_pressure
+      PetscReal :: saturation_pressure, density
       PetscReal, parameter :: max_region_1_temp = 350._dp, &
            temp_tol = 0.1_dp
 
@@ -209,10 +210,15 @@ contains
                      call self%transition_to_two_phase(saturation_pressure, &
                           old_primary, old_fluid, primary, fluid, transition, err)
                   else
-                     fluid%region = dble(3)
-                     ! TODO: solve for region 3 density corresponding to primary (P,T)
-                     ! and assign to primary(1) - or err = 1 if solve fails
-                     transition = PETSC_TRUE
+                     select type (region => self%thermo%region(3)%ptr)
+                     type is (IAPWS_region3_type)
+                        call region%density(primary, density, err)
+                     end select
+                     if (err == 0) then
+                        fluid%region = dble(3)
+                        primary(1) = density
+                        transition = PETSC_TRUE
+                     end if
                   end if
 
                end if

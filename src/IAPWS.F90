@@ -225,6 +225,7 @@ module IAPWS_module
      procedure, public :: init => region3_init
      procedure, public :: destroy => region3_destroy
      procedure, public :: properties => region3_properties
+     procedure, public :: density => region3_density
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
@@ -729,6 +730,25 @@ contains
     end associate
 
   end subroutine region3_properties
+
+!------------------------------------------------------------------------
+
+  subroutine region3_density(self, param, density, err)
+    !! Calculates density in region 3 as a function of pressure and
+    !! temperature (deg C).
+    !!
+    !! Returns err = 1 if the density cannot be found.
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(out):: density  !! Fluid density
+    PetscInt, intent(out) :: err   !! Error code
+    ! Locals:
+
+    err = 0
+    density = 0._dp
+
+  end subroutine region3_density
 
 !------------------------------------------------------------------------
   ! Viscosity
