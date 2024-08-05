@@ -33,6 +33,7 @@ module IAPWS_module
   use kinds_module
   use powertable_module
   use thermodynamics_module
+  use utils_module, only: polynomial
 
   implicit none
   private
@@ -88,6 +89,25 @@ module IAPWS_module
      procedure, public :: init => viscosity_init
      procedure, public :: destroy => viscosity_destroy
   end type IAPWS_viscosity_type
+
+!------------------------------------------------------------------------
+! Thermodynamic sub-region type (for region 3 backwards equations)
+!------------------------------------------------------------------------
+
+  type, public :: IAPWS_subregion3_type
+     !! Thermodynamic sub-region type for region 3 backwards equations.
+     PetscReal :: nustar, pstar, tstar
+     PetscReal :: a, b, c, d, e
+     PetscBool :: exp_form
+     PetscInt, allocatable :: I(:), J(:)
+     PetscReal, allocatable :: n(:)
+     type(powertable_type) :: pi, pj
+   contains
+     private
+     procedure, public :: init => subregion3_init
+     procedure, public :: destroy => subregion3_destroy
+     procedure, public :: specific_volume => subregion3_specific_volume
+  end type IAPWS_subregion3_type
 
 !------------------------------------------------------------------------
 ! IAPWS region type
@@ -228,12 +248,50 @@ module IAPWS_module
      PetscReal :: nI(40), nJ(40)
      PetscInt :: I_1(40), J_1(40)
      type(powertable_type) :: pi, pj
+
+     ! Sub-regions for backwards equations:
+     type(IAPWS_subregion3_type) :: subregion(20)
+
+     ! Sub-region boundaries
+     PetscReal :: pstar = 1.e6_dp
+     PetscReal :: psat_643, psat_623
+     PetscReal :: p3cd = 1.900881189173929e7_dp
+     PetscReal :: subregion_bdy_n_ab(3) = [0.154793642129415e4_dp, &
+          -0.187661219490113e3_dp, 0.213144632222113e2_dp]
+     PetscReal :: subregion_bdy_ninv_ab(3) = [0._dp, &
+          -0.191887498864292e4_dp, 0.918419702359447e3_dp]
+     PetscReal :: subregion_bdy_n_cd(4) = [0.585276966696349e3_dp, &
+          0.278233532206915e1_dp, -0.127283549295878e-1_dp, 0.159090746562729e-3_dp]
+     PetscReal :: subregion_bdy_n_gh(5) = [-0.249284240900418e5_dp, &
+          0.428143584791546e4_dp, -0.269029173140130e3_dp, &
+          0.751608051114157e1_dp, -0.787105249910383e-1_dp]
+     PetscReal :: subregion_bdy_n_ij(5) = [0.584814781649163e3_dp, &
+          -0.616179320924617_dp, 0.260763050899562_dp, -0.587071076864459e-2_dp, &
+          0.515308185433082e-4_dp]
+     PetscReal :: subregion_bdy_n_jk(5) = [0.617229772068439e3_dp, &
+          -0.770600270141675e1_dp, 0.697072596851896_dp, -0.157391839848015e-1_dp, &
+          0.137897492684194e-3_dp]
+     PetscReal :: subregion_bdy_n_mn(4) = [0.535339483742384e3_dp, &
+          0.761978122720128e1_dp, -0.158365725441648_dp, 0.192871054508108e-2_dp]
+     PetscReal :: subregion_bdy_n_op(3) = [0.969461372400213e3_dp, &
+          -0.332500170441278e3_dp, 0.642859598466067e2_dp]
+     PetscReal :: subregion_bdy_ninv_op(3) = [0._dp, &
+          0.773845935768222e3_dp, -0.152313732937084e4_dp]
+     PetscReal :: subregion_bdy_n_qu(4) = [0.565603648239126e3_dp, &
+          0.529062258221222e1_dp, -0.102020639611016_dp, 0.122240301070145e-2_dp]
+     PetscReal :: subregion_bdy_n_rx(4) = [0.584561202520006e3_dp, &
+          -0.102961025163669e1_dp, 0.243293362700452_dp, -0.294905044740799e-2_dp]
+
    contains
      private
      procedure, public :: init => region3_init
      procedure, public :: destroy => region3_destroy
      procedure, public :: properties => region3_properties
+     procedure, public :: subregion_index => region3_subregion_index
      procedure, public :: density => region3_density
+     procedure :: subregion_boundary_poly => region3_subregion_boundary_poly
+     procedure :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
+     procedure :: subregion_boundary_3ef => region3_subregion_boundary_3ef
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
@@ -273,7 +331,7 @@ module IAPWS_module
 contains
 
 !------------------------------------------------------------------------
-  ! IAPWS class
+! IAPWS class
 !------------------------------------------------------------------------
 
   subroutine IAPWS_init(self, extrapolate)
@@ -378,7 +436,92 @@ contains
   end function IAPWS_phase_composition
 
 !------------------------------------------------------------------------
-  ! Abstract region type
+! Sub-region 3 type
+!------------------------------------------------------------------------
+
+  subroutine subregion3_init(self, nustar, pstar, tstar, a, b, c, d, e, &
+       exp_form, I, J, n)
+    !! Initialise sub-region 3 type
+
+    class(IAPWS_subregion3_type), intent(in out) :: self
+    PetscReal, intent(in) :: nustar, pstar, tstar
+    PetscReal, intent(in) :: a, b, c, d, e
+    PetscBool, intent(in) :: exp_form
+    PetscInt, intent(in) :: I(:), J(:)
+    PetscReal, intent(in) :: n(:)
+
+    self%nustar = nustar
+    self%pstar = pstar
+    self%tstar = tstar
+
+    self%a = a
+    self%b = b
+    self%c = c
+    self%d = d
+    self%e = e
+
+    self%exp_form = exp_form
+
+    self%I = I
+    self%J = J
+    self%n = n
+
+    call self%pi%configure(self%I)
+    call self%pj%configure(self%J)
+
+  end subroutine subregion3_init
+
+!------------------------------------------------------------------------
+
+  subroutine subregion3_destroy(self)
+    !! Destroy sub-region 3 type
+
+    class(IAPWS_subregion3_type), intent(in out) :: self
+
+    call self%pi%destroy()
+    call self%pj%destroy()
+
+    deallocate(self%I, self%J, self%n)
+
+  end subroutine subregion3_destroy
+
+!------------------------------------------------------------------------
+
+  PetscReal function subregion3_specific_volume(self, param) result(nu)
+    !! Returns specific volume in sub-region 3.
+
+    class(IAPWS_subregion3_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+    ! Locals:
+    PetscReal :: pi, theta, pt, tt
+
+    associate (p => param(1), t => param(2))
+
+      pi = p / self%pstar
+      theta = t / self%tstar
+
+      if (self%exp_form) then
+         pt = pi - self%a
+         tt = theta - self%b
+         call self%pi%compute(pt)
+         call self%pj%compute(tt)
+         nu = self%nustar * exp(sum(self%n * self%pi%power(self%I) * &
+              self%pj%power(self%J)))
+      else
+         pt = (pi - self%a) ** self%c
+         tt = (theta - self%b) ** self%d
+         call self%pi%compute(pt)
+         call self%pj%compute(tt)
+         nu = self%nustar * (sum(self%n * self%pi%power(self%I) * &
+              self%pj%power(self%J))) ** self%e
+      end if
+
+    end associate
+
+  end function subregion3_specific_volume
+
+!------------------------------------------------------------------------
+! Abstract region type
 !------------------------------------------------------------------------
 
   subroutine region_init(self, thermo, extrapolate)
@@ -661,6 +804,8 @@ contains
     class(IAPWS_region3_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
     PetscBool, intent(in), optional :: extrapolate
+    ! Locals:
+    PetscErrorCode :: err
 
     call self%IAPWS_region_type%init(thermo)
 
@@ -681,6 +826,13 @@ contains
     self%dstar = self%thermo%critical%density
     self%tstar = self%thermo%critical%temperature_k
 
+    call self%thermo%saturation%pressure(643.15_dp - tc_k, &
+         self%psat_643, err)
+    call self%thermo%saturation%pressure(623.15_dp - tc_k, &
+         self%psat_623, err)
+
+    ! TODO: initialise self%subregion elements
+
   end subroutine region3_init
 
 !------------------------------------------------------------------------
@@ -694,6 +846,8 @@ contains
     call self%pj%destroy()
 
     call self%IAPWS_region_type%destroy()
+
+    ! TODO: destroy self%subregion elements
 
   end subroutine region3_destroy
 
@@ -740,21 +894,232 @@ contains
   end subroutine region3_properties
 
 !------------------------------------------------------------------------
+! Region 3 subregion boundaries:
+!------------------------------------------------------------------------
+
+  PetscReal function region3_subregion_boundary_poly(self, n, p) result(t)
+    class(IAPWS_region3_type), intent(in) :: self
+    PetscReal, intent(in) :: n(:)
+    PetscReal, intent(in) :: p
+    ! Locals:
+    PetscReal :: tk
+
+    associate(pi => p / self%pstar)
+      tk = polynomial(n, pi)
+    end associate
+    t = tk - tc_k
+
+  end function region3_subregion_boundary_poly
+
+  PetscReal function region3_subregion_boundary_logpoly(self, n, ninv, p) &
+       result(t)
+    !! For subregion boundaries ab and op.
+    class(IAPWS_region3_type), intent(in) :: self
+    PetscReal, intent(in) :: n(:), ninv(:)
+    PetscReal, intent(in) :: p
+    ! Locals:
+    PetscReal :: tk
+
+    associate(lnpi => log(p / self%pstar))
+      tk = polynomial(n, lnpi) + polynomial(ninv, 1._dp / lnpi)
+    end associate
+    t = tk - tc_k
+
+  end function region3_subregion_boundary_logpoly
+
+  PetscReal function region3_subregion_boundary_3ef(self, p) result(t)
+    class(IAPWS_region3_type), intent(in) :: self
+    PetscReal, intent(in) :: p
+    ! Locals:
+    PetscReal, parameter :: dtheta_dpi = 3.727888004_dp
+    PetscReal :: tk
+
+    associate(pi => p / self%pstar)
+      tk = dtheta_dpi * (pi - 22.064_dp) + 647.096_dp
+    end associate
+    t = tk - tc_k
+
+  end function region3_subregion_boundary_3ef
+
+!------------------------------------------------------------------------
+
+  subroutine region3_subregion_index(self, param, sr, aux, err)
+    !! Returns region 3 subregion index for given pressure and temperature.
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+    PetscInt, intent(out):: sr  !! Sub-region index
+    PetscBool, intent(out) :: aux !! Whether in auxiliary region around critical point
+    PetscInt, intent(out) :: err   !! Error code
+    ! Locals:
+    PetscReal :: nu, tsat
+
+    sr = -1
+    err = 0
+    aux = PETSC_FALSE
+
+    associate(p => param(1), t => param(2))
+
+      if (p > 100.e6_dp) then
+         err = 1
+      else if (p > 40.e6_dp) then
+         if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &
+              self%subregion_bdy_ninv_ab, p)) then
+            sr = 1 ! a
+         else
+            sr = 2 ! b
+         end if
+      else if (p > 25.e6_dp) then
+         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+            sr = 3 ! c
+         else if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &
+              self%subregion_bdy_ninv_ab, p)) then
+            sr = 4 ! d
+         else if (t <= self%subregion_boundary_3ef(p)) then
+            sr = 5 ! e
+         else
+            sr = 6 ! f
+         end if
+      else if (p > 23.5e6_dp) then
+         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+            sr = 3 ! c
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
+            sr = 7 ! g
+         else if (t <= self%subregion_boundary_3ef(p)) then
+            sr = 8 ! h
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
+            sr = 9 ! i
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+            sr = 10 ! j
+         else
+            sr = 11 ! k
+         end if
+      else if (p > 23.e6_dp) then
+         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+            sr = 3 ! c
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
+            sr = 12 ! l
+         else if (t <= self%subregion_boundary_3ef(p)) then
+            sr = 8 ! h
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
+            sr = 9 ! i
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+            sr = 10 ! j
+         else
+            sr = 11 ! k
+         end if
+      else if (p > 22.5e6_dp) then
+         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+            sr = 3 ! c
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
+            sr = 12 ! l
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_mn, p)) then
+            sr = 13 ! m
+         else if (t <= self%subregion_boundary_3ef(p)) then
+            sr = 14 ! n
+         else if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_op, &
+              self%subregion_bdy_ninv_op, p)) then
+            sr = 15 ! o
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
+            sr = 16 ! p
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+            sr = 10 ! j
+         else
+            sr = 11 ! k
+         end if
+      else if (p > self%psat_643) then
+         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+            sr = 3 ! c
+         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_qu, p)) then
+            sr = 17 ! q
+         else if ((t > self%subregion_boundary_poly(self%subregion_bdy_n_rx, p)) &
+              .and. (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p))) then
+            sr = 18 ! r
+         else if (t > self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+            sr = 11 ! k
+         else
+            aux = PETSC_TRUE
+         end if
+      else if (p > 20.5e6_dp) then
+         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+            sr = 3 ! c
+         else
+            call self%thermo%saturation%temperature(p, tsat, err)
+            if (err == 0) then
+               if (t <= tsat) then
+                  sr = 19 ! s
+               else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+                  sr = 18 ! r
+               else
+                  sr = 11 ! k
+               end if
+            end if
+         end if
+      else if (p > self%p3cd) then
+         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+            sr = 3 ! c
+         else
+            call self%thermo%saturation%temperature(p, tsat, err)
+            if (err == 0) then
+               if (t <= tsat) then
+                  sr = 19 ! s
+               else
+                  sr = 20 ! t
+               end if
+            end if
+         end if
+      else if (p > self%psat_623) then
+         call self%thermo%saturation%temperature(p, tsat, err)
+         if (err == 0) then
+            if (t <= tsat) then
+               sr = 3 ! c
+            else
+               sr = 20 ! t
+            end if
+         end if
+      else
+         err = 1
+      end if
+
+    end associate
+
+  end subroutine region3_subregion_index
+
+!------------------------------------------------------------------------
 
   subroutine region3_density(self, param, density, err)
     !! Calculates density in region 3 as a function of pressure and
-    !! temperature (deg C).
-    !!
-    !! Returns err = 1 if the density cannot be found.
+    !! temperature (deg C). The IAPWS backward and auxiliary equations
+    !! for region 3 are used.  Returns err = 1 if the density cannot
+    !! be found.
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: density  !! Fluid density
     PetscInt, intent(out) :: err   !! Error code
     ! Locals:
+    PetscInt :: sr
+    PetscBool :: aux
+    PetscReal :: nu
 
     err = 0
-    density = 0._dp
+    call self%subregion_index(param, sr, aux, err)
+
+    if (err == 0) then
+
+       if (aux) then
+          continue ! TODO (or incorporate in subregion())
+       end if
+
+       if (err == 0) then
+
+          nu = self%subregion(sr)%specific_volume(param)
+          density = 1._dp / nu
+          ! TODO: add Newton polishing step?
+
+       end if
+
+    end if
 
   end subroutine region3_density
 
