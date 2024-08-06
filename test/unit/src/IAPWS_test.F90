@@ -18,7 +18,8 @@ module IAPWS_test
   public :: setup, teardown, setup_test
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
-       test_IAPWS_phase_composition, test_IAPWS_region3_density
+       test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
+       test_IAPWS_region3_density
 
   contains
 
@@ -350,6 +351,79 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_phase_composition
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_subbdy(test)
+    ! Region 3 subregion boundary tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscReal, parameter :: MPa = 1.e6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: tb
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+
+          call logpoly_test(40._dp, 6.930341408e2_dp, region3, &
+               region3%subregion_bdy_n_ab, region3%subregion_bdy_ninv_ab, 'ab')
+          call poly_test(25._dp, 6.493659208e2_dp, region3, &
+               region3%subregion_bdy_n_cd, 'cd')
+          tb = region3%subregion_boundary_3ef(40._dp * MPa)
+          call test%assert(7.139593992e2_dp, tb, 'IAPWS region 3 subregion bdy ef')
+          call poly_test(23._dp, 6.498873759e2_dp, region3, &
+               region3%subregion_bdy_n_gh, 'gh')
+          call poly_test(23._dp, 6.515778091e2_dp, region3, &
+               region3%subregion_bdy_n_ij, 'ij')
+          call poly_test(23._dp, 6.558338344e2_dp, region3, &
+               region3%subregion_bdy_n_jk, 'jk')
+          call poly_test(22.8_dp, 6.496054133e2_dp, region3, &
+               region3%subregion_bdy_n_mn, 'mn')
+          call logpoly_test(22.8_dp, 6.500106943e2_dp, region3, &
+               region3%subregion_bdy_n_op, region3%subregion_bdy_ninv_op, 'op')
+          call poly_test(22._dp, 6.456355027e2_dp, region3, &
+               region3%subregion_bdy_n_qu, 'qu')
+          call poly_test(22._dp, 6.482622754e2_dp, region3, &
+               region3%subregion_bdy_n_rx, 'rx')
+
+       end select
+    end if
+
+  contains
+
+    subroutine logpoly_test(p, tk, region3, poly, invpoly, name)
+
+      PetscReal, intent(in) :: p, tk
+      type(IAPWS_region3_type), intent(in) :: region3
+      PetscReal, intent(in) :: poly(:), invpoly(:)
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: tb
+
+      tb = region3%subregion_boundary_logpoly(poly, invpoly, p * MPa)
+      call test%assert(tk, tb, 'IAPWS region 3 subregion bdy ' // name)
+
+    end subroutine logpoly_test
+
+    subroutine poly_test(p, tk, region3, poly, name)
+
+      PetscReal, intent(in) :: p, tk
+      type(IAPWS_region3_type), intent(in) :: region3
+      PetscReal, intent(in) :: poly(:)
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: tb
+
+      tb = region3%subregion_boundary_poly(poly, p * MPa)
+      call test%assert(tk, tb, 'IAPWS region 3 subregion bdy ' // name)
+
+    end subroutine poly_test
+
+  end subroutine test_IAPWS_region3_subbdy
 
 !------------------------------------------------------------------------
 

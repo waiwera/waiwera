@@ -257,36 +257,36 @@ module IAPWS_module
      PetscReal :: pstar = 1.e6_dp
      PetscReal :: psat_643, psat_623
      PetscReal :: p3cd = 1.900881189173929e7_dp
-     PetscReal :: subregion_bdy_n_ab(3) = [0.154793642129415e4_dp, &
+     PetscReal, public :: subregion_bdy_n_ab(3) = [0.154793642129415e4_dp, &
           -0.187661219490113e3_dp, 0.213144632222113e2_dp]
-     PetscReal :: subregion_bdy_ninv_ab(3) = [0._dp, &
+     PetscReal, public :: subregion_bdy_ninv_ab(3) = [0._dp, &
           -0.191887498864292e4_dp, 0.918419702359447e3_dp]
-     PetscReal :: subregion_bdy_n_cd(4) = [0.585276966696349e3_dp, &
+     PetscReal, public :: subregion_bdy_n_cd(4) = [0.585276966696349e3_dp, &
           0.278233532206915e1_dp, -0.127283549295878e-1_dp, 0.159090746562729e-3_dp]
-     PetscReal :: subregion_bdy_n_gh(5) = [-0.249284240900418e5_dp, &
+     PetscReal, public :: subregion_bdy_n_gh(5) = [-0.249284240900418e5_dp, &
           0.428143584791546e4_dp, -0.269029173140130e3_dp, &
           0.751608051114157e1_dp, -0.787105249910383e-1_dp]
-     PetscReal :: subregion_bdy_n_ij(5) = [0.584814781649163e3_dp, &
+     PetscReal, public :: subregion_bdy_n_ij(5) = [0.584814781649163e3_dp, &
           -0.616179320924617_dp, 0.260763050899562_dp, -0.587071076864459e-2_dp, &
           0.515308185433082e-4_dp]
-     PetscReal :: subregion_bdy_n_jk(5) = [0.617229772068439e3_dp, &
+     PetscReal, public :: subregion_bdy_n_jk(5) = [0.617229772068439e3_dp, &
           -0.770600270141675e1_dp, 0.697072596851896_dp, -0.157391839848015e-1_dp, &
           0.137897492684194e-3_dp]
-     PetscReal :: subregion_bdy_n_mn(4) = [0.535339483742384e3_dp, &
+     PetscReal, public :: subregion_bdy_n_mn(4) = [0.535339483742384e3_dp, &
           0.761978122720128e1_dp, -0.158365725441648_dp, 0.192871054508108e-2_dp]
-     PetscReal :: subregion_bdy_n_op(3) = [0.969461372400213e3_dp, &
+     PetscReal, public :: subregion_bdy_n_op(3) = [0.969461372400213e3_dp, &
           -0.332500170441278e3_dp, 0.642859598466067e2_dp]
-     PetscReal :: subregion_bdy_ninv_op(3) = [0._dp, &
+     PetscReal, public :: subregion_bdy_ninv_op(3) = [0._dp, &
           0.773845935768222e3_dp, -0.152313732937084e4_dp]
-     PetscReal :: subregion_bdy_n_qu(4) = [0.565603648239126e3_dp, &
+     PetscReal, public :: subregion_bdy_n_qu(4) = [0.565603648239126e3_dp, &
           0.529062258221222e1_dp, -0.102020639611016_dp, 0.122240301070145e-2_dp]
-     PetscReal :: subregion_bdy_n_rx(4) = [0.584561202520006e3_dp, &
+     PetscReal, public :: subregion_bdy_n_rx(4) = [0.584561202520006e3_dp, &
           -0.102961025163669e1_dp, 0.243293362700452_dp, -0.294905044740799e-2_dp]
-     PetscReal :: subregion_bdy_n_uv(4) = [0.528199646263062e3_dp, &
+     PetscReal, public :: subregion_bdy_n_uv(4) = [0.528199646263062e3_dp, &
           0.890579602135307e1_dp, -0.222814134903755_dp, 0.286791682263697e-2_dp]
-     PetscReal :: subregion_bdy_n_wx(3) = [0.728052609145380e1_dp, &
+     PetscReal, public :: subregion_bdy_n_wx(3) = [0.728052609145380e1_dp, &
           0.973505869861952e2_dp, 0.147370491183191e2_dp]
-     PetscReal :: subregion_bdy_ninv_wx(3) = [0._dp, &
+     PetscReal, public :: subregion_bdy_ninv_wx(3) = [0._dp, &
           0.329196213998375e3_dp, 0.873371668682417e3_dp]
 
      ! Sub-region constants
@@ -972,9 +972,9 @@ module IAPWS_module
      procedure, public :: subregion_index => region3_subregion_index
      procedure, public :: auxiliary_subregion_index => region3_auxiliary_subregion_index
      procedure, public :: density => region3_density
-     procedure :: subregion_boundary_poly => region3_subregion_boundary_poly
-     procedure :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
-     procedure :: subregion_boundary_3ef => region3_subregion_boundary_3ef
+     procedure, public :: subregion_boundary_poly => region3_subregion_boundary_poly
+     procedure, public :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
+     procedure, public :: subregion_boundary_3ef => region3_subregion_boundary_3ef
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
