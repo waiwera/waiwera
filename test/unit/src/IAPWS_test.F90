@@ -18,7 +18,7 @@ module IAPWS_test
   public :: setup, teardown, setup_test
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
-       test_IAPWS_phase_composition
+       test_IAPWS_phase_composition, test_IAPWS_region3_density
 
   contains
 
@@ -350,6 +350,44 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_phase_composition
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_density(test)
+    ! Region 3 density tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 2
+    PetscReal :: params(n, 2) = transpose(reshape([ &
+         50._dp, 630._dp, &
+         80._dp, 670._dp], &
+         [2, n]))
+         PetscReal, parameter :: nu(n) = [ &
+              1.470853100e-3_dp, &
+              1.503831359e-3_dp]
+    PetscInt :: i, err
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: param(2), density
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
+       do i = 1, n
+          param = params(i,:)
+          select type (region3 => IAPWS%supercritical)
+          type is (IAPWS_region3_type)
+             call region3%density(param, density, err)
+             call test%assert(0, err, 'error')
+             if (err == 0) then
+                call test%assert(1._dp / nu(i), density, 'density')
+             end if
+          end select
+       end do
+    end if
+
+  end subroutine test_IAPWS_region3_density
 
 !------------------------------------------------------------------------
 
