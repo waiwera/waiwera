@@ -1594,47 +1594,39 @@ contains
 ! Region 3 subregion boundaries:
 !------------------------------------------------------------------------
 
-  PetscReal function region3_subregion_boundary_poly(self, n, p) result(t)
+  PetscReal function region3_subregion_boundary_poly(self, n, p) result(tk)
     class(IAPWS_region3_type), intent(in) :: self
     PetscReal, intent(in) :: n(:)
     PetscReal, intent(in) :: p
-    ! Locals:
-    PetscReal :: tk
 
     associate(pi => p / self%pstar)
       tk = polynomial(n, pi)
     end associate
-    t = tk - tc_k
 
   end function region3_subregion_boundary_poly
 
   PetscReal function region3_subregion_boundary_logpoly(self, n, ninv, p) &
-       result(t)
+       result(tk)
     !! For subregion boundaries ab and op.
     class(IAPWS_region3_type), intent(in) :: self
     PetscReal, intent(in) :: n(:), ninv(:)
     PetscReal, intent(in) :: p
-    ! Locals:
-    PetscReal :: tk
 
     associate(lnpi => log(p / self%pstar))
       tk = polynomial(n, lnpi) + polynomial(ninv, 1._dp / lnpi)
     end associate
-    t = tk - tc_k
 
   end function region3_subregion_boundary_logpoly
 
-  PetscReal function region3_subregion_boundary_3ef(self, p) result(t)
+  PetscReal function region3_subregion_boundary_3ef(self, p) result(tk)
     class(IAPWS_region3_type), intent(in) :: self
     PetscReal, intent(in) :: p
     ! Locals:
     PetscReal, parameter :: dtheta_dpi = 3.727888004_dp
-    PetscReal :: tk
 
     associate(pi => p / self%pstar)
       tk = dtheta_dpi * (pi - 22.064_dp) + 647.096_dp
     end associate
-    t = tk - tc_k
 
   end function region3_subregion_boundary_3ef
 
@@ -1647,102 +1639,103 @@ contains
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     ! Locals:
-    PetscReal :: tsat
+    PetscReal :: tsat, tsatk
     PetscErrorCode :: err
 
     sr = -1
 
-    associate(p => param(1), t => param(2))
+    associate(p => param(1), tk => param(2) + tc_k)
 
-      if (p <= 100.e6_dp) then
+      if (p > 100.e6_dp) then
          continue
       else if (p > 40.e6_dp) then
-         if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &
+         if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &
               self%subregion_bdy_ninv_ab, p)) then
             sr = 1 ! a
          else
             sr = 2 ! b
          end if
       else if (p > 25.e6_dp) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
-         else if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &
+         else if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &
               self%subregion_bdy_ninv_ab, p)) then
             sr = 4 ! d
-         else if (t <= self%subregion_boundary_3ef(p)) then
+         else if (tk <= self%subregion_boundary_3ef(p)) then
             sr = 5 ! e
          else
             sr = 6 ! f
          end if
       else if (p > 23.5e6_dp) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
             sr = 7 ! g
-         else if (t <= self%subregion_boundary_3ef(p)) then
+         else if (tk <= self%subregion_boundary_3ef(p)) then
             sr = 8 ! h
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
             sr = 9 ! i
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
             sr = 10 ! j
          else
             sr = 11 ! k
          end if
       else if (p > 23.e6_dp) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
             sr = 12 ! l
-         else if (t <= self%subregion_boundary_3ef(p)) then
+         else if (tk <= self%subregion_boundary_3ef(p)) then
             sr = 8 ! h
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
             sr = 9 ! i
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
             sr = 10 ! j
          else
             sr = 11 ! k
          end if
       else if (p > 22.5e6_dp) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_gh, p)) then
             sr = 12 ! l
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_mn, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_mn, p)) then
             sr = 13 ! m
-         else if (t <= self%subregion_boundary_3ef(p)) then
+         else if (tk <= self%subregion_boundary_3ef(p)) then
             sr = 14 ! n
-         else if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_op, &
+         else if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_op, &
               self%subregion_bdy_ninv_op, p)) then
             sr = 15 ! o
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_ij, p)) then
             sr = 16 ! p
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
             sr = 10 ! j
          else
             sr = 11 ! k
          end if
       else if (p > self%psat_643) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
-         else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_qu, p)) then
+         else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_qu, p)) then
             sr = 17 ! q
-         else if ((t > self%subregion_boundary_poly(self%subregion_bdy_n_rx, p)) &
-              .and. (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p))) then
+         else if ((tk > self%subregion_boundary_poly(self%subregion_bdy_n_rx, p)) &
+              .and. (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p))) then
             sr = 18 ! r
-         else if (t > self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+         else if (tk > self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
             sr = 11 ! k
          else
             sr = self%auxiliary_subregion_index(param)
          end if
       else if (p > 20.5e6_dp) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
          else
             call self%thermo%saturation%temperature(p, tsat, err)
+            tsatk = tsat + tc_k
             if (err == 0) then
-               if (t <= tsat) then
+               if (tk <= tsatk) then
                   sr = 19 ! s
-               else if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
+               else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
                   sr = 18 ! r
                else
                   sr = 11 ! k
@@ -1750,12 +1743,13 @@ contains
             end if
          end if
       else if (p > self%p3cd) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
          else
             call self%thermo%saturation%temperature(p, tsat, err)
+            tsatk = tsat + tc_k
             if (err == 0) then
-               if (t <= tsat) then
+               if (tk <= tsatk) then
                   sr = 19 ! s
                else
                   sr = 20 ! t
@@ -1764,8 +1758,9 @@ contains
          end if
       else if (p > self%psat_623) then
          call self%thermo%saturation%temperature(p, tsat, err)
+         tsatk = tsat + tc_k
          if (err == 0) then
-            if (t <= tsat) then
+            if (tk <= tsatk) then
                sr = 3 ! c
             else
                sr = 20 ! t
@@ -1786,30 +1781,30 @@ contains
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     ! Locals:
-    PetscReal :: tsat
+    PetscReal :: tsat, tsatk
     PetscErrorCode :: err
 
     sr = -1
 
-    associate(p => param(1), t => param(2))
+    associate(p => param(1), tk => param(2) + tc_k)
 
       if (p > 22.11e6_dp) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_uv, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_uv, p)) then
             sr = 21 ! u
-         else if (t <= self%subregion_boundary_3ef(p)) then
+         else if (tk <= self%subregion_boundary_3ef(p)) then
             sr = 22 ! v
-         else if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_wx, &
+         else if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_wx, &
               self%subregion_bdy_ninv_wx, p)) then
             sr = 23 ! w
          else
             sr = 24 ! x
          end if
       else if (p > self%thermo%critical%pressure) then
-         if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_uv, p)) then
+         if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_uv, p)) then
             sr = 21 ! u
-         else if (t <= self%subregion_boundary_3ef(p)) then
+         else if (tk <= self%subregion_boundary_3ef(p)) then
             sr = 25 ! y
-         else if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_wx, &
+         else if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_wx, &
               self%subregion_bdy_ninv_wx, p)) then
             sr = 26 ! z
          else
@@ -1817,10 +1812,11 @@ contains
          end if
       else ! sub-critical:
          call self%thermo%saturation%temperature(p, tsat, err)
+         tsatk = tsat + tc_k
          if (err == 0) then
-            if (t <= tsat) then
+            if (tk <= tsatk) then
                if (p > 2.193161551e7_dp) then
-                  if (t <= self%subregion_boundary_poly(self%subregion_bdy_n_uv, p)) then
+                  if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_uv, p)) then
                      sr = 21 ! u
                   else
                      sr = 25 ! y
@@ -1830,7 +1826,7 @@ contains
                end if
             else
                if (p > 2.190096265e7_dp) then
-                  if (t <= self%subregion_boundary_logpoly(self%subregion_bdy_n_wx, &
+                  if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_wx, &
                        self%subregion_bdy_ninv_wx, p)) then
                      sr = 26 ! z
                   else
