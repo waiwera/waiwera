@@ -1647,7 +1647,7 @@ contains
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     ! Locals:
-    PetscReal :: nu, tsat
+    PetscReal :: tsat
     PetscErrorCode :: err
 
     sr = -1
