@@ -356,7 +356,7 @@ module IAPWS_test
 
   subroutine test_IAPWS_region3_subbdy(test)
     ! Region 3 subregion boundary tests
-    ! From table 3 of IAPWS (2014)
+    ! From tables 3 and 11 of IAPWS (2014)
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -390,6 +390,10 @@ module IAPWS_test
                region3%subregion_bdy_n_qu, 'qu')
           call poly_test(22._dp, 6.482622754e2_dp, region3, &
                region3%subregion_bdy_n_rx, 'rx')
+          call poly_test(22.3_dp, 6.477996121e2_dp, region3, &
+               region3%subregion_bdy_n_uv, 'uv')
+          call logpoly_test(22.3_dp, 6.482049480e2_dp, region3, &
+               region3%subregion_bdy_n_wx, region3%subregion_bdy_ninv_wx, 'wx')
 
        end select
     end if
@@ -430,11 +434,11 @@ module IAPWS_test
 
   subroutine test_IAPWS_region3_density(test)
     ! Region 3 density tests
-    ! From table 5 of IAPWS (2014)
+    ! From tables 5 and 13 of IAPWS (2014)
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 40
+    PetscInt, parameter :: n = 52
     PetscReal :: data(n, 3) = transpose(reshape([ &
          50._dp, 630._dp, 1.470853100e-3_dp, &
          80._dp, 670._dp, 1.503831359e-3_dp, &
@@ -475,12 +479,25 @@ module IAPWS_test
          19.1_dp, 635._dp, 1.932829079e-3_dp, &
          20._dp, 638._dp, 1.985387227e-3_dp, &
          17._dp, 626._dp, 8.483262001e-3_dp, &
-         20._dp, 640._dp, 6.227528101e-3_dp], &
+         20._dp, 640._dp, 6.227528101e-3_dp, &
+         21.5_dp, 644.6_dp, 2.268366647e-3_dp, &
+         22._dp, 646.1_dp,  2.296350553e-3_dp, &
+         22.5_dp, 648.6_dp,  2.832373260e-3_dp, &
+         22.3_dp, 647.9_dp,  2.811424405e-3_dp, &
+         22.15_dp, 647.5_dp,  3.694032281e-3_dp, &
+         22.3_dp, 648.1_dp,  3.622226305e-3_dp, &
+         22.11_dp, 648._dp,  4.528072649e-3_dp, &
+         22.3_dp, 649._dp,  4.556905799e-3_dp, &
+         22._dp, 646.84_dp,  2.698354719e-3_dp, &
+         22.064_dp, 647.05_dp,  2.717655648e-3_dp, &
+         22._dp, 646.89_dp,  3.798732962e-3_dp, &
+         22.064_dp, 647.15_dp,  3.701940010e-3_dp], &
          [3, n]))
     PetscInt, parameter :: subregion(n) = [ &
          1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, &
          8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, &
-         14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20]
+         14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, &
+         21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26]
     PetscReal, parameter :: MPa = 1.e6_dp
     PetscInt :: i, err, sr
     PetscMPIInt :: rank
