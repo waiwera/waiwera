@@ -56,6 +56,7 @@ module utils_module
 
   interface newton1d
      module procedure newton1d_general
+     module procedure newton1d_general_derivative
      module procedure newton1d_polynomial
   end interface newton1d
 
@@ -706,6 +707,72 @@ contains
     end if
 
   end subroutine newton1d_general
+
+!------------------------------------------------------------------------
+
+  recursive subroutine newton1d_general_derivative(f, df, x, ftol, xtol, &
+       max_iterations, err)
+    !! 1-D Newton solve to find f(x) = 0, for the specified function
+    !! f, derivative df, function tolerance, variable tolerance and
+    !! maximum number of iterations. The error flag returns nonzero if
+    !! there were any errors in function evaluation or the iteration
+    !! limit was exceeded.
+
+    interface
+
+       PetscReal function f(x, err)
+         PetscReal, intent(in) :: x
+         PetscErrorCode, intent(out) :: err
+       end function f
+
+       PetscReal function df(x, err)
+         PetscReal, intent(in) :: x
+         PetscErrorCode, intent(out) :: err
+       end function df
+
+    end interface
+
+    PetscReal, intent(in out) :: x !! Starting and final variable value
+    PetscReal, intent(in) :: ftol !! Function tolerance
+    PetscReal, intent(in) :: xtol !! Variable tolerance
+    PetscInt, intent(in) :: max_iterations !! Maximum number of iterations
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: fx, fd, dx
+    PetscInt :: i
+    PetscBool :: found
+
+    found = PETSC_FALSE
+
+    do i = 1, max_iterations
+       fx = f(x, err)
+       if (err == 0) then
+          if (abs(fx) <= ftol) then
+             found = PETSC_TRUE
+             exit
+          else
+             fd = df(x, err)
+             if (err == 0) then
+                dx = -fx / fd
+                x = x + dx
+                if (abs(dx) <= xtol) then
+                   found = PETSC_TRUE
+                   exit
+                end if
+             else
+                exit
+             end if
+          end if
+       else
+          exit
+       end if
+    end do
+
+    if ((err == 0) .and. (.not.(found))) then
+       err = 1
+    end if
+
+  end subroutine newton1d_general_derivative
 
 !------------------------------------------------------------------------
 

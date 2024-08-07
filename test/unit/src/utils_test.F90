@@ -684,9 +684,14 @@ contains
        call test%assert(0, err, 'case 3 error')
 
        x = 1._dp
-       call newton1d(poly, x, ftol, xtol, 6, err)
-       call test%assert(3._dp, x, 'case 4 value')
+       call newton1d(f2, df2, x, ftol, xtol, 5, err)
+       call test%assert(sqrt(2._dp), x, 'case 4 value')
        call test%assert(0, err, 'case 4 error')
+
+       x = 1._dp
+       call newton1d(poly, x, ftol, xtol, 6, err)
+       call test%assert(3._dp, x, 'case 5 value')
+       call test%assert(0, err, 'case 5 error')
 
     end if
 
@@ -705,6 +710,13 @@ contains
       f2 = x * x - 2._dp
       err = 0
     end function f2
+
+    PetscReal function df2(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      df2 = 2._dp * x
+      err = 0
+    end function df2
 
   end subroutine test_newton1d
 
