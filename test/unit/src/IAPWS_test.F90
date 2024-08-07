@@ -19,7 +19,7 @@ module IAPWS_test
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
-       test_IAPWS_region3_density
+       test_IAPWS_region3_dpdd, test_IAPWS_region3_density
 
   contains
 
@@ -432,6 +432,60 @@ module IAPWS_test
 
 !------------------------------------------------------------------------
 
+  subroutine test_IAPWS_region3_dpdd(test)
+    ! Region 3 dp/dd tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+          call dpdd_test(region3, [600._dp, 400._dp], 'case 1')
+          call dpdd_test(region3, [700._dp, 360._dp], 'case 2')
+          call dpdd_test(region3, [400._dp, 500._dp], 'case 3')
+          call dpdd_test(region3, [200._dp, 380._dp], 'case 4')
+       end select
+    end if
+
+  contains
+
+    subroutine dpdd_test(region3, param, name)
+      ! Test dp/dd against finite difference approximation
+
+      type(IAPWS_region3_type), intent(in out) :: region3
+      PetscReal, intent(in) :: param(2)
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: dp_drho, dp_drho2, del_rho
+      PetscReal :: rho2, props(2), p, p2
+      PetscErrorCode :: err
+      PetscReal, parameter :: drho = 1e-8_dp
+
+      dp_drho = region3%dpdd(param)
+
+      associate(rho => param(1), t => param(2))
+        call region3%properties(param, props, err)
+        p = props(1)
+        del_rho = drho * rho
+        rho2 = rho + del_rho
+        call region3%properties([rho2, t], props, err)
+        p2 = props(1)
+        dp_drho2 = (p2 - p) / del_rho
+      end associate
+
+      call test%assert(dp_drho2, dp_drho, &
+           'IAPWS region 3 dp/dd ' // name, tol = 1.e-5_dp)
+
+    end subroutine dpdd_test
+
+  end subroutine test_IAPWS_region3_dpdd
+
+!------------------------------------------------------------------------
+
   subroutine test_IAPWS_region3_density(test)
     ! Region 3 density tests
     ! From tables 5 and 13 of IAPWS (2014)
@@ -522,7 +576,7 @@ module IAPWS_test
 
              if (err == 0) then
                 call test%assert(1._dp / data(i,3), density, 'density' // istr)
-                p = param(1)
+                p = data(i, 1)
                 param(1) = density
                 call region3%properties(param, props, err)
                 associate(pback => props(1))
@@ -534,7 +588,7 @@ module IAPWS_test
              call region3%density(param, density, err, polish = PETSC_TRUE)
              call test%assert(0, err, 'polished error' // istr)
              if (err == 0) then
-                p = param(1)
+                p = data(i, 1)
                 param(1) = density
                 call region3%properties(param, props, err)
                 associate(pback => props(1))

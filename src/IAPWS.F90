@@ -246,8 +246,8 @@ module IAPWS_module
           26, 0,  2, 4, 16, 26,  0,  2, 4, 26,  1,  3, 26, 0, 2, 26,  2, &
           26, 2, 26, 0,  1, 26]
      PetscReal :: nI(40), nJ(40)
-     PetscInt :: I_1(40), J_1(40)
-     type(powertable_type) :: pi, pj
+     PetscInt :: I_1(40), I_2(40), J_1(40)
+     type(powertable_type) :: pi, pi2, pj
 
      ! Sub-regions for backwards equations:
      PetscInt :: num_subregions = 26
@@ -969,6 +969,7 @@ module IAPWS_module
      procedure, public :: init => region3_init
      procedure, public :: destroy => region3_destroy
      procedure, public :: properties => region3_properties
+     procedure, public :: dpdd => region3_dpdd
      procedure, public :: subregion_index => region3_subregion_index
      procedure, public :: auxiliary_subregion_index => region3_auxiliary_subregion_index
      procedure, public :: density => region3_density
@@ -1498,11 +1499,15 @@ contains
     self%nI = self%n * self%I
     self%nJ = self%n * self%J
     self%I_1 = self%I - 1
+    self%I_2 = self%I - 2
     self%J_1 = self%J - 1
 
     ! Configure power tables:
     call self%pi%configure(self%I)
     call self%pi%configure(self%I_1)
+
+    call self%pi2%configure(self%I_1)
+    call self%pi2%configure(self%I_2)
 
     call self%pj%configure(self%J)
     call self%pj%configure(self%J_1)
@@ -1538,6 +1543,7 @@ contains
     PetscInt :: i
 
     call self%pi%destroy()
+    call self%pi2%destroy()
     call self%pj%destroy()
 
     call self%IAPWS_region_type%destroy()
@@ -1589,6 +1595,40 @@ contains
     end associate
 
   end subroutine region3_properties
+
+!------------------------------------------------------------------------
+
+  PetscReal function region3_dpdd(self, param) result(dpdd)
+    !! Calculates derivative of pressure with respect to density of
+    !! supercritical water/steam as a function of density and
+    !! temperature (deg C).
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
+    ! Locals:
+    PetscReal:: tk, rt, delta, tau
+    PetscReal:: phidelta, phidelta2
+
+    associate (d => param(1), t => param(2))
+
+      tk = t + tc_k
+      rt = specific_gas_constant * tk
+      tau = self%tstar / tk
+      delta = d / self%dstar
+
+      call self%pi2%compute(delta)
+      call self%pj%compute(tau)
+
+      phidelta = self%n(1) * self%pi2%power(-1) + &
+           sum(self%nI * self%pi2%power(self%I_1) * self%pj%power(self%J))
+      phidelta2 = -self%n(1) * self%pi2%power(-2) + &
+           sum(self%nI * self%I_1 * self%pi2%power(self%I_2) * self%pj%power(self%J))
+
+      dpdd = rt * (2._dp * delta * phidelta + self%pi2%power(2) * phidelta2)
+
+    end associate
+
+  end function region3_dpdd
 
 !------------------------------------------------------------------------
 ! Region 3 subregion boundaries:
@@ -1859,9 +1899,8 @@ contains
     ! Locals:
     PetscInt :: sr
     PetscReal :: nu
-    PetscInt, parameter :: maxit = 10
-    PetscReal, parameter :: ftol = 1.e-8_dp, xtol = 1.e-8_dp
-    PetscReal, parameter :: inc = 1.e-8_dp
+    PetscInt, parameter :: maxit = 8
+    PetscReal, parameter :: ftol = 1.e-5_dp, xtol = 1.e-5_dp
 
     err = 0
     sr =  self%subregion_index(param)
@@ -1870,13 +1909,15 @@ contains
        nu = self%subregion(sr)%specific_volume(param)
        density = 1._dp / nu
        if (polish) then
-          call newton1d(f, density, ftol, xtol, maxit, inc, err)
+          call newton1d(f, df, density, ftol, xtol, maxit, err)
        end if
     else
        err = 1
     end if
 
   contains
+
+!........................................................................
 
     PetscReal function f(x, err)
       PetscReal, intent(in) :: x
@@ -1891,6 +1932,19 @@ contains
       end associate
 
     end function f
+
+!........................................................................
+
+    PetscReal function df(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+
+      err = 0
+      associate(density => x, t => param(2))
+        df = self%dpdd([density, t])
+      end associate
+
+    end function df
 
   end subroutine region3_density
 
