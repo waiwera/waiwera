@@ -212,7 +212,7 @@ contains
                   else
                      select type (region => self%thermo%region(3)%ptr)
                      type is (IAPWS_region3_type)
-                        call region%density(primary, density, err)
+                        call region%density(primary, density, err, polish = PETSC_TRUE)
                      end select
                      if (err == 0) then
                         fluid%region = dble(3)
