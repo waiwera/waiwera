@@ -356,6 +356,7 @@ module IAPWS_test
 
   subroutine test_IAPWS_region3_subbdy(test)
     ! Region 3 subregion boundary tests
+    ! From table 3 of IAPWS (2014)
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -429,33 +430,79 @@ module IAPWS_test
 
   subroutine test_IAPWS_region3_density(test)
     ! Region 3 density tests
+    ! From table 5 of IAPWS (2014)
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 2
-    PetscReal :: params(n, 2) = transpose(reshape([ &
-         50._dp, 630._dp, &
-         80._dp, 670._dp], &
-         [2, n]))
-         PetscReal, parameter :: nu(n) = [ &
-              1.470853100e-3_dp, &
-              1.503831359e-3_dp]
-    PetscInt :: i, err
+    PetscInt, parameter :: n = 40
+    PetscReal :: data(n, 3) = transpose(reshape([ &
+         50._dp, 630._dp, 1.470853100e-3_dp, &
+         80._dp, 670._dp, 1.503831359e-3_dp, &
+         50._dp, 710._dp, 2.204728587e-3_dp, &
+         80._dp, 750._dp, 1.973692940e-3_dp, &
+         20._dp, 630._dp, 1.761696406e-3_dp, &
+         30._dp, 650._dp, 1.819560617e-3_dp, &
+         26._dp, 656._dp, 2.245587720e-3_dp, &
+         30._dp, 670._dp, 2.506897702e-3_dp, &
+         26._dp, 661._dp, 2.970225962e-3_dp, &
+         30._dp, 675._dp, 3.004627086e-3_dp, &
+         26._dp, 671._dp, 5.019029401e-3_dp, &
+         30._dp, 690._dp, 4.656470142e-3_dp, &
+         23.6_dp, 649._dp, 2.163198378e-3_dp, &
+         24._dp, 650._dp, 2.166044161e-3_dp, &
+         23.6_dp, 652._dp, 2.651081407e-3_dp, &
+         24._dp, 654._dp, 2.967802335e-3_dp, &
+         23.6_dp, 653._dp, 3.273916816e-3_dp, &
+         24._dp, 655._dp, 3.550329864e-3_dp, &
+         23.5_dp, 655._dp, 4.545001142e-3_dp, &
+         24._dp, 660._dp, 5.100267704e-3_dp, &
+         23._dp, 660._dp, 6.109525997e-3_dp, &
+         24._dp, 670._dp, 6.427325645e-3_dp, &
+         22.6_dp, 646._dp, 2.117860851e-3_dp, &
+         23._dp, 646._dp, 2.062374674e-3_dp, &
+         22.6_dp, 648.6_dp, 2.533063780e-3_dp, &
+         22.8_dp, 649.3_dp, 2.572971781e-3_dp, &
+         22.6_dp, 649.0_dp, 2.923432711e-3_dp, &
+         22.8_dp, 649.7_dp, 2.913311494e-3_dp, &
+         22.6_dp, 649.1_dp, 3.131208996e-3_dp, &
+         22.8_dp, 649.9_dp, 3.221160278e-3_dp, &
+         22.6_dp, 649.4_dp, 3.715596186e-3_dp, &
+         22.8_dp, 650.2_dp, 3.664754790e-3_dp, &
+         21.1_dp, 640._dp, 1.970999272e-3_dp, &
+         21.8_dp, 643._dp, 2.043919161e-3_dp, &
+         21.1_dp, 644._dp, 5.251009921e-3_dp, &
+         21.8_dp, 648._dp, 5.256844741e-3_dp, &
+         19.1_dp, 635._dp, 1.932829079e-3_dp, &
+         20._dp, 638._dp, 1.985387227e-3_dp, &
+         17._dp, 626._dp, 8.483262001e-3_dp, &
+         20._dp, 640._dp, 6.227528101e-3_dp], &
+         [3, n]))
+    PetscInt, parameter :: subregion(n) = [ &
+         1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, &
+         8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, &
+         14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20]
+    PetscReal, parameter :: MPa = 1.e6_dp
+    PetscInt :: i, err, sr
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal :: param(2), density
+    character(2) :: istr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
-       params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
+       data(:,1) = data(:,1) * MPa
+       data(:,2) = data(:,2) - tc_k
        do i = 1, n
-          param = params(i,:)
-          select type (region3 => IAPWS%supercritical)
+          write(istr, '(i2)') i
+          param = data(i, 1:2)
+          select type (region3 => IAPWS%region(3)%ptr)
           type is (IAPWS_region3_type)
+             sr = region3%subregion_index(param)
+             call test%assert(subregion(i), sr, 'subregion' // istr)
              call region3%density(param, density, err)
-             call test%assert(0, err, 'error')
+             call test%assert(0, err, 'error' // istr)
              if (err == 0) then
-                call test%assert(1._dp / nu(i), density, 'density')
+                call test%assert(1._dp / data(i,3), density, 'density' // istr)
              end if
           end select
        end do
