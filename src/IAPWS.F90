@@ -33,7 +33,7 @@ module IAPWS_module
   use kinds_module
   use powertable_module
   use thermodynamics_module
-  use utils_module, only: polynomial
+  use utils_module, only: polynomial, newton1d
 
   implicit none
   private
@@ -1845,7 +1845,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine region3_density(self, param, density, err)
+  subroutine region3_density(self, param, density, err, polish)
     !! Calculates density in region 3 as a function of pressure and
     !! temperature (deg C). The IAPWS backward and auxiliary equations
     !! for region 3 are used.  Returns err = 1 if the density cannot
@@ -1855,9 +1855,13 @@ contains
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: density  !! Fluid density
     PetscInt, intent(out) :: err   !! Error code
+    PetscBool, intent(in) :: polish   !! Whether to polish result with Newton iteration
     ! Locals:
     PetscInt :: sr
     PetscReal :: nu
+    PetscInt, parameter :: maxit = 10
+    PetscReal, parameter :: ftol = 1.e-8_dp, xtol = 1.e-8_dp
+    PetscReal, parameter :: inc = 1.e-8_dp
 
     err = 0
     sr =  self%subregion_index(param)
@@ -1865,10 +1869,27 @@ contains
     if (sr > 0) then
        nu = self%subregion(sr)%specific_volume(param)
        density = 1._dp / nu
-       ! TODO: add Newton polishing step?
+       if (polish) then
+          call newton1d(f, density, ftol, xtol, maxit, inc, err)
+       end if
     else
        err = 1
     end if
+
+  contains
+
+    PetscReal function f(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: props(2)
+
+      associate(p => param(1), t => param(2))
+        call self%properties([x, t], props, err)
+        f = props(1) - p
+      end associate
+
+    end function f
 
   end subroutine region3_density
 

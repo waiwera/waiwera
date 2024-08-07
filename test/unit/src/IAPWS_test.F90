@@ -514,10 +514,12 @@ module IAPWS_test
           param = data(i, 1:2)
           select type (region3 => IAPWS%region(3)%ptr)
           type is (IAPWS_region3_type)
+
              sr = region3%subregion_index(param)
              call test%assert(subregion(i), sr, 'subregion' // istr)
-             call region3%density(param, density, err)
+             call region3%density(param, density, err, polish = PETSC_FALSE)
              call test%assert(0, err, 'error' // istr)
+
              if (err == 0) then
                 call test%assert(1._dp / data(i,3), density, 'density' // istr)
                 p = param(1)
@@ -527,6 +529,19 @@ module IAPWS_test
                   call test%assert(p, pback, 'p back' // istr, tol = 3.e-4_dp)
                 end associate
              end if
+
+             param = data(i, 1:2)
+             call region3%density(param, density, err, polish = PETSC_TRUE)
+             call test%assert(0, err, 'polished error' // istr)
+             if (err == 0) then
+                p = param(1)
+                param(1) = density
+                call region3%properties(param, props, err)
+                associate(pback => props(1))
+                  call test%assert(p, pback, 'p back polished' // istr)
+                end associate
+             end if
+
           end select
        end do
     end if
