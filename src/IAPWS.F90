@@ -1884,9 +1884,10 @@ contains
       ! Locals:
       PetscReal :: props(2)
 
-      associate(p => param(1), t => param(2))
-        call self%properties([x, t], props, err)
-        f = props(1) - p
+      associate(density => x, pcalc => props(1), &
+           p => param(1), t => param(2))
+        call self%properties([density, t], props, err)
+        f = pcalc - p
       end associate
 
     end function f
