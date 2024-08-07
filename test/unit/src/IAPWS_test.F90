@@ -502,7 +502,7 @@ module IAPWS_test
     PetscInt :: i, err, sr
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal :: param(2), density
+    PetscReal :: param(2), density, p, props(2)
     character(2) :: istr
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -520,6 +520,12 @@ module IAPWS_test
              call test%assert(0, err, 'error' // istr)
              if (err == 0) then
                 call test%assert(1._dp / data(i,3), density, 'density' // istr)
+                p = param(1)
+                param(1) = density
+                call region3%properties(param, props, err)
+                associate(pback => props(1))
+                  call test%assert(p, pback, 'p back' // istr, tol = 3.e-4_dp)
+                end associate
              end if
           end select
        end do
