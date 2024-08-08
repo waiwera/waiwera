@@ -18,7 +18,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine transition_compare(test, expected_primary, expected_region, &
-       expected_transition, primary, fluid, transition, err, message)
+       expected_transition, expected_err, primary, fluid, transition, &
+       err, message)
 
     use fluid_module
 
@@ -26,7 +27,7 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     PetscReal, intent(in) :: expected_primary(:), primary(:)
-    PetscInt, intent(in) :: expected_region
+    PetscInt, intent(in) :: expected_region, expected_err
     type(fluid_type), intent(in) :: fluid
     PetscBool, intent(in) :: expected_transition, transition
     PetscErrorCode, intent(in) :: err
@@ -34,13 +35,15 @@ contains
     ! Locals:
     PetscReal, parameter :: tol = 1.e-6_dp
 
-    call test%assert(expected_primary, primary, &
-         trim(message) // " primary", tol = tol)
-    call test%assert(expected_region, nint(fluid%region), &
-         trim(message) // " region")
-    call test%assert(expected_transition, transition, &
-         trim(message) // " transition")
-    call test%assert(0, err, trim(message) // " error")
+    call test%assert(expected_err, err, trim(message) // " error")
+    if (err == 0) then
+       call test%assert(expected_primary, primary, &
+            trim(message) // " primary", tol = tol)
+       call test%assert(expected_region, nint(fluid%region), &
+            trim(message) // " region")
+       call test%assert(expected_transition, transition, &
+            trim(message) // " transition")
+    end if
 
   end subroutine transition_compare
 
