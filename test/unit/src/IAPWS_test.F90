@@ -19,7 +19,8 @@ module IAPWS_test
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
-       test_IAPWS_region3_dpdd, test_IAPWS_region3_density
+       test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
+       test_region3_widom
 
   contains
 
@@ -601,6 +602,71 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_region3_density
+
+!------------------------------------------------------------------------
+
+  subroutine test_region3_widom(test)
+    ! Region 3 Widom line and delta tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: widom_delta_growth = 25._dp
+    PetscReal, parameter :: widom_delta_min = 0.1_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       select type (region3 => IAPWS%region(3)%ptr)
+       type is (IAPWS_region3_type)
+          region3%widom_delta_growth = widom_delta_growth
+          region3%widom_delta_min = widom_delta_min
+       end select
+
+       call widom_case(IAPWS%critical%pressure, &
+            [373.896_dp, 373.996_dp], 'case 1')
+       call widom_case(40.e6_dp, &
+            [423.2040374562089_dp, 443.52673506317046_dp], 'case 2')
+       call widom_case(75.e6_dp, &
+            [466.1582171200531_dp, 526.138275133106_dp], 'case 3')
+       call widom_case(100.e6_dp, &
+            [480.72738196712254_dp, 569.0341259845264_dp], 'case 4')
+
+    end if
+
+  contains
+
+    PetscReal function widom_p(t)
+      ! Widom line from Banuti et al. (2017)
+      PetscReal, intent(in) :: t
+
+       select type (region3 => IAPWS%region(3)%ptr)
+       type is (IAPWS_region3_type)
+          widom_p = IAPWS%critical%pressure * exp(region3%widom_slope * &
+               ((t + tc_k) / IAPWS%critical%temperature_k - 1._dp))
+       end select
+
+     end function widom_p
+
+     subroutine widom_case(p, expected_delta, name)
+
+       PetscReal, intent(in) :: p, expected_delta(2)
+       character(*), intent(in) :: name
+       ! Locals:
+       PetscReal :: t, delta(2)
+
+       select type (region3 => IAPWS%region(3)%ptr)
+       type is (IAPWS_region3_type)
+          t = region3%widom(p)
+          call test%assert(p, widom_p(t), name // ' widom temperature')
+          delta = region3%widom_delta(p)
+          call test%assert(expected_delta, delta, name // ' widom delta')
+       end select
+
+     end subroutine widom_case
+
+  end subroutine test_region3_widom
 
 !------------------------------------------------------------------------
 

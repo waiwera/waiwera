@@ -21,6 +21,7 @@ module thermodynamics_setup_module
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
+  use kinds_module
   use thermodynamics_module
   use IAPWS_module
   use IFC67_module
@@ -56,6 +57,8 @@ contains
     PetscInt :: thermo_type
     PetscBool :: extrapolate
     PetscBool, parameter :: default_extrapolate = PETSC_FALSE
+    PetscReal, parameter :: default_widom_delta_growth = 25._dp
+    PetscReal, parameter :: default_widom_delta_min = 0.1_dp
 
     if (fson_has_mpi(json, "thermodynamics")) then
        thermo_type = fson_type_mpi(json, "thermodynamics")
@@ -67,6 +70,15 @@ contains
                default_thermo_ID, thermo_ID, logfile)
           call fson_get_mpi(json, "thermodynamics.extrapolate", &
                default_extrapolate, extrapolate, logfile)
+          select type (region3 => thermo%supercritical)
+          type is (IAPWS_region3_type)
+             call fson_get_mpi(json, "thermodynamics.widom_delta_growth", &
+                  default_widom_delta_growth, region3%widom_delta_growth, &
+                  logfile)
+             call fson_get_mpi(json, "thermodynamics.widom_delta_min", &
+                  default_widom_delta_growth, region3%widom_delta_min, &
+                  logfile)
+          end select
        end if
     else
        thermo_ID = default_thermo_ID

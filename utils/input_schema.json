@@ -97,7 +97,10 @@
             {"type": "object",
              "properties": {
                  "name": {"type": "string", "enum": ["ifc67", "IFC67", "iapws", "IAPWS"]},
-                 "extrapolate": {"type": "boolean"}},
+                 "extrapolate": {"type": "boolean"},
+                 "widom_delta_growth": {"type": number, "minimum": 0},
+                 "widom_delta_min": {"type": number, "minimum": 0}
+             },
              "additionalProperties": false}
         ]},
         "eos": {"oneOf": [{"type": "string",

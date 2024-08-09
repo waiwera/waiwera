@@ -964,6 +964,10 @@ module IAPWS_module
           0.00000000000000e+00_dp, 0.00000000000000e+00_dp], &
           [43,26])
 
+     PetscReal, public :: widom_slope = 6.479 !! Slope A_s of Widom line for water (Banuti et al., 2017)
+     PetscReal, public :: widom_delta_growth !! Widom delta width growth factor
+     PetscReal, public :: widom_delta_min !! Minimum width of Widom delta at critical point
+
    contains
      private
      procedure, public :: init => region3_init
@@ -976,10 +980,13 @@ module IAPWS_module
      procedure, public :: subregion_boundary_poly => region3_subregion_boundary_poly
      procedure, public :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
      procedure, public :: subregion_boundary_3ef => region3_subregion_boundary_3ef
+     procedure, public :: widom => region3_widom
+     procedure, public :: widom_delta => region3_widom_delta
+     procedure, public :: pi_liquidlike => region3_pi_liquidlike
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
-  ! Region 2/3 boundary type
+! Region 2/3 boundary type
 !------------------------------------------------------------------------
 
   type, public :: IAPWS_boundary23_type
@@ -996,7 +1003,7 @@ module IAPWS_module
     end type IAPWS_boundary23_type
 
 !------------------------------------------------------------------------
-  ! IAPWS thermodynamics type
+! IAPWS thermodynamics type
 !------------------------------------------------------------------------
 
   type, extends(thermodynamics_type), public :: IAPWS_type
@@ -1283,7 +1290,7 @@ contains
   end subroutine region_viscosity
 
 !------------------------------------------------------------------------
-  ! Region 1 (liquid water)
+! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
   subroutine region1_init(self, thermo, extrapolate)
@@ -1382,7 +1389,7 @@ contains
   end subroutine region1_properties
 
 !------------------------------------------------------------------------
-  ! Region 2 (steam)
+! Region 2 (steam)
 !------------------------------------------------------------------------
 
   subroutine region2_init(self, thermo, extrapolate)
@@ -1479,7 +1486,7 @@ contains
   end subroutine region2_properties
 
 !------------------------------------------------------------------------
-  ! Region 3 (supercritical)
+! Region 3 (supercritical)
 !------------------------------------------------------------------------
 
   subroutine region3_init(self, thermo, extrapolate)
@@ -1949,7 +1956,87 @@ contains
   end subroutine region3_density
 
 !------------------------------------------------------------------------
-  ! Viscosity
+
+  PetscReal function region3_widom(self, pressure) result(temperature)
+    !! Returns Widom line temperature as a function of pressure. This
+    !! is the inverse of the exponential Widom function of Banuti et
+    !! al. (2017) - not actually part of the IAPWS formulation.
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: pressure
+
+    temperature = self%thermo%critical%temperature_k * (1._dp + &
+         log(pressure / self%thermo%critical%pressure) / self%widom_slope) &
+         - tc_k
+
+  end function region3_widom
+
+!------------------------------------------------------------------------
+
+  function region3_widom_delta(self, pressure) result(delta)
+    !! Returns Widom delta minimum and maximum temperatures as a
+    !! function of pressure. These are the temperatures at which the
+    !! number fractions of liquid-like particles are 1 and 0
+    !! respectively. The centre of the Widom delta follows the Widom
+    !! line, and its width is assumed to grow linearly with pressure.
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: pressure
+    PetscReal :: delta(2)
+    ! Locals:
+    PetscReal :: Tw, dT, max_dT
+
+    Tw = self%widom(pressure)
+    dT = self%widom_delta_growth * (pressure / self%thermo%critical%pressure &
+         - 1._dp)
+    max_dT = 2._dp * (Tw - self%thermo%critical%temperature)
+    dT = max(min(dT, max_dT), self%widom_delta_min)
+
+    delta = [Tw - 0.5_dp * dT, Tw + 0.5_dp * dT]
+
+  end function region3_widom_delta
+
+!------------------------------------------------------------------------
+
+  PetscReal function region3_pi_liquidlike(self, pressure, temperature) &
+       result(pi_liq)
+    !! Returns number fraction of liquid-like supercritical fluid
+    !! particles as a function of pressure and temperature. This is
+    !! assumed to vary smoothly from 1 to 0 through the Widom delta
+    !! according to a cubic Hermite polynomial with zero slope at both
+    !! ends.
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: pressure, temperature
+    ! Locals:
+    PetscReal :: delta(2)
+
+    delta = self%widom_delta(pressure)
+    pi_liq = hermite(temperature, delta)
+
+  contains
+
+    PetscReal function hermite(x, bounds)
+
+      PetscReal, intent(in) :: x, bounds(2)
+      ! Locals:
+      PetscReal :: xi
+
+      xi = (x - bounds(1)) / (bounds(2) - bounds(1))
+      if (xi < 0._dp) then
+         hermite = 1._dp
+      else if (xi > 1._dp) then
+         hermite = 0._dp
+      else
+         hermite =  xi * xi * (2._dp * xi - 3._dp) + 1._dp
+      end if
+
+    end function hermite
+
+  end function region3_pi_liquidlike
+
+!------------------------------------------------------------------------
+! Viscosity
 !------------------------------------------------------------------------
 
   subroutine viscosity_init(self)
@@ -1978,7 +2065,7 @@ contains
   end subroutine viscosity_destroy
 
 !------------------------------------------------------------------------
-  ! Saturation curve
+! Saturation curve
 !------------------------------------------------------------------------
 
   subroutine saturation_pressure(self, t, p, err)
@@ -2040,7 +2127,7 @@ contains
   end subroutine saturation_temperature
 
 !------------------------------------------------------------------------
-  ! Region 2/3 boundary
+! Region 2/3 boundary
 !------------------------------------------------------------------------
 
   subroutine boundary23_pressure(self, t, p)
