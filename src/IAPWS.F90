@@ -2042,7 +2042,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function region3_pi_liquidlike(self, pressure, temperature) &
+  PetscReal function region3_pi_liquidlike(self, param) &
        result(pi_liq)
     !! Returns number fraction of liquid-like supercritical fluid
     !! particles as a function of pressure and temperature. This is
@@ -2051,12 +2051,14 @@ contains
     !! ends.
 
     class(IAPWS_region3_type), intent(in out) :: self
-    PetscReal, intent(in) :: pressure, temperature
+    PetscReal, intent(in) :: param(2)
     ! Locals:
     PetscReal :: delta(2)
 
-    delta = self%widom_delta(pressure)
-    pi_liq = hermite(temperature, delta)
+    associate(pressure => param(1), temperature => param(2))
+      delta = self%widom_delta(pressure)
+      pi_liq = hermite(temperature, delta)
+    end associate
 
   contains
 
