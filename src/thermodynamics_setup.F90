@@ -55,50 +55,29 @@ contains
     ! Locals:
     character(max_thermo_ID_length) :: thermo_ID
     PetscInt :: thermo_type
-    PetscBool :: extrapolate
-    PetscBool, parameter :: default_extrapolate = PETSC_FALSE
-    PetscReal, parameter :: default_widom_delta_growth = 25._dp
-    PetscReal, parameter :: default_widom_delta_min = 0.1_dp
 
     if (fson_has_mpi(json, "thermodynamics")) then
        thermo_type = fson_type_mpi(json, "thermodynamics")
        if (thermo_type == TYPE_STRING) then
           call fson_get_mpi(json, "thermodynamics", val = thermo_ID)
-          extrapolate = default_extrapolate
        else
           call fson_get_mpi(json, "thermodynamics.name", &
                default_thermo_ID, thermo_ID, logfile)
-          call fson_get_mpi(json, "thermodynamics.extrapolate", &
-               default_extrapolate, extrapolate, logfile)
-          select type (region3 => thermo%supercritical)
-          type is (IAPWS_region3_type)
-             call fson_get_mpi(json, "thermodynamics.widom_delta_growth", &
-                  default_widom_delta_growth, region3%widom_delta_growth, &
-                  logfile)
-             call fson_get_mpi(json, "thermodynamics.widom_delta_min", &
-                  default_widom_delta_growth, region3%widom_delta_min, &
-                  logfile)
-          end select
        end if
     else
        thermo_ID = default_thermo_ID
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'thermodynamics.name', str_value = default_thermo_ID)
-       extrapolate = default_extrapolate
-       call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-            logical_keys = ['thermodynamics.extrapolate'], &
-            logical_values = [default_extrapolate])
     end if
 
-    thermo_ID = str_to_lower(thermo_ID)
-    select case (thermo_ID)
+    select case (str_to_lower(thermo_ID))
     case ("ifc67")
        allocate(IFC67_type :: thermo)
     case default
        allocate(IAPWS_type :: thermo)
     end select
 
-    call thermo%init(extrapolate)
+    call thermo%init(json)
 
   end subroutine setup_thermodynamics
 

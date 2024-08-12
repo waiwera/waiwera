@@ -262,9 +262,14 @@ contains
 
     ! IFC-67 extrapolation tests
 
+    use fson
+    use fson_mpi_module
+
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-
+    type(fson_value), pointer :: json
+    character(120) :: json_str = &
+         '{"thermodynamics": {"type": "IFC-67", "extrapolate": true}}'
     PetscReal, parameter :: primary(2) = [30.e6_dp, 355._dp]
     PetscReal :: props(2)
     PetscInt :: err, ierr
@@ -277,7 +282,9 @@ contains
        call IFC67%water%properties(primary, props, err)
        call test%assert(err, 1, "error without extrapolation")
 
-       call extrapolated%init(extrapolate = PETSC_TRUE)
+       json => fson_parse_mpi(str = json_str)
+       call extrapolated%init(json)
+       call fson_destroy_mpi(json)
        call extrapolated%water%properties(primary, props, err)
        call test%assert(err, 0, "no error with extrapolation")
        call extrapolated%destroy()

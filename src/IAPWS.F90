@@ -1025,13 +1025,23 @@ contains
 ! IAPWS class
 !------------------------------------------------------------------------
 
-  subroutine IAPWS_init(self, extrapolate)
+  subroutine IAPWS_init(self, json, logfile)
     !! Initializes IAPWS object.
 
+    use fson
+    use fson_value_m, only: TYPE_OBJECT
+    use fson_mpi_module
+    use logfile_module
+
     class(IAPWS_type), intent(in out) :: self
-    PetscBool, intent(in), optional :: extrapolate
+    type(fson_value), pointer, intent(in), optional :: json !! JSON input object
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: i
+    PetscInt :: i, thermo_type
+    PetscBool :: defaults
+    PetscBool, parameter :: default_extrapolate = PETSC_FALSE
+    PetscReal, parameter :: default_widom_delta_growth = 25._dp
+    PetscReal, parameter :: default_widom_delta_min = 0.1_dp
 
     self%name = "IAPWS-97"
 
@@ -1050,8 +1060,50 @@ contains
     call self%region(2)%set(self%steam)
     call self%region(3)%set(self%supercritical)
 
+    defaults = PETSC_TRUE
+    if (present(json)) then
+       if (fson_has_mpi(json, "thermodynamics")) then
+          thermo_type = fson_type_mpi(json, "thermodynamics")
+          if (thermo_type == TYPE_OBJECT) then
+             call fson_get_mpi(json, "thermodynamics.extrapolate", &
+                  default_extrapolate, self%extrapolate, logfile)
+             select type (region3 => self%supercritical)
+             type is (IAPWS_region3_type)
+                call fson_get_mpi(json, "thermodynamics.widom.delta.growth", &
+                     default_widom_delta_growth, region3%widom_delta_growth, &
+                     logfile)
+                call fson_get_mpi(json, "thermodynamics.widom.delta.min", &
+                     default_widom_delta_growth, region3%widom_delta_min, &
+                     logfile)
+             end select
+             defaults = PETSC_FALSE
+          end if
+       end if
+    end if
+
+    if (defaults) then
+       self%extrapolate = default_extrapolate
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               logical_keys = ['thermodynamics.extrapolate'], &
+               logical_values = [default_extrapolate])
+       end if
+       select type (region3 => self%supercritical)
+       type is (IAPWS_region3_type)
+          region3%widom_delta_growth = default_widom_delta_growth
+          region3%widom_delta_min = default_widom_delta_min
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  real_keys = ['thermodynamics.widom.delta.growth', &
+                  '   thermodynamics.widom.delta.min'], &
+                  real_values = [default_widom_delta_growth, &
+                  default_widom_delta_min])
+          end if
+       end select
+    end if
+
     do i = 1, self%num_regions
-       call self%region(i)%ptr%init(self, extrapolate)
+       call self%region(i)%ptr%init(self)
     end do
 
   end subroutine IAPWS_init
@@ -1215,12 +1267,11 @@ contains
 ! Abstract region type
 !------------------------------------------------------------------------
 
-  subroutine region_init(self, thermo, extrapolate)
+  subroutine region_init(self, thermo)
     !! Initializes abstract IAPWS-97 region object.
     
     class(IAPWS_region_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
 
     self%thermo => thermo
     call self%visc%init()
@@ -1293,12 +1344,11 @@ contains
 ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self, thermo, extrapolate)
+  subroutine region1_init(self, thermo)
     !! Initializes IAPWS region 1 object.
 
     class(IAPWS_region1_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
     ! Locals:
     PetscReal, parameter :: default_max_temperature = 350._dp
     PetscReal, parameter :: extrapolated_max_temperature = 360._dp
@@ -1319,12 +1369,8 @@ contains
     call self%pj%configure(self%J)
     call self%pj%configure(self%J_1)
 
-    if (present(extrapolate)) then
-       if (extrapolate) then
-          self%max_temperature = extrapolated_max_temperature
-       else
-          self%max_temperature = default_max_temperature
-       end if
+    if (thermo%extrapolate) then
+       self%max_temperature = extrapolated_max_temperature
     else
        self%max_temperature = default_max_temperature
     end if
@@ -1392,12 +1438,11 @@ contains
 ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self, thermo, extrapolate)
+  subroutine region2_init(self, thermo)
     !! Initializes IAPWS region 2 object.
 
     class(IAPWS_region2_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
 
     call self%IAPWS_region_type%init(thermo)
 
@@ -1489,12 +1534,11 @@ contains
 ! Region 3 (supercritical)
 !------------------------------------------------------------------------
 
-  subroutine region3_init(self, thermo, extrapolate)
+  subroutine region3_init(self, thermo)
     !! Initializes IAPWS region 3 object.
 
     class(IAPWS_region3_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
     ! Locals:
     PetscInt :: i
     PetscErrorCode :: err

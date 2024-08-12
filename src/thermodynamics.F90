@@ -21,7 +21,9 @@ module thermodynamics_module
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
+  use fson
   use kinds_module
+  use logfile_module
 
   implicit none
   private
@@ -102,6 +104,7 @@ module thermodynamics_module
      class(region_type), allocatable, public :: steam !! Steam region
      class(region_type), allocatable, public :: supercritical !! Supercritical region
      type(pregion_type), allocatable, public :: region(:) !! Array of region pointers
+     PetscBool, public :: extrapolate !! Whether to extrapolate past region bounds
    contains
      private
      procedure(thermodynamics_init_procedure), public, deferred :: init
@@ -132,14 +135,13 @@ module thermodynamics_module
        PetscInt, intent(out) :: err  !! Error code
      end subroutine saturation_pressure
 
-     subroutine region_init(self, thermo, extrapolate)
+     subroutine region_init(self, thermo)
        !! Initializes region. The extrapolate parameter allows the
        !! region's methods to be called slightly out of their usual
        !! operating range if needed.
        import :: region_type, thermodynamics_type
        class(region_type), intent(in out) :: self
        class(thermodynamics_type), intent(in), target :: thermo
-       PetscBool, intent(in), optional :: extrapolate
      end subroutine region_init
 
      subroutine region_destroy(self)
@@ -165,11 +167,12 @@ module thermodynamics_module
        PetscReal, intent(out) :: viscosity
      end subroutine region_viscosity
 
-     subroutine thermodynamics_init_procedure(self, extrapolate)
+     subroutine thermodynamics_init_procedure(self, json, logfile)
        !! Initializes thermodynamics.
-       import :: thermodynamics_type
+       import :: thermodynamics_type, fson_value, logfile_type
        class(thermodynamics_type), intent(in out) :: self
-       PetscBool, intent(in), optional :: extrapolate
+       type(fson_value), pointer, intent(in), optional :: json
+       type(logfile_type), intent(in out), optional :: logfile
      end subroutine thermodynamics_init_procedure
 
      subroutine thermodynamics_destroy_procedure(self)

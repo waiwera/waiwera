@@ -151,13 +151,21 @@ contains
 ! IFC67 class
 !------------------------------------------------------------------------
 
-  subroutine IFC67_init(self, extrapolate)
+  subroutine IFC67_init(self, json, logfile)
     !! Constructs IFC-67 thermodynamics object.
 
+    use fson
+    use fson_value_m, only: TYPE_OBJECT
+    use fson_mpi_module
+    use logfile_module
+
     class(IFC67_type), intent(in out) :: self
-    PetscBool, intent(in), optional :: extrapolate
+    type(fson_value), pointer, intent(in), optional :: json !! JSON input object
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: i
+    PetscInt :: i, thermo_type
+    PetscBool :: defaults
+    PetscBool, parameter :: default_extrapolate = PETSC_FALSE
 
     self%name = 'IFC-67'
 
@@ -174,8 +182,29 @@ contains
     call self%region(1)%set(self%water)
     call self%region(2)%set(self%steam)
 
+    defaults = PETSC_TRUE
+    if (present(json)) then
+       if (fson_has_mpi(json, "thermodynamics")) then
+          thermo_type = fson_type_mpi(json, "thermodynamics")
+          if (thermo_type == TYPE_OBJECT) then
+             call fson_get_mpi(json, "thermodynamics.extrapolate", &
+                  default_extrapolate, self%extrapolate, logfile)
+             defaults = PETSC_FALSE
+          end if
+       end if
+    end if
+
+    if (defaults) then
+       self%extrapolate = default_extrapolate
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               logical_keys = ['thermodynamics.extrapolate'], &
+               logical_values = [default_extrapolate])
+       end if
+    end if
+
     do i = 1, self%num_regions
-       call self%region(i)%ptr%init(self, extrapolate)
+       call self%region(i)%ptr%init(self)
     end do
 
   end subroutine IFC67_init
@@ -229,12 +258,11 @@ contains
 ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self, thermo, extrapolate)
+  subroutine region1_init(self, thermo)
     !! Initializes IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
     ! Locals:
     PetscReal, parameter :: default_max_temperature = 350._dp
     PetscReal, parameter :: extrapolated_max_temperature = 360._dp
@@ -242,12 +270,8 @@ contains
     self%name = 'water'
     self%thermo => thermo
 
-    if (present(extrapolate)) then
-       if (extrapolate) then
-          self%max_temperature = extrapolated_max_temperature
-       else
-          self%max_temperature = default_max_temperature
-       end if
+    if (thermo%extrapolate) then
+       self%max_temperature = extrapolated_max_temperature
     else
        self%max_temperature = default_max_temperature
     end if
@@ -403,12 +427,11 @@ contains
 ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self, thermo, extrapolate)
+  subroutine region2_init(self, thermo)
     !! Initializes IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
 
     self%name = 'steam'
     self%thermo => thermo

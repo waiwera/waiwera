@@ -29,13 +29,20 @@ module IAPWS_test
   subroutine setup()
 
     use profiling_module, only: init_profiling
+    use fson
+    use fson_mpi_module
 
     ! Locals:
+    type(fson_value), pointer :: json
+    character(120) :: json_str = &
+         '{"thermodynamics": {"widom": {"delta": {"growth": 25, "min": 0.1}}}}'
     PetscErrorCode :: ierr
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
-    call IAPWS%init()
+    json => fson_parse_mpi(str = json_str)
+    call IAPWS%init(json)
+    call fson_destroy_mpi(json)
 
   end subroutine setup
 
@@ -617,12 +624,6 @@ module IAPWS_test
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
-
-       select type (region3 => IAPWS%region(3)%ptr)
-       type is (IAPWS_region3_type)
-          region3%widom_delta_growth = widom_delta_growth
-          region3%widom_delta_min = widom_delta_min
-       end select
 
        call widom_case(IAPWS%critical%pressure, &
             [373.896_dp, 373.996_dp], 'case 1')
