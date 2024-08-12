@@ -212,6 +212,8 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
+    PetscReal, parameter :: max_region_1_temp = 350._dp, &
+         temp_tol = 0.1_dp
 
     err = 0
     transition = PETSC_FALSE
@@ -236,55 +238,66 @@ contains
       !! Transitions from region 1 to 3 or 4
 
       ! Locals:
-      PetscReal :: saturation_pressure, density
-      PetscReal, parameter :: max_region_1_temp = 350._dp, &
-           temp_tol = 0.1_dp
+      PetscReal :: saturation_pressure, density, delta(2)
 
-       associate (pressure => primary(1), temperature => primary(2))
+      associate (pressure => primary(1), temperature => primary(2))
 
-         if (temperature > max_region_1_temp) then
+        if (temperature > max_region_1_temp) then
 
-            if (temperature > self%thermo%critical%temperature - temp_tol) then
-               err = 1
-            else
+           if (temperature > self%thermo%critical%temperature) then
 
-               call self%thermo%saturation%pressure(temperature, &
-                    saturation_pressure, err)
-               if (err == 0) then
+              select type (region3 => self%thermo%region(3)%ptr)
+              type is (IAPWS_region3_type)
+                 delta = region3%widom_delta(pressure)
+              end select
 
-                  if (pressure < saturation_pressure) then
-                     call self%transition_to_two_phase(saturation_pressure, &
-                          old_primary, old_fluid, primary, fluid, transition, err)
-                  else
-                     select type (region => self%thermo%region(3)%ptr)
-                     type is (IAPWS_region3_type)
-                        call region%density(primary, density, err, polish = PETSC_TRUE)
-                     end select
-                     if (err == 0) then
-                        fluid%region = dble(3)
-                        primary(1) = density
-                        transition = PETSC_TRUE
-                     end if
-                  end if
+              if (temperature > delta(1)) then
 
-               end if
-            end if
+                 ! TODO: interpolate to delta
 
-         else
+                 call self%transition_single_phase_to_region3(primary, &
+                      fluid, transition, err)
 
-            call self%thermo%saturation%pressure(temperature, &
-                 saturation_pressure, err)
-            if (err == 0) then
-               if (pressure < saturation_pressure) then
-                  call self%transition_to_two_phase(saturation_pressure, &
-                       old_primary, old_fluid, primary, fluid, transition, err)
-               end if
-            end if
+              else
 
-         end if
-       end associate
+                 call self%transition_single_phase_to_region3(primary, &
+                      fluid, transition, err)
 
-     end subroutine region_1_transitions
+              end if
+
+           else
+
+              call self%thermo%saturation%pressure(temperature, &
+                   saturation_pressure, err)
+              if (err == 0) then
+
+                 if (pressure < saturation_pressure) then
+                    call self%transition_to_two_phase(saturation_pressure, &
+                         old_primary, old_fluid, primary, fluid, transition, err)
+                 else
+                    call self%transition_single_phase_to_region3(primary, &
+                         fluid, transition, err)
+
+                 end if
+              end if
+           end if
+
+        else
+
+           call self%thermo%saturation%pressure(temperature, &
+                saturation_pressure, err)
+           if (err == 0) then
+              if (pressure < saturation_pressure) then
+                 call self%transition_to_two_phase(saturation_pressure, &
+                      old_primary, old_fluid, primary, fluid, transition, err)
+              end if
+           end if
+
+        end if
+
+      end associate
+
+    end subroutine region_1_transitions
 
 !........................................................................
 
