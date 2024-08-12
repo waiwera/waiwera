@@ -40,6 +40,7 @@ module eos_se_module
      procedure, public :: init => eos_se_init
      procedure, public :: destroy => eos_se_destroy
      procedure, public :: transition => eos_se_transition
+     procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
@@ -162,6 +163,36 @@ contains
     deallocate(self%primary_variable_interpolator)
 
   end subroutine eos_se_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_transition_single_phase_to_region3(self, primary, &
+       fluid, transition, err)
+    !! For eos_se, carry out transition from single phase to region 3.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: density
+
+    err = 0
+    select type (region3 => self%thermo%region(3)%ptr)
+    type is (IAPWS_region3_type)
+       call region3%density(primary, density, err, polish = PETSC_TRUE)
+    end select
+
+    if (err == 0) then
+       fluid%region = dble(3)
+       primary(1) = density
+       transition = PETSC_TRUE
+    end if
+
+  end subroutine eos_se_transition_single_phase_to_region3
 
 !------------------------------------------------------------------------
 
