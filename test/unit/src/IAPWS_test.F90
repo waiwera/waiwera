@@ -20,7 +20,7 @@ module IAPWS_test
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
        test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
-       test_region3_widom
+       test_region3_widom, test_region3_pi_liquidlike
 
   contains
 
@@ -619,8 +619,6 @@ module IAPWS_test
     ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: widom_delta_growth = 25._dp
-    PetscReal, parameter :: widom_delta_min = 0.1_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -668,6 +666,44 @@ module IAPWS_test
      end subroutine widom_case
 
   end subroutine test_region3_widom
+
+!------------------------------------------------------------------------
+
+  subroutine test_region3_pi_liquidlike(test)
+    ! Region 3 pi_liquidlike tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       select type (region3 => IAPWS%region(3)%ptr)
+       type is (IAPWS_region3_type)
+
+          call test%assert(0.5_dp, region3%pi_liquidlike( &
+               [IAPWS%critical%pressure, IAPWS%critical%temperature]), 'case 1')
+          call test%assert(1.0_dp, region3%pi_liquidlike( &
+               [60.e6_dp, IAPWS%critical%temperature]), 'case 2')
+          call test%assert(0.0_dp, region3%pi_liquidlike( &
+               [IAPWS%critical%pressure, 700._dp]), 'case 3')
+          call test%assert(0.6647582359226447_dp, region3%pi_liquidlike( &
+               [64.e6_dp, 475._dp]), 'case 4')
+          call test%assert(0.9163599511100515_dp, region3%pi_liquidlike( &
+               [64.e6_dp, 465._dp]), 'case 5')
+          call test%assert(0.0953115451263743_dp, region3%pi_liquidlike( &
+               [64.e6_dp, 495._dp]), 'case 6')
+          call test%assert(1.0_dp, region3%pi_liquidlike( &
+               [40.e6_dp, 377._dp]), 'case 7')
+          call test%assert(0.0_dp, region3%pi_liquidlike( &
+               [30.e6_dp, 500._dp]), 'case 8')
+
+       end select
+    end if
+
+  end subroutine test_region3_pi_liquidlike
 
 !------------------------------------------------------------------------
 
