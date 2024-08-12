@@ -276,20 +276,23 @@ contains
     type(IFC67_type) :: extrapolated
     PetscMPIInt :: rank
 
+    json => fson_parse_mpi(str = json_str)
+    call extrapolated%init(json)
+
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
     if (rank == 0) then
 
        call IFC67%water%properties(primary, props, err)
        call test%assert(err, 1, "error without extrapolation")
 
-       json => fson_parse_mpi(str = json_str)
-       call extrapolated%init(json)
-       call fson_destroy_mpi(json)
        call extrapolated%water%properties(primary, props, err)
        call test%assert(err, 0, "no error with extrapolation")
-       call extrapolated%destroy()
 
     end if
+
+   call fson_destroy_mpi(json)
+   call extrapolated%destroy()
 
   end subroutine test_extrapolate
 
