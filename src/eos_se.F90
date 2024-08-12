@@ -66,8 +66,6 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     procedure(root_finder_function), pointer :: f
-    class(*), pointer :: pinterp
-    PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale, density_scale
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
@@ -114,18 +112,35 @@ contains
 
     self%thermo => thermo
 
-    ! Set up saturation line finder:
-    allocate(primary_variable_interpolator_type :: &
-         self%primary_variable_interpolator)
-    allocate(data(2, 1 + self%num_primary_variables))
-    data = 0._dp
-    data(:, 1) = [0._dp, 1._dp]
-    call self%primary_variable_interpolator%init(data)
-    deallocate(data)
-    self%primary_variable_interpolator%thermo => self%thermo
     f => eos_we_saturation_difference
-    pinterp => self%primary_variable_interpolator
-    call self%saturation_line_finder%init(f, context = pinterp)
+    call init_line_finder(self%saturation_line_finder, &
+         self%primary_variable_interpolator, f)
+
+  contains
+
+    subroutine init_line_finder(finder, interpolator, f)
+      !! Initialises line finder for interpolating onto saturation
+      !! line or Widom delta boundaries.
+
+      type(root_finder_type), intent(in out) :: finder
+      class(primary_variable_interpolator_type), pointer, &
+           intent(in out) :: interpolator
+      procedure(root_finder_function), pointer, intent(in) :: f
+      ! Locals:
+      PetscReal, allocatable :: data(:, :)
+      class(*), pointer :: pinterp
+
+      allocate(primary_variable_interpolator_type :: interpolator)
+      allocate(data(2, 1 + self%num_primary_variables))
+      data = 0._dp
+      data(:, 1) = [0._dp, 1._dp]
+      call interpolator%init(data)
+      deallocate(data)
+      interpolator%thermo => self%thermo
+      pinterp => interpolator
+      call finder%init(f, context = pinterp)
+
+    end subroutine init_line_finder
 
   end subroutine eos_se_init
 
