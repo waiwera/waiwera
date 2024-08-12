@@ -2053,22 +2053,20 @@ contains
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(2)
     ! Locals:
-    PetscReal :: delta(2)
+    PetscReal :: delta(2), xi
 
     associate(pressure => param(1), temperature => param(2))
       delta = self%widom_delta(pressure)
-      pi_liq = hermite(temperature, delta)
+      xi = (temperature - delta(1)) / (delta(2) - delta(1))
+      pi_liq = hermite(xi)
     end associate
 
   contains
 
-    PetscReal function hermite(x, bounds)
+    PetscReal function hermite(xi)
 
-      PetscReal, intent(in) :: x, bounds(2)
-      ! Locals:
-      PetscReal :: xi
+      PetscReal, intent(in) :: xi
 
-      xi = (x - bounds(1)) / (bounds(2) - bounds(1))
       if (xi < 0._dp) then
          hermite = 1._dp
       else if (xi > 1._dp) then
