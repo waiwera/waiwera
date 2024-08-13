@@ -31,16 +31,24 @@ module eos_se_module
   implicit none
   private
 
+  type, public, extends(primary_variable_interpolator_type) :: widom_delta_interpolator_type
+     private
+     PetscInt, public :: bdy_index !! 1 for liquid-like boundary, 2 for vapour-like
+  end type widom_delta_interpolator_type
+
   type, public, extends(eos_we_type) :: eos_se_type
      !! Pure supercritical water and energy equation of state type.
      private
      PetscInt :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
+     type(root_finder_type), public :: widom_delta_finder
+     class(primary_variable_interpolator_type), pointer, public :: widom_delta_interpolator
    contains
      private
      procedure, public :: init => eos_se_init
      procedure, public :: destroy => eos_se_destroy
      procedure, public :: transition => eos_se_transition
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
+     procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
@@ -66,7 +74,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: fs, fw
     PetscReal :: pressure_scale, temperature_scale, density_scale
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
@@ -113,9 +121,14 @@ contains
 
     self%thermo => thermo
 
-    f => eos_we_saturation_difference
+    fs => eos_we_saturation_difference
+    allocate(primary_variable_interpolator_type :: self%primary_variable_interpolator)
     call init_line_finder(self%saturation_line_finder, &
-         self%primary_variable_interpolator, f)
+         self%primary_variable_interpolator, fs)
+    fw => eos_se_widom_delta_difference
+    allocate(widom_delta_interpolator_type :: self%widom_delta_interpolator)
+    call init_line_finder(self%widom_delta_finder, &
+         self%widom_delta_interpolator, fw)
 
   contains
 
@@ -126,12 +139,11 @@ contains
       type(root_finder_type), intent(in out) :: finder
       class(primary_variable_interpolator_type), pointer, &
            intent(in out) :: interpolator
-      procedure(root_finder_function), pointer, intent(in) :: f
+      procedure(root_finder_routine), pointer, intent(in out) :: f
       ! Locals:
       PetscReal, allocatable :: data(:, :)
       class(*), pointer :: pinterp
 
-      allocate(primary_variable_interpolator_type :: interpolator)
       allocate(data(2, 1 + self%num_primary_variables))
       data = 0._dp
       data(:, 1) = [0._dp, 1._dp]
@@ -161,6 +173,10 @@ contains
     call self%saturation_line_finder%destroy()
     call self%primary_variable_interpolator%destroy()
     deallocate(self%primary_variable_interpolator)
+
+    call self%widom_delta_finder%destroy()
+    call self%widom_delta_interpolator%destroy()
+    deallocate(self%widom_delta_interpolator)
 
   end subroutine eos_se_destroy
 
@@ -193,6 +209,21 @@ contains
     end if
 
   end subroutine eos_se_transition_single_phase_to_region3
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_set_delta_interpolator_bdy(self, bdy_index)
+    !! Sets Widom delta interpolator boundary type.
+
+    class(eos_se_type), intent(in out) :: self
+    PetscInt, intent(in) :: bdy_index
+
+    select type (interpolator => self%widom_delta_interpolator)
+    type is (widom_delta_interpolator_type)
+       interpolator%bdy_index = bdy_index
+    end select
+
+  end subroutine eos_se_set_delta_interpolator_bdy
 
 !------------------------------------------------------------------------
 
@@ -589,6 +620,42 @@ contains
    end if
 
   end subroutine eos_se_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_widom_delta_difference(x, context, f, err)
+    !! Returns difference between Widom delta boundary temperature and
+    !! temperature at normalised point 0 <= x <= 1 along line between
+    !! start and end primary variables. Either the liquid-like or
+    !! vapour-like boundary is used, based on the context%bdy_index
+    !! variable.
+
+    PetscReal, intent(in) :: x
+    class(*), pointer, intent(in out) :: context
+    PetscReal, intent(out) :: f
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal, allocatable :: var(:)
+    PetscReal :: delta(2)
+
+    err = 0
+    select type (context)
+    type is (widom_delta_interpolator_type)
+       allocate(var(context%dim))
+       var = context%interpolate_at_index(x)
+       associate(P => var(1), T => var(2))
+         select type (region3 => context%thermo%region(3)%ptr)
+         type is (IAPWS_region3_type)
+            call region3%widom_delta(P, delta, err)
+            if (err == 0) then
+               f = T - delta(context%bdy_index)
+            end if
+         end select
+       end associate
+       deallocate(var)
+    end select
+
+  end subroutine eos_se_widom_delta_difference
 
 !------------------------------------------------------------------------
 
