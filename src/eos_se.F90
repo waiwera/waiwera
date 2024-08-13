@@ -297,12 +297,16 @@ contains
                           interpolated_primary = self%widom_delta_interpolator%interpolate(xi)
                        else
                           call region3%widom_delta(pressure, delta, err)
-                          interpolated_pressure = pressure
-                          interpolated_temperature = delta(1)
+                          if (err == 0) then
+                             interpolated_pressure = pressure
+                             interpolated_temperature = delta(1)
+                          end if
                        end if
 
-                       call self%transition_single_phase_to_region3(interpolated_primary, &
-                            fluid, transition, err)
+                       if (err == 0) then
+                          call self%transition_single_phase_to_region3(interpolated_primary, &
+                               fluid, transition, err)
+                       end if
 
                     else
                        call self%transition_single_phase_to_region3(primary, &
