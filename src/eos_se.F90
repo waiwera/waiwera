@@ -269,31 +269,63 @@ contains
       !! Transitions from region 1 to 3 or 4
 
       ! Locals:
-      PetscReal :: saturation_pressure, density, delta(2)
+      PetscReal :: saturation_pressure, density, delta(2), xi
+      PetscReal :: interpolated_primary(self%num_primary_variables)
 
-      associate (pressure => primary(1), temperature => primary(2))
+      associate (pressure => primary(1), temperature => primary(2), &
+           interpolated_pressure => interpolated_primary(1), &
+           interpolated_temperature => primary(2))
+        select type (region3 => self%thermo%region(3)%ptr)
+        type is (IAPWS_region3_type)
 
-        if (temperature > max_region_1_temp) then
+           if (temperature > max_region_1_temp) then
 
-           if (temperature > self%thermo%critical%temperature) then
+              if (pressure > self%thermo%critical%pressure) then
 
-              select type (region3 => self%thermo%region(3)%ptr)
-              type is (IAPWS_region3_type)
-                 delta = region3%widom_delta(pressure)
-              end select
+                 call region3%widom_delta(pressure, delta, err)
+                 if (err == 0) then
 
-              if (temperature > delta(1)) then
+                    if (temperature > delta(1)) then
 
-                 ! TODO: interpolate to delta
+                       call self%set_delta_interpolator_bdy(1)
+                       self%widom_delta_interpolator%val(:, 1) = old_primary
+                       self%widom_delta_interpolator%val(:, 2) = primary
+                       call self%widom_delta_finder%find()
 
-                 call self%transition_single_phase_to_region3(primary, &
-                      fluid, transition, err)
+                       if (self%widom_delta_finder%err == 0) then
+                          xi = self%widom_delta_finder%root
+                          interpolated_primary = self%widom_delta_interpolator%interpolate(xi)
+                       else
+                          call region3%widom_delta(pressure, delta, err)
+                          interpolated_pressure = pressure
+                          interpolated_temperature = delta(1)
+                       end if
+
+                       call self%transition_single_phase_to_region3(interpolated_primary, &
+                            fluid, transition, err)
+
+                    else
+                       call self%transition_single_phase_to_region3(primary, &
+                            fluid, transition, err)
+                    end if
+
+                 end if
 
               else
 
-                 call self%transition_single_phase_to_region3(primary, &
-                      fluid, transition, err)
+                 call self%thermo%saturation%pressure(temperature, &
+                      saturation_pressure, err)
+                 if (err == 0) then
 
+                    if (pressure < saturation_pressure) then
+                       call self%transition_to_two_phase(saturation_pressure, &
+                            old_primary, old_fluid, primary, fluid, transition, err)
+                    else
+                       call self%transition_single_phase_to_region3(primary, &
+                            fluid, transition, err)
+
+                    end if
+                 end if
               end if
 
            else
@@ -301,31 +333,15 @@ contains
               call self%thermo%saturation%pressure(temperature, &
                    saturation_pressure, err)
               if (err == 0) then
-
                  if (pressure < saturation_pressure) then
                     call self%transition_to_two_phase(saturation_pressure, &
                          old_primary, old_fluid, primary, fluid, transition, err)
-                 else
-                    call self%transition_single_phase_to_region3(primary, &
-                         fluid, transition, err)
-
                  end if
               end if
+
            end if
 
-        else
-
-           call self%thermo%saturation%pressure(temperature, &
-                saturation_pressure, err)
-           if (err == 0) then
-              if (pressure < saturation_pressure) then
-                 call self%transition_to_two_phase(saturation_pressure, &
-                      old_primary, old_fluid, primary, fluid, transition, err)
-              end if
-           end if
-
-        end if
-
+        end select
       end associate
 
     end subroutine region_1_transitions
