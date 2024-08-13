@@ -331,6 +331,19 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 1 to region 3 Widom delta"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [475.1891651872765_dp, 453.37857530542698_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [70.e6_dp, 340._dp]
+       primary = [60.e6_dp, 465._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
     end if
 
     call old_fluid%destroy()
