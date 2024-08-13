@@ -28,11 +28,12 @@ module root_finder_module
 
   PetscInt, parameter, public :: ROOT_FINDER_INTERVAL_NOT_BRACKETED = 1
   PetscInt, parameter, public :: ROOT_FINDER_ITERATIONS_EXCEEDED = 2
+  PetscInt, parameter, public :: ROOT_FINDER_FUNCTION_ERR = 3
 
   type, public :: root_finder_type
      !! Root finder type.
      private
-     procedure(root_finder_function), pointer, nopass, public :: f !! Function for which to solve f(x) = 0
+     procedure(root_finder_routine), pointer, nopass, public :: f !! Routine to compute f(x)
      class(*), pointer, public :: context  !! Context data for the function f
      PetscReal, public :: interval(2) !! Bracketing interval for the root
      PetscReal, public :: root !! Root value found
@@ -49,13 +50,15 @@ module root_finder_module
   end type root_finder_type
 
   interface
-     PetscReal function root_finder_function(x, context)
+     subroutine root_finder_routine(x, context, f, err)
        PetscReal, intent(in) :: x
        class(*), pointer, intent(in out) :: context
-     end function root_finder_function
+       PetscReal, intent(out) :: f
+       PetscErrorCode, intent(out) :: err
+     end subroutine root_finder_routine
   end interface
 
-  public :: root_finder_function
+  public :: root_finder_routine
 
 contains
 
@@ -66,7 +69,7 @@ contains
     !! Initialise root finder.
     class(root_finder_type), intent(in out) :: self
 
-    procedure(root_finder_function), pointer, intent(in) :: f
+    procedure(root_finder_routine), pointer, intent(in) :: f
     PetscReal, intent(in), optional :: interval(2)
     PetscReal, intent(in), optional :: root_tolerance
     PetscReal, intent(in), optional :: function_tolerance
@@ -136,113 +139,131 @@ contains
     PetscReal :: dx, p, pc, q, r, s
     PetscInt :: iter
     PetscBool :: found
+    PetscErrorCode :: err
     PetscReal, parameter :: small = 1.e-16_dp
 
     self%iterations = 0
     self%err = 0
     self%root = 0._dp
     found = PETSC_FALSE
+    err = 0
 
     a = self%interval(1)
     b = self%interval(2)
-    fa = self%f(a, self%context)
-    fb = self%f(b, self%context)
+    call self%f(a, self%context, fa, err)
+    if (err == 0) then
+       call self%f(b, self%context, fb, err)
+       if (err == 0) then
 
-    if (fa * fb > 0._dp) then
-       self%err = ROOT_FINDER_INTERVAL_NOT_BRACKETED
-    else
-
-       c = b
-       fc = fb
-
-       do iter = 1, self%max_iterations
-
-          if (fb * fc > 0._dp) then
-             c = a
-             fc = fa
-             d = b - a
-             e = d
-          end if
-
-          if (abs(fc) < abs(fb)) then
-             a = b
-             b = c
-             c = a
-             fa = fb
-             fb = fc
-             fc = fa
-          end if
-
-          dx = 0.5_dp * (c - b)
-
-          if ((abs(dx) <= self%root_tolerance) .or. &
-               (abs(fb) <= self%function_tolerance)) then
-
-             ! Root found:
-             found = PETSC_TRUE
-             exit
-
+          if (fa * fb > 0._dp) then
+             self%err = ROOT_FINDER_INTERVAL_NOT_BRACKETED
           else
 
-             if ((abs(e) >= self%root_tolerance) .and. &
-                  (abs(fa) > abs(fb))) then
+             c = b
+             fc = fb
 
-                ! Inverse quadratic interpolation:
-                s = fb / fa
-                if (abs(a - c) <= small) then
-                   p = 2._dp * dx * s
-                   q = 1._dp - s
-                else
-                   q = fa / fc
-                   r = fb / fc
-                   p = s * (2._dp * dx * q * (q - r) - (b - a) * (r - 1._dp))
-                   q = (q - 1._dp) * (r - 1._dp) * (s - 1._dp)
-                end if
+             do iter = 1, self%max_iterations
 
-                ! Check bounds:
-                if (p > 0._dp) then
-                   q = -q
-                else
-                   p = -p
-                end if
-
-                pc = min(3._dp * dx * q - abs(self%root_tolerance * q), &
-                     abs(e * q))
-                if (2._dp * p < pc) then
-                   ! Accept interpolation:
-                   e = d
-                   d = p / q
-                else
-                   ! Interpolation failed- use bisection:
-                   d = dx
+                if (fb * fc > 0._dp) then
+                   c = a
+                   fc = fa
+                   d = b - a
                    e = d
                 end if
 
-             else
-                ! Bounds decreasing too slowly- use bisection:
-                   d = dx
-                   e = d
+                if (abs(fc) < abs(fb)) then
+                   a = b
+                   b = c
+                   c = a
+                   fa = fb
+                   fb = fc
+                   fc = fa
+                end if
+
+                dx = 0.5_dp * (c - b)
+
+                if ((abs(dx) <= self%root_tolerance) .or. &
+                     (abs(fb) <= self%function_tolerance)) then
+
+                   ! Root found:
+                   found = PETSC_TRUE
+                   exit
+
+                else
+
+                   if ((abs(e) >= self%root_tolerance) .and. &
+                        (abs(fa) > abs(fb))) then
+
+                      ! Inverse quadratic interpolation:
+                      s = fb / fa
+                      if (abs(a - c) <= small) then
+                         p = 2._dp * dx * s
+                         q = 1._dp - s
+                      else
+                         q = fa / fc
+                         r = fb / fc
+                         p = s * (2._dp * dx * q * (q - r) - (b - a) * (r - 1._dp))
+                         q = (q - 1._dp) * (r - 1._dp) * (s - 1._dp)
+                      end if
+
+                      ! Check bounds:
+                      if (p > 0._dp) then
+                         q = -q
+                      else
+                         p = -p
+                      end if
+
+                      pc = min(3._dp * dx * q - abs(self%root_tolerance * q), &
+                           abs(e * q))
+                      if (2._dp * p < pc) then
+                         ! Accept interpolation:
+                         e = d
+                         d = p / q
+                      else
+                         ! Interpolation failed- use bisection:
+                         d = dx
+                         e = d
+                      end if
+
+                   else
+                      ! Bounds decreasing too slowly- use bisection:
+                      d = dx
+                      e = d
+                   end if
+
+                   a = b
+                   fa = fb
+                   if (abs(d) > self%root_tolerance) then
+                      b = b + d
+                   else
+                      b = b + sign(self%root_tolerance, dx)
+                   end if
+                   call self%f(b, self%context, fb, err)
+                   if (err > 0) then
+                      self%err = ROOT_FINDER_FUNCTION_ERR
+                      exit
+                   end if
+
+                end if
+
+             end do
+
+             self%iterations = iter
+             if (self%err /= ROOT_FINDER_FUNCTION_ERR) then
+                if (.not. found) then
+                   self%err = ROOT_FINDER_ITERATIONS_EXCEEDED
+                else
+                   self%root = b
+                end if
              end if
-
-             a = b
-             fa = fb
-             if (abs(d) > self%root_tolerance) then
-                b = b + d
-             else
-                b = b + sign(self%root_tolerance, dx)
-             end if
-             fb = self%f(b, self%context)
 
           end if
 
-       end do
-
-       self%root = b
-       self%iterations = iter
-       if (.not. found) then
-          self%err = ROOT_FINDER_ITERATIONS_EXCEEDED
+       else
+          self%err = ROOT_FINDER_FUNCTION_ERR
        end if
-
+    else
+       self%err = ROOT_FINDER_FUNCTION_ERR
     end if
 
   end subroutine root_finder_find

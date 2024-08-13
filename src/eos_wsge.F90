@@ -69,7 +69,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale, partial_pressure_scale
@@ -923,19 +923,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_wsge_saturation_difference(x, context) result(dp)
+  subroutine eos_wsge_saturation_difference(x, context, f, err)
     !! Returns difference between brine saturation pressure and
     !! brine pressure at normalised point 0 <= x <= 1 along line between
     !! start and end primary variables.
 
     PetscReal, intent(in) :: x
     class(*), pointer, intent(in out) :: context
-
+    PetscReal, intent(out) :: f
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, allocatable :: var(:)
     PetscReal :: salt_mass_fraction, Ps
-    PetscInt :: err
 
+    err = 0
     select type (context)
     type is (eos_wse_primary_variable_interpolator_type)
        allocate(var(context%dim))
@@ -946,14 +947,18 @@ contains
          else
             salt_mass_fraction = var(3)
          end if
-         call brine_saturation_pressure(T, salt_mass_fraction, &
-              context%thermo, Ps, err)
-         dp = P - Pg - Ps
+         if (err == 0) then
+            call brine_saturation_pressure(T, salt_mass_fraction, &
+                 context%thermo, Ps, err)
+            if (err == 0) then
+               f = P - Pg - Ps
+            end if
+         end if
        end associate
        deallocate(var)
     end select
 
-  end function eos_wsge_saturation_difference
+  end subroutine eos_wsge_saturation_difference
 
 !------------------------------------------------------------------------
 

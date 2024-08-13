@@ -69,7 +69,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale
@@ -552,30 +552,34 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_we_saturation_difference(x, context) result(dp)
+  subroutine eos_we_saturation_difference(x, context, f, err)
     !! Returns difference between saturation pressure and pressure at
     !! normalised point 0 <= x <= 1 along line between start and end
     !! primary variables.
 
     PetscReal, intent(in) :: x
     class(*), pointer, intent(in out) :: context
+    PetscReal, intent(out) :: f
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, allocatable :: var(:)
     PetscReal :: Ps
-    PetscInt :: err
 
+    err = 0
     select type (context)
     type is (primary_variable_interpolator_type)
        allocate(var(context%dim))
        var = context%interpolate_at_index(x)
        associate(P => var(1), T => var(2))
          call context%thermo%saturation%pressure(T, Ps, err)
-         dp = P - Ps
+         if (err == 0) then
+            f = P - Ps
+         end if
        end associate
        deallocate(var)
     end select
 
-  end function eos_we_saturation_difference
+  end subroutine eos_we_saturation_difference
 
 !------------------------------------------------------------------------
 

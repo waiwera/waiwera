@@ -473,10 +473,10 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, target :: volsum(self%num_levels)
-    PetscReal :: x, xl, xr
+    PetscReal :: x, xl, xr, fxr
     PetscInt :: i
     type(root_finder_type) :: root_finder
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     class(*), pointer :: v
 
     err = 0
@@ -499,8 +499,10 @@ contains
 
          xl = x
          v => volsum(i)
-         do while (f(xr, v) < 0._dp)
+         call f(xr, v, fxr, err)
+         do while (fxr < 0._dp)
             xr = xr * 2._dp
+            call f(xr, v, fxr, err)
          end do
          root_finder%interval = [xl, xr]
          root_finder%context => v
@@ -530,19 +532,22 @@ contains
 
   contains
 
-    PetscReal function volume_difference(x, context) result(y)
+    subroutine volume_difference(x, context, f, err)
 
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
 
+      err = 0
       select type (context)
       type is (PetscReal)
          associate(v => context)
-           y = self%proximity(x) - v
+           f = self%proximity(x) - v
          end associate
       end select
 
-    end function volume_difference
+    end subroutine volume_difference
 
   end subroutine minc_setup_geometry
 
