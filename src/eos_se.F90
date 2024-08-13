@@ -270,11 +270,8 @@ contains
 
       ! Locals:
       PetscReal :: saturation_pressure, density, delta(2), xi
-      PetscReal :: interpolated_primary(self%num_primary_variables)
 
-      associate (pressure => primary(1), temperature => primary(2), &
-           interpolated_pressure => interpolated_primary(1), &
-           interpolated_temperature => primary(2))
+      associate (pressure => primary(1), temperature => primary(2))
         select type (region3 => self%thermo%region(3)%ptr)
         type is (IAPWS_region3_type)
 
@@ -294,17 +291,16 @@ contains
 
                        if (self%widom_delta_finder%err == 0) then
                           xi = self%widom_delta_finder%root
-                          interpolated_primary = self%widom_delta_interpolator%interpolate(xi)
+                          primary = self%widom_delta_interpolator%interpolate(xi)
                        else
                           call region3%widom_delta(pressure, delta, err)
                           if (err == 0) then
-                             interpolated_pressure = pressure
-                             interpolated_temperature = delta(1)
+                             temperature = delta(1)
                           end if
                        end if
 
                        if (err == 0) then
-                          call self%transition_single_phase_to_region3(interpolated_primary, &
+                          call self%transition_single_phase_to_region3(primary, &
                                fluid, transition, err)
                        end if
 
