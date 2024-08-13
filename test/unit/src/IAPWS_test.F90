@@ -624,13 +624,13 @@ module IAPWS_test
     if (rank == 0) then
 
        call widom_case(IAPWS%critical%pressure, &
-            [373.896_dp, 373.996_dp], 'case 1')
+            [373.896_dp, 373.996_dp], 0, 'case 1')
        call widom_case(40.e6_dp, &
-            [423.2040374562089_dp, 443.52673506317046_dp], 'case 2')
+            [423.2040374562089_dp, 443.52673506317046_dp], 0, 'case 2')
        call widom_case(75.e6_dp, &
-            [466.1582171200531_dp, 526.138275133106_dp], 'case 3')
+            [466.1582171200531_dp, 526.138275133106_dp], 0, 'case 3')
        call widom_case(100.e6_dp, &
-            [480.72738196712254_dp, 569.0341259845264_dp], 'case 4')
+            [480.72738196712254_dp, 569.0341259845264_dp], 0, 'case 4')
 
     end if
 
@@ -648,19 +648,27 @@ module IAPWS_test
 
      end function widom_p
 
-     subroutine widom_case(p, expected_delta, name)
+     subroutine widom_case(p, expected_delta, expected_err, name)
 
        PetscReal, intent(in) :: p, expected_delta(2)
+       PetscErrorCode, intent(in) :: expected_err
        character(*), intent(in) :: name
        ! Locals:
        PetscReal :: t, delta(2)
+       PetscErrorCode :: err
 
        select type (region3 => IAPWS%region(3)%ptr)
        type is (IAPWS_region3_type)
-          t = region3%widom(p)
-          call test%assert(p, widom_p(t), name // ' widom temperature')
-          delta = region3%widom_delta(p)
-          call test%assert(expected_delta, delta, name // ' widom delta')
+          call region3%widom(p, t, err)
+          call test%assert(expected_err, err, name // ' widom error')
+          if (err == 0) then
+             call test%assert(p, widom_p(t), name // ' widom temperature')
+             call region3%widom_delta(p, delta, err)
+             call test%assert(expected_err, err, name // ' widom delta error')
+             if (err == 0) then
+                call test%assert(expected_delta, delta, name // ' widom delta')
+             end if
+          end if
        end select
 
      end subroutine widom_case
@@ -680,28 +688,41 @@ module IAPWS_test
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       call pi_liquidlike_case([IAPWS%critical%pressure, &
+            IAPWS%critical%temperature], 0.5_dp, 0, 'case 1')
+       call pi_liquidlike_case([60.e6_dp, IAPWS%critical%temperature], &
+            1.0_dp, 0, 'case 2')
+       call pi_liquidlike_case([IAPWS%critical%pressure, 700._dp], &
+            0.0_dp, 0, 'case 3')
+       call pi_liquidlike_case([64.e6_dp, 475._dp], 0.6647582359226447_dp, 0, 'case 4')
+       call pi_liquidlike_case([64.e6_dp, 465._dp], 0.9163599511100515_dp, 0, 'case 5')
+       call pi_liquidlike_case([64.e6_dp, 495._dp], 0.0953115451263743_dp, 0, 'case 6')
+       call pi_liquidlike_case([40.e6_dp, 377._dp], 1.0_dp, 0, 'case 7')
+       call pi_liquidlike_case([30.e6_dp, 500._dp], 0.0_dp, 0, 'case 8')
+
+    end if
+
+    contains
+
+     subroutine pi_liquidlike_case(param, expected_pi, expected_err, name)
+
+       PetscReal, intent(in) :: param(2), expected_pi
+       PetscErrorCode, intent(in) :: expected_err
+       character(*), intent(in) :: name
+       ! Locals:
+       PetscReal :: pi_liq
+       PetscErrorCode :: err
+
        select type (region3 => IAPWS%region(3)%ptr)
        type is (IAPWS_region3_type)
-
-          call test%assert(0.5_dp, region3%pi_liquidlike( &
-               [IAPWS%critical%pressure, IAPWS%critical%temperature]), 'case 1')
-          call test%assert(1.0_dp, region3%pi_liquidlike( &
-               [60.e6_dp, IAPWS%critical%temperature]), 'case 2')
-          call test%assert(0.0_dp, region3%pi_liquidlike( &
-               [IAPWS%critical%pressure, 700._dp]), 'case 3')
-          call test%assert(0.6647582359226447_dp, region3%pi_liquidlike( &
-               [64.e6_dp, 475._dp]), 'case 4')
-          call test%assert(0.9163599511100515_dp, region3%pi_liquidlike( &
-               [64.e6_dp, 465._dp]), 'case 5')
-          call test%assert(0.0953115451263743_dp, region3%pi_liquidlike( &
-               [64.e6_dp, 495._dp]), 'case 6')
-          call test%assert(1.0_dp, region3%pi_liquidlike( &
-               [40.e6_dp, 377._dp]), 'case 7')
-          call test%assert(0.0_dp, region3%pi_liquidlike( &
-               [30.e6_dp, 500._dp]), 'case 8')
-
+          call region3%pi_liquidlike(param, pi_liq, err)
+          call test%assert(expected_err, err, name // ' pi_liq error')
+          if (err == 0) then
+             call test%assert(expected_pi, pi_liq, name // ' pi_liq')
+          end if
        end select
-    end if
+
+     end subroutine pi_liquidlike_case
 
   end subroutine test_region3_pi_liquidlike
 

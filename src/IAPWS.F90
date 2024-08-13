@@ -2001,23 +2001,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function region3_widom(self, pressure) result(temperature)
+  subroutine region3_widom(self, pressure, temperature, err)
     !! Returns Widom line temperature as a function of pressure. This
     !! is the inverse of the exponential Widom function of Banuti et
     !! al. (2017) - not actually part of the IAPWS formulation.
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure
+    PetscReal, intent(out) :: temperature
+    PetscErrorCode, intent(out) :: err
 
-    temperature = self%thermo%critical%temperature_k * (1._dp + &
-         log(pressure / self%thermo%critical%pressure) / self%widom_slope) &
-         - tc_k
+    if (pressure >= self%thermo%critical%pressure) then
+       temperature = self%thermo%critical%temperature_k * (1._dp + &
+            log(pressure / self%thermo%critical%pressure) / self%widom_slope) &
+            - tc_k
+       err = 0
+    else
+       err = 1
+    end if
 
-  end function region3_widom
+  end subroutine region3_widom
 
 !------------------------------------------------------------------------
 
-  function region3_widom_delta(self, pressure) result(delta)
+  subroutine region3_widom_delta(self, pressure, delta, err)
     !! Returns Widom delta minimum and maximum temperatures as a
     !! function of pressure. These are the temperatures at which the
     !! number fractions of liquid-like particles are 1 and 0
@@ -2026,24 +2033,29 @@ contains
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure
-    PetscReal :: delta(2)
+    PetscReal, intent(out) :: delta(2)
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: Tw, dT, max_dT
 
-    Tw = self%widom(pressure)
-    dT = self%widom_delta_growth * (pressure / self%thermo%critical%pressure &
-         - 1._dp)
-    max_dT = 2._dp * (Tw - self%thermo%critical%temperature)
-    dT = max(min(dT, max_dT), self%widom_delta_min)
+    if (pressure >= self%thermo%critical%pressure) then
+       call self%widom(pressure, Tw, err)
+       if (err == 0) then
+          dT = self%widom_delta_growth * &
+               (pressure / self%thermo%critical%pressure - 1._dp)
+          max_dT = 2._dp * (Tw - self%thermo%critical%temperature)
+          dT = max(min(dT, max_dT), self%widom_delta_min)
+          delta = [Tw - 0.5_dp * dT, Tw + 0.5_dp * dT]
+       end if
+    else
+       err = 1
+    end if
 
-    delta = [Tw - 0.5_dp * dT, Tw + 0.5_dp * dT]
-
-  end function region3_widom_delta
+  end subroutine region3_widom_delta
 
 !------------------------------------------------------------------------
 
-  PetscReal function region3_pi_liquidlike(self, param) &
-       result(pi_liq)
+  subroutine region3_pi_liquidlike(self, param, pi_liq, err)
     !! Returns number fraction of liquid-like supercritical fluid
     !! particles as a function of pressure and temperature. This is
     !! assumed to vary smoothly from 1 to 0 through the Widom delta
@@ -2052,13 +2064,18 @@ contains
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(2)
+    PetscReal, intent(out) :: pi_liq
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: delta(2), xi
 
+    err = 0
     associate(pressure => param(1), temperature => param(2))
-      delta = self%widom_delta(pressure)
-      xi = (temperature - delta(1)) / (delta(2) - delta(1))
-      pi_liq = hermite(xi)
+      call self%widom_delta(pressure, delta, err)
+      if (err == 0) then
+         xi = (temperature - delta(1)) / (delta(2) - delta(1))
+         pi_liq = hermite(xi)
+      end if
     end associate
 
   contains
@@ -2077,7 +2094,7 @@ contains
 
     end function hermite
 
-  end function region3_pi_liquidlike
+  end subroutine region3_pi_liquidlike
 
 !------------------------------------------------------------------------
 ! Viscosity
