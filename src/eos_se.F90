@@ -434,7 +434,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p
-    PetscReal :: properties(2), saturation_pressure, sl
+    PetscReal :: properties(2), sl
     PetscReal :: relative_permeability(2), capillary_pressure(2)
 
     err = 0
