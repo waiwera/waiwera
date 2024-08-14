@@ -269,7 +269,7 @@ contains
       !! Transitions from region 1 to 3 or 4
 
       ! Locals:
-      PetscReal :: saturation_pressure, density, delta(2), xi
+      PetscReal :: saturation_pressure, delta(2), xi
 
       associate (pressure => primary(1), temperature => primary(2))
         select type (region3 => self%thermo%region(3)%ptr)
@@ -292,16 +292,10 @@ contains
                        if (self%widom_delta_finder%err == 0) then
                           xi = self%widom_delta_finder%root
                           primary = self%widom_delta_interpolator%interpolate(xi)
-                       else
-                          call region3%widom_delta(pressure, delta, err)
-                          if (err == 0) then
-                             temperature = delta(1)
-                          end if
-                       end if
-
-                       if (err == 0) then
                           call self%transition_single_phase_to_region3(primary, &
                                fluid, transition, err)
+                       else
+                          err = 1
                        end if
 
                     else
