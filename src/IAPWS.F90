@@ -45,6 +45,9 @@ module IAPWS_module
   type(critical_point_type), parameter, public :: critical = &
        critical_point_type(647.096_dp, 373.946_dp, 22.064e6_dp, 322.0_dp)
 
+  PetscInt, parameter, public :: WIDOM_DELTA_BDY_LIQUID = 1, &
+       WIDOM_DELTA_BDY_VAPOUR = 2
+
 !------------------------------------------------------------------------
 ! Saturation curve type
 !------------------------------------------------------------------------

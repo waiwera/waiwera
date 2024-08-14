@@ -284,7 +284,7 @@ contains
 
                     if (temperature > delta(1)) then
 
-                       call self%set_delta_interpolator_bdy(1)
+                       call self%set_delta_interpolator_bdy(WIDOM_DELTA_BDY_LIQUID)
                        self%widom_delta_interpolator%val(:, 1) = old_primary
                        self%widom_delta_interpolator%val(:, 2) = primary
                        call self%widom_delta_finder%find()
