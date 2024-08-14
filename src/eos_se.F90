@@ -275,7 +275,18 @@ contains
         select type (region3 => self%thermo%region(3)%ptr)
         type is (IAPWS_region3_type)
 
-           if (temperature > max_region_1_temp) then
+           if (temperature <= max_region_1_temp) then
+
+              call self%thermo%saturation%pressure(temperature, &
+                   saturation_pressure, err)
+              if (err == 0) then
+                 if (pressure < saturation_pressure) then
+                    call self%transition_to_two_phase(saturation_pressure, &
+                         old_primary, old_fluid, primary, fluid, transition, err)
+                 end if
+              end if
+
+           else
 
               if (pressure > self%thermo%critical%pressure) then
 
@@ -319,17 +330,6 @@ contains
                             fluid, transition, err)
 
                     end if
-                 end if
-              end if
-
-           else
-
-              call self%thermo%saturation%pressure(temperature, &
-                   saturation_pressure, err)
-              if (err == 0) then
-                 if (pressure < saturation_pressure) then
-                    call self%transition_to_two_phase(saturation_pressure, &
-                         old_primary, old_fluid, primary, fluid, transition, err)
                  end if
               end if
 
