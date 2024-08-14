@@ -250,6 +250,71 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 2 to 3 subcritical"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [123.304756880772_dp, 360._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [12.e6_dp, 360._dp]
+       primary = [18.e6_dp, 360._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 4, T > 350"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 4
+       expected_primary = [18.666403421371095e6_dp, 1._dp - small]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [12.e6_dp, 360._dp]
+       primary = [19.e6_dp, 360._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 3 supercritical"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [215.1893440445802_dp, 390._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [12.e6_dp, 360._dp]
+       primary = [25.e6_dp, 390._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 3 Widom delta"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [305.66012571460158_dp, 452.59804760149916_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [30.e6_dp, 470._dp]
+       primary = [45.e6_dp, 450._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 3 near critical point"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 0
+       expected_primary = [0._dp, 0._dp]
+       expected_transition = PETSC_FALSE
+       expected_err = 1
+       old_primary = [18.e6_dp, 380._dp]
+       primary = [22.1e6_dp, thermo%critical%temperature + 1.e-2_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 4 null transition"
        old_fluid%region = dble(4)
        fluid%region = old_fluid%region
