@@ -180,6 +180,7 @@ contains
     PetscErrorCode :: err
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscReal :: d(2)
     PetscReal, parameter :: small = 1.e-6_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -318,6 +319,32 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 1 to subcritical region 3, T < Tc, P < Pc"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [563.75348104046191_dp, 360._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [40.e6_dp, 340._dp]
+       primary = [21.5e6_dp, 360._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 1 to subcritical region 3, T > Tc, P < Pc"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
+       expected_region = 0
+       expected_primary = [0._dp, 0._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 1
+       old_primary = [30.e6_dp, 340._dp]
+       primary = [21.8e6_dp, 380._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 1 to supercritical region 3"
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
@@ -340,6 +367,33 @@ contains
        expected_err = 0
        old_primary = [70.e6_dp, 340._dp]
        primary = [60.e6_dp, 465._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 1 to 4 T > 350"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
+       expected_region = 4
+       expected_primary = [19.888468913341358e6_dp, small]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [30.e6_dp, 340._dp]
+       primary = [18.e6_dp, 370._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 1 to region 3 through critical point"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
+       old_primary = [20.e6_dp, 345._dp]
+       d = [thermo%critical%pressure, thermo%critical%temperature] - old_primary
+       primary = old_primary + 1.2 * d
+       expected_region = 0
+       expected_primary = [0._dp, 0._dp]
+       expected_transition = PETSC_FALSE
+       expected_err = 1
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
