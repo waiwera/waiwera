@@ -346,23 +346,76 @@ contains
       !! Transitions from region 2 to 3 or 4
 
       ! Locals:
-      PetscReal :: saturation_pressure
+      PetscReal :: saturation_pressure, pbdy23, delta(2), xi
 
        associate (pressure => primary(1), temperature => primary(2))
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
 
-         if (temperature <= self%thermo%critical%temperature) then
-            call self%thermo%saturation%pressure(temperature, &
-                 saturation_pressure, err)
-            if (err == 0) then
-               if (pressure > saturation_pressure) then
-                  call self%transition_to_two_phase(saturation_pressure, &
-                       old_primary, old_fluid, primary, fluid, transition, err)
+            if (temperature <= thermo%critical%temperature) then
+
+               call thermo%saturation%pressure(temperature, &
+                    saturation_pressure, err)
+               if (err == 0) then
+
+                  if (pressure > saturation_pressure) then
+
+                     call self%transition_to_two_phase(saturation_pressure, &
+                          old_primary, old_fluid, primary, fluid, transition, err)
+
+                  else if (temperature > max_region_1_temp) then
+
+                     call thermo%boundary23%pressure(temperature, pbdy23)
+                     if (pressure > pbdy23) then
+                        call self%transition_single_phase_to_region3(primary, &
+                             fluid, transition, err)
+                     end if
+
+                  end if
                end if
+
+            else
+               select type (region3 => thermo%region(3)%ptr)
+               type is (IAPWS_region3_type)
+
+                  call thermo%boundary23%pressure(temperature, pbdy23)
+
+                  if (pressure > pbdy23) then
+
+                     if (pressure > thermo%critical%pressure) then
+                        call region3%widom_delta(pressure, delta, err)
+                        if (err == 0) then
+                           if (temperature < delta(2)) then
+
+                              call self%set_delta_interpolator_bdy(WIDOM_DELTA_BDY_VAPOUR)
+                              self%widom_delta_interpolator%val(:, 1) = old_primary
+                              self%widom_delta_interpolator%val(:, 2) = primary
+                              call self%widom_delta_finder%find()
+
+                              if (self%widom_delta_finder%err == 0) then
+                                 xi = self%widom_delta_finder%root
+                                 primary = self%widom_delta_interpolator%interpolate(xi)
+                                 call self%transition_single_phase_to_region3(primary, &
+                                      fluid, transition, err)
+                              else
+                                 err = 1
+                              end if
+                           else
+                              call self%transition_single_phase_to_region3(primary, &
+                                   fluid, transition, err)
+                           end if
+                        end if
+                     else
+                        call self%transition_single_phase_to_region3(primary, &
+                             fluid, transition, err)
+                     end if
+
+                  end if
+
+               end select
             end if
-         end if
 
-         ! TODO: check for 2 -> 3
-
+         end select
        end associate
 
      end subroutine region_2_transitions
