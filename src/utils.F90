@@ -674,6 +674,7 @@ contains
     PetscInt :: i
     PetscBool :: found
 
+    err = 0
     delx = x_increment * x
     found = PETSC_FALSE
 
@@ -742,6 +743,7 @@ contains
     PetscInt :: i
     PetscBool :: found
 
+    err = 0
     found = PETSC_FALSE
 
     do i = 1, max_iterations
@@ -796,6 +798,7 @@ contains
     PetscInt :: i
     PetscBool :: found
 
+    err = 0
     fdash = polynomial_derivative(f)
     found = PETSC_FALSE
 
