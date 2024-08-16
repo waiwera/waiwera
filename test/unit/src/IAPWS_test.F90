@@ -20,7 +20,8 @@ module IAPWS_test
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
        test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
-       test_region3_widom, test_region3_pi_liquidlike
+       test_region3_widom, test_region3_pi_liquidlike, &
+       test_IAPWS_region1_pressure, test_IAPWS_region2_pressure
 
   contains
 
@@ -725,6 +726,114 @@ module IAPWS_test
      end subroutine pi_liquidlike_case
 
   end subroutine test_region3_pi_liquidlike
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region1_pressure(test)
+    ! Region 1 pressure tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       ! call pressure_case([998._dp, 20._dp], 1.e5_dp, 0, 'case 1')
+       ! call pressure_case([998._dp, 20._dp], 100.e6_dp, 0, 'case 2')
+       ! call pressure_case([800._dp, 300._dp], 60.e6_dp, 0, 'case 3')
+       ! call pressure_case([700._dp, 320._dp], 20.e6_dp, 0, 'case 4')
+       ! call pressure_case([700._dp, 320._dp], 90.e6_dp, 0, 'case 5')
+       ! call pressure_case([600._dp, 340._dp], 20.e6_dp, 0, 'case 6')
+
+    end if
+
+  contains
+
+    subroutine pressure_case(param, P0, expected_err, name)
+
+      PetscReal, intent(in) :: param(2), P0
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: pressure, props(2)
+      PetscErrorCode :: err
+
+      select type (region1 => IAPWS%region(1)%ptr)
+      type is (IAPWS_region1_type)
+         pressure = P0
+         call region1%pressure(param, pressure, err)
+         call test%assert(expected_err, err, name // ' error')
+         if (err == 0) then
+            associate(t => param(2), expected_density => param(1), &
+                 d => props(1))
+              call region1%properties([pressure, t], props, err)
+              call test%assert(expected_err, err, name // ' error')
+              if (err == 0) then
+                 call test%assert(expected_density, d, name // ' density')
+              end if
+            end associate
+         end if
+      end select
+
+    end subroutine pressure_case
+
+  end subroutine test_IAPWS_region1_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region2_pressure(test)
+    ! Region 2 pressure tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call pressure_case([0.01_dp, 50._dp], 1.e3_dp, 0, 'case 1')
+       call pressure_case([10._dp, 300._dp], 10.e5_dp, 0, 'case 2')
+       call pressure_case([100._dp, 400._dp], 25.e6_dp, 0, 'case 3')
+       call pressure_case([250._dp, 500._dp], 70.e6_dp, 0, 'case 4')
+       call pressure_case([200._dp, 700._dp], 50.e6_dp, 0, 'case 5')
+       call pressure_case([10._dp, 750._dp], 1.e6_dp, 0, 'case 6')
+
+    end if
+
+  contains
+
+    subroutine pressure_case(param, P0, expected_err, name)
+
+      PetscReal, intent(in) :: param(2), P0
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: pressure, props(2)
+      PetscErrorCode :: err
+
+      select type (region2 => IAPWS%region(2)%ptr)
+      type is (IAPWS_region2_type)
+         pressure = P0
+         call region2%pressure(param, pressure, err)
+         call test%assert(expected_err, err, name // ' error')
+         if (err == 0) then
+            associate(t => param(2), expected_density => param(1), &
+                 d => props(1))
+              call region2%properties([pressure, t], props, err)
+              call test%assert(expected_err, err, name // ' error')
+              if (err == 0) then
+                 call test%assert(expected_density, d, name // ' density')
+              end if
+            end associate
+         end if
+      end select
+
+    end subroutine pressure_case
+
+  end subroutine test_IAPWS_region2_pressure
 
 !------------------------------------------------------------------------
 

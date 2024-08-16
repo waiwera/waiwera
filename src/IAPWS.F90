@@ -116,9 +116,10 @@ module IAPWS_module
 ! IAPWS region type
 !------------------------------------------------------------------------
 
-  type, extends(region_type) :: IAPWS_region_type
-     !! IAPWS-97 region type- just implements viscosity method, which is common
-     !! to all regions
+  type, public, extends(region_type) :: IAPWS_region_type
+     !! IAPWS-97 region type- implements viscosity method, which is
+     !! common to all regions, and pressure method (used to invert
+     !! properties in region 1 and 2)
      private
      type(IAPWS_viscosity_type), public :: visc
    contains
@@ -127,6 +128,7 @@ module IAPWS_module
      procedure, public :: destroy => region_destroy
      procedure, public :: properties => region_properties
      procedure, public :: viscosity => region_viscosity
+     procedure, public :: pressure => region_pressure
   end type IAPWS_region_type
 
 !------------------------------------------------------------------------
@@ -167,6 +169,7 @@ module IAPWS_module
      procedure, public :: init => region1_init
      procedure, public :: destroy => region1_destroy
      procedure, public :: properties => region1_properties
+     procedure, public :: pressure => region1_pressure
   end type IAPWS_region1_type
 
 !------------------------------------------------------------------------
@@ -215,6 +218,7 @@ module IAPWS_module
      procedure, public :: init => region2_init
      procedure, public :: destroy => region2_destroy
      procedure, public :: properties => region2_properties
+     procedure, public :: pressure => region2_pressure
   end type IAPWS_region2_type
 
 !------------------------------------------------------------------------
@@ -1322,6 +1326,22 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine region_pressure(self, param, pressure, err)
+    !! Dummy properties routine for abstract IAPWS-97 region object- to be
+    !! overridden for specific regions.
+
+    class(IAPWS_region_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(2)
+    PetscReal, intent(in out) :: pressure
+    PetscErrorCode, intent(out) :: err
+
+    pressure = 0._dp
+    err = 0
+
+  end subroutine region_pressure
+
+!------------------------------------------------------------------------
+
   subroutine region_viscosity(self, temperature, pressure, density, viscosity)
     !! IAPWS viscosity routine.
 
@@ -1452,6 +1472,58 @@ contains
   end subroutine region1_properties
 
 !------------------------------------------------------------------------
+
+  subroutine region1_pressure(self, param, pressure, err)
+    !! Returns pressure as a function of density and temperature. The
+    !! pressure parameter is passed in with an initial estimate to
+    !! start the iteration and on successful exit contains the result.
+
+    class(IAPWS_region1_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(2)
+    PetscReal, intent(in out) :: pressure
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt, parameter :: maxit = 16
+    PetscReal, parameter :: ftol = 1.e-3_dp
+    PetscReal, parameter :: xtol = 1.e-3_dp, x_increment = 1.e-8_dp
+    PetscReal :: Psat, P0_min
+    PetscReal, parameter :: P0_min_default = 22.e6_dp, P0_max = 99.e6_dp
+    PetscReal, parameter :: eps = 1.e-2_dp
+
+    err = 0
+    associate(density => param(1), temperature => param(2))
+      call self%thermo%saturation%pressure(temperature, Psat, err)
+    end associate
+    if (err == 0) then
+       P0_min = (1._dp + eps) * Psat
+    else
+       P0_min = P0_min_default
+    end if
+    pressure = min(max(pressure, P0_min), P0_max)
+
+    call newton1d(f, pressure, ftol, xtol, maxit, x_increment, err)
+
+  contains
+
+!........................................................................
+
+    PetscReal function f(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: props(2)
+
+      associate(pressure => x, density => props(1), &
+           d => param(1), t => param(2))
+        call self%properties([pressure, t], props, err)
+        f = density - d
+      end associate
+
+    end function f
+
+  end subroutine region1_pressure
+
+!------------------------------------------------------------------------
 ! Region 2 (steam)
 !------------------------------------------------------------------------
 
@@ -1546,6 +1618,65 @@ contains
     end associate
 
   end subroutine region2_properties
+
+!------------------------------------------------------------------------
+
+  subroutine region2_pressure(self, param, pressure, err)
+    !! Returns pressure as a function of density and temperature. The
+    !! pressure parameter is passed in with an initial estimate to
+    !! start the iteration and on successful exit contains the result.
+
+    class(IAPWS_region2_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(2)
+    PetscReal, intent(in out) :: pressure
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt, parameter :: maxit = 16
+    PetscReal, parameter :: ftol_rel = 1.e-7_dp, ftol_max = 1.e-5_dp
+    PetscReal, parameter :: xtol = 1.e-3_dp, x_increment = 1.e-8_dp
+    PetscReal, parameter :: P0_min = 10._dp
+    PetscReal :: ftol, P_bdy, P0_max
+    PetscReal, parameter :: eps = 1.e-2_dp
+
+    err = 0
+    associate(density => param(1), temperature => param(2))
+      ftol = min(ftol_rel * density, ftol_max)
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+         if (temperature <= thermo%temperature_bdy_1_3) then
+            call thermo%saturation%pressure(temperature, P_bdy, err)
+         else
+            call thermo%boundary23%pressure(temperature, P_bdy)
+         end if
+      end select
+    end associate
+    if (err == 0) then
+       P0_max = (1._dp - eps) * P_bdy
+       pressure = min(pressure, P0_max)
+    end if
+    pressure = max(pressure, P0_min)
+
+    call newton1d(f, pressure, ftol, xtol, maxit, x_increment, err)
+
+  contains
+
+!........................................................................
+
+    PetscReal function f(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: props(2)
+
+      associate(pressure => x, density => props(1), &
+           d => param(1), t => param(2))
+        call self%properties([pressure, t], props, err)
+        f = density - d
+      end associate
+
+    end function f
+
+  end subroutine region2_pressure
 
 !------------------------------------------------------------------------
 ! Region 3 (supercritical)
