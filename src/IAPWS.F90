@@ -1484,7 +1484,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt, parameter :: maxit = 16
-    PetscReal, parameter :: ftol = 1.e-3_dp
+    PetscReal, parameter :: ftol = 1.e-4_dp
     PetscReal, parameter :: xtol = 1.e-3_dp, x_increment = 1.e-8_dp
     PetscReal :: Psat, P0_min
     PetscReal, parameter :: P0_min_default = 22.e6_dp, P0_max = 99.e6_dp
