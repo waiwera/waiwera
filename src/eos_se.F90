@@ -48,6 +48,7 @@ module eos_se_module
      procedure, public :: destroy => eos_se_destroy
      procedure, public :: transition => eos_se_transition
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
+     procedure, public :: transition_region3_to_single_phase => eos_se_transition_region3_to_single_phase
      procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
@@ -209,6 +210,40 @@ contains
     end if
 
   end subroutine eos_se_transition_single_phase_to_region3
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_transition_region3_to_single_phase(self, old_fluid, &
+       new_region, primary, fluid, transition, err)
+    !! For eos_se, carry out transition from region 3 to the
+    !! single-phase new_region (1 or 2).
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    type(fluid_type), intent(in) :: old_fluid
+    PetscInt, intent(in) :: new_region
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: pressure
+
+    err = 0
+    select type (region => self%thermo%region(new_region)%ptr)
+    type is (IAPWS_region_type)
+       pressure = old_fluid%pressure
+       call region%pressure(primary, pressure, err)
+    end select
+
+    if (err == 0) then
+       fluid%region = dble(new_region)
+       primary(1) = pressure
+       transition = PETSC_TRUE
+    end if
+
+  end subroutine eos_se_transition_region3_to_single_phase
 
 !------------------------------------------------------------------------
 
