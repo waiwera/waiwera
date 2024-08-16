@@ -105,6 +105,7 @@ module thermodynamics_module
      class(region_type), allocatable, public :: supercritical !! Supercritical region
      type(pregion_type), allocatable, public :: region(:) !! Array of region pointers
      PetscBool, public :: extrapolate !! Whether to extrapolate past region bounds
+     PetscReal, public :: max_temperature, max_pressure !! Maximum temperature and pressure
    contains
      private
      procedure(thermodynamics_init_procedure), public, deferred :: init

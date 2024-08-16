@@ -169,6 +169,8 @@ contains
 
     self%name = 'IFC-67'
 
+    self%max_temperature = 800._dp
+    self%max_pressure = 100.e6_dp
     self%critical = critical
 
     allocate(IFC67_saturation_type :: self%saturation)
@@ -311,7 +313,7 @@ contains
     
     associate (p => param(1), t => param(2))
 
-      if ((t <= self%max_temperature).and.(p <= 100.e6_dp)) then
+      if ((t <= self%max_temperature).and.(p <= self%thermo%max_pressure)) then
 
          TKR = (t + tc_k) / self%thermo%critical%temperature_k
          TKR2 = TKR * TKR
@@ -469,7 +471,7 @@ contains
     associate (p => param(1), t => param(2))
 
       ! Check input:
-      if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
+      if ((t <= self%thermo%max_temperature).and.(p <= self%thermo%max_pressure)) then
 
          THETA = (T + tc_k) / self%thermo%critical%temperature_k
          BETA = P / self%thermo%critical%pressure

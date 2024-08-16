@@ -1056,6 +1056,8 @@ contains
 
     self%name = "IAPWS-97"
 
+    self%max_temperature = 800._dp
+    self%max_pressure = 100.e6_dp
     self%temperature_bdy_1_3 = 350._dp
     self%critical = critical
 
@@ -1446,7 +1448,7 @@ contains
     associate (p => param(1), t => param(2))
 
       ! Check input:
-      if ((t <= self%max_temperature).and.(p <= 100.e6_dp)) then
+      if ((t <= self%max_temperature).and.(p <= self%thermo%max_pressure)) then
          !      
          tk = t + tc_k
          rt = specific_gas_constant * tk
@@ -1590,7 +1592,7 @@ contains
     associate (p => param(1), t => param(2))
 
       ! Check input:
-      if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
+      if ((t <= self%thermo%max_temperature).and.(p <= self%thermo%max_pressure)) then
 
          tk = t + tc_k
          rt = specific_gas_constant * tk
@@ -1885,7 +1887,7 @@ contains
 
     associate(p => param(1), tk => param(2) + tc_k)
 
-      if (p > 100.e6_dp) then
+      if (p > self%thermo%max_pressure) then
          continue
       else if (p > 40.e6_dp) then
          if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &
