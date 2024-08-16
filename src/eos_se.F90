@@ -462,8 +462,63 @@ contains
       !! Transitions from region 3 to 1, 2 or 4
 
       ! Locals:
+      PetscReal :: xi, bdy_primary(self%num_primary_variables)
+      PetscReal :: pressure_bdy_2_3, props(2)
+      PetscErrorCode :: err
 
-      continue
+      associate (density => primary(1), temperature => primary(2))
+        select type (thermo => self%thermo)
+        type is (IAPWS_type)
+
+           if (temperature < thermo%temperature_bdy_1_3) then
+
+              self%primary_variable_interpolator%val(:, 1) = old_primary
+              self%primary_variable_interpolator%val(:, 2) = primary
+              call self%primary_variable_interpolator%find_component_at_index(&
+                   thermo%temperature_bdy_1_3, 2, xi, err)
+              bdy_primary = self%primary_variable_interpolator%interpolate(xi)
+
+              associate (bdy_density => bdy_primary(1))
+
+                if (bdy_density >= thermo%min_liquid_density_bdy_1_3) then
+
+                   call self%transition_region3_to_single_phase(old_fluid, &
+                        1, primary, fluid, transition, err)
+
+                else if (bdy_density <= thermo%max_vapour_density_bdy_1_3) then
+
+                   call self%transition_region3_to_single_phase(old_fluid, &
+                        2, primary, fluid, transition, err)
+
+                else
+                   ! TODO: check for 3->4 transitions
+
+                end if
+              end associate
+
+           else
+
+              call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
+              pressure_bdy_2_3 = min(pressure_bdy_2_3, thermo%max_pressure)
+              call thermo%region(2)%ptr%properties([pressure_bdy_2_3, temperature], &
+                   props, err)
+              if (err == 0) then
+                 associate(density_bdy_2_3 => props(1))
+
+                   if (density < density_bdy_2_3) then
+
+                      call self%transition_region3_to_single_phase(old_fluid, &
+                           2, primary, fluid, transition, err)
+
+                   end if
+                 end associate
+
+              end if
+
+           end if
+
+        end select
+      end associate
 
     end subroutine region_3_transitions
 
