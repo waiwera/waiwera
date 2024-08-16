@@ -1013,6 +1013,8 @@ module IAPWS_module
      !! IAPWS thermodynamics type.
      private
      type(IAPWS_boundary23_type), public :: boundary23
+     PetscReal, public :: temperature_bdy_1_3
+     PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
    contains
      private
      procedure, public :: init => IAPWS_init
@@ -1042,12 +1044,15 @@ contains
     ! Locals:
     PetscInt :: i, thermo_type
     PetscBool :: defaults
+    PetscReal :: Psat, props(2)
+    PetscErrorCode :: err
     PetscBool, parameter :: default_extrapolate = PETSC_FALSE
     PetscReal, parameter :: default_widom_delta_growth = 25._dp
     PetscReal, parameter :: default_widom_delta_min = 0.1_dp
 
     self%name = "IAPWS-97"
 
+    self%temperature_bdy_1_3 = 350._dp
     self%critical = critical
 
     allocate(IAPWS_saturation_type :: self%saturation)
@@ -1108,6 +1113,13 @@ contains
     do i = 1, self%num_regions
        call self%region(i)%ptr%init(self)
     end do
+
+    ! Reference densities at region 1/3 boundary:
+    call self%saturation%pressure(self%temperature_bdy_1_3, Psat, err)
+    call self%water%properties([Psat, self%temperature_bdy_1_3], props, err)
+    self%min_liquid_density_bdy_1_3 = props(1)
+    call self%steam%properties([Psat, self%temperature_bdy_1_3], props, err)
+    self%max_vapour_density_bdy_1_3 = props(1)
 
   end subroutine IAPWS_init
 
@@ -1353,7 +1365,6 @@ contains
     class(IAPWS_region1_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
     ! Locals:
-    PetscReal, parameter :: default_max_temperature = 350._dp
     PetscReal, parameter :: extrapolated_max_temperature = 360._dp
 
     call self%IAPWS_region_type%init(thermo)
@@ -1375,7 +1386,10 @@ contains
     if (thermo%extrapolate) then
        self%max_temperature = extrapolated_max_temperature
     else
-       self%max_temperature = default_max_temperature
+       select type (th => thermo)
+       type is (IAPWS_type)
+          self%max_temperature = th%temperature_bdy_1_3
+       end select
     end if
 
   end subroutine region1_init
