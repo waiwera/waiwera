@@ -371,6 +371,47 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 3 to 1"
+       old_fluid%region = dble(3)
+       fluid%region = old_fluid%region
+       expected_region = 1
+       expected_primary = [23.43972168985525e6_dp, 340._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [670._dp, 360._dp]
+       primary = [650._dp, 340._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 3 to 2, T < 350"
+       old_fluid%region = dble(3)
+       old_fluid%pressure = 17.856503054949517e6_dp
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [14.500492505102368e6_dp, 340._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [120._dp, 360._dp]
+       primary = [91._dp, 340._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 3 to 2, T > 350"
+       old_fluid%region = dble(3)
+       old_fluid%pressure = 20.18070653002556e6_dp
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [17.403804418775717e6_dp, 380._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [150._dp, 370._dp]
+       primary = [90._dp, 380._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 1 to 3"
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
