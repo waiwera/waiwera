@@ -465,6 +465,7 @@ contains
       PetscReal :: xi, bdy_primary(self%num_primary_variables)
       PetscReal :: pressure_bdy_2_3, props(2)
       PetscErrorCode :: err
+      PetscReal, parameter :: eps = 1.e-6_dp
 
       associate (density => primary(1), temperature => primary(2))
         select type (thermo => self%thermo)
@@ -485,10 +486,24 @@ contains
                    call self%transition_region3_to_single_phase(old_fluid, &
                         1, primary, fluid, transition, err)
 
+                   if (err > 0) then
+                      primary = bdy_primary
+                      temperature = (1._dp - eps) * temperature
+                      call self%transition_region3_to_single_phase(old_fluid, &
+                           1, primary, fluid, transition, err)
+                   end if
+
                 else if (bdy_density <= thermo%max_vapour_density_bdy_1_3) then
 
                    call self%transition_region3_to_single_phase(old_fluid, &
                         2, primary, fluid, transition, err)
+
+                   if (err > 0) then
+                      primary = bdy_primary
+                      temperature = (1._dp - eps) * temperature
+                      call self%transition_region3_to_single_phase(old_fluid, &
+                           1, primary, fluid, transition, err)
+                   end if
 
                 else
                    ! TODO: check for 3->4 transitions
@@ -509,6 +524,13 @@ contains
 
                       call self%transition_region3_to_single_phase(old_fluid, &
                            2, primary, fluid, transition, err)
+
+                      if (err > 0) then
+                         primary = [density_bdy_2_3, temperature]
+                         density = (1._dp - eps) * density
+                         call self%transition_region3_to_single_phase(old_fluid, &
+                              2, primary, fluid, transition, err)
+                      end if
 
                    end if
                  end associate
