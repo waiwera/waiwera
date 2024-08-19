@@ -232,7 +232,7 @@ contains
 
     err = 0
     select type (region => self%thermo%region(new_region)%ptr)
-    type is (IAPWS_region_type)
+    class is (IAPWS_region_type)
        pressure = old_fluid%pressure
        call region%pressure(primary, pressure, err)
     end select
