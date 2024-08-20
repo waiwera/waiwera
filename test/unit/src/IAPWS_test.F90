@@ -21,7 +21,8 @@ module IAPWS_test
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
        test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
        test_region3_widom, test_region3_pi_liquidlike, &
-       test_IAPWS_region1_pressure, test_IAPWS_region2_pressure
+       test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
+       test_IAPWS_boundary34
 
   contains
 
@@ -834,6 +835,50 @@ module IAPWS_test
     end subroutine pressure_case
 
   end subroutine test_IAPWS_region2_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_boundary34(test)
+    ! Boundary 34 test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 7
+    PetscReal, parameter :: density(n) = [322._dp, 115._dp, 560._dp, &
+         140._dp, 450._dp, 100._dp, 600._dp]
+    PetscReal, parameter :: temperature(n) = [373.946_dp, 350.55991982114716_dp, &
+         353.4848732007369_dp, 358.92922762622356_dp, 370.00387362031256_dp, &
+         0._dp, 0._dp]
+    PetscErrorCode, parameter :: error(n) = [0, 0, 0, 0, 0, 1, 1]
+    PetscInt :: ierr, i
+    PetscMPIInt :: rank
+    PetscErrorCode :: err
+    PetscReal :: t, props(2), ps
+    character(8) :: istr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       do i = 1, n
+          write(istr, '(i2)') i
+          call IAPWS%boundary34%temperature(density(i), t, err)
+          call test%assert(error(i), err, "Error" // trim(istr))
+          if (err == 0) then
+             call test%assert(temperature(i), t, "Temperature" // trim(istr))
+             call IAPWS%region(3)%ptr%properties([density(i), t], props, err)
+             call test%assert(error(i), err, "Properties error" // trim(istr))
+             if (err == 0) then
+                call IAPWS%saturation%pressure(t, ps, err)
+                call test%assert(error(i), err, "Saturation error" // trim(istr))
+                if (err == 0) then
+                   call test%assert(ps, props(1), "Pressure" // trim(istr), &
+                        tol = 1.e-4_dp)
+                end if
+             end if
+          end if
+       end do
+    end if
+
+  end subroutine test_IAPWS_boundary34
 
 !------------------------------------------------------------------------
 
