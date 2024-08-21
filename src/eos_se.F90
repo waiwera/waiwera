@@ -515,7 +515,7 @@ contains
 
       ! Locals:
       PetscReal :: xi, bdy_primary(self%num_primary_variables)
-      PetscReal :: pressure_bdy_2_3, props(2)
+      PetscReal :: pressure_bdy_2_3, props(2), temperature_bdy_3_4
       PetscErrorCode :: err
       PetscReal, parameter :: eps = 1.e-6_dp
 
@@ -531,9 +531,9 @@ contains
                    thermo%temperature_bdy_1_3, 2, xi, err)
               bdy_primary = self%primary_variable_interpolator%interpolate(xi)
 
-              associate (bdy_density => bdy_primary(1))
+              associate (density_bdy_1_3 => bdy_primary(1))
 
-                if (bdy_density >= thermo%min_liquid_density_bdy_1_3) then
+                if (density_bdy_1_3 >= thermo%min_liquid_density_bdy_1_3) then
 
                    call self%transition_region3_to_single_phase(old_fluid, &
                         1, primary, fluid, transition, err)
@@ -545,7 +545,7 @@ contains
                            1, primary, fluid, transition, err)
                    end if
 
-                else if (bdy_density <= thermo%max_vapour_density_bdy_1_3) then
+                else if (density_bdy_1_3 <= thermo%max_vapour_density_bdy_1_3) then
 
                    call self%transition_region3_to_single_phase(old_fluid, &
                         2, primary, fluid, transition, err)
@@ -558,7 +558,25 @@ contains
                    end if
 
                 else
-                   ! TODO: check for 3->4 transitions
+
+                   self%primary_variable_interpolator%val(:, 1) = old_primary
+                   self%primary_variable_interpolator%val(:, 2) = primary
+                   call self%two_phase_finder%find()
+
+                   if (self%two_phase_finder%err == 0) then
+                      xi = self%two_phase_finder%root
+                      primary = self%primary_variable_interpolator%interpolate(xi)
+                      call self%transition_region3_to_two_phase(primary, &
+                           fluid, transition, err)
+                   else
+                      call thermo%boundary34%temperature(density_bdy_1_3, &
+                           temperature_bdy_3_4, err)
+                      if (err == 0) then
+                         primary = [density_bdy_1_3, temperature_bdy_3_4]
+                         call self%transition_region3_to_two_phase(primary, &
+                              fluid, transition, err)
+                      end if
+                   end if
 
                 end if
               end associate
