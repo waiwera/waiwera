@@ -554,7 +554,7 @@ contains
                       primary = bdy_primary
                       temperature = (1._dp - eps) * temperature
                       call self%transition_region3_to_single_phase(old_fluid, &
-                           1, primary, fluid, transition, err)
+                           2, primary, fluid, transition, err)
                    end if
 
                 else
