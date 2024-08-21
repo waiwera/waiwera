@@ -42,6 +42,7 @@ module eos_se_module
      PetscInt :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
      type(root_finder_type), public :: widom_delta_finder
      class(primary_variable_interpolator_type), pointer, public :: widom_delta_interpolator
+     type(root_finder_type), public :: two_phase_finder
    contains
      private
      procedure, public :: init => eos_se_init
@@ -75,7 +76,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_routine), pointer :: fs, fw
+    procedure(root_finder_routine), pointer :: fs, fw, ft
     PetscReal :: pressure_scale, temperature_scale, density_scale
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
@@ -125,31 +126,38 @@ contains
     fs => eos_we_saturation_difference
     allocate(primary_variable_interpolator_type :: self%primary_variable_interpolator)
     call init_line_finder(self%saturation_line_finder, &
-         self%primary_variable_interpolator, fs)
+         self%primary_variable_interpolator, fs, init_interpolator = PETSC_TRUE)
     fw => eos_se_widom_delta_difference
     allocate(widom_delta_interpolator_type :: self%widom_delta_interpolator)
     call init_line_finder(self%widom_delta_finder, &
-         self%widom_delta_interpolator, fw)
+         self%widom_delta_interpolator, fw, init_interpolator = PETSC_TRUE)
+    ft => eos_se_two_phase_difference
+    call init_line_finder(self%two_phase_finder, &
+         self%primary_variable_interpolator, ft, init_interpolator = PETSC_FALSE)
 
   contains
 
-    subroutine init_line_finder(finder, interpolator, f)
-      !! Initialises line finder for interpolating onto saturation
-      !! line or Widom delta boundaries.
+    subroutine init_line_finder(finder, interpolator, f, init_interpolator)
+      !! Initialises line finder (and optionally interpolator) for
+      !! interpolating onto saturation line or Widom delta boundaries.
 
       type(root_finder_type), intent(in out) :: finder
       class(primary_variable_interpolator_type), pointer, &
            intent(in out) :: interpolator
       procedure(root_finder_routine), pointer, intent(in out) :: f
+      PetscBool, intent(in) :: init_interpolator
       ! Locals:
       PetscReal, allocatable :: data(:, :)
       class(*), pointer :: pinterp
 
-      allocate(data(2, 1 + self%num_primary_variables))
-      data = 0._dp
-      data(:, 1) = [0._dp, 1._dp]
-      call interpolator%init(data)
-      deallocate(data)
+      if (init_interpolator) then
+         allocate(data(2, 1 + self%num_primary_variables))
+         data = 0._dp
+         data(:, 1) = [0._dp, 1._dp]
+         call interpolator%init(data)
+         deallocate(data)
+      end if
+
       interpolator%thermo => self%thermo
       pinterp => interpolator
       call finder%init(f, context = pinterp)
