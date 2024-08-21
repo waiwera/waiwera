@@ -887,4 +887,38 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_se_two_phase_difference(x, context, f, err)
+    !! Returns temperature difference from region 3/4 boundary at
+    !! normalised point 0 <= x <= 1 along line between start and end
+    !! primary variables.
+
+    PetscReal, intent(in) :: x
+    class(*), pointer, intent(in out) :: context
+    PetscReal, intent(out) :: f
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal, allocatable :: var(:)
+    PetscReal :: T_bdy
+
+    err = 0
+    select type (context)
+    type is (primary_variable_interpolator_type)
+       allocate(var(context%dim))
+       var = context%interpolate_at_index(x)
+       associate(rho => var(1), T => var(2))
+         select type (thermo => context%thermo)
+         type is (IAPWS_type)
+            call thermo%boundary34%temperature(rho, T_bdy, err)
+            if (err == 0) then
+               f = T - T_bdy
+            end if
+         end select
+       end associate
+       deallocate(var)
+    end select
+
+  end subroutine eos_se_two_phase_difference
+
+!------------------------------------------------------------------------
+
 end module eos_se_module
