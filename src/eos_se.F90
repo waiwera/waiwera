@@ -50,6 +50,7 @@ module eos_se_module
      procedure, public :: transition => eos_se_transition
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
      procedure, public :: transition_region3_to_single_phase => eos_se_transition_region3_to_single_phase
+     procedure, public :: transition_region3_to_two_phase => eos_se_transition_region3_to_two_phase
      procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
@@ -252,6 +253,49 @@ contains
     end if
 
   end subroutine eos_se_transition_region3_to_single_phase
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_transition_region3_to_two_phase(self, primary, &
+       fluid, transition, err)
+    !! For eos_se, carry out transition from region 3 to two-phase
+    !! (region 4).
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: props(2), pi_liq, Sv
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    err = 0
+    select type (region3 => self%thermo%region(3)%ptr)
+    type is (IAPWS_region3_type)
+
+       call region3%properties(primary, props, err)
+
+       if (err == 0) then
+          associate(pressure => props(1), temperature => primary(2))
+            call region3%pi_liquidlike([pressure, &
+                 self%thermo%critical%temperature], pi_liq, err)
+            if (err == 0) then
+               fluid%region = dble(4)
+               primary(1) = pressure
+               Sv = 1._dp - pi_liq
+               Sv = max(min(Sv, small), 1._dp - small)
+               primary(2) = Sv
+               transition = PETSC_TRUE
+            end if
+          end associate
+       end if
+
+    end select
+
+  end subroutine eos_se_transition_region3_to_two_phase
 
 !------------------------------------------------------------------------
 
