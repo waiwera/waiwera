@@ -562,21 +562,40 @@ contains
 
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
-      call self%two_phase_finder%find()
 
-      if (self%two_phase_finder%err == 0) then
-         xi = self%two_phase_finder%root
-         primary = self%primary_variable_interpolator%interpolate(xi)
-      else
-         select type (thermo => self%thermo)
-         type is (IAPWS_type)
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+
+         associate(start_primary => self%primary_variable_interpolator%val(:, 1), &
+              start_density => self%primary_variable_interpolator%val(1, 1))
+           if (start_density > thermo%min_liquid_density_bdy_1_3) then
+              call self%primary_variable_interpolator%find_component_at_index(&
+                   thermo%min_liquid_density_bdy_1_3, 1, xi, err)
+              if (err == 0) then
+                 start_primary = self%primary_variable_interpolator%interpolate(xi)
+              end if
+           end if
+         end associate
+
+         if (err == 0) then
+            call self%two_phase_finder%find()
+            if (self%two_phase_finder%err == 0) then
+               xi = self%two_phase_finder%root
+               primary = self%primary_variable_interpolator%interpolate(xi)
+            else
+               err = 1
+            end if
+         end if
+
+         if (err > 0) then
             call thermo%boundary34%temperature(fallback_density, &
                  temperature_bdy_3_4, err)
             if (err == 0) then
                primary = [fallback_density, temperature_bdy_3_4]
             end if
-         end select
-      end if
+         end if
+
+      end select
 
     end subroutine interpolate_region3_two_phase_intersection
 
