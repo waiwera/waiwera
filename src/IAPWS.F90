@@ -973,7 +973,10 @@ module IAPWS_module
 
      PetscReal, public :: widom_slope = 6.479 !! Slope A_s of Widom line for water (Banuti et al., 2017)
      PetscReal, public :: widom_delta_growth !! Widom delta width growth factor
-     PetscReal, public :: widom_delta_min !! Minimum width of Widom delta at critical point
+     PetscReal, public :: widom_delta_min !! Minimum temperature width of Widom delta at critical point
+     PetscReal, public :: widom_delta_min_pressure !! Minimum pressure width of Widom delta at critical point
+     PetscReal, public :: widom_delta_zero_temperature !! Temperature at which Widom delta has zero width
+     PetscReal, public :: widom_delta_zero_pressure !! Pressure at which Widom delta has zero width
 
    contains
      private
@@ -1756,6 +1759,14 @@ contains
        end associate
     end do
 
+    ! Auxiliary Widom delta parameters:
+    self%widom_delta_min_pressure = self%widom_delta_min * &
+         self%thermo%critical%pressure / self%widom_delta_growth
+    self%widom_delta_zero_pressure = self%thermo%critical%pressure - &
+         self%widom_delta_min_pressure
+    call self%widom(self%widom_delta_zero_pressure, &
+         self%widom_delta_zero_temperature, err)
+
   end subroutine region3_init
 
 !------------------------------------------------------------------------
@@ -2185,7 +2196,7 @@ contains
     PetscReal, intent(out) :: temperature
     PetscErrorCode, intent(out) :: err
 
-    if (pressure >= self%thermo%critical%pressure) then
+    if (pressure >= self%widom_delta_zero_pressure) then
        temperature = self%thermo%critical%temperature_k * (1._dp + &
             log(pressure / self%thermo%critical%pressure) / self%widom_slope) &
             - tc_k
@@ -2203,22 +2214,23 @@ contains
     !! function of pressure. These are the temperatures at which the
     !! number fractions of liquid-like particles are 1 and 0
     !! respectively. The centre of the Widom delta follows the Widom
-    !! line, and its width is assumed to grow linearly with pressure.
+    !! line, and its width is assumed to grow linearly with pressure,
+    !! starting from a small finite width at the critical point (for
+    !! numerical purposes).
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure
     PetscReal, intent(out) :: delta(2)
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: Tw, dT, max_dT
+    PetscReal :: Tw, dT
 
-    if (pressure >= self%thermo%critical%pressure) then
+    if (pressure >= self%widom_delta_zero_pressure) then
        call self%widom(pressure, Tw, err)
        if (err == 0) then
           dT = self%widom_delta_growth * &
-               (pressure / self%thermo%critical%pressure - 1._dp)
-          max_dT = 2._dp * (Tw - self%thermo%critical%temperature)
-          dT = max(min(dT, max_dT), self%widom_delta_min)
+               ((pressure + self%widom_delta_min_pressure) / &
+               self%thermo%critical%pressure - 1._dp)
           delta = [Tw - 0.5_dp * dT, Tw + 0.5_dp * dT]
        end if
     else
@@ -2229,28 +2241,45 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine region3_pi_liquidlike(self, param, pi_liq, err)
-    !! Returns number fraction of liquid-like supercritical fluid
-    !! particles as a function of pressure and temperature. This is
-    !! assumed to vary smoothly from 1 to 0 through the Widom delta
-    !! according to a cubic Hermite polynomial with zero slope at both
-    !! ends.
+  subroutine region3_pi_liquidlike(self, pressure, temperature, density, &
+       pi_liq, err)
+    !! Returns number fraction of liquid-like fluid particles as a
+    !! function of pressure and temperature. For supercritical fluid
+    !! this is assumed to vary smoothly from 1 to 0 through the Widom
+    !! delta according to a cubic Hermite polynomial with zero slope
+    !! at both ends. For sub-critical fluid (T < Tc and P < Pc), the
+    !! result is determined by the given density.
 
     class(IAPWS_region3_type), intent(in out) :: self
-    PetscReal, intent(in) :: param(2)
+    PetscReal, intent(in) :: pressure, temperature, density
     PetscReal, intent(out) :: pi_liq
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: delta(2), xi
 
     err = 0
-    associate(pressure => param(1), temperature => param(2))
-      call self%widom_delta(pressure, delta, err)
-      if (err == 0) then
-         xi = (temperature - delta(1)) / (delta(2) - delta(1))
-         pi_liq = hermite(xi)
-      end if
-    end associate
+
+    if (pressure >= self%widom_delta_zero_pressure) then
+       if (temperature >= self%widom_delta_zero_temperature) then
+          call self%widom_delta(pressure, delta, err)
+          if (err == 0) then
+             xi = (temperature - delta(1)) / (delta(2) - delta(1))
+             pi_liq = hermite(xi)
+          end if
+       else
+          pi_liq = 1._dp
+       end if
+    else
+       if (temperature >= self%widom_delta_zero_temperature) then
+          pi_liq = 0._dp
+       else
+          if (density >= self%thermo%critical%density) then
+             pi_liq = 1._dp
+          else
+             pi_liq = 0._dp
+          end if
+       end if
+    end if
 
   contains
 

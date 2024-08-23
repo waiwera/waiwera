@@ -628,11 +628,11 @@ module IAPWS_test
        call widom_case(IAPWS%critical%pressure, &
             [373.896_dp, 373.996_dp], 0, 'case 1')
        call widom_case(40.e6_dp, &
-            [423.2040374562089_dp, 443.52673506317046_dp], 0, 'case 2')
+            [423.15403745620887_dp, 443.5767350631705_dp], 0, 'case 2')
        call widom_case(75.e6_dp, &
-            [466.1582171200531_dp, 526.138275133106_dp], 0, 'case 3')
+            [466.1082171200531_dp, 526.188275133106_dp], 0, 'case 3')
        call widom_case(100.e6_dp, &
-            [480.72738196712254_dp, 569.0341259845264_dp], 0, 'case 4')
+            [480.6773819671226_dp, 569.0841259845265_dp], 0, 'case 4')
 
     end if
 
@@ -690,41 +690,59 @@ module IAPWS_test
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call pi_liquidlike_case([IAPWS%critical%pressure, &
-            IAPWS%critical%temperature], 0.5_dp, 0, 'case 1')
-       call pi_liquidlike_case([60.e6_dp, IAPWS%critical%temperature], &
-            1.0_dp, 0, 'case 2')
-       call pi_liquidlike_case([IAPWS%critical%pressure, 700._dp], &
+       call pi_liquidlike_case(IAPWS%critical%pressure, &
+            IAPWS%critical%temperature, 0._dp, 0.5_dp, 0, 'case 1')
+       call pi_liquidlike_case(60.e6_dp, IAPWS%critical%temperature, &
+            0._dp, 1.0_dp, 0, 'case 2')
+       call pi_liquidlike_case(IAPWS%critical%pressure, 700._dp, 0._dp, &
             0.0_dp, 0, 'case 3')
-       call pi_liquidlike_case([64.e6_dp, 475._dp], 0.6647582359226447_dp, 0, 'case 4')
-       call pi_liquidlike_case([64.e6_dp, 465._dp], 0.9163599511100515_dp, 0, 'case 5')
-       call pi_liquidlike_case([64.e6_dp, 495._dp], 0.0953115451263743_dp, 0, 'case 6')
-       call pi_liquidlike_case([40.e6_dp, 377._dp], 1.0_dp, 0, 'case 7')
-       call pi_liquidlike_case([30.e6_dp, 500._dp], 0.0_dp, 0, 'case 8')
+       call pi_liquidlike_case(64.e6_dp, 475._dp, 0._dp, &
+            0.6644238934392057_dp, 0, 'case 4')
+       call pi_liquidlike_case(64.e6_dp, 465._dp, 0._dp, &
+            0.915765516035995_dp, 0, 'case 5')
+       call pi_liquidlike_case(64.e6_dp, 495._dp, 0._dp, &
+            0.095913868220606_dp, 0, 'case 6')
+       call pi_liquidlike_case(40.e6_dp, 377._dp, 0._dp, &
+            1.0_dp, 0, 'case 7')
+       call pi_liquidlike_case(30.e6_dp, 500._dp, 0._dp, &
+            0.0_dp, 0, 'case 8')
+       call pi_liquidlike_case(40.45712306840381e6_dp, 360._dp, 650._dp, &
+            1.0_dp, 0, 'case 9')
+       call pi_liquidlike_case(20.16407678415291_dp, 360._dp, 550._dp, &
+            1.0_dp, 0, 'case 10')
+       call pi_liquidlike_case(21.51502247903555_dp, 380._dp, 150._dp, &
+            0.0_dp, 0, 'case 11')
+       call pi_liquidlike_case(18.843641755076366_dp, 365._dp, 130._dp, &
+            0.0_dp, 0, 'case 12')
+       call pi_liquidlike_case(21.976407368553966e6_dp, 373.6172901183901_dp, &
+            370.0243306702589_dp, 0.0_dp, 0, 'case 13')
 
     end if
 
-    contains
+  contains
 
-     subroutine pi_liquidlike_case(param, expected_pi, expected_err, name)
+    subroutine pi_liquidlike_case(pressure, temperature, density, &
+         expected_pi, expected_err, name)
 
-       PetscReal, intent(in) :: param(2), expected_pi
-       PetscErrorCode, intent(in) :: expected_err
-       character(*), intent(in) :: name
-       ! Locals:
-       PetscReal :: pi_liq
-       PetscErrorCode :: err
+      PetscReal, intent(in) :: pressure, temperature, density
+      PetscReal, intent(in) :: expected_pi
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: pi_liq
+      PetscErrorCode :: err
 
-       select type (region3 => IAPWS%region(3)%ptr)
-       type is (IAPWS_region3_type)
-          call region3%pi_liquidlike(param, pi_liq, err)
-          call test%assert(expected_err, err, name // ' pi_liq error')
-          if (err == 0) then
-             call test%assert(expected_pi, pi_liq, name // ' pi_liq')
-          end if
-       end select
+      select type (region3 => IAPWS%region(3)%ptr)
+      type is (IAPWS_region3_type)
+         call region3%pi_liquidlike(pressure, temperature, density, &
+              pi_liq, err)
+         call test%assert(expected_err, err, name // ' pi_liq error')
+         if (err == 0) then
+            call test%assert(expected_pi, pi_liq, name // ' pi_liq')
+         end if
+      end select
 
-     end subroutine pi_liquidlike_case
+    end subroutine pi_liquidlike_case
 
   end subroutine test_region3_pi_liquidlike
 
