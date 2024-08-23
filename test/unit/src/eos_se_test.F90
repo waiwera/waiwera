@@ -293,7 +293,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [305.66012571460158_dp, 452.59804760149916_dp]
+       expected_primary = [305.43322024581738_dp, 452.61384499581209_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [30.e6_dp, 470._dp]
@@ -398,6 +398,32 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 3 liquid to 4, T < 350"
+       old_fluid%region = dble(3)
+       fluid%region = old_fluid%region
+       expected_region = 4
+       expected_primary = [17.614786799031764e6_dp, 1.e-6_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [600._dp, 360._dp]
+       primary = [450._dp, 345._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 3 vapour to 4, T < 350"
+       old_fluid%region = dble(3)
+       fluid%region = old_fluid%region
+       expected_region = 4
+       expected_primary = [17.947210988753662e6_dp, 1._dp - 1.e-6_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [150._dp, 380._dp]
+       primary = [120._dp, 340._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 3 to 2, T > 350"
        old_fluid%region = dble(3)
        old_fluid%pressure = 20.18070653002556e6_dp
@@ -464,11 +490,11 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
-       title = "Region 1 to region 3 Widom delta"
+       title = "Region 1 to 3 Widom delta"
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [475.1891651872765_dp, 453.37857530542698_dp]
+       expected_primary = [475.34650156486884_dp, 453.33252670077400_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [70.e6_dp, 340._dp]
