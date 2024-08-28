@@ -1043,6 +1043,7 @@ module IAPWS_module
      type(IAPWS_boundary23_type), public :: boundary23
      type(IAPWS_boundary34_type), public :: boundary34
      PetscReal, public :: temperature_bdy_1_3 !! Temperature of boundary between regions 1 & 3
+     PetscReal, public :: saturation_pressure_bdy_1_3 !! Saturation pressure at boundary between regions 1 & 3
      PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
    contains
      private
@@ -1088,6 +1089,8 @@ contains
 
     allocate(IAPWS_saturation_type :: self%saturation)
     call self%saturation%init(self)
+    call self%saturation%pressure(self%temperature_bdy_1_3, &
+         self%saturation_pressure_bdy_1_3, err)
 
     self%num_regions = 3
     allocate(IAPWS_region1_type :: self%water)
