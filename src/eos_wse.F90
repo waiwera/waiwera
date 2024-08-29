@@ -740,13 +740,7 @@ contains
                end if
 
             else
-               phase%density = 0._dp
-               phase%internal_energy = 0._dp
-               phase%specific_enthalpy = 0._dp
-               phase%relative_permeability = 0._dp
-               phase%capillary_pressure = 0._dp
-               phase%viscosity = 0._dp
-               phase%mass_fraction = 0._dp
+               call phase%zero()
             end if
 
           end associate

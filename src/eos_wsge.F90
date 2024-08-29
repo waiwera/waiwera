@@ -731,13 +731,7 @@ contains
                   end if
 
                else
-                  phase%density = 0._dp
-                  phase%internal_energy = 0._dp
-                  phase%specific_enthalpy = 0._dp
-                  phase%relative_permeability = 0._dp
-                  phase%capillary_pressure = 0._dp
-                  phase%viscosity = 0._dp
-                  phase%mass_fraction = 0._dp
+                  call phase%zero()
                end if
 
              end associate
@@ -759,13 +753,7 @@ contains
                      solid_phase%mass_fraction = [0._dp, 1._dp, 0._dp]
                   end if
                else
-                  solid_phase%density = 0._dp
-                  solid_phase%internal_energy = 0._dp
-                  solid_phase%specific_enthalpy = 0._dp
-                  solid_phase%relative_permeability = 0._dp
-                  solid_phase%capillary_pressure = 0._dp
-                  solid_phase%viscosity = 0._dp
-                  solid_phase%mass_fraction = 0._dp
+                  call solid_phase%zero()
                end if
              end associate
           end if

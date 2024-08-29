@@ -1006,6 +1006,7 @@ contains
        call self%region3_fluid_properties(primary, rock, fluid, err)
     else
        call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
+       call fluid%phase(3)%zero()
     end if
 
   end subroutine eos_se_fluid_properties
@@ -1049,16 +1050,7 @@ contains
            if (err == 0) then
 
               do p = 1, self%num_phases
-                 associate(phase => fluid%phase(p))
-                   phase%saturation = 0._dp
-                   phase%density = 0._dp
-                   phase%internal_energy = 0._dp
-                   phase%specific_enthalpy = 0._dp
-                   phase%relative_permeability = 0._dp
-                   phase%capillary_pressure = 0._dp
-                   phase%viscosity = 0._dp
-                   phase%mass_fraction(1) = 0._dp
-                 end associate
+                 call fluid%phase(p)%zero()
               end do
 
               call self%phase_saturations(primary, fluid)

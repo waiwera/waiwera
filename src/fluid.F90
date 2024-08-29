@@ -64,6 +64,7 @@ module fluid_module
    contains
      private
      procedure, public :: destroy => phase_destroy
+     procedure, public :: zero => phase_zero
      procedure, public :: mobility => phase_mobility
   end type phase_type
 
@@ -189,6 +190,24 @@ contains
     self%mass_fraction => null()
 
   end subroutine phase_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine phase_zero(self)
+    !! Zeroes out a phase object. (Saturation is not zeroed, as this
+    !! is usually set elsewhere.)
+
+    class(phase_type), intent(in out) :: self
+
+    self%density = 0._dp
+    self%internal_energy = 0._dp
+    self%specific_enthalpy = 0._dp
+    self%relative_permeability = 0._dp
+    self%capillary_pressure = 0._dp
+    self%viscosity = 0._dp
+    self%mass_fraction = 0._dp
+
+  end subroutine phase_zero
 
 !------------------------------------------------------------------------
 
