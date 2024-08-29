@@ -358,6 +358,49 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 4 to supercritical"
+       old_fluid%region = dble(4)
+       old_fluid%temperature = 370._dp
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [thermo%critical%density, &
+            (1._dp + 1.e-6_dp) * thermo%critical%temperature]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [21.043367318975246e6_dp, 0.6_dp]
+       primary = [22.2e6_dp, 0.8_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 4 to region 3 liquid, T > 350"
+       old_fluid%region = dble(4)
+       old_fluid%temperature = 356.99181334434775_dp
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [510.39402907650475_dp, 362.91787808947413_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [18.e6_dp, 0.2_dp]
+       primary = [20.e6_dp, -0.1_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 4 to region 3 vapour, T > 350"
+       old_fluid%region = dble(4)
+       old_fluid%temperature = 373.93854042827775_dp
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [315.31198544523102_dp, 373.94040546390397_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [22.062e6_dp, 0.99_dp]
+       primary = [22.063e6_dp, 1.01_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 3 null transition"
        old_fluid%region = dble(3)
        fluid%region = old_fluid%region
