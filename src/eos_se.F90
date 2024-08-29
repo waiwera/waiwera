@@ -330,7 +330,7 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: old_saturation_pressure, factor
+    PetscReal :: old_saturation_pressure, pressure_factor
     PetscReal :: saturation_bound, xi
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
@@ -340,10 +340,10 @@ contains
 
     if (new_region == 1) then
        saturation_bound = 0._dp
-       factor = 1._dp + small
+       pressure_factor = 1._dp + small
     else
        saturation_bound = 1._dp
-       factor = 1._dp - small
+       pressure_factor = 1._dp - small
     end if
 
     select type (thermo => self%thermo)
@@ -363,23 +363,22 @@ contains
             if (interpolated_pressure > thermo%critical%pressure) then
                call region4_to_supercritical_transitions()
             else
-
                associate (pressure => primary(1))
-                 pressure = factor * interpolated_pressure
+                 pressure = pressure_factor * interpolated_pressure
+
+                 call thermo%saturation%temperature(interpolated_pressure, &
+                      temperature, err)
+                 if (err == 0) then
+
+                    if (pressure <= thermo%saturation_pressure_bdy_1_3) then
+                       fluid%region = dble(new_region)
+                       transition = PETSC_TRUE
+                    else
+                       call region4_above_bdy_1_3_transitions()
+                    end if
+
+                 end if
                end associate
-
-               call thermo%saturation%temperature(interpolated_pressure, &
-                    temperature, err)
-               if (err == 0) then
-
-                  if (interpolated_pressure <= thermo%saturation_pressure_bdy_1_3) then
-                     fluid%region = dble(new_region)
-                     transition = PETSC_TRUE
-                  else
-                     call region4_above_bdy_1_3_transitions()
-                  end if
-
-               end if
             end if
           end associate
 
@@ -387,16 +386,21 @@ contains
 
        if (err > 0) then
 
-          ! TODO: check pressure, -> region 3 if necessary
-
           call thermo%saturation%pressure(old_fluid%temperature, &
                old_saturation_pressure, err)
           if (err == 0) then
              associate(pressure => primary(1), temperature => primary(2))
-               pressure = factor * old_saturation_pressure
+
+               pressure = pressure_factor * old_saturation_pressure
                temperature = old_fluid%temperature
-               fluid%region = dble(new_region)
-               transition = PETSC_TRUE
+
+               if (pressure <= thermo%saturation_pressure_bdy_1_3) then
+                  fluid%region = dble(new_region)
+                  transition = PETSC_TRUE
+               else
+                  call region4_above_bdy_1_3_transitions()
+               end if
+
              end associate
           end if
 
