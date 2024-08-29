@@ -52,6 +52,7 @@ module eos_se_module
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
      procedure, public :: transition_region3_to_single_phase => eos_se_transition_region3_to_single_phase
      procedure, public :: transition_region3_to_two_phase => eos_se_transition_region3_to_two_phase
+     procedure, public :: transition_region4_to_supercritical => eos_se_transition_region4_to_supercritical
      procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
@@ -313,6 +314,30 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_se_transition_region4_to_supercritical(self, primary, fluid, &
+       transition)
+      !! For eos_se, make transition from region 4 to supercritical region 3.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    ! Locals:
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    associate (density => primary(1), temperature => primary(2))
+      fluid%region = dble(3)
+      density = self%thermo%critical%density
+      temperature = (1._dp + small) * self%thermo%critical%temperature
+      transition = PETSC_TRUE
+    end associate
+
+  end subroutine eos_se_transition_region4_to_supercritical
+
+!------------------------------------------------------------------------
+
   subroutine eos_se_transition_to_single_phase(self, old_primary, old_fluid, &
        new_region, primary, fluid, transition, err)
     !! For eos_se, make transition from two-phase to single-phase with
@@ -361,7 +386,8 @@ contains
                temperature => primary(2))
 
             if (interpolated_pressure > thermo%critical%pressure) then
-               call region4_to_supercritical_transitions()
+               call self%transition_region4_to_supercritical(primary, fluid, &
+                    transition)
             else
                associate (pressure => primary(1))
                  pressure = pressure_factor * interpolated_pressure
@@ -409,20 +435,6 @@ contains
     end select
 
   contains
-
-!........................................................................
-
-    subroutine region4_to_supercritical_transitions()
-      !! Transitions from region 4 to supercritical region 3.
-
-      associate (density => primary(1), temperature => primary(2))
-        fluid%region = dble(3)
-        density = self%thermo%critical%density
-        temperature = (1._dp + small) * self%thermo%critical%temperature
-        transition = PETSC_TRUE
-      end associate
-
-    end subroutine region4_to_supercritical_transitions
 
 !........................................................................
 
@@ -953,13 +965,16 @@ contains
     subroutine region_4_transitions()
       !! Transitions from region 4 to 1, 2 or 3
 
-      associate (vapour_saturation => primary(2))
+      associate (pressure => primary(1), vapour_saturation => primary(2))
         if (vapour_saturation < 0._dp) then
            call self%transition_to_single_phase(old_primary, old_fluid, &
                 1, primary, fluid, transition, err)
         else if (vapour_saturation > 1._dp) then
            call self%transition_to_single_phase(old_primary, old_fluid, &
                 2, primary, fluid, transition, err)
+        else if (pressure > self%thermo%critical%pressure) then
+           call self%transition_region4_to_supercritical(primary, fluid, &
+                transition)
         end if
       end associate
 
