@@ -2708,6 +2708,10 @@ contains
              call fson_get_mpi(pressure_json, "enthalpy", &
                   val = reference_pressure_array)
              pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_ENTHALPY
+          else if (fson_has_mpi(pressure_json, "pressure")) then
+             call fson_get_mpi(pressure_json, "pressure", &
+                  val = reference_pressure_array)
+             pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_PRESSURE
           end if
        case (TYPE_STRING)
           call fson_get_mpi(json, "pressure", &

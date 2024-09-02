@@ -710,6 +710,17 @@
                                                                                 "maxItems": 2}
                                                                            }
                                                            }, "additionalProperties": false},
+                                                          {"type": "object",
+                                                           "properties": {
+                                                               "pressure": {"type": "array",
+                                                                            "items": {
+                                                                                "type": "array",
+                                                                                "items": {
+                                                                                    "type": "number"},
+                                                                                "minItems": 2,
+                                                                                "maxItems": 2}
+                                                                           }
+                                                           }, "additionalProperties": false},
                                                           {"type": "string",
                                                            "enum": ["initial", "Initial"]}
                                                           ]
