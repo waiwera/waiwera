@@ -27,7 +27,8 @@ def suite():
     path = "../test/benchmark/"
     filenames = [os.path.join(dirpath, f)
                  for dirpath, dirnames, files in os.walk(path)
-                 for f in fnmatch.filter(files, '*.json')]
+                 for f in fnmatch.filter(files, '*.json')
+                 if dirpath != path]
     suite.addTests(JSONSchemaTestCase(filename, schema) for filename in filenames)
     return suite
 
