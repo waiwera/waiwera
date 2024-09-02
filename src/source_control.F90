@@ -39,7 +39,7 @@ module source_control_module
        SRC_DIRECTION_INJECTION = 2, SRC_DIRECTION_BOTH = 3
   PetscInt, parameter, public :: default_source_direction = SRC_DIRECTION_BOTH
   PetscInt, parameter, public :: SRC_PRESSURE_TABLE_COORD_TIME = 1, &
-       SRC_PRESSURE_TABLE_COORD_ENTHALPY = 2
+       SRC_PRESSURE_TABLE_COORD_ENTHALPY = 2, SRC_PRESSURE_TABLE_COORD_PRESSURE = 3
   PetscInt, parameter, public :: default_source_pressure_table_coordinate = &
        SRC_PRESSURE_TABLE_COORD_TIME
 
@@ -366,7 +366,7 @@ contains
     PetscReal, intent(in) :: productivity !! Productivity index
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: h, reference_pressure, pressure_difference
+    PetscReal :: h, pressure, reference_pressure, pressure_difference
     PetscReal, allocatable :: phase_mobilities(:), phase_flow_fractions(:)
     PetscReal :: effective_productivity
 
@@ -381,6 +381,9 @@ contains
     case (SRC_PRESSURE_TABLE_COORD_ENTHALPY)
        h = source%fluid%specific_enthalpy(phase_flow_fractions)
        reference_pressure = self%reference_pressure%interpolate(h, 1)
+    case (SRC_PRESSURE_TABLE_COORD_PRESSURE)
+       pressure = source%fluid%pressure
+       reference_pressure = self%reference_pressure%interpolate(pressure, 1)
     end select
 
     effective_productivity = productivity * source%fluid%permeability_factor

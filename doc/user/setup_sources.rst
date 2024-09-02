@@ -424,6 +424,7 @@ Within a deliverability object, the reference pressure :math:`P_0` is specified 
 * a rank-2 array representing an interpolation table (see :ref:`interpolation_tables`) of reference pressure vs. time
 * an object, containing a **"time"** array value (equivalent to specifying the reference pressure itself as an array)
 * an object containing an **"enthalpy"** array value, representing an interpolation table of values vs. flowing enthalpy, rather than time
+* an object containing a **"pressure"** array value, representing an interpolation table of values vs. pressure, rather than time (this can be used e.g. to model a pump being turned on, lowering the reference (cutoff) pressure, when the source cell fluid pressure falls below a specified value)
 * a string with value "initial", in which case the reference pressure is set equal to the pressure in the source cell at the start of the simulation
 
 Similarly, the productivity index :math:`\alpha` is specified via the **"productivity"** value, which may be given as:
