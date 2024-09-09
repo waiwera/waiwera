@@ -69,7 +69,8 @@ module utils_module
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
        array_is_permutation, array_is_permutation_of, &
-       array_unique, array_progressive_limit, newton1d, sign_test
+       array_unique, array_progressive_limit, newton1d, sign_test, &
+       hermite_spline
 
 contains
 
@@ -843,6 +844,24 @@ contains
     end if
 
   end function sign_test
+
+!------------------------------------------------------------------------
+
+  PetscReal function hermite_spline(xi)
+    !! Cubic Hermite spline over interval [0,1] with zero slopes at
+    !! each end, value 1 for xi <= 0 and value 0 for xi >= 1.
+
+    PetscReal, intent(in) :: xi
+
+    if (xi < 0._dp) then
+       hermite_spline = 1._dp
+    else if (xi > 1._dp) then
+       hermite_spline = 0._dp
+    else
+       hermite_spline =  xi * xi * (2._dp * xi - 3._dp) + 1._dp
+    end if
+
+  end function hermite_spline
 
 !------------------------------------------------------------------------
 

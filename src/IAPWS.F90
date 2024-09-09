@@ -2284,22 +2284,6 @@ contains
        end if
     end if
 
-  contains
-
-    PetscReal function hermite(xi)
-
-      PetscReal, intent(in) :: xi
-
-      if (xi < 0._dp) then
-         hermite = 1._dp
-      else if (xi > 1._dp) then
-         hermite = 0._dp
-      else
-         hermite =  xi * xi * (2._dp * xi - 3._dp) + 1._dp
-      end if
-
-    end function hermite
-
   end subroutine region3_pi_liquidlike
 
 !------------------------------------------------------------------------
