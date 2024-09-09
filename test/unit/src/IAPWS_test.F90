@@ -626,13 +626,13 @@ module IAPWS_test
     if (rank == 0) then
 
        call widom_case(IAPWS%critical%pressure, &
-            [373.896_dp, 373.996_dp], 0, 'case 1')
+            [373.9308294690435_dp, 373.96117053095657_dp], 0, 'case 1')
        call widom_case(40.e6_dp, &
-            [423.15403745620887_dp, 443.5767350631705_dp], 0, 'case 2')
+            [423.18886692525234_dp, 443.541905594127_dp], 0, 'case 2')
        call widom_case(75.e6_dp, &
-            [466.1082171200531_dp, 526.188275133106_dp], 0, 'case 3')
+            [466.14304658909657_dp, 526.1534456640626_dp], 0, 'case 3')
        call widom_case(100.e6_dp, &
-            [480.6773819671226_dp, 569.0841259845265_dp], 0, 'case 4')
+            [480.712211436166_dp, 569.049296515483_dp], 0, 'case 4')
 
     end if
 
@@ -697,11 +697,11 @@ module IAPWS_test
        call pi_liquidlike_case(IAPWS%critical%pressure, 700._dp, 0._dp, &
             0.0_dp, 0, 'case 3')
        call pi_liquidlike_case(64.e6_dp, 475._dp, 0._dp, &
-            0.6644238934392057_dp, 0, 'case 4')
+            0.6646566520355781_dp, 0, 'case 4')
        call pi_liquidlike_case(64.e6_dp, 465._dp, 0._dp, &
-            0.915765516035995_dp, 0, 'case 5')
+            0.9161795159368163_dp, 0, 'case 5')
        call pi_liquidlike_case(64.e6_dp, 495._dp, 0._dp, &
-            0.095913868220606_dp, 0, 'case 6')
+            0.095494398752873355_dp, 0, 'case 6')
        call pi_liquidlike_case(40.e6_dp, 377._dp, 0._dp, &
             1.0_dp, 0, 'case 7')
        call pi_liquidlike_case(30.e6_dp, 500._dp, 0._dp, &
@@ -715,7 +715,7 @@ module IAPWS_test
        call pi_liquidlike_case(18.843641755076366_dp, 365._dp, 130._dp, &
             0.0_dp, 0, 'case 12')
        call pi_liquidlike_case(21.976407368553966e6_dp, 373.6172901183901_dp, &
-            370.0243306702589_dp, 0.0_dp, 0, 'case 13')
+            370.0243306702589_dp, 1.0_dp, 0, 'case 13')
 
     end if
 

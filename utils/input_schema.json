@@ -104,7 +104,7 @@
                                    "type": "object",
                                    "properties": {
                                        "growth": {"type": number, "minimum": 0},
-                                       "min": {"type": number, "minimum": 0}
+                                       "offset": {"type": number, "minimum": 0}
                                    },
                                    "additionalProperties": false}}
                            "additionalProperties": false}

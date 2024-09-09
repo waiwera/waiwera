@@ -293,7 +293,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [305.43322024581738_dp, 452.61384499581209_dp]
+       expected_primary = [305.59127267242570_dp, 452.60284095132027_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [30.e6_dp, 470._dp]
@@ -305,10 +305,10 @@ contains
        title = "Region 2 to 3 near critical point"
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
-       expected_region = 0
-       expected_primary = [0._dp, 0._dp]
-       expected_transition = PETSC_FALSE
-       expected_err = 1
+       expected_region = 3
+       expected_primary = [282.17958244211320_dp, 373.99712768574136_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
        old_primary = [18.e6_dp, 380._dp]
        primary = [22.1e6_dp, thermo%critical%temperature + 1.e-2_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
@@ -551,7 +551,7 @@ contains
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [475.34650156486884_dp, 453.33252670077400_dp]
+       expected_primary = [475.23690666454377_dp, 453.36460370531074_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [70.e6_dp, 340._dp]
@@ -579,10 +579,10 @@ contains
        old_primary = [20.e6_dp, 345._dp]
        d = [thermo%critical%pressure, thermo%critical%temperature] - old_primary
        primary = old_primary + 1.2 * d
-       expected_region = 0
-       expected_primary = [0._dp, 0._dp]
-       expected_transition = PETSC_FALSE
-       expected_err = 1
+       expected_region = 3
+       expected_primary = [358.87867533602133_dp, 373.92641126518146_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
