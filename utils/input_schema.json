@@ -103,10 +103,10 @@
                                "delta": {
                                    "type": "object",
                                    "properties": {
-                                       "growth": {"type": number, "minimum": 0},
-                                       "offset": {"type": number, "minimum": 0}
+                                       "growth": {"type": "number", "minimum": 0},
+                                       "offset": {"type": "number", "minimum": 0}
                                    },
-                                   "additionalProperties": false}}
+                                   "additionalProperties": false}},
                            "additionalProperties": false}
              },
              "additionalProperties": false}
