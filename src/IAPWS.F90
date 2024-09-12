@@ -2298,7 +2298,7 @@ contains
              else
 
                 ! Between the delta zero temperature and the critical
-                ! point, space the pi contours evenly around the
+                ! point, space the pi contours smoothly around the
                 ! boundary of region 4:
                 theta = (temperature - self%widom_delta_zero_temperature) / &
                      self%widom_delta_offset
