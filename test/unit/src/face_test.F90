@@ -657,7 +657,7 @@ contains
     PetscReal, parameter :: expected_liquid_flux = 9.30959555690338e-5_dp
     PetscReal, parameter :: expected_vapour_flux = -1.61867142607443e-6_dp
     PetscMPIInt :: rank
-    PetscInt :: ierr
+    PetscInt :: ierr, phases(2)
 
     call thermo%init()
     json => fson_parse(str = '{}')
@@ -701,6 +701,8 @@ contains
        call face%assign_cell_geometry(cell_data, cell_offsets)
        call face%assign_cell_rock(rock_data, rock_offsets)
        call face%assign_cell_fluid(fluid_data, fluid_offsets)
+       call eos%phase_contributions([face%cell(1)%fluid, face%cell(2)%fluid], &
+            phases, face%saturations, face%densities)
 
        density = face%phase_density(1)
        call test%assert(expected_liquid_density, density, "Liquid density")
