@@ -272,6 +272,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: props(2), pi_liq, Sv
+    PetscInt :: phases
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
@@ -1026,64 +1027,74 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: p
-    PetscReal :: properties(2), sl
+    PetscInt :: p, pseudo_phases
+    PetscReal :: properties(2), sl, pi_liq
     PetscReal :: relative_permeability(2), capillary_pressure(2)
 
     err = 0
 
-    associate(density => primary(1), temperature => primary(2), &
-         region => self%thermo%region(3)%ptr)
+    associate(density => primary(1), temperature => primary(2))
 
-      fluid%temperature = temperature
-      call region%properties(primary, properties, err)
+      select type (region => self%thermo%region(3)%ptr)
+      type is (IAPWS_region3_type)
 
-      if (err == 0) then
+         fluid%temperature = temperature
+         call region%properties(primary, properties, err)
 
-         associate(pressure => properties(1), internal_energy => properties(2))
+         if (err == 0) then
 
-           fluid%pressure = pressure
-           fluid%partial_pressure(1) = fluid%pressure
-           fluid%permeability_factor = 1._dp
+            associate(pressure => properties(1), internal_energy => properties(2))
 
-           call self%phase_composition(fluid, err)
-           if (err == 0) then
+              fluid%pressure = pressure
+              fluid%partial_pressure(1) = fluid%pressure
+              fluid%permeability_factor = 1._dp
 
-              do p = 1, self%num_phases
-                 call fluid%phase(p)%zero()
-              end do
+              call self%phase_composition(fluid, err)
+              if (err == 0) then
 
-              call self%phase_saturations(primary, fluid)
+                 do p = 1, self%num_phases
+                    call fluid%phase(p)%zero()
+                 end do
 
-              p = self%region3_phase(nint(fluid%phase_composition))
-              associate(phase => fluid%phase(p))
-                phase%saturation = 1._dp
-                phase%density = density
-                phase%internal_energy = internal_energy
-                phase%specific_enthalpy = phase%internal_energy + &
-                     fluid%pressure / phase%density
-                phase%mass_fraction(1) = 1._dp
-                call region%viscosity(fluid%temperature, fluid%pressure, &
-                     phase%density, phase%viscosity)
+                 call self%phase_saturations(primary, fluid)
 
-                if (fluid%temperature <= self%thermo%critical%temperature) then
-                   sl = fluid%phase(1)%saturation
-                   relative_permeability = rock%relative_permeability%values(sl)
-                   capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
-                        0._dp]
-                   phase%relative_permeability = relative_permeability(p)
-                   phase%capillary_pressure =  capillary_pressure(p)
-                else
-                   phase%relative_permeability = 1._dp
-                   phase%capillary_pressure =  0._dp
-                end if
+                 p = self%region3_phase(nint(fluid%phase_composition))
+                 associate(phase => fluid%phase(p))
+                   phase%saturation = 1._dp
+                   phase%density = density
+                   phase%internal_energy = internal_energy
+                   phase%specific_enthalpy = phase%internal_energy + &
+                        fluid%pressure / phase%density
+                   phase%mass_fraction(1) = 1._dp
+                   call region%viscosity(fluid%temperature, fluid%pressure, &
+                        phase%density, phase%viscosity)
 
-              end associate
+                   if (fluid%temperature <= self%thermo%critical%temperature) then
+                      sl = fluid%phase(1)%saturation
+                      relative_permeability = rock%relative_permeability%values(sl)
+                      capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
+                           0._dp]
+                      phase%relative_permeability = relative_permeability(p)
+                      phase%capillary_pressure =  capillary_pressure(p)
+                   else
+                      phase%relative_permeability = 1._dp
+                      phase%capillary_pressure =  0._dp
+                   end if
 
-           end if
-         end associate
-      end if
+                 end associate
 
+                 call region%pi_liquidlike(pressure, temperature, density, &
+                      pi_liq, pseudo_phases, err)
+                 if (err == 0) then
+                    fluid%liquidlike_fraction = pi_liq
+                    fluid%supercritical_phases = dble(pseudo_phases)
+                 end if
+
+              end if
+            end associate
+         end if
+
+      end select
     end associate
 
   end subroutine eos_se_region3_fluid_properties
