@@ -1207,6 +1207,52 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_se_phase_contributions(self, fluid, contributions, &
+       saturations, densities)
+    !! Determines effective fluid phase contributions, saturations and
+    !! densities for eos se.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid(2) !! Fluid objects
+    PetscInt, intent(out) :: contributions(2) !! Phase contributions
+    PetscReal, intent(out) :: saturations(2, self%num_mobile_phases) !! Phase saturations
+    PetscReal, intent(out) :: densities(2, self%num_mobile_phases) !! Phase densities
+    ! Locals:
+    PetscInt :: i, p, phases(2)
+    PetscBool :: sub_super
+
+    do i = 1, 2
+       phases(i) = nint(fluid(i)%phase_composition)
+    end do
+    sub_super = (btest(phases(1), 2) .neqv. btest(phases(2), 2))
+
+    do i = 1, 2
+       if (sub_super .and. btest(phases(i), 2)) then
+          ! Convert fluxes between sub- and super-critical cells to
+          ! sub-critical:
+          contributions(i) = nint(fluid(i)%supercritical_phases)
+          saturations(i, 1) = fluid(i)%liquidlike_fraction
+          saturations(i, 2) = 1._dp - saturations(i, 1)
+          do p = 1, 2
+             densities(i, p) = fluid(i)%phase(3)%density
+          end do
+          saturations(i, 3) = 0._dp
+          densities(i, 3) = 0._dp
+       else
+          contributions(i) = phases(i)
+          do p = 1, self%num_mobile_phases
+             saturations(i, p) = fluid(i)%phase(p)%saturation
+             densities(i, p) = fluid(i)%phase(p)%density
+          end do
+       end if
+    end do
+
+  end subroutine eos_se_phase_contributions
+
+!------------------------------------------------------------------------
+
   subroutine eos_se_widom_delta_difference(x, context, f, err)
     !! Returns difference between Widom delta boundary temperature and
     !! temperature at normalised point 0 <= x <= 1 along line between
