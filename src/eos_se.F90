@@ -282,7 +282,7 @@ contains
           associate(pressure => props(1), density => primary(1), &
                temperature => primary(2))
             call region3%pi_liquidlike(pressure, temperature, density, &
-                 pi_liq, err)
+                 pi_liq, phases, err)
             if (err == 0) then
                fluid%region = dble(4)
                primary(1) = pressure

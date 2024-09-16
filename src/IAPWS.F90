@@ -2266,17 +2266,20 @@ contains
 !------------------------------------------------------------------------
 
   subroutine region3_pi_liquidlike(self, pressure, temperature, density, &
-       pi_liq, err)
+       pi_liq, pseudo_phases, err)
     !! Returns number fraction of liquid-like fluid particles as a
     !! function of pressure and temperature. For supercritical fluid
     !! this is assumed to vary smoothly from 1 to 0 through the Widom
     !! delta according to a cubic Hermite polynomial with zero slope
     !! at both ends. For sub-critical fluid, the result is determined
-    !! by the given density.
+    !! by the given density. Also returns a pseudo-phase composition,
+    !! corresponding to whether the fluid is completely liquidlike
+    !! (001), vapourlike (010) or in between (010).
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure, temperature, density
     PetscReal, intent(out) :: pi_liq
+    PetscInt, intent(out) :: pseudo_phases
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: delta(2), xi, theta, s, xi0, xi1, xim
@@ -2313,20 +2316,33 @@ contains
                 pi_liq = hermite_spline(xim)
 
              end if
+
+             if (temperature < delta(1)) then
+                pseudo_phases = int(b'001')
+             else if (temperature < delta(2)) then
+                pseudo_phases = int(b'011')
+             else
+                pseudo_phases = int(b'010')
+             end if
+
           end if
 
        else
           pi_liq = 1._dp
+          pseudo_phases = int(b'001')
        end if
 
     else
        if (temperature >= self%widom_delta_zero_temperature) then
           pi_liq = 0._dp
+          pseudo_phases = int(b'010')
        else
           if (density >= self%thermo%critical%density) then
              pi_liq = 1._dp
+             pseudo_phases = int(b'001')
           else
              pi_liq = 0._dp
+             pseudo_phases = int(b'010')
           end if
        end if
     end if
