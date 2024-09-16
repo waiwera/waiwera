@@ -406,6 +406,8 @@ contains
        call self%phase_composition(fluid, err)
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
+          fluid%liquidlike_fraction = fluid%phase(1)%saturation
+          fluid%supercritical_phases = 0._dp
        end if
     end if
 

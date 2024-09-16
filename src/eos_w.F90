@@ -166,6 +166,8 @@ contains
     call self%phase_composition(fluid, err)
 
     fluid%permeability_factor = 1._dp
+    fluid%liquidlike_fraction = 1._dp
+    fluid%supercritical_phases = 0._dp
     fluid%partial_pressure(1) = fluid%pressure
 
   end subroutine eos_w_bulk_properties

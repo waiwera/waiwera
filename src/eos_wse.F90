@@ -614,6 +614,8 @@ contains
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
           call self%permeability_modifier%modify(fluid)
+          fluid%liquidlike_fraction = fluid%phase(1)%saturation
+          fluid%supercritical_phases = 0._dp
           fluid%partial_pressure(1) = fluid%pressure
           fluid%partial_pressure(2) = 0._dp
        end if

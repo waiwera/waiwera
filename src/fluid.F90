@@ -33,14 +33,15 @@ module fluid_module
   implicit none
   private
 
-  PetscInt, parameter, public :: num_fluid_variables = 6
+  PetscInt, parameter, public :: num_fluid_variables = 8
   PetscInt, parameter, public :: num_phase_variables = 8
-  PetscInt, parameter, public :: max_fluid_variable_name_length = 19
+  PetscInt, parameter, public :: max_fluid_variable_name_length = 20
   character(max_fluid_variable_name_length), public :: &
        fluid_variable_names(num_fluid_variables) = [ &
-       "pressure           ", "temperature        ", &
-       "region             ", "phases             ", &
-       "permeability_factor", "partial_pressure   "]
+       "pressure            ", "temperature         ", &
+       "region              ", "phases              ", &
+       "permeability_factor ", "liquidlike_fraction ", &
+       "supercritical_phases", "partial_pressure    "]
   PetscInt, parameter, public :: max_phase_variable_name_length = 21
   character(max_phase_variable_name_length), public :: &
        phase_variable_names(num_phase_variables) = [ &
@@ -83,7 +84,9 @@ module fluid_module
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
      PetscReal, pointer, public :: phase_composition   !! Phase composition
-     PetscReal, pointer, public :: permeability_factor !! Fluid-induced permeability modification factor 
+     PetscReal, pointer, public :: permeability_factor !! Fluid-induced permeability modification factor
+     PetscReal, pointer, public :: liquidlike_fraction !! Number fraction of liquidlike particles
+     PetscReal, pointer, public :: supercritical_phases !! Pseudo-phase composition of supercritical fluid
      PetscReal, pointer, contiguous, public :: partial_pressure(:) !! Component partial pressures
      type(phase_type), allocatable, public :: phase(:) !! Phase variables
      PetscInt, public :: num_phases !! Number of phases
@@ -261,7 +264,9 @@ contains
     self%region => data(offset + 2)
     self%phase_composition => data(offset + 3)
     self%permeability_factor => data(offset + 4)
-    self%partial_pressure => data(offset + 5: offset + 5 + self%num_components - 1)
+    self%liquidlike_fraction => data(offset + 5)
+    self%supercritical_phases => data(offset + 6)
+    self%partial_pressure => data(offset + 7: offset + 7 + self%num_components - 1)
     
     associate(bulk_dof => num_fluid_variables + self%num_components - 1)
       i = offset + bulk_dof
@@ -296,6 +301,8 @@ contains
     nullify(self%region)
     nullify(self%phase_composition)
     nullify(self%permeability_factor)
+    nullify(self%liquidlike_fraction)
+    nullify(self%supercritical_phases)
     nullify(self%partial_pressure)
 
     do p = 1, self%num_phases

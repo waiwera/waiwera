@@ -436,7 +436,7 @@ contains
 
     if (rank == 0) then
 
-       associate(sl => fluid_data(9))
+       associate(sl => fluid_data(11))
 
          sl = 0.0_dp
          expected_cond = 1.0_dp
