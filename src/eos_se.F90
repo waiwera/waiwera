@@ -59,6 +59,7 @@ module eos_se_module
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
+     procedure, public :: phase_contributions => eos_se_phase_contributions
   end type eos_se_type
 
 contains
