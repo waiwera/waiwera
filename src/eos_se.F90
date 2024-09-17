@@ -109,7 +109,7 @@ contains
     self%default_output_fluid_fields = [ &
          "pressure             ", "temperature          ", &
          "region               ", "vapour_saturation    ", &
-         "supercritical_density"]
+         "supercritical_density", "liquidlike_fraction  "]
 
     call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
          pressure_scale, logfile)
