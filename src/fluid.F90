@@ -66,6 +66,7 @@ module fluid_module
      PetscReal, pointer, contiguous :: mass_fraction(:) !! Component mass fractions
    contains
      private
+     procedure, public :: assign => phase_assign
      procedure, public :: destroy => phase_destroy
      procedure, public :: zero => phase_zero
      procedure, public :: mobility => phase_mobility
@@ -179,6 +180,29 @@ contains
 
 !------------------------------------------------------------------------
 ! Phase procedures
+!------------------------------------------------------------------------
+
+  subroutine phase_assign(self, data, offset, dof)
+
+    class(phase_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! fluid data array
+    PetscInt, intent(in) :: offset  !! fluid array offset
+    PetscInt, intent(in) :: dof  !! degrees of freedom
+
+    self%dof = dof
+    self%data => data(offset: offset + self%dof - 1)
+
+    self%density => data(offset)
+    self%viscosity => data(offset + 1)
+    self%saturation => data(offset + 2)
+    self%relative_permeability => data(offset + 3)
+    self%capillary_pressure => data(offset + 4)
+    self%specific_enthalpy => data(offset + 5)
+    self%internal_energy => data(offset + 6)
+    self%mass_fraction => data(offset + 7: offset + self%dof - 1)
+
+  end subroutine phase_assign
+
 !------------------------------------------------------------------------
 
   subroutine phase_destroy(self)
