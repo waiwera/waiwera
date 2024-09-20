@@ -68,7 +68,7 @@ module eos_module
      procedure, public :: destroy => eos_destroy
      procedure(eos_transition_procedure), public, deferred :: transition
      procedure, public :: phase_composition => eos_phase_composition
-     procedure, public :: phase_contributions => eos_phase_contributions
+     procedure, public :: convert_fluid => eos_convert_fluid
      procedure(eos_fluid_properties_procedure), public, deferred :: fluid_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
@@ -227,35 +227,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_phase_contributions(self, fluid, contributions, &
-       saturations, densities)
-    !! Determines effective fluid phase contributions, i.e. phase
-    !! fluxes that are contributed to by the two fluid objects
-    !! (typically on either side of a mesh face), as well as the
-    !! associated phase saturations and densities. For subcritical
-    !! fluids these are just the values taken directly from the
-    !! fluids. However for a supercritical EOS this routine is
-    !! overridden.
+  subroutine eos_convert_fluid(self, fluid1, fluid2)
+
+    !! Carry out any conversions of fluid objects before computing
+    !! fluxes on face between them. This routine can be overridden by
+    !! derived EOSes.
 
     use fluid_module, only: fluid_type
 
     class(eos_type), intent(in) :: self
-    type(fluid_type), intent(in) :: fluid(2) !! Fluid objects
-    PetscInt, intent(out) :: contributions(2) !! Phase contributions
-    PetscReal, intent(out) :: saturations(2, self%num_mobile_phases) !! Phase saturations
-    PetscReal, intent(out) :: densities(2, self%num_mobile_phases) !! Phase densities
-    ! Locals:
-    PetscInt :: i, p
+    type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
 
-    do i = 1, 2
-       contributions(i) = nint(fluid(i)%phase_composition)
-       do p = 1, self%num_mobile_phases
-          saturations(i, p) = fluid(i)%phase(p)%saturation
-          densities(i, p) = fluid(i)%phase(p)%density
-       end do
-    end do
+    continue
 
-  end subroutine eos_phase_contributions
+  end subroutine eos_convert_fluid
 
 !------------------------------------------------------------------------
 

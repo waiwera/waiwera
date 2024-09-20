@@ -59,7 +59,7 @@ module eos_se_module
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
-     procedure, public :: phase_contributions => eos_se_phase_contributions
+     procedure, public :: convert_fluid => eos_se_convert_fluid
   end type eos_se_type
 
 contains
@@ -1219,49 +1219,79 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_phase_contributions(self, fluid, contributions, &
-       saturations, densities)
-    !! Determines effective fluid phase contributions, saturations and
-    !! densities for eos se.
+  subroutine eos_se_convert_fluid(self, fluid1, fluid2)
+
+    !! For fluid objects on face between sub- and super-critical
+    !! cells, convert single-phase supercritical fluid to two-phase
+    !! for the flux calculation.
 
     use fluid_module, only: fluid_type
 
     class(eos_se_type), intent(in) :: self
-    type(fluid_type), intent(in) :: fluid(2) !! Fluid objects
-    PetscInt, intent(out) :: contributions(2) !! Phase contributions
-    PetscReal, intent(out) :: saturations(2, self%num_mobile_phases) !! Phase saturations
-    PetscReal, intent(out) :: densities(2, self%num_mobile_phases) !! Phase densities
+    type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
     ! Locals:
-    PetscInt :: i, p, phases(2)
-    PetscBool :: sub_super
+    PetscInt :: num_sc, sc_phases
+    type(fluid_type), pointer :: scf
+    type(fluid_type) :: tmp
 
-    do i = 1, 2
-       phases(i) = nint(fluid(i)%phase_composition)
-    end do
-    sub_super = (btest(phases(1), 2) .neqv. btest(phases(2), 2))
+    num_sc = 0
+    call check(fluid1)
+    call check(fluid2)
 
-    do i = 1, 2
-       if (sub_super .and. btest(phases(i), 2)) then
-          ! Convert fluxes between sub- and super-critical cells to
-          ! sub-critical:
-          contributions(i) = nint(fluid(i)%supercritical_phases)
-          saturations(i, 1) = fluid(i)%liquidlike_fraction
-          saturations(i, 2) = 1._dp - saturations(i, 1)
-          do p = 1, 2
-             densities(i, p) = fluid(i)%phase(3)%density
-          end do
-          saturations(i, 3) = 0._dp
-          densities(i, 3) = 0._dp
+    if (num_sc == 1) then
+
+       ! Create a temporary fluid to modify the scf internal data,
+       ! while maintaining access to its original data:
+       call tmp%init(scf%num_components, scf%num_phases)
+       call tmp%assign(scf%internal_data, 1)
+
+       tmp%pressure = scf%pressure
+       tmp%temperature = scf%temperature
+
+       sc_phases = nint(scf%supercritical_phases)
+       call copy_phase(1)
+       call copy_phase(2)
+       call tmp%phase(3)%zero()
+
+       tmp%phase_composition = scf%supercritical_phases
+       tmp%phase(1)%saturation = scf%liquidlike_fraction
+       tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
+
+       call scf%assign_internal()
+       call tmp%destroy()
+
+    end if
+
+  contains
+
+    subroutine check(fluid)
+      ! If fluid is supercritical, assign scf pointer to it and
+      ! increment num_sc.
+
+      type(fluid_type), target, intent(in) :: fluid
+
+      if (fluid%is_supercritical()) then
+         scf => fluid
+         num_sc = num_sc + 1
+      end if
+
+    end subroutine check
+
+    subroutine copy_phase(i)
+      ! Copy supercritical phase to phase i if it is present,
+      ! otherwise zero it out.
+
+      PetscInt, intent(in) :: i
+
+      if (btest(sc_phases, i - 1)) then
+          call tmp%phase(i)%copy(scf%phase(3))
        else
-          contributions(i) = phases(i)
-          do p = 1, self%num_mobile_phases
-             saturations(i, p) = fluid(i)%phase(p)%saturation
-             densities(i, p) = fluid(i)%phase(p)%density
-          end do
+          call tmp%phase(i)%zero()
        end if
-    end do
 
-  end subroutine eos_se_phase_contributions
+     end subroutine copy_phase
+
+  end subroutine eos_se_convert_fluid
 
 !------------------------------------------------------------------------
 
