@@ -96,6 +96,7 @@ module fluid_module
      PetscInt, public :: num_phases !! Number of phases
      PetscInt, public :: num_components !! Number of mass components
      PetscInt, public :: dof !! Number of degrees of freedom
+     PetscInt, public :: bulk_dof !! Number of degrees of freedom for bulk fluid properties
      PetscInt, public :: phase_dof !! Number of degrees of freedom per phase
    contains
      private
@@ -276,9 +277,8 @@ contains
     allocate(self%phase(num_phases))
 
     self%phase_dof = num_phase_variables + self%num_components - 1
-    associate(bulk_dof => num_fluid_variables + self%num_components - 1)
-      self%dof = bulk_dof + self%num_phases * self%phase_dof
-    end associate
+    self%bulk_dof = num_fluid_variables + self%num_components - 1
+    self%dof = self%bulk_dof + self%num_phases * self%phase_dof
 
   end subroutine fluid_init
     
@@ -303,9 +303,7 @@ contains
     self%supercritical_phases => data(offset + 6)
     self%partial_pressure => data(offset + 7: offset + 7 + self%num_components - 1)
     
-    associate(bulk_dof => num_fluid_variables + self%num_components - 1)
-      i = offset + bulk_dof
-    end associate
+    i = offset + self%bulk_dof
     do p = 1, self%num_phases
        associate(phase => self%phase(p))
          phase%density => data(i)
