@@ -305,17 +305,8 @@ contains
     
     i = offset + self%bulk_dof
     do p = 1, self%num_phases
-       associate(phase => self%phase(p))
-         phase%density => data(i)
-         phase%viscosity => data(i + 1)
-         phase%saturation => data(i + 2)
-         phase%relative_permeability => data(i + 3)
-         phase%capillary_pressure => data(i + 4)
-         phase%specific_enthalpy => data(i + 5)
-         phase%internal_energy => data(i + 6)
-         phase%mass_fraction => data(i + 7: i + 7 + self%num_components - 1)
-         i = i + self%phase_dof
-       end associate
+       call self%phase(p)%assign(data, i, self%phase_dof)
+       i = i + self%phase_dof
     end do
 
   end subroutine fluid_assign
