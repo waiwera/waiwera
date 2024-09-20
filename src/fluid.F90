@@ -98,6 +98,7 @@ module fluid_module
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: bulk_dof !! Number of degrees of freedom for bulk fluid properties
      PetscInt, public :: phase_dof !! Number of degrees of freedom per phase
+     PetscReal, pointer, contiguous, public :: internal_data(:) !! Temporary internal data array
    contains
      private
      procedure, public :: init => fluid_init
@@ -279,6 +280,8 @@ contains
     self%phase_dof = num_phase_variables + self%num_components - 1
     self%bulk_dof = num_fluid_variables + self%num_components - 1
     self%dof = self%bulk_dof + self%num_phases * self%phase_dof
+    allocate(self%internal_data(self%dof))
+    self%internal_data = 0._dp
 
   end subroutine fluid_init
     
@@ -333,6 +336,7 @@ contains
        call self%phase(p)%destroy()
     end do
     deallocate(self%phase)
+    deallocate(self%internal_data)
 
   end subroutine fluid_destroy
 
