@@ -70,6 +70,7 @@ module fluid_module
      procedure, public :: destroy => phase_destroy
      procedure, public :: zero => phase_zero
      procedure, public :: mobility => phase_mobility
+     procedure, public :: copy => phase_copy
   end type phase_type
 
   type fluid_type
@@ -246,6 +247,18 @@ contains
          self%viscosity
 
   end function phase_mobility
+
+!------------------------------------------------------------------------
+
+  subroutine phase_copy(self, other)
+    !! Copies other phase to self.
+
+    class(phase_type), intent(in out) :: self
+    type(phase_type), intent(in) :: other
+
+    self%data = other%data
+
+  end subroutine phase_copy
 
 !------------------------------------------------------------------------
 ! Fluid procedures
