@@ -71,7 +71,7 @@ module utils_module
        array_is_permutation, array_is_permutation_of, &
        array_unique, array_progressive_limit, newton1d, sign_test, &
        hermite_spline_00, hermite_spline_01, hermite_spline_10, &
-       hermite_spline_11
+       hermite_spline_11, hermite_interpolate
 
 contains
 
@@ -883,6 +883,23 @@ contains
     hermite_spline_11 = xi * xi * (xi - 1._dp)
 
   end function hermite_spline_11
+
+!------------------------------------------------------------------------
+
+  PetscReal function hermite_interpolate(y0, y1, d0, d1, dx, xi)
+    !! Cubic Hermite spline interpolation between values y0, y1 and
+    !! slopes d0, d1, on an interval of length dx, at normalised
+    !! coordinate xi.
+
+    PetscReal, intent(in) :: y0, y1, d0, d1, dx, xi
+
+    hermite_interpolate = &
+         hermite_spline_00(xi) * y0 + &
+         hermite_spline_10(xi) * dx * d0 + &
+         hermite_spline_01(xi) * y1 + &
+         hermite_spline_11(xi) * dx * d1
+
+  end function hermite_interpolate
 
 !------------------------------------------------------------------------
 

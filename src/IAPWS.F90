@@ -34,7 +34,7 @@ module IAPWS_module
   use powertable_module
   use thermodynamics_module
   use utils_module, only: polynomial, newton1d, &
-       hermite_spline_00, hermite_spline_01, hermite_spline_10, hermite_spline_11
+       hermite_interpolate, hermite_spline_00, hermite_spline_01
 
   implicit none
   private
@@ -2253,10 +2253,9 @@ contains
        call self%widom(pressure, Tw0, err)
        if (err == 0) then
           xi = (pressure - self%thermo%critical%pressure) / self%widom_delta_delP
-          Tw = hermite_spline_00(xi) * self%thermo%critical%temperature + &
-               hermite_spline_10(xi) * self%widom_delta_delP * self%widom_delta_dtdp0 + &
-               hermite_spline_01(xi) * self%widom_delta_T1 + &
-               hermite_spline_11(xi) * self%widom_delta_delP * self%widom_delta_dtdp1
+          Tw = hermite_interpolate(self%thermo%critical%temperature, &
+               self%widom_delta_T1, self%widom_delta_dtdp0, self%widom_delta_dtdp1, &
+               self%widom_delta_delP, xi)
        end if
 
     else

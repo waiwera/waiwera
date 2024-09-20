@@ -24,7 +24,7 @@ module utils_test
        test_array_indices_in_int_array, test_is_permutation, &
        test_array_progressive_limit, test_newton1d, &
        test_is_permutation_of, test_array_unique, test_sign_test, &
-       test_hermite_spline
+       test_hermite_spline, test_hermite_interpolate
 
 contains
 
@@ -785,6 +785,35 @@ contains
     end if
 
   end subroutine test_hermite_spline
+
+!------------------------------------------------------------------------
+
+  subroutine test_hermite_interpolate(test)
+    ! Test hermite interpolation
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert(0._dp, hermite_interpolate( &
+            0._dp, 0._dp, 0._dp, 0._dp, &
+            1._dp, 0.5_dp), 'case 1')
+
+       call test%assert(0.5_dp, hermite_interpolate( &
+            1._dp, 0._dp, -1._dp, -1._dp, &
+            1._dp, 0.5_dp), 'case 2')
+
+       call test%assert(0.9375_dp, hermite_interpolate( &
+            0._dp, 1._dp, 1._dp, 0._dp, &
+            2._dp, 0.75_dp), 'case 3')
+
+    end if
+
+  end subroutine test_hermite_interpolate
 
 !------------------------------------------------------------------------
 
