@@ -33,7 +33,8 @@ module IAPWS_module
   use kinds_module
   use powertable_module
   use thermodynamics_module
-  use utils_module, only: polynomial, newton1d, hermite_spline
+  use utils_module, only: polynomial, newton1d, &
+       hermite_spline_00, hermite_spline_01, hermite_spline_10, hermite_spline_11
 
   implicit none
   private
@@ -976,6 +977,8 @@ module IAPWS_module
      PetscReal, public :: widom_delta_offset !! Temperature offset (from critical temperature) of Widom delta
      PetscReal, public :: widom_delta_zero_temperature !! Temperature at which Widom delta has zero width
      PetscReal, public :: widom_delta_zero_pressure !! Pressure at which Widom delta has zero width
+     PetscReal :: widom_delta_delp = 0.02e6 ! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
+     PetscReal :: widom_delta_P1, widom_delta_T1, widom_delta_dtdp0, widom_delta_dtdp1 !! Parameters for interpolating centre of delta
 
    contains
      private
@@ -1766,6 +1769,12 @@ contains
          self%widom_delta_offset
     call self%thermo%saturation%pressure(self%widom_delta_zero_temperature, &
          self%widom_delta_zero_pressure, err)
+    ! Widom line interpolation parameters:
+    self%widom_delta_P1 = self%thermo%critical%pressure + self%widom_delta_delp
+    call self%widom(self%widom_delta_P1, self%widom_delta_T1, err)
+    self%widom_delta_dtdp0 = 3.729403602924551e-6_dp ! from symbolic differentiation of saturation line
+    self%widom_delta_dtdp1 = self%thermo%critical%temperature_k / &
+         (self%widom_delta_growth * self%widom_delta_P1)
 
   end subroutine region3_init
 
@@ -2226,8 +2235,7 @@ contains
     PetscReal, intent(out) :: delta(2)
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: Tw, Tw0, dT, tex, theta, s
-    PetscReal, parameter :: dtdp = 3.729403602924551e-6_dp ! derivative of saturation temperature wrt pressure at critical point
+    PetscReal :: Tw, Tw0, dT, xi
     PetscReal, parameter :: delP = 0.03e6 ! pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
 
     err = 0
@@ -2236,7 +2244,7 @@ contains
          (pressure - self%widom_delta_zero_pressure) / &
          self%thermo%critical%pressure
 
-    if (pressure >= self%thermo%critical%pressure + delP) then
+    if (pressure >= self%widom_delta_P1) then
 
        call self%widom(pressure, Tw, err)
 
@@ -2244,11 +2252,11 @@ contains
 
        call self%widom(pressure, Tw0, err)
        if (err == 0) then
-          tex = self%thermo%critical%temperature + dtdp * &
-               (pressure - self%thermo%critical%pressure)
-          theta = (pressure - self%thermo%critical%pressure) / delP
-          s = 1._dp - hermite_spline(theta)
-          Tw = (1 - s) * tex + s * Tw0
+          xi = (pressure - self%thermo%critical%pressure) / self%widom_delta_delP
+          Tw = hermite_spline_00(xi) * self%thermo%critical%temperature + &
+               hermite_spline_10(xi) * self%widom_delta_delP * self%widom_delta_dtdp0 + &
+               hermite_spline_01(xi) * self%widom_delta_T1 + &
+               hermite_spline_11(xi) * self%widom_delta_delP * self%widom_delta_dtdp1
        end if
 
     else
@@ -2276,6 +2284,8 @@ contains
     !! corresponding to whether the fluid is completely liquidlike
     !! (001), vapourlike (010) or in between (010).
 
+    use utils_module, only: hermite_spline_00, hermite_spline_01
+
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure, temperature, density
     PetscReal, intent(out) :: pi_liq
@@ -2296,7 +2306,7 @@ contains
 
              if (temperature >= self%thermo%critical%temperature) then
 
-                pi_liq = hermite_spline(xi)
+                pi_liq = sigmoid(xi)
 
              else
 
@@ -2305,7 +2315,7 @@ contains
                 ! boundary of region 4:
                 theta = (temperature - self%widom_delta_zero_temperature) / &
                      self%widom_delta_offset
-                s = 1._dp - hermite_spline(theta)
+                s = hermite_spline_01(theta)
                 xi0 = 0.5_dp * s
                 xi1 = 1._dp - xi0
                 if (xi < 0.5_dp) then
@@ -2313,7 +2323,7 @@ contains
                 else
                    xim = xi1 + (2._dp * xi - 1._dp) * (1._dp - xi1)
                 end if
-                pi_liq = hermite_spline(xim)
+                pi_liq = sigmoid(xim)
 
              end if
 
@@ -2346,6 +2356,25 @@ contains
           end if
        end if
     end if
+
+  contains
+
+    PetscReal function sigmoid(xi)
+      !! Sigmoid function on unit interval decreasing from 1 to 0,
+      !! with zero slopes at each end, and constant outside the unit
+      !! interval.
+
+      PetscReal, intent(in) :: xi
+
+    if (xi < 0._dp) then
+       sigmoid = 1._dp
+    else if (xi > 1._dp) then
+       sigmoid = 0._dp
+    else
+       sigmoid = hermite_spline_00(xi)
+    end if
+
+    end function sigmoid
 
   end subroutine region3_pi_liquidlike
 
