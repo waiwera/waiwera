@@ -748,7 +748,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine test_hermite_spline(test)
-    ! Test hermite_spline
+    ! Test hermite splines
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -758,11 +758,29 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call test%assert(1._dp, hermite_spline(0._dp), '0')
-       call test%assert(0._dp, hermite_spline(1._dp), '1')
-       call test%assert(0.5_dp, hermite_spline(0.5_dp), '0.5')
-       call test%assert(0.896_dp, hermite_spline(0.2_dp), '0.2')
-       call test%assert(0.216_dp, hermite_spline(0.7_dp), '0.7')
+       call test%assert(1._dp, hermite_spline_00(0._dp), '00 0')
+       call test%assert(0._dp, hermite_spline_00(1._dp), '00 1')
+       call test%assert(0.5_dp, hermite_spline_00(0.5_dp), '00 0.5')
+       call test%assert(0.896_dp, hermite_spline_00(0.2_dp), '00 0.2')
+       call test%assert(0.216_dp, hermite_spline_00(0.7_dp), '00 0.7')
+
+       call test%assert(1._dp, hermite_spline_01(1._dp), '01 0')
+       call test%assert(0._dp, hermite_spline_01(0._dp), '01 1')
+       call test%assert(0.5_dp, hermite_spline_01(0.5_dp), '01 0.5')
+       call test%assert(0.896_dp, hermite_spline_01(0.8_dp), '01 0.2')
+       call test%assert(0.216_dp, hermite_spline_01(0.3_dp), '01 0.7')
+
+       call test%assert(0._dp, hermite_spline_10(0._dp), '10 0')
+       call test%assert(0._dp, hermite_spline_10(1._dp), '10 1')
+       call test%assert(0.125_dp, hermite_spline_10(0.5_dp), '10 0.5')
+       call test%assert(0.128_dp, hermite_spline_10(0.2_dp), '10 0.2')
+       call test%assert(0.063_dp, hermite_spline_10(0.7_dp), '10 0.7')
+
+       call test%assert(0._dp, hermite_spline_11(0._dp), '11 0')
+       call test%assert(0._dp, hermite_spline_11(1._dp), '11 1')
+       call test%assert(-0.125_dp, hermite_spline_11(0.5_dp), '11 0.5')
+       call test%assert(-0.032_dp, hermite_spline_11(0.2_dp), '11 0.2')
+       call test%assert(-0.147_dp, hermite_spline_11(0.7_dp), '11 0.7')
 
     end if
 
