@@ -70,7 +70,8 @@ module utils_module
        array_indices_in_int_array, clock_elapsed_time, &
        array_is_permutation, array_is_permutation_of, &
        array_unique, array_progressive_limit, newton1d, sign_test, &
-       hermite_spline
+       hermite_spline_00, hermite_spline_01, hermite_spline_10, &
+       hermite_spline_11
 
 contains
 
@@ -847,21 +848,41 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function hermite_spline(xi)
-    !! Cubic Hermite spline over interval [0,1] with zero slopes at
-    !! each end, value 1 for xi <= 0 and value 0 for xi >= 1.
+  PetscReal function hermite_spline_00(xi)
+    !! Cubic Hermite spline basis function 00.
 
     PetscReal, intent(in) :: xi
 
-    if (xi < 0._dp) then
-       hermite_spline = 1._dp
-    else if (xi > 1._dp) then
-       hermite_spline = 0._dp
-    else
-       hermite_spline =  xi * xi * (2._dp * xi - 3._dp) + 1._dp
-    end if
+    hermite_spline_00 =  xi * xi * (2._dp * xi - 3._dp) + 1._dp
 
-  end function hermite_spline
+  end function hermite_spline_00
+
+  PetscReal function hermite_spline_01(xi)
+    !! Cubic Hermite spline basis function 01.
+
+    PetscReal, intent(in) :: xi
+
+    hermite_spline_01 = xi * xi * (-2._dp * xi + 3._dp)
+
+  end function hermite_spline_01
+
+  PetscReal function hermite_spline_10(xi)
+    !! Cubic Hermite spline basis function 10.
+
+    PetscReal, intent(in) :: xi
+
+    hermite_spline_10 = xi * (xi * xi - 2._dp * xi + 1._dp)
+
+  end function hermite_spline_10
+
+  PetscReal function hermite_spline_11(xi)
+    !! Cubic Hermite spline basis function 11.
+
+    PetscReal, intent(in) :: xi
+
+    hermite_spline_11 = xi * xi * (xi - 1._dp)
+
+  end function hermite_spline_11
 
 !------------------------------------------------------------------------
 
