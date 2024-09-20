@@ -39,7 +39,6 @@ module face_module
      PetscReal, pointer, public :: permeability_direction !! direction of permeability (1.. 3)
      type(cell_type), allocatable, public :: cell(:) !! cells on either side of face
      PetscInt, public :: dof !! Number of degrees of freedom
-     PetscReal, allocatable, public :: saturations(:,:), densities(:,:)
    contains
      private
      procedure, public :: init => face_init
@@ -112,9 +111,6 @@ contains
     end if
 
     self%dof = sum(face_variable_num_components)
-    if (present(num_phases)) then
-       allocate(self%saturations(2, num_phases), self%densities(2, num_phases))
-    end if
 
   end subroutine face_init
 
@@ -205,12 +201,6 @@ contains
     nullify(self%permeability_direction)
     if (allocated(self%cell)) then
        deallocate(self%cell)
-    end if
-    if (allocated(self%saturations)) then
-       deallocate(self%saturations)
-    end if
-    if (allocated(self%densities)) then
-       deallocate(self%densities)
     end if
 
   end subroutine face_destroy
@@ -347,9 +337,19 @@ contains
 
     class(face_type), intent(in) :: self
     PetscInt, intent(in) :: p !! Phase index
+    ! Locals:
+    PetscInt :: i
+    PetscReal :: weight
 
-    rho = sum(self%saturations(:, p) * self%densities(:, p)) /  &
-         sum(self%saturations(:, p))
+    rho = 0._dp
+    weight = 0._dp
+    do i = 1, 2
+       associate(phase => self%cell(i)%fluid%phase(p))
+         rho = rho + phase%saturation * phase%density
+         weight = weight + phase%saturation
+       end associate
+    end do
+    rho = rho / weight
 
   end function face_phase_density
 
@@ -452,7 +452,7 @@ contains
     class(eos_type), intent(in) :: eos
     PetscReal :: flux(eos%num_primary_variables + eos%num_mobile_phases)
     ! Locals:
-    PetscInt :: nc, np, p, up
+    PetscInt :: i, nc, np, p, up
     PetscReal :: dpdn, dtdn, G, face_density, F
     PetscReal :: phase_component_flux(eos%num_components)
     PetscReal :: k, h, cond
@@ -470,8 +470,10 @@ contains
        flux(np) = -cond * dtdn
     end if
 
-    call eos%phase_contributions([self%cell(1)%fluid, self%cell(2)%fluid], &
-         phases, self%saturations, self%densities)
+    call eos%convert_fluid(self%cell(1)%fluid, self%cell(2)%fluid)
+    do i = 1, 2
+       phases(i) = nint(self%cell(i)%fluid%phase_composition)
+    end do
     phase_present = ior(phases(1), phases(2))
 
     associate (phase_flux => flux(np + 1: np + eos%num_mobile_phases))
