@@ -54,6 +54,8 @@ module fluid_module
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
+     PetscInt, public :: dof !! Degrees of freedom
+     PetscReal, pointer, contiguous, public :: data(:) !! Fluid phase data
      PetscReal, pointer :: density    !! Phase density
      PetscReal, pointer :: viscosity  !! Viscosity
      PetscReal, pointer :: saturation !! Phase saturation
@@ -184,6 +186,8 @@ contains
 
     class(phase_type), intent(in out) :: self
 
+    self%data => null()
+
     self%density => null()
     self%viscosity => null()
     self%saturation => null()
@@ -198,18 +202,11 @@ contains
 !------------------------------------------------------------------------
 
   subroutine phase_zero(self)
-    !! Zeroes out a phase object. (Saturation is not zeroed, as this
-    !! is usually set elsewhere.)
+    !! Zeroes out a phase object.
 
     class(phase_type), intent(in out) :: self
 
-    self%density = 0._dp
-    self%internal_energy = 0._dp
-    self%specific_enthalpy = 0._dp
-    self%relative_permeability = 0._dp
-    self%capillary_pressure = 0._dp
-    self%viscosity = 0._dp
-    self%mass_fraction = 0._dp
+    self%data = 0._dp
 
   end subroutine phase_zero
 
