@@ -107,6 +107,7 @@ module fluid_module
      procedure, public :: specific_enthalpy => fluid_specific_enthalpy
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
+     procedure, public :: is_supercritical => fluid_is_supercritical
   end type fluid_type
 
   type, public, abstract :: fluid_modifier_type
@@ -497,6 +498,21 @@ contains
     self%phase_composition = dble(phases)
 
   end subroutine fluid_update_phase_composition
+
+!------------------------------------------------------------------------
+
+  PetscBool function fluid_is_supercritical(self)
+    !! Returns true if the fluid is supercritical, based on its phase
+    !! composition property.
+
+    class(fluid_type), intent(in) :: self
+    ! Locals:
+    PetscInt :: phases
+
+    phases = nint(self%phase_composition)
+    fluid_is_supercritical = btest(phases, 2)
+
+  end function fluid_is_supercritical
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
