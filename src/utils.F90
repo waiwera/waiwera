@@ -903,18 +903,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function hermite_interpolate(y0, y1, d0, d1, dx, xi)
+  PetscReal function hermite_interpolate(y0, y1, d0, d1, dx, xi) result(hi)
     !! Cubic Hermite spline interpolation between values y0, y1 and
     !! slopes d0, d1, on an interval of length dx, at normalised
     !! coordinate xi.
 
     PetscReal, intent(in) :: y0, y1, d0, d1, dx, xi
+    ! Locals:
+    PetscReal :: h(4)
 
-    hermite_interpolate = &
-         hermite_spline_00(xi) * y0 + &
-         hermite_spline_10(xi) * dx * d0 + &
-         hermite_spline_01(xi) * y1 + &
-         hermite_spline_11(xi) * dx * d1
+    h = hermite_splines(xi)
+    hi = h(1) * y0 + h(2) * y1 + dx * (h(3) * d0 + h(4) * d1)
 
   end function hermite_interpolate
 
