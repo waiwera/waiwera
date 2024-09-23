@@ -884,6 +884,23 @@ contains
 
   end function hermite_spline_11
 
+  function hermite_splines(xi) result(h)
+    !! Cubic Hermite spline basis functions 00, 01, 10 and 11.
+
+    PetscReal, intent(in) :: xi
+    PetscReal :: h(4)
+    ! Locals:
+    PetscReal, parameter :: coefs(4, 4) = reshape([&
+         1._dp, 0._dp, 0._dp, 0._dp, &
+         0._dp, 0._dp, 1._dp, 0._dp, &
+         -3._dp, 3._dp, -2._dp, -1._dp, &
+         2._dp, -2._dp, 1._dp, 1._dp], &
+         [4, 4])
+
+    h = polynomial(coefs, xi)
+
+  end function hermite_splines
+
 !------------------------------------------------------------------------
 
   PetscReal function hermite_interpolate(y0, y1, d0, d1, dx, xi)
