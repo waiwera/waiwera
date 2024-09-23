@@ -848,39 +848,39 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function hermite_spline_00(xi)
+  PetscReal function hermite_spline_00(xi) result(h)
     !! Cubic Hermite spline basis function 00.
 
     PetscReal, intent(in) :: xi
 
-    hermite_spline_00 =  xi * xi * (2._dp * xi - 3._dp) + 1._dp
+    h = polynomial([1.0_dp, 0._dp, -3._dp, 2._dp], xi)
 
   end function hermite_spline_00
 
-  PetscReal function hermite_spline_01(xi)
+  PetscReal function hermite_spline_01(xi) result(h)
     !! Cubic Hermite spline basis function 01.
 
     PetscReal, intent(in) :: xi
 
-    hermite_spline_01 = xi * xi * (-2._dp * xi + 3._dp)
+    h = xi * xi * polynomial([3._dp, -2._dp], xi)
 
   end function hermite_spline_01
 
-  PetscReal function hermite_spline_10(xi)
+  PetscReal function hermite_spline_10(xi) result(h)
     !! Cubic Hermite spline basis function 10.
 
     PetscReal, intent(in) :: xi
 
-    hermite_spline_10 = xi * (xi * xi - 2._dp * xi + 1._dp)
+    h = xi * polynomial([1._dp, -2._dp, 1._dp], xi)
 
   end function hermite_spline_10
 
-  PetscReal function hermite_spline_11(xi)
+  PetscReal function hermite_spline_11(xi) result(h)
     !! Cubic Hermite spline basis function 11.
 
     PetscReal, intent(in) :: xi
 
-    hermite_spline_11 = xi * xi * (xi - 1._dp)
+    h = xi * xi * polynomial([-1._dp, 1._dp], xi)
 
   end function hermite_spline_11
 
