@@ -990,6 +990,7 @@ module IAPWS_module
      procedure, public :: auxiliary_subregion_index => region3_auxiliary_subregion_index
      procedure, public :: saturation_subregion_index => region3_saturation_subregion_index
      procedure, public :: density => region3_density
+     procedure, public :: saturation_density => region3_saturation_density
      procedure, public :: subregion_boundary_poly => region3_subregion_boundary_poly
      procedure, public :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
      procedure, public :: subregion_boundary_3ef => region3_subregion_boundary_3ef
@@ -2240,6 +2241,73 @@ contains
     end function df
 
   end subroutine region3_density
+
+!------------------------------------------------------------------------
+
+  subroutine region3_saturation_density(self, param, liquid, &
+       density, err, polish)
+    !! Calculates liquid or vapour density on saturation line for a
+    !! given parameters (pressure, temperature).
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Saturation pressure and temperature
+    PetscBool, intent(in) :: liquid !! True if liquid density required, false for vapour
+    PetscReal, intent(out) :: density !! Liquid or vapour density
+    PetscErrorCode, intent(out) :: err !! Error code
+    PetscBool, intent(in) :: polish !! Whether to polish result with Newton iteration
+    ! Locals:
+    PetscInt :: sr
+    PetscReal :: nu
+    PetscInt, parameter :: maxit = 8
+    PetscReal, parameter :: ftol = 1.e-5_dp, xtol = 1.e-5_dp
+
+    err = 0
+    associate(pressure => param(1))
+      sr =  self%saturation_subregion_index(pressure, liquid)
+    end associate
+
+    if (sr > 0) then
+       nu = self%subregion(sr)%specific_volume(param)
+       density = 1._dp / nu
+       if (polish) then
+          call newton1d(f, df, density, ftol, xtol, maxit, err)
+       end if
+    else
+       err = 1
+    end if
+
+  contains
+
+!........................................................................
+
+    PetscReal function f(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: props(2)
+
+      associate(density => x, pcalc => props(1), &
+           p => param(1), t => param(2))
+        call self%properties([density, t], props, err)
+        f = pcalc - p
+      end associate
+
+    end function f
+
+!........................................................................
+
+    PetscReal function df(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+
+      err = 0
+      associate(density => x, t => param(2))
+        df = self%dpdd([density, t])
+      end associate
+
+    end function df
+
+  end subroutine region3_saturation_density
 
 !------------------------------------------------------------------------
 
