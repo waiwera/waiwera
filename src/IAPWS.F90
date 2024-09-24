@@ -988,6 +988,7 @@ module IAPWS_module
      procedure, public :: dpdd => region3_dpdd
      procedure, public :: subregion_index => region3_subregion_index
      procedure, public :: auxiliary_subregion_index => region3_auxiliary_subregion_index
+     procedure, public :: saturation_subregion_index => region3_saturation_subregion_index
      procedure, public :: density => region3_density
      procedure, public :: subregion_boundary_poly => region3_subregion_boundary_poly
      procedure, public :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
@@ -2127,6 +2128,53 @@ contains
     end associate
 
   end function region3_auxiliary_subregion_index
+
+!------------------------------------------------------------------------
+
+  PetscInt function region3_saturation_subregion_index(self, pressure, &
+       liquid) result(sr)
+    !! Returns region 3 liquid or vapour subregion index on saturation
+    !! line for given saturation pressure (or -1 if the subregion
+    !! could not be found).
+
+    class(IAPWS_region3_type), intent(in out) :: self
+    PetscReal, intent(in) :: pressure !! pressure
+    PetscBool, intent(in) :: liquid !! True for liquid, false for vapour
+    ! Locals:
+
+    sr = -1
+
+    if (liquid) then
+
+       if (pressure > self%thermo%critical%pressure) then
+          continue
+       else if (pressure > 2.193161551e7_dp) then
+          sr = 25 ! y
+       else if (pressure > self%psat_643) then
+          sr = 21 ! u
+       else if (pressure > self%p3cd) then
+          sr = 19 ! s
+       else if (pressure >= self%psat_623) then
+          sr = 3 ! c
+       end if
+
+    else
+
+       if (pressure > self%thermo%critical%pressure) then
+          continue
+       else if (pressure > 2.190096265e7_dp) then
+          sr = 26 ! z
+       else if (pressure > self%psat_643) then
+          sr = 24 ! x
+       else if (pressure > 20.5e6_dp) then
+          sr = 18 ! r
+       else if (pressure > self%psat_623) then
+          sr = 20 ! t
+       end if
+
+    end if
+
+  end function region3_saturation_subregion_index
 
 !------------------------------------------------------------------------
 
