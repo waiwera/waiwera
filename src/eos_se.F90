@@ -56,6 +56,7 @@ module eos_se_module
      procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
+     procedure :: region4_above_bdy_1_3_fluid_properties => eos_se_region4_above_bdy_1_3_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
@@ -1099,6 +1100,108 @@ contains
     end associate
 
   end subroutine eos_se_region3_fluid_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_region4_above_bdy_1_3_fluid_properties(self, primary, &
+       rock, fluid, err)
+    !! Calculate region 4 fluid properties from region and primary variables
+    !! for temperatures above the region 1/3 boundary.
+
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: p, phases
+    PetscReal :: density, sl, properties(2)
+    PetscReal :: relative_permeability(2), capillary_pressure(2)
+    PetscBool :: liquid
+
+    err = 0
+
+    associate(pressure => primary(1), vapour_saturation => primary(2))
+
+      select type (region3 => self%thermo%region(3)%ptr)
+      type is (IAPWS_region3_type)
+
+         fluid%pressure = pressure
+         call self%thermo%saturation%temperature(fluid%pressure, &
+              fluid%temperature, err)
+         if (err == 0) then
+
+            fluid%partial_pressure(1) = fluid%pressure
+            fluid%permeability_factor = 1._dp
+
+            call self%phase_composition(fluid, err)
+            if (err == 0) then
+               call self%phase_saturations(primary, fluid)
+
+               phases = nint(fluid%phase_composition)
+
+               sl = fluid%phase(1)%saturation
+               relative_permeability = rock%relative_permeability%values(sl)
+               capillary_pressure = [rock%capillary_pressure%value(sl, &
+                    fluid%temperature), 0._dp]
+
+               do p = 1, 2
+                  associate(phase => fluid%phase(p))
+
+                    if (btest(phases, p - 1)) then
+
+                       liquid = (p == 1)
+                       call region3%saturation_density([fluid%pressure, &
+                            fluid%temperature], liquid, density, err, &
+                            polish = PETSC_TRUE)
+
+                       if (err == 0) then
+
+                          call region3%properties([density, fluid%temperature], &
+                               properties, err)
+
+                          if (err == 0) then
+
+                             phase%density = density
+                             phase%internal_energy = properties(2)
+                             phase%specific_enthalpy = phase%internal_energy + &
+                                  fluid%pressure / phase%density
+
+                             phase%mass_fraction(1) = 1._dp
+                             phase%relative_permeability = relative_permeability(p)
+                             phase%capillary_pressure = capillary_pressure(p)
+
+                             call region3%viscosity(fluid%temperature, fluid%pressure, &
+                                  phase%density, phase%viscosity)
+
+                          else
+                             exit
+                          end if
+
+                       else
+                          exit
+                       end if
+
+                    else
+                       call phase%zero()
+                    end if
+
+                  end associate
+               end do
+
+               call fluid%phase(3)%zero()
+
+            end if
+         end if
+
+      end select
+
+    end associate
+
+  end subroutine eos_se_region4_above_bdy_1_3_fluid_properties
 
 !------------------------------------------------------------------------
 
