@@ -83,14 +83,7 @@ contains
     character(120) :: json_str = &
          '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
     PetscErrorCode :: err
-    PetscReal, parameter :: temperature = 500._dp
-    PetscReal, parameter :: density = 400._dp
-    PetscReal, parameter :: expected_pressure = 68.98524210481558e6_dp
-    PetscReal, parameter :: expected_internal_energy = 2302.4381901101337e3_dp
-    PetscReal, parameter :: expected_specific_enthalpy = 2474.9012953721726e3_dp
-    PetscReal, parameter :: expected_viscosity = 5.293000292993047e-5_dp
-    PetscReal, parameter :: expected_relative_permeability = 1._dp
-    PetscReal, parameter :: expected_capillary_pressure = 0._dp
+    PetscReal, parameter :: zero_phase(8) = 0._dp
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -112,40 +105,19 @@ contains
     call rock%assign_relative_permeability(rp)
     call rock%assign_capillary_pressure(cp)
 
-    primary = [density, temperature]
-    fluid%region = dble(region)
-    fluid%permeability_factor = 1._dp
-    call eos%fluid_properties(primary, rock, fluid, err)
-    call eos%primary_variables(fluid, primary2)
+    call properties_case([400._dp, 500._dp], 3, 0, &
+         68.98524210481558e6_dp, 500._dp, int(b'100'), &
+         zero_phase, zero_phase, &
+         [400._dp, 5.293000292993047e-5_dp, 1._dp, 1._dp, 0._dp, &
+         2474.9012953721726e3_dp, 2302.4381901101337e3_dp, 1._dp], 'case 1')
 
-    if (rank == 0) then
-
-       call test%assert(0, err, "Error code")
-       call test%assert(expected_pressure, fluid%pressure, "Pressure")
-       call test%assert(temperature, fluid%temperature, "Temperature")
-       call test%assert(phase_composition, nint(fluid%phase_composition), "Phase composition")
-
-       call test%assert(density, fluid%phase(3)%density, "density")
-       call test%assert(expected_internal_energy, &
-            fluid%phase(3)%internal_energy, "internal energy")
-       call test%assert(expected_specific_enthalpy, &
-            fluid%phase(3)%specific_enthalpy, "specific enthalpy")
-       call test%assert(expected_viscosity, fluid%phase(3)%viscosity, "viscosity")
-       call test%assert(1._dp, fluid%phase(3)%saturation, "saturation")
-       call test%assert(expected_relative_permeability, &
-            fluid%phase(3)%relative_permeability, "relative permeability")
-       call test%assert(expected_capillary_pressure, &
-            fluid%phase(3)%capillary_pressure, "capillary pressure")
-       call test%assert(1._dp, fluid%phase(3)%mass_fraction(1), &
-            "mass fraction")
-
-       call test%assert(0._dp, fluid%phase(1)%density, "liquid density")
-       call test%assert(0._dp, fluid%phase(2)%density, "vapour density")
-
-       call test%assert(density, primary2(1), "Primary 1")
-       call test%assert(temperature, primary2(2), "Primary 2")
-
-    end if
+    call properties_case([22.0238e6_dp, 1.e-6_dp], 4, 0, &
+         22.0238e6_dp, 373.79577673768074_dp, int(b'011'), &
+         [355.80571268328060_dp, 4.247613738907617e-05_dp, 1._dp - 1.e-6_dp, 1._dp, 0._dp, &
+         2033.7076693254362e3_dp, 1971.80928148363e3_dp, 1._dp], &
+         [287.48968435146560_dp, 3.6291847165268826e-05_dp, 1.e-6_dp, 0._dp, 0._dp, &
+         2149.0093965774586e3_dp, 2072.402126129886e3_dp, 1._dp], &
+         zero_phase, 'case 2')
 
     call fluid%destroy()
     call rock%destroy()
@@ -155,6 +127,50 @@ contains
     call fson_destroy_mpi(json)
     deallocate(rp)
     deallocate(cp)
+
+  contains
+
+    subroutine properties_case(primary, region, expected_err, expected_pressure, &
+         expected_temperature, expected_composition, expected_phase1, &
+         expected_phase2, expected_phase3, name)
+
+      PetscReal, intent(in) :: primary(eos%num_primary_variables)
+      PetscInt, intent(in) :: region
+      PetscErrorCode, intent(in) :: expected_err
+      PetscReal, intent(in) :: expected_pressure, expected_temperature
+      PetscInt, intent(in) :: expected_composition
+      PetscReal, dimension(8), intent(in) :: expected_phase1, &
+           expected_phase2, expected_phase3
+      character(*), intent(in) :: name
+
+      fluid%region = dble(region)
+      fluid%permeability_factor = 1._dp
+      call eos%fluid_properties(primary, rock, fluid, err)
+      call eos%primary_variables(fluid, primary2)
+
+      write(*,*) 'densities:', fluid%phase(1)%density, fluid%phase(2)%density
+
+      if (rank == 0) then
+         call test%assert(expected_err, err, trim(name) // " error code")
+         if (err == 0) then
+
+            call test%assert(expected_pressure, fluid%pressure, &
+                 trim(name) // " pressure")
+            call test%assert(expected_temperature, fluid%temperature, &
+                 trim(name) // " temperature")
+            call test%assert(expected_composition, &
+                 nint(fluid%phase_composition), trim(name) // " phase composition")
+
+            call test%assert(expected_phase1, fluid%phase(1)%data, trim(name) // " phase 1")
+            call test%assert(expected_phase2, fluid%phase(2)%data, trim(name) // " phase 2")
+            call test%assert(expected_phase3, fluid%phase(3)%data, trim(name) // " phase 3")
+
+            call test%assert(primary, primary2, trim(name) // " primary")
+
+         end if
+      end if
+
+    end subroutine properties_case
 
   end subroutine test_eos_se_fluid_properties
 
