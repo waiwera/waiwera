@@ -20,6 +20,7 @@ module IAPWS_test
        test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
        test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
+       test_IAPWS_region3_saturation_density, &
        test_region3_widom, test_region3_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
        test_IAPWS_boundary34
@@ -611,6 +612,78 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_region3_density
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_saturation_density(test)
+    ! Region 3 saturation density tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 7
+    PetscReal, parameter :: pressure(n) = &
+         [16.52916425260448e6_dp, 19.00881189173929e6_dp, &
+         20.5e6_dp, 21.e6_dp, 21.9e6_dp, 21.99e6_dp, 22.064e6_dp]
+    PetscInt, parameter :: liquid_index(n) = &
+         [3, 3, 19, 19, 21, 25, 25]
+    PetscInt, parameter :: vapour_index(n) = &
+         [20, 20, 20, 18, 24, 26, 26]
+    PetscInt :: i, ierr, sr
+    character(2) :: istr
+    PetscMPIInt :: rank
+    PetscReal :: Ts, density, props(2)
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       do i = 1, n
+          write(istr, '(i2)') i
+          call IAPWS%saturation%temperature(pressure(i), Ts, err)
+          call density_case(i, PETSC_TRUE)
+          call density_case(i, PETSC_FALSE)
+       end do
+
+    end if
+
+  contains
+
+    subroutine density_case(i, liquid)
+
+      PetscInt, intent(in) :: i
+      PetscBool, intent(in) :: liquid
+      ! Locals:
+      character(6) :: phase_str
+      PetscInt :: expected_sr
+
+      if (liquid) then
+         phase_str = 'liquid'
+         expected_sr = liquid_index(i)
+      else
+         phase_str = 'vapour'
+         expected_sr = vapour_index(i)
+      end if
+
+      select type (region3 => IAPWS%region(3)%ptr)
+      type is (IAPWS_region3_type)
+
+         sr = region3%saturation_subregion_index(pressure(i), liquid)
+         call test%assert(expected_sr, sr, ' ' // phase_str // ' sr ' // istr)
+         call region3%saturation_density([pressure(i), Ts], &
+              liquid, density, err, polish = PETSC_TRUE)
+         call test%assert(0, err, ' ' // phase_str // ' err ' // istr)
+         if (err == 0) then
+            call region3%properties([density, Ts], props, err)
+            associate(P2 => props(1))
+              call test%assert(pressure(i), P2, ' ' // phase_str // &
+                   ' pressure ' // istr)
+            end associate
+         end if
+      end select
+
+    end subroutine density_case
+
+  end subroutine test_IAPWS_region3_saturation_density
 
 !------------------------------------------------------------------------
 
