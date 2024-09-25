@@ -1005,12 +1005,26 @@ contains
     err = 0
     region = nint(fluid%region)
 
-    if (region == 3) then
-       call self%region3_fluid_properties(primary, rock, fluid, err)
-    else
+    select case(region)
+    case (1, 2)
        call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
        call fluid%phase(3)%zero()
-    end if
+    case (3)
+       call self%region3_fluid_properties(primary, rock, fluid, err)
+    case (4)
+       associate(pressure => primary(1))
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+            if (pressure <= thermo%saturation_pressure_bdy_1_3) then ! T <= 350:
+               call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
+               call fluid%phase(3)%zero()
+            else
+               call self%region4_above_bdy_1_3_fluid_properties(primary, &
+                    rock, fluid, err)
+            end if
+         end select
+       end associate
+    end select
 
   end subroutine eos_se_fluid_properties
 
