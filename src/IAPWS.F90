@@ -2169,7 +2169,7 @@ contains
           sr = 24 ! x
        else if (pressure > 20.5e6_dp) then
           sr = 18 ! r
-       else if (pressure > self%psat_623) then
+       else if (pressure >= self%psat_623) then
           sr = 20 ! t
        end if
 
