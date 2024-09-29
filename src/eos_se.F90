@@ -1164,6 +1164,9 @@ contains
                capillary_pressure = [rock%capillary_pressure%value(sl, &
                     fluid%temperature), 0._dp]
 
+               fluid%liquidlike_fraction = sl
+               fluid%supercritical_phases = 0._dp
+
                do p = 1, 2
                   associate(phase => fluid%phase(p))
 
