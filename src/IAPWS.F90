@@ -2410,6 +2410,7 @@ contains
     PetscReal :: delta(2), xi, theta, s, xi0, xi1, xim
 
     err = 0
+    pseudo_phases = 0
 
     if (pressure >= self%widom_delta_zero_pressure) then
        if (temperature >= self%widom_delta_zero_temperature) then
@@ -2454,20 +2455,16 @@ contains
 
        else
           pi_liq = 1._dp
-          pseudo_phases = int(b'001')
        end if
 
     else
        if (temperature >= self%widom_delta_zero_temperature) then
           pi_liq = 0._dp
-          pseudo_phases = int(b'010')
        else
           if (density >= self%thermo%critical%density) then
              pi_liq = 1._dp
-             pseudo_phases = int(b'001')
           else
              pi_liq = 0._dp
-             pseudo_phases = int(b'010')
           end if
        end if
     end if
