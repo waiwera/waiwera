@@ -119,6 +119,12 @@ contains
          2149.0093965774586e3_dp, 2072.402126129886e3_dp, 1._dp], &
          zero_phase, 'case 2')
 
+    call properties_case([470._dp, 370._dp], 3, 0, &
+         21.348358089334372e6_dp, 370._dp, int(b'001'), &
+         [470._dp, 5.409468698928427e-5_dp, 1._dp, 1._dp, 0._dp, &
+         1869.1405399146092e3_dp, 1823.7185014266638e3_dp, 1._dp], &
+         zero_phase, zero_phase, 'case 3')
+
     call fluid%destroy()
     call rock%destroy()
     deallocate(primary, primary2, fluid_data)
@@ -147,8 +153,6 @@ contains
       fluid%permeability_factor = 1._dp
       call eos%fluid_properties(primary, rock, fluid, err)
       call eos%primary_variables(fluid, primary2)
-
-      write(*,*) 'densities:', fluid%phase(1)%density, fluid%phase(2)%density
 
       if (rank == 0) then
          call test%assert(expected_err, err, trim(name) // " error code")
