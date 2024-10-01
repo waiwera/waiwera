@@ -558,19 +558,20 @@ contains
     PetscInt, intent(in) :: a(:), b(:)
     ! Locals:
     PetscInt :: asort(size(a)), bsort(size(b))
+    PetscCount :: na, nb
     PetscErrorCode :: ierr
 
-    associate (na => size(a), nb => size(b))
-      if (na == nb) then
-         asort = a
-         bsort = b
-         call PetscSortInt(na, asort, ierr); CHKERRQ(ierr)
-         call PetscSortInt(nb, bsort, ierr); CHKERRQ(ierr)
-         array_is_permutation_of = all(asort == bsort)
-      else
-         array_is_permutation_of = PETSC_FALSE
-      end if
-    end associate
+    na = size(a)
+    nb = size(b)
+    if (na == nb) then
+       asort = a
+       bsort = b
+       call PetscSortInt(na, asort, ierr); CHKERRQ(ierr)
+       call PetscSortInt(nb, bsort, ierr); CHKERRQ(ierr)
+       array_is_permutation_of = all(asort == bsort)
+    else
+       array_is_permutation_of = PETSC_FALSE
+    end if
 
   end function array_is_permutation_of
 
