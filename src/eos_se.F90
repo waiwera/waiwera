@@ -395,13 +395,13 @@ contains
                     transition)
             else
                associate (pressure => primary(1))
-                 pressure = pressure_factor * interpolated_pressure
+                 pressure = interpolated_pressure
 
-                 call thermo%saturation%temperature(interpolated_pressure, &
-                      temperature, err)
+                 call thermo%saturation%temperature(pressure, temperature, err)
                  if (err == 0) then
 
                     if (pressure <= thermo%saturation_pressure_bdy_1_3) then
+                       pressure = pressure_factor * pressure
                        fluid%region = dble(new_region)
                        transition = PETSC_TRUE
                     else
@@ -443,66 +443,53 @@ contains
 
 !........................................................................
 
-    subroutine region4_to_subcritical_region3_transitions()
-      !! Transitions from region 4 to subcritical region 3.
-
-      ! Locals:
-      PetscReal :: bdy_density, bdy_temperature
-
-      select type (thermo => self%thermo)
-      type is (IAPWS_type)
-
-         fluid%region = dble(3)
-         select type (region3 => thermo%region(3)%ptr)
-         type is (IAPWS_region3_type)
-            call region3%density(primary, bdy_density, err, &
-                 polish = PETSC_FALSE)
-         end select
-
-         if (err == 0) then
-            call thermo%boundary34%temperature(bdy_density, &
-                 bdy_temperature, err)
-
-            if (err == 0) then
-               associate (density => primary(1), temperature => primary(2))
-                 ! Adjust temperature if needed for approximate region 3/4 boundary:
-                 if (temperature < bdy_temperature) then
-                    temperature = (1._dp + small) * bdy_temperature
-                 end if
-                 density = bdy_density
-                 transition = PETSC_TRUE
-               end associate
-            end if
-         end if
-
-      end select
-
-    end subroutine region4_to_subcritical_region3_transitions
-
-!........................................................................
-
     subroutine region4_above_bdy_1_3_transitions()
       !! Transitions from region 4 to subcritical regions 1, 2 or 3.
 
       ! Locals:
-      PetscReal :: bdy_pressure
+      PetscBool :: liquid
+      PetscReal :: factor, bdy_34_density, bdy_23_pressure, props(2)
+      PetscReal, parameter :: small = 1.e-6_dp
 
       select type (thermo => self%thermo)
       type is (IAPWS_type)
 
-         if (new_region == 2) then
-            associate (pressure => primary(1), temperature => primary(2))
-              call thermo%boundary23%pressure(temperature, bdy_pressure)
-              if (pressure < bdy_pressure) then
-                 ! Skip over region 3 to region 2:
-                 fluid%region = dble(new_region)
-                 transition = PETSC_TRUE
-              else
-                 call region4_to_subcritical_region3_transitions()
-              end if
-            end associate
+         liquid = (new_region == 1)
+         if (liquid) then
+            factor = 1._dp + small
          else
-            call region4_to_subcritical_region3_transitions()
+            factor = 1._dp - small
+         end if
+
+         select type (region3 => thermo%region(3)%ptr)
+         type is (IAPWS_region3_type)
+            call region3%saturation_density(primary, liquid, bdy_34_density, &
+                 err, polish = PETSC_TRUE)
+         end select
+
+         if (err == 0) then
+            associate (density => primary(1), temperature => primary(2))
+
+              density = factor * bdy_34_density
+              fluid%region = dble(3)
+              transition = PETSC_TRUE
+
+              if (new_region == 2) then
+                 call thermo%boundary23%pressure(temperature, bdy_23_pressure)
+                 call thermo%region(2)%ptr%properties([bdy_23_pressure, &
+                      temperature], props, err)
+                 if (err == 0) then
+                    associate(pressure => primary(1), bdy_23_density => &
+                         props(1))
+                      if (density < bdy_23_density) then
+                         fluid%region = dble(2)
+                         pressure = factor * bdy_23_pressure
+                      end if
+                    end associate
+                 end if
+              end if
+
+            end associate
          end if
 
       end select
