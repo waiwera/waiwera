@@ -2630,20 +2630,25 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine boundary34_temperature(self, density, t, err)
-    !! Calculates an approximate temperature t (deg C) on the boundary
-    !! between regions 3 and 4, given a density (kg/m3). The
-    !! temperature is calculated from a pair of degree 6 polynomials,
-    !! one below and one above the critical point, both with zero
-    !! slope at the critical point itself. Returns a non-zero error
-    !! code if called outside its operating density range.
+  subroutine boundary34_temperature(self, density, temperature, err, polish)
+    !! Calculates the temperature (deg C) on the boundary between
+    !! regions 3 and 4, given a density (kg/m3). The temperature is
+    !! first estimated from a pair of degree 6 polynomials, one below
+    !! and one above the critical point, both with zero slope at the
+    !! critical point itself. This is then (optionally) polished using
+    !! Newton's method. Returns a non-zero error code if called
+    !! outside its operating density range.
 
     class(IAPWS_boundary34_type), intent(in) :: self
     PetscReal, intent(in) :: density !! Fluid pressure (\(kg. m^{3}\))
-    PetscReal, intent(out):: t  !! Fluid temperature (\(^\circ C\))
+    PetscReal, intent(out):: temperature  !! Fluid temperature (\(^\circ C\))
     PetscErrorCode, intent(out) :: err !! Error code
+    PetscBool, intent(in) :: polish !! Whether to polish result with Newton iteration
     ! Locals:
     PetscReal :: r, tau
+    PetscInt, parameter :: maxit = 20
+    PetscReal, parameter :: ftol = 1.e-5_dp, xtol = 1.e-5_dp
+    PetscReal, parameter :: x_increment = 1.e-8_dp
 
     err = 0
 
@@ -2658,11 +2663,39 @@ contains
           tau = r * r * polynomial(self%nv, r)
        end if
 
-       t = self%thermo%critical%temperature * (1._dp - tau)
+       temperature = self%thermo%critical%temperature * (1._dp - tau)
+
+       if (polish) then
+          call newton1d(delP, temperature, ftol, xtol, maxit, x_increment, err)
+       end if
 
     else
        err = 1
     end if
+
+  contains
+
+!........................................................................
+
+    PetscReal function delP(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: Ps, props(2)
+
+      err = 0
+      associate(T => x, P => props(1))
+        call self%thermo%saturation%pressure(T, Ps, err)
+        if (err == 0) then
+           call self%thermo%region(3)%ptr%properties([density, T], &
+                props, err)
+           if (err == 0) then
+              delP = P - Ps
+           end if
+        end if
+      end associate
+
+    end function delP
 
   end subroutine boundary34_temperature
 

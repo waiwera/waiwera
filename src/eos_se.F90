@@ -775,7 +775,7 @@ contains
 
          if (err > 0) then
             call thermo%boundary34%temperature(fallback_density, &
-                 temperature_bdy_3_4, err)
+                 temperature_bdy_3_4, err, polish = PETSC_TRUE)
             if (err == 0) then
                primary = [fallback_density, temperature_bdy_3_4]
             end if
@@ -866,7 +866,7 @@ contains
                 (density <= thermo%min_liquid_density_bdy_1_3)) then
 
               call thermo%boundary34%temperature(density, &
-                   temperature_bdy_3_4, err)
+                   temperature_bdy_3_4, err, polish = PETSC_TRUE)
               if (err == 0) then
 
                  if (temperature < temperature_bdy_3_4) then
@@ -1461,7 +1461,8 @@ contains
        associate(rho => var(1), T => var(2))
          select type (thermo => context%thermo)
          type is (IAPWS_type)
-            call thermo%boundary34%temperature(rho, T_bdy, err)
+            call thermo%boundary34%temperature(rho, T_bdy, err, &
+                 polish = PETSC_TRUE)
             if (err == 0) then
                f = T - T_bdy
             end if

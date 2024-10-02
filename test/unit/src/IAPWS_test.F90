@@ -940,10 +940,10 @@ module IAPWS_test
     PetscInt, parameter :: n = 7
     PetscReal, parameter :: density(n) = [322._dp, 115._dp, 560._dp, &
          140._dp, 450._dp, 100._dp, 600._dp]
-    PetscReal, parameter :: temperature(n) = [373.946_dp, 350.55991982114716_dp, &
-         353.4848732007369_dp, 358.92922762622356_dp, 370.00387362031256_dp, &
+    PetscReal, parameter :: temperature(n) = [373.946_dp, 350.55988062663727_dp, &
+         353.48691270801362_dp, 358.92594780963265_dp, 370.00215946279161_dp, &
          0._dp, 0._dp]
-    PetscErrorCode, parameter :: error(n) = [0, 0, 0, 0, 0, 1, 1]
+    PetscErrorCode, parameter :: error(n) = [1, 0, 0, 0, 0, 1, 1]
     PetscInt :: ierr, i
     PetscMPIInt :: rank
     PetscErrorCode :: err
@@ -954,7 +954,7 @@ module IAPWS_test
     if (rank == 0) then
        do i = 1, n
           write(istr, '(i2)') i
-          call IAPWS%boundary34%temperature(density(i), t, err)
+          call IAPWS%boundary34%temperature(density(i), t, err, polish = PETSC_TRUE)
           call test%assert(error(i), err, "Error" // trim(istr))
           if (err == 0) then
              call test%assert(temperature(i), t, "Temperature" // trim(istr))
