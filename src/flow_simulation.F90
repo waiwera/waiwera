@@ -373,6 +373,7 @@ contains
     end if
 
     if (self%output_filename /= "") then
+       call PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-is_view_compress', '0', ierr)
        call PetscViewerHDF5Open(PETSC_COMM_WORLD, self%output_filename, &
             FILE_MODE_WRITE, self%hdf5_viewer, ierr); CHKERRQ(ierr)
        call PetscViewerHDF5PushGroup(self%hdf5_viewer, "/", ierr); CHKERRQ(ierr)
