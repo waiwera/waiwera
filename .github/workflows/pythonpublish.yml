@@ -22,7 +22,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools wheel build
     - name: Build
+      working-directory: utils/pywaiwera
       run: |
         python -m build
     - name: Publish
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: utils/pywaiwera/dist/

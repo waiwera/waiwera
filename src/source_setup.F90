@@ -694,6 +694,7 @@ contains
       ! Locals:
       type(fson_value), pointer :: cell_json, cells_json, zones_json
       PetscInt :: c
+      PetscCount :: num_cells
       PetscMPIInt :: rank
       PetscErrorCode :: ierr
 
@@ -725,7 +726,8 @@ contains
             call fson_get(source_json, "zones", zones_json)
             if (associated(zones_json)) then
                ordered_cells = cells
-               call PetscSortInt(size(cells), ordered_cells, ierr); CHKERRQ(ierr)
+               num_cells = size(cells)
+               call PetscSortInt(num_cells, ordered_cells, ierr); CHKERRQ(ierr)
             end if
 
          end if

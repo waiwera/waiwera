@@ -1,7 +1,7 @@
 # Waiwera Meson build script
 
 project('waiwera', ['c', 'fortran'],
-        version: '1.5.0b3',
+        version: '1.5.0',
         license: 'GPL3',
         meson_version: '>=0.46.0')
 
@@ -9,7 +9,7 @@ if not get_option('mpi_wrapper_compiler')
   mpi = dependency('mpi', language: 'fortran')
 endif
 
-PETSc = dependency('PETSc', version: '>=3.21.3')
+PETSc = dependency('PETSc', version: '>=3.22.0')
 fson  = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
 zofu  = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
 
