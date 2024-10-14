@@ -1,7 +1,7 @@
 Waiwera
 =======
 
-[![Unit and benchmark tests](https://github.com/waiwera/waiwera/actions/workflows/test.yml/badge.svg?branch=testing)](https://github.com/waiwera/waiwera/actions/workflows/test.yml) ![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/waiwera/waiwera) ![Docker Pulls](https://img.shields.io/docker/pulls/waiwera/waiwera?color=green) [![Documentation Status](https://readthedocs.org/projects/waiwera/badge/?version=latest)](https://waiwera.readthedocs.io/en/latest/?badge=latest)
+[![Unit and benchmark tests](https://github.com/waiwera/waiwera/actions/workflows/test.yml/badge.svg?branch=testing)](https://github.com/waiwera/waiwera/actions/workflows/test.yml) ![Docker Pulls](https://img.shields.io/docker/pulls/waiwera/waiwera?color=green) [![Documentation Status](https://readthedocs.org/projects/waiwera/badge/?version=latest)](https://waiwera.readthedocs.io/en/latest/?badge=latest)
 
 Waiwera is a parallel, open-source geothermal flow simulator.
 
