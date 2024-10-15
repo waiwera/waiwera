@@ -442,7 +442,7 @@ contains
     capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
          0._dp]
 
-    do p = 1, self%num_phases
+    do p = 1, 2
        associate(phase => fluid%phase(p), &
             region => self%thermo%region(p)%ptr)
 
