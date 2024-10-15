@@ -125,6 +125,13 @@ contains
          1869.1405399146092e3_dp, 1823.7185014266638e3_dp, 1._dp], &
          zero_phase, zero_phase, 'case 3')
 
+    call properties_case([36.85e6_dp, 470._dp], 2, 0, &
+         36.85e6_dp, 470._dp, int(b'100'), &
+         zero_phase, zero_phase, &
+         [187.41219462500467_dp, 3.448876799376717e-05_dp, 1._dp, 1._dp, 0._dp, &
+         2779.57079988821e3_dp, 2582.945387791982e3_dp, 1._dp], &
+         'case 4')
+
     call fluid%destroy()
     call rock%destroy()
     deallocate(primary, primary2, fluid_data)

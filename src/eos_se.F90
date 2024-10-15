@@ -55,6 +55,8 @@ module eos_se_module
      procedure, public :: transition_region4_to_supercritical => eos_se_transition_region4_to_supercritical
      procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
+     procedure :: region2_supercritical_fluid_properties => eos_se_region2_supercritical_fluid_properties
+     procedure :: region2_fluid_properties => eos_se_region2_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
      procedure :: region4_above_bdy_1_3_fluid_properties => eos_se_region4_above_bdy_1_3_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
@@ -995,9 +997,11 @@ contains
     region = nint(fluid%region)
 
     select case(region)
-    case (1, 2)
+    case (1)
        call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
        call fluid%phase(3)%zero()
+    case (2)
+       call self%region2_fluid_properties(primary, rock, fluid, err)
     case (3)
        call self%region3_fluid_properties(primary, rock, fluid, err)
     case (4)
@@ -1017,7 +1021,90 @@ contains
 
   end subroutine eos_se_fluid_properties
 
-  !------------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+  subroutine eos_se_region2_supercritical_fluid_properties(self, primary, &
+       rock, fluid, err)
+    !! Calculate region 2 supercritical fluid properties from region
+    !! and primary variables for pure supercritical water and energy
+    !! EOS.
+
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: p
+    PetscReal :: properties(2)
+
+    err = 0
+
+    do p = 1, 2
+       call fluid%phase(p)%zero()
+    end do
+
+    fluid%permeability_factor = 1._dp
+    call self%phase_saturations(primary, fluid)
+    fluid%partial_pressure(1) = fluid%pressure
+    fluid%liquidlike_fraction = 0._dp
+    fluid%supercritical_phases = 2._dp
+
+    associate (region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
+      call region%properties(primary, properties, err)
+      if (err == 0) then
+
+         phase%density = properties(1)
+         phase%internal_energy = properties(2)
+         phase%specific_enthalpy = phase%internal_energy + &
+              fluid%pressure / phase%density
+
+         phase%mass_fraction(1) = 1._dp
+         phase%relative_permeability = 1._dp
+         phase%capillary_pressure = 0._dp
+
+         call region%viscosity(fluid%temperature, fluid%pressure, &
+              phase%density, phase%viscosity)
+      end if
+    end associate
+
+  end subroutine eos_se_region2_supercritical_fluid_properties
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_region2_fluid_properties(self, primary, rock, fluid, err)
+    !! Calculate region 2 fluid properties from region and primary
+    !! variables for pure supercritical water and energy EOS.
+
+    use fluid_module, only: fluid_type
+    use rock_module, only: rock_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    type(rock_type), intent(in out) :: rock !! Rock object
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    fluid%pressure = primary(1)
+    fluid%temperature = primary(2)
+    call self%phase_composition(fluid, err)
+
+    if (err == 0) then
+       if (fluid%is_supercritical()) then
+          call self%region2_supercritical_fluid_properties(primary, rock, fluid, err)
+       else
+          call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
+          call fluid%phase(3)%zero()
+       end if
+    end if
+
+  end subroutine eos_se_region2_fluid_properties
+
+!------------------------------------------------------------------------
 
   subroutine eos_se_region3_fluid_properties(self, primary, rock, fluid, err)
     !! Calculate region 3 fluid properties from region and primary variables
@@ -1227,7 +1314,13 @@ contains
     case (1)
        s = [1._dp, 0._dp, 0._dp]
     case (2)
-       s = [0._dp, 1._dp, 0._dp]
+       s = 0._dp
+       if (fluid%is_supercritical()) then
+          p = 3
+       else
+          p = 2
+       end if
+       s(p) = 1._dp
     case (3)
        s = 0._dp
        phases = nint(fluid%phase_composition)

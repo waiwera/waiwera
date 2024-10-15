@@ -460,7 +460,7 @@ contains
 
                phase%mass_fraction(1) = 1._dp
                phase%relative_permeability = relative_permeability(p)
-               phase%capillary_pressure =  capillary_pressure(p)
+               phase%capillary_pressure = capillary_pressure(p)
 
                call region%viscosity(fluid%temperature, fluid%pressure, &
                     phase%density, phase%viscosity)
