@@ -858,7 +858,9 @@ contains
       !! the region 1/3 boundary.
 
       ! Locals:
-      PetscReal :: temperature_bdy_3_4
+      PetscReal :: pressure, liquid_density, vapour_density
+      PetscReal :: density_difference, Sv
+      PetscReal, parameter :: small = 1.e-6_dp
 
       associate (density => primary(1), temperature => primary(2))
         select type (thermo => self%thermo)
@@ -867,20 +869,38 @@ contains
            if ((temperature <= thermo%critical%temperature) .and. &
                 (density <= thermo%min_liquid_density_bdy_1_3)) then
 
-              call thermo%boundary34%temperature(density, &
-                   temperature_bdy_3_4, err, polish = PETSC_TRUE)
+              call thermo%saturation%pressure(temperature, pressure, err)
               if (err == 0) then
 
-                 if (temperature < temperature_bdy_3_4) then
+                 select type (region3 => thermo%region(3)%ptr)
+                 type is (IAPWS_region3_type)
 
-                    call interpolate_region3_two_phase_intersection(old_primary, &
-                         primary, density, err)
+                    call region3%saturation_density([pressure, &
+                         temperature], PETSC_TRUE, liquid_density, &
+                         err, polish = PETSC_TRUE)
                     if (err == 0) then
-                       call self%transition_region3_to_two_phase(primary, &
-                            fluid, transition, err)
-                    end if
+                       call region3%saturation_density([pressure, &
+                            temperature], PETSC_FALSE, vapour_density, &
+                            err, polish = PETSC_TRUE)
+                       if (err == 0) then
 
-                 end if
+                          if ((vapour_density < density) .and. &
+                               (density < liquid_density)) then
+                             density_difference = liquid_density - vapour_density
+                             if (density_difference > small) then
+                                Sv = (liquid_density - density) / density_difference
+                             else
+                                Sv = 0.5_dp
+                             end if
+                             fluid%region = dble(4)
+                             primary(1) = pressure
+                             primary(2) = Sv
+                             transition = PETSC_TRUE
+                          end if
+
+                       end if
+                    end if
+                 end select
 
               end if
 
