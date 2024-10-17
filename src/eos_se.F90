@@ -42,7 +42,6 @@ module eos_se_module
      PetscInt :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
      type(root_finder_type), public :: widom_delta_finder
      class(primary_variable_interpolator_type), pointer, public :: widom_delta_interpolator
-     type(root_finder_type), public :: two_phase_finder
    contains
      private
      procedure, public :: init => eos_se_init
@@ -140,9 +139,6 @@ contains
     allocate(widom_delta_interpolator_type :: self%widom_delta_interpolator)
     call init_line_finder(self%widom_delta_finder, &
          self%widom_delta_interpolator, fw, init_interpolator = PETSC_TRUE)
-    ft => eos_se_two_phase_difference
-    call init_line_finder(self%two_phase_finder, &
-         self%primary_variable_interpolator, ft, init_interpolator = PETSC_FALSE)
 
   contains
 
@@ -733,120 +729,50 @@ contains
 
 !........................................................................
 
-    subroutine interpolate_region3_two_phase_intersection(old_primary, primary, &
-         fallback_density, err)
-      !! Interpolates crossing point between old_primary in region 3
-      !! and primary in region 4, on region 3/4 boundary. The result
-      !! overwrites the primary variable.
-
-      PetscReal, intent(in) :: old_primary(:)
-      PetscReal, intent(in out) :: primary(:)
-      PetscReal, intent(in) :: fallback_density !! Density to use if interpolation fails
-      PetscErrorCode, intent(out) :: err
-      ! Locals:
-      PetscReal :: xi, temperature_bdy_3_4
-
-      err = 0
-
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-
-      select type (thermo => self%thermo)
-      type is (IAPWS_type)
-
-         associate(start_primary => self%primary_variable_interpolator%val(:, 1), &
-              start_density => self%primary_variable_interpolator%val(1, 1))
-           if (start_density > thermo%min_liquid_density_bdy_1_3) then
-              call self%primary_variable_interpolator%find_component_at_index(&
-                   thermo%min_liquid_density_bdy_1_3, 1, xi, err)
-              if (err == 0) then
-                 start_primary = self%primary_variable_interpolator%interpolate(xi)
-              end if
-           end if
-         end associate
-
-         if (err == 0) then
-            call self%two_phase_finder%find()
-            if (self%two_phase_finder%err == 0) then
-               xi = self%two_phase_finder%root
-               primary = self%primary_variable_interpolator%interpolate(xi)
-            else
-               err = 1
-            end if
-         end if
-
-         if (err > 0) then
-            call thermo%boundary34%temperature(fallback_density, &
-                 temperature_bdy_3_4, err, polish = PETSC_TRUE)
-            if (err == 0) then
-               primary = [fallback_density, temperature_bdy_3_4]
-            end if
-         end if
-
-      end select
-
-    end subroutine interpolate_region3_two_phase_intersection
-
-!........................................................................
-
     subroutine region3_to_below_bdy_1_3_transitions()
       !! Transitions from region 3 to temperatures below the region
       !! 1/3 boundary, in region 1, 2 or 4.
 
       ! Locals:
-      PetscReal :: xi, bdy_primary(self%num_primary_variables)
-      PetscReal, parameter :: eps = 1.e-6_dp
+      PetscReal :: liquid_props(2), vapour_props(2)
+      PetscReal :: pressure, Sv
 
-      associate (density => primary(1), temperature => primary(2))
-        select type (thermo => self%thermo)
-        type is (IAPWS_type)
+      associate (density => primary(1), temperature => primary(2), &
+           liquid_density => liquid_props(1), vapour_density => vapour_props(1))
 
-           ! Interpolate primary at region 1/3 boundary:
-           self%primary_variable_interpolator%val(:, 1) = old_primary
-           self%primary_variable_interpolator%val(:, 2) = primary
-           call self%primary_variable_interpolator%find_component_at_index(&
-                thermo%temperature_bdy_1_3, 2, xi, err)
-           bdy_primary = self%primary_variable_interpolator%interpolate(xi)
+        call self%thermo%saturation%pressure(temperature, pressure, err)
+        if (err == 0) then
 
-           associate (density_bdy_1_3 => bdy_primary(1))
+           call self%thermo%region(1)%ptr%properties([pressure, temperature], &
+                liquid_props, err)
+           if (err == 0) then
+              call self%thermo%region(2)%ptr%properties([pressure, temperature], &
+                   vapour_props, err)
+              if (err == 0) then
 
-             if (density_bdy_1_3 >= thermo%min_liquid_density_bdy_1_3) then
+                 if (density > liquid_density) then
 
-                call self%transition_region3_to_single_phase(old_fluid, &
-                     1, primary, fluid, transition, err)
+                    call self%transition_region3_to_single_phase(old_fluid, &
+                         1, primary, fluid, transition, err)
 
-                if (err > 0) then
-                   primary = bdy_primary
-                   temperature = (1._dp - eps) * temperature
-                   call self%transition_region3_to_single_phase(old_fluid, &
-                        1, primary, fluid, transition, err)
-                end if
+                 else if (density > vapour_density) then
 
-             else if (density_bdy_1_3 <= thermo%max_vapour_density_bdy_1_3) then
+                    fluid%region = dble(4)
+                    Sv = (liquid_density - density) / (liquid_density - vapour_density)
+                    primary(1) = pressure
+                    primary(2) = Sv
+                    transition = PETSC_TRUE
 
-                call self%transition_region3_to_single_phase(old_fluid, &
-                     2, primary, fluid, transition, err)
+                 else
 
-                if (err > 0) then
-                   primary = bdy_primary
-                   temperature = (1._dp - eps) * temperature
-                   call self%transition_region3_to_single_phase(old_fluid, &
-                        2, primary, fluid, transition, err)
-                end if
+                    call self%transition_region3_to_single_phase(old_fluid, &
+                         2, primary, fluid, transition, err)
 
-             else
+                 end if
 
-                call interpolate_region3_two_phase_intersection(old_primary, &
-                     primary, density_bdy_1_3, err)
-                if (err == 0) then
-                   call self%transition_region3_to_two_phase(primary, &
-                        fluid, transition, err)
-                end if
-
-             end if
-           end associate
-
-        end select
+              end if
+           end if
+        end if
       end associate
 
     end subroutine region3_to_below_bdy_1_3_transitions
@@ -1550,41 +1476,6 @@ contains
     end select
 
   end subroutine eos_se_widom_delta_difference
-
-!------------------------------------------------------------------------
-
-  subroutine eos_se_two_phase_difference(x, context, f, err)
-    !! Returns temperature difference from region 3/4 boundary at
-    !! normalised point 0 <= x <= 1 along line between start and end
-    !! primary variables.
-
-    PetscReal, intent(in) :: x
-    class(*), pointer, intent(in out) :: context
-    PetscReal, intent(out) :: f
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal, allocatable :: var(:)
-    PetscReal :: T_bdy
-
-    err = 0
-    select type (context)
-    type is (primary_variable_interpolator_type)
-       allocate(var(context%dim))
-       var = context%interpolate_at_index(x)
-       associate(rho => var(1), T => var(2))
-         select type (thermo => context%thermo)
-         type is (IAPWS_type)
-            call thermo%boundary34%temperature(rho, T_bdy, err, &
-                 polish = PETSC_TRUE)
-            if (err == 0) then
-               f = T - T_bdy
-            end if
-         end select
-       end associate
-       deallocate(var)
-    end select
-
-  end subroutine eos_se_two_phase_difference
 
 !------------------------------------------------------------------------
 
