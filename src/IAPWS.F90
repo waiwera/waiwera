@@ -1017,27 +1017,6 @@ module IAPWS_module
     end type IAPWS_boundary23_type
 
 !------------------------------------------------------------------------
-! Region 3/4 boundary type
-!------------------------------------------------------------------------
-
-  type, public :: IAPWS_boundary34_type
-     !! IAPWS-97 boundary between regions 3 and 4.
-     private
-     type(IAPWS_type), pointer :: thermo
-     PetscReal :: nl(5) = [ &
-          2.6115477832256123e-2_dp, 7.3090461427095868e-2_dp, &
-          1.4134075574694979e-1_dp, -2.0686303830304370e-1_dp, &
-          8.8225881014818222e-2_dp]
-     PetscReal :: nv(5) = [3.6910201854073885e-2_dp, &
-          -9.4257129728909567e-2_dp, 8.7475694209829347e-1_dp, &
-          -1.1897239584539256_dp, 7.5871570867547866e-1_dp]
-     contains
-       private
-       procedure, public :: init => boundary34_init
-       procedure, public :: temperature => boundary34_temperature
-    end type IAPWS_boundary34_type
-
-!------------------------------------------------------------------------
 ! IAPWS thermodynamics type
 !------------------------------------------------------------------------
 
@@ -1045,7 +1024,6 @@ module IAPWS_module
      !! IAPWS thermodynamics type.
      private
      type(IAPWS_boundary23_type), public :: boundary23
-     type(IAPWS_boundary34_type), public :: boundary34
      PetscReal, public :: temperature_bdy_1_3 !! Temperature of boundary between regions 1 & 3
      PetscReal, public :: saturation_pressure_bdy_1_3 !! Saturation pressure at boundary between regions 1 & 3
      PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
@@ -1158,8 +1136,6 @@ contains
     self%min_liquid_density_bdy_1_3 = props(1)
     call self%steam%properties([Psat, self%temperature_bdy_1_3], props, err)
     self%max_vapour_density_bdy_1_3 = props(1)
-
-    call self%boundary34%init(self)
 
   end subroutine IAPWS_init
 
@@ -2613,91 +2589,6 @@ contains
     t = self%n(4) + dsqrt((p/self%pstar - self%n(5)) / self%n(3)) - tc_k 
 
   end subroutine boundary23_temperature
-
-!------------------------------------------------------------------------
-! Region 3/4 boundary
-!------------------------------------------------------------------------
-
-  subroutine boundary34_init(self, thermo)
-    !! Initialise boundary34 type.
-
-    class(IAPWS_boundary34_type), intent(in out) :: self
-    type(IAPWS_type), target, intent(in) :: thermo
-
-    self%thermo => thermo
-
-  end subroutine boundary34_init
-
-!------------------------------------------------------------------------
-
-  subroutine boundary34_temperature(self, density, temperature, err, polish)
-    !! Calculates the temperature (deg C) on the boundary between
-    !! regions 3 and 4, given a density (kg/m3). The temperature is
-    !! first estimated from a pair of degree 6 polynomials, one below
-    !! and one above the critical point, both with zero slope at the
-    !! critical point itself. This is then (optionally) polished using
-    !! Newton's method. Returns a non-zero error code if called
-    !! outside its operating density range.
-
-    class(IAPWS_boundary34_type), intent(in) :: self
-    PetscReal, intent(in) :: density !! Fluid pressure (\(kg. m^{3}\))
-    PetscReal, intent(out):: temperature  !! Fluid temperature (\(^\circ C\))
-    PetscErrorCode, intent(out) :: err !! Error code
-    PetscBool, intent(in) :: polish !! Whether to polish result with Newton iteration
-    ! Locals:
-    PetscReal :: r, tau
-    PetscInt, parameter :: maxit = 20
-    PetscReal, parameter :: ftol = 1.e-5_dp, xtol = 1.e-5_dp
-    PetscReal, parameter :: x_increment = 1.e-8_dp
-
-    err = 0
-
-    if ((self%thermo%max_vapour_density_bdy_1_3 <= density) .and. &
-         (density <= self%thermo%min_liquid_density_bdy_1_3)) then
-
-       if (density >= self%thermo%critical%density) then
-          r = density / self%thermo%critical%density - 1._dp
-          tau = r * r * polynomial(self%nl, r)
-       else
-          r = 1._dp - density / self%thermo%critical%density
-          tau = r * r * polynomial(self%nv, r)
-       end if
-
-       temperature = self%thermo%critical%temperature * (1._dp - tau)
-
-       if (polish) then
-          call newton1d(delP, temperature, ftol, xtol, maxit, x_increment, err)
-       end if
-
-    else
-       err = 1
-    end if
-
-  contains
-
-!........................................................................
-
-    PetscReal function delP(x, err)
-      PetscReal, intent(in) :: x
-      PetscErrorCode, intent(out) :: err
-      ! Locals:
-      PetscReal :: Ps, props(2)
-
-      err = 0
-      associate(T => x, P => props(1))
-        call self%thermo%saturation%pressure(T, Ps, err)
-        if (err == 0) then
-           call self%thermo%region(3)%ptr%properties([density, T], &
-                props, err)
-           if (err == 0) then
-              delP = P - Ps
-           end if
-        end if
-      end associate
-
-    end function delP
-
-  end subroutine boundary34_temperature
 
 !------------------------------------------------------------------------
 
