@@ -619,14 +619,15 @@ module IAPWS_test
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 7
+    PetscInt, parameter :: n = 8
     PetscReal, parameter :: pressure(n) = &
          [16.52916425260448e6_dp, 19.00881189173929e6_dp, &
-         20.5e6_dp, 21.e6_dp, 21.9e6_dp, 21.99e6_dp, 22.064e6_dp]
+         20.5e6_dp, 21.e6_dp, 21.9e6_dp, 21.99e6_dp, &
+         22.0639911177352e6_dp, 22.064e6_dp]
     PetscInt, parameter :: liquid_index(n) = &
-         [3, 3, 19, 19, 21, 25, 25]
+         [3, 3, 19, 19, 21, 25, 25, 25]
     PetscInt, parameter :: vapour_index(n) = &
-         [20, 20, 20, 18, 24, 26, 26]
+         [20, 20, 20, 18, 24, 26, 26, 26]
     PetscInt :: i, ierr, sr
     character(2) :: istr
     PetscMPIInt :: rank
