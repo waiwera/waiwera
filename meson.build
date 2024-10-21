@@ -3,7 +3,7 @@
 project('waiwera', ['c', 'fortran'],
         version: '1.5.0',
         license: 'GPL3',
-        meson_version: '>=0.46.0')
+        meson_version: '>=1.6.0')
 
 if not get_option('mpi_wrapper_compiler')
   mpi = dependency('mpi', language: 'fortran')
