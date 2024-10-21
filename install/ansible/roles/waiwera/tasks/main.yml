@@ -20,7 +20,7 @@
   - name: waiwera - ninja
     block:
     - name: waiwera - Ninja build
-      shell: ninja -C build
+      shell: meson compile -C build
       when: ansible_distribution != 'CentOS'
       args:
         chdir: "{{ waiwera_path }}"
