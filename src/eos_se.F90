@@ -379,6 +379,7 @@ contains
 
        self%primary_variable_interpolator%val(:, 1) = old_primary
        self%primary_variable_interpolator%val(:, 2) = primary
+       call self%primary_variable_interpolator%set_index(1)
        call self%primary_variable_interpolator%find_component_at_index(&
             saturation_bound, 2, xi, err)
 
@@ -581,13 +582,14 @@ contains
       !! Transitions from region 1 to 3 or 4
 
       ! Locals:
-      PetscReal :: saturation_pressure
+      PetscReal :: saturation_pressure, xi
+      PetscReal :: primary_Tc(self%num_primary_variables)
 
       associate (pressure => primary(1), temperature => primary(2))
         select type (thermo => self%thermo)
         type is (IAPWS_type)
 
-           if (temperature <= thermo%temperature_bdy_1_3) then
+           if (temperature <= thermo%critical%temperature) then
 
               call thermo%saturation%pressure(temperature, &
                    saturation_pressure, err)
@@ -595,6 +597,9 @@ contains
                  if (pressure < saturation_pressure) then
                     call self%transition_to_two_phase(saturation_pressure, &
                          old_primary, old_fluid, primary, fluid, transition, err)
+                 else if (temperature > thermo%temperature_bdy_1_3) then
+                    call self%transition_single_phase_to_region3(primary, &
+                         fluid, transition, err)
                  end if
               end if
 
@@ -604,21 +609,26 @@ contains
                  call region_1_to_supercritical_transitions()
               else
 
-                 call thermo%saturation%pressure(temperature, &
-                      saturation_pressure, err)
+                 self%primary_variable_interpolator%val(:, 1) = old_primary
+                 self%primary_variable_interpolator%val(:, 2) = primary
+                 call self%primary_variable_interpolator%set_index(1)
+                 call self%primary_variable_interpolator%find_component_at_index(&
+                      thermo%critical%temperature, 1, xi, err)
                  if (err == 0) then
 
-                    if (pressure < saturation_pressure) then
-                       call self%transition_to_two_phase(saturation_pressure, &
-                            old_primary, old_fluid, primary, fluid, transition, err)
-                    else
-                       call self%transition_single_phase_to_region3(primary, &
-                            fluid, transition, err)
+                    primary_Tc = self%primary_variable_interpolator%interpolate(xi)
+                    associate(P_Tc => primary_Tc(1))
+                      if (P_Tc < thermo%critical%pressure) then
+                         call self%transition_to_two_phase(P_Tc, old_primary, &
+                              old_fluid, primary_Tc, fluid, transition, err)
+                      else
+                         call self%transition_single_phase_to_region3(primary_Tc, &
+                              fluid, transition, err)
+                      end if
+                    end associate
 
-                    end if
                  end if
               end if
-
            end if
 
         end select
