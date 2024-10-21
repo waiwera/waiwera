@@ -102,7 +102,7 @@ endif
 
 if get_option('set_rpath')
   waiwera_rpath = join_paths(get_option('prefix'), get_option('libdir'))
-  waiwera_rpath += ':' + PETSc.get_pkgconfig_variable('libdir')
+  waiwera_rpath += ':' + PETSc.get_variable('libdir')
 else
   waiwera_rpath = ''
 endif
