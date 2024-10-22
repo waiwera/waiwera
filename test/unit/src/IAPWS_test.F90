@@ -160,7 +160,7 @@ module IAPWS_test
     ! IAPWS-97 region 3 tests
 
     class(unit_test_type), intent(in out) :: test
-    PetscInt, parameter :: n = 3, nerr = 1
+    PetscInt, parameter :: n = 3, nerr = 4
     PetscReal :: params(n,2) = reshape([ &
          500._dp, 200._dp, 500._dp, &
          650._dp, 650._dp, 750._dp], [n,2])
@@ -169,8 +169,8 @@ module IAPWS_test
     PetscInt :: i, err
     PetscReal :: param(2), props(2)
     PetscReal :: err_params(nerr,2) = reshape([ &
-         800._dp, &
-         400._dp], [nerr,2])
+         800._dp, 500._dp, 100._dp, 300._dp, &
+         400._dp, 340._dp, 380._dp, 600._dp], [nerr, 2])
     PetscInt :: ierr
     PetscMPIInt :: rank
 

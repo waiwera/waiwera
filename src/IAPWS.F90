@@ -1783,7 +1783,7 @@ contains
     !! Calculates pressure and internal energy of supercritical water/steam
     !! as a function of density and temperature (deg C).
     !!
-    !! Returns err = 1 if resulting pressure is outside its operating range (p<=100 MPa).
+    !! Returns err = 1 if resulting pressure is outside its operating range.
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
@@ -1792,27 +1792,38 @@ contains
     ! Locals:
     PetscReal:: tk, rt, delta, tau
     PetscReal:: phidelta, phitau
+    ! Approximate density and temperature domain:
+    PetscReal, parameter :: min_density = 110._dp, max_density = 765._dp
+    PetscReal, parameter :: min_temperature = 348._dp, max_temperature = 590._dp
 
     associate (d => param(1), t => param(2))
 
-      tk = t + tc_k
-      rt = specific_gas_constant * tk
-      tau = self%tstar / tk
-      delta = d / self%dstar
+      if ((min_density < d) .and. (d < max_density) .and. &
+           (min_temperature < t) .and. (t <= max_temperature)) then
 
-      call self%pi%compute(delta)
-      call self%pj%compute(tau)
+         tk = t + tc_k
+         rt = specific_gas_constant * tk
+         tau = self%tstar / tk
+         delta = d / self%dstar
 
-      phidelta = self%n(1) * self%pi%power(-1) + &
-           sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
-      phitau = sum(self%nJ * self%pi%power(self%I)   * self%pj%power(self%J_1))
+         call self%pi%compute(delta)
+         call self%pj%compute(tau)
 
-      props(1) = d * rt * delta * phidelta ! pressure
-      props(2) = rt * tau * phitau         ! internal energy
-      if (props(1) > 100.0e6_dp) then
-         err = 1
+         phidelta = self%n(1) * self%pi%power(-1) + &
+              sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
+         phitau = sum(self%nJ * self%pi%power(self%I)   * self%pj%power(self%J_1))
+
+         props(1) = d * rt * delta * phidelta ! pressure
+         props(2) = rt * tau * phitau         ! internal energy
+         if ((props(1) > 0._dp) .and. (props(1) <= 100.0e6_dp) .and. &
+              (props(2) > 0._dp)) then
+            err = 0
+         else
+            err = 1
+         end if
+
       else
-         err = 0
+         err = 1
       end if
 
     end associate
