@@ -77,7 +77,7 @@ contains
        allocate(IAPWS_type :: thermo)
     end select
 
-    call thermo%init(json)
+    call thermo%init(json, logfile)
 
   end subroutine setup_thermodynamics
 
