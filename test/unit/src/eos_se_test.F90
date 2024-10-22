@@ -552,10 +552,10 @@ contains
        title = "Region 1 to subcritical region 3, T > Tc, P < Pc"
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
-       expected_region = 0
-       expected_primary = [0._dp, 0._dp]
+       expected_region = 3
+       expected_primary = [471.20844415025863_dp, 373.946_dp]
        expected_transition = PETSC_TRUE
-       expected_err = 1
+       expected_err = 0
        old_primary = [30.e6_dp, 340._dp]
        primary = [21.8e6_dp, 380._dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
