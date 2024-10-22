@@ -583,7 +583,6 @@ contains
 
       ! Locals:
       PetscReal :: saturation_pressure, xi
-      PetscReal :: primary_Tc(self%num_primary_variables)
 
       associate (pressure => primary(1), temperature => primary(2))
         select type (thermo => self%thermo)
@@ -616,16 +615,14 @@ contains
                       thermo%critical%temperature, 2, xi, err)
                  if (err == 0) then
 
-                    primary_Tc = self%primary_variable_interpolator%interpolate(xi)
-                    associate(P_Tc => primary_Tc(1))
-                      if (P_Tc < thermo%critical%pressure) then
-                         call self%transition_to_two_phase(P_Tc, old_primary, &
-                              old_fluid, primary_Tc, fluid, transition, err)
-                      else
-                         call self%transition_single_phase_to_region3(primary_Tc, &
-                              fluid, transition, err)
-                      end if
-                    end associate
+                    primary = self%primary_variable_interpolator%interpolate(xi)
+                    if (pressure < thermo%critical%pressure) then
+                       call self%transition_to_two_phase(pressure, old_primary, &
+                            old_fluid, primary, fluid, transition, err)
+                    else
+                       call self%transition_single_phase_to_region3(primary, &
+                            fluid, transition, err)
+                    end if
 
                  end if
               end if
