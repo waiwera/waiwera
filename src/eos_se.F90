@@ -613,7 +613,7 @@ contains
                  self%primary_variable_interpolator%val(:, 2) = primary
                  call self%primary_variable_interpolator%set_index(1)
                  call self%primary_variable_interpolator%find_component_at_index(&
-                      thermo%critical%temperature, 1, xi, err)
+                      thermo%critical%temperature, 2, xi, err)
                  if (err == 0) then
 
                     primary_Tc = self%primary_variable_interpolator%interpolate(xi)
