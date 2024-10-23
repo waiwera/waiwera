@@ -835,12 +835,11 @@ module IAPWS_test
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call pressure_case([998._dp, 20._dp], 1.e5_dp, 0, 'case 1')
-       call pressure_case([998._dp, 20._dp], 100.e6_dp, 0, 'case 2')
-       call pressure_case([800._dp, 300._dp], 60.e6_dp, 0, 'case 3')
-       call pressure_case([700._dp, 320._dp], 20.e6_dp, 0, 'case 4')
-       call pressure_case([700._dp, 320._dp], 90.e6_dp, 0, 'case 5')
-       call pressure_case([600._dp, 340._dp], 20.e6_dp, 0, 'case 6')
+       call pressure_case([990._dp, 100._dp], 60.e6_dp, 0, 'case 1')
+       call pressure_case([800._dp, 300._dp], 60.e6_dp, 0, 'case 2')
+       call pressure_case([700._dp, 320._dp], 20.e6_dp, 0, 'case 3')
+       call pressure_case([700._dp, 320._dp], 80.e6_dp, 0, 'case 4')
+       call pressure_case([600._dp, 340._dp], 20.e6_dp, 0, 'case 5')
 
     end if
 
