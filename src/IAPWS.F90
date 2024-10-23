@@ -1794,11 +1794,13 @@ contains
     PetscReal, intent(out):: props(:)  !! (pressure, internal energy)
     PetscInt, intent(out) :: err   !! Error code
     ! Locals:
-    PetscReal:: tk, rt, delta, tau
-    PetscReal:: phidelta, phitau
+    PetscReal :: tk, rt, delta, tau
+    PetscReal :: phidelta, phitau
+    PetscReal :: b23_pressure, min_pressure
     ! Approximate density and temperature domain:
     PetscReal, parameter :: min_density = 110._dp, max_density = 765._dp
     PetscReal, parameter :: min_temperature = 348._dp, max_temperature = 590._dp
+    PetscReal, parameter :: eps = 1.e-6_dp
 
     associate (d => param(1), t => param(2))
 
@@ -1819,7 +1821,14 @@ contains
 
          props(1) = d * rt * delta * phidelta ! pressure
          props(2) = rt * tau * phitau         ! internal energy
-         if ((props(1) > 0._dp) .and. (props(1) <= 100.0e6_dp) .and. &
+
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+            call thermo%boundary23%pressure(t, b23_pressure)
+         end select
+         min_pressure = (1._dp - eps) * b23_pressure
+         if ((props(1) >= min_pressure) .and. &
+              (props(1) <= self%thermo%max_pressure) .and. &
               (props(2) > 0._dp)) then
             err = 0
          else
