@@ -2408,6 +2408,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: delta(2), xi, theta, s, xi0, xi1, xim
+    PetscReal, parameter :: eps = 1.e-9_dp
 
     err = 0
     pseudo_phases = 0
@@ -2443,12 +2444,12 @@ contains
 
              end if
 
-             if (temperature < delta(1)) then
-                pseudo_phases = int(b'001')
-             else if (temperature < delta(2)) then
+             if (pi_liq < eps) then
+                pseudo_phases = int(b'010')
+             else if (pi_liq < 1._dp - eps) then
                 pseudo_phases = int(b'011')
              else
-                pseudo_phases = int(b'010')
+                pseudo_phases = int(b'001')
              end if
 
           end if
