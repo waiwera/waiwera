@@ -1592,7 +1592,8 @@ contains
     !! Calculates density and internal energy of dry steam as a function of
     !! pressure (Pa) and temperature (deg C).
     !!
-    !! Returns err = 1 if called outside its operating range (t<=800 deg C, p<=100 MPa).
+    !! Returns err = 1 if called outside its operating range (0 < t <= 800 deg C,
+    !! 0 < p <= 100 MPa).
 
     class(IAPWS_region2_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
@@ -1604,7 +1605,8 @@ contains
     associate (p => param(1), t => param(2))
 
       ! Check input:
-      if ((t <= self%thermo%max_temperature).and.(p <= self%thermo%max_pressure)) then
+      if ((0._dp < t) .and. (t <= self%thermo%max_temperature) .and. &
+           (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
 
          tk = t + tc_k
          rt = specific_gas_constant * tk
