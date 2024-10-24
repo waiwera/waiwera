@@ -1,0 +1,240 @@
+{
+  "boundaries": [
+    {
+      "faces": {
+        "cells": [
+          0
+        ],
+        "normal": [
+          -1.0,
+          0.0
+        ]
+      },
+      "primary": [
+        444.25624159994913,
+        374.0
+      ],
+      "region": 3
+    }
+  ],
+  "eos": {
+    "name": "se"
+  },
+  "gravity": null,
+  "initial": {
+    "primary": [
+      444.25624159994913,
+      374.0
+    ],
+    "region": 3
+  },
+  "mesh": {
+    "filename": "ghorizontal.msh",
+    "thickness": 10
+  },
+  "output": {
+    "checkpoint": {
+      "repeat": false,
+      "time": [
+        1000000.0,
+        10000000.0,
+        100000000.0,
+        1000000000.0
+      ],
+      "tolerance": 0.1
+    },
+    "fields": {
+      "fluid": [
+        "liquidlike_fraction"
+      ]
+    },
+    "filename": "horizontal.h5",
+    "final": false,
+    "frequency": 0,
+    "initial": true
+  },
+  "rock": {
+    "capillary_pressure": {
+      "pressure": 0.0,
+      "saturation_limits": [
+        0.0,
+        1.0
+      ],
+      "type": "linear"
+    },
+    "relative_permeability": {
+      "liquid": [
+        0.3,
+        0.7
+      ],
+      "type": "linear",
+      "vapour": [
+        0.3,
+        0.7
+      ]
+    },
+    "types": [
+      {
+        "cells": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80,
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87,
+          88,
+          89,
+          90,
+          91,
+          92,
+          93,
+          94,
+          95,
+          96,
+          97,
+          98,
+          99
+        ],
+        "density": 2650.0,
+        "dry_conductivity": 3.0,
+        "name": "dfalt",
+        "permeability": [
+          5e-15,
+          5e-15
+        ],
+        "porosity": 0.01,
+        "specific_heat": 1000.0,
+        "wet_conductivity": 3.0
+      }
+    ]
+  },
+  "source": [
+    {
+      "cell": 99,
+      "name": "prd 1",
+      "rate": -0.005,
+      "separator": {
+        "pressure": 550000.0
+      }
+    }
+  ],
+  "thermodynamics": {
+    "name": "IAPWS"
+  },
+  "time": {
+    "start": 0.0,
+    "step": {
+      "adapt": {
+        "amplification": 2.0,
+        "maximum": 8.0,
+        "method": "iteration",
+        "minimum": 5.0,
+        "on": true,
+        "reduction": 0.2
+      },
+      "maximum": {
+        "number": 1000,
+        "size": 100000000000.0
+      },
+      "method": "beuler",
+      "size": 10000.0,
+      "solver": {
+        "nonlinear": {
+          "maximum": {
+            "iterations": 8
+          },
+          "tolerance": {
+            "function": {
+              "absolute": 1.0,
+              "relative": 1e-05
+            }
+          }
+        }
+      }
+    },
+    "stop": 100000000000.0
+  },
+  "title": "Near-critical 1-D horizontal problem"
+}
