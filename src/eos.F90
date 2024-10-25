@@ -247,8 +247,8 @@ contains
 
   subroutine eos_process_initial(self, primary, region, err)
 
-    !! Carry out processing of initial conditions - to be overridden
-    !! as needed by derived EOSes.
+    !! Carry out processing of initial and boundary conditions - to be
+    !! overridden as needed by derived EOSes.
 
     class(eos_type), intent(in) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables) !! Primary variables

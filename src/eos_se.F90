@@ -1461,8 +1461,9 @@ contains
 
   subroutine eos_se_process_initial(self, primary, region, err)
 
-    !! Carry out processing of initial conditions - allowing
-    !! initialisation of region 3 with pressure and temperature.
+    !! Carry out processing of initial and boundary conditions -
+    !! allowing initialisation of region 3 with pressure and
+    !! temperature.
 
     class(eos_se_type), intent(in) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables) !! Primary variables
