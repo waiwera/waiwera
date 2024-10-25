@@ -162,7 +162,10 @@
                                                    }, "additionalProperties": false
                                                }
                                            }, "additionalProperties": false},
-                               "temperature": {"type": "number"}
+                               "temperature": {"type": "number"},
+                               "initial": {"type": "string",
+                                           "enum": ["density", "Density",
+                                                    "pressure", "Pressure"]}
                            },
                            "additionalProperties": false
                           }]},
