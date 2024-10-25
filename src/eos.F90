@@ -69,6 +69,7 @@ module eos_module
      procedure(eos_transition_procedure), public, deferred :: transition
      procedure, public :: phase_composition => eos_phase_composition
      procedure, public :: convert_fluid => eos_convert_fluid
+     procedure, public :: process_initial => eos_process_initial
      procedure(eos_fluid_properties_procedure), public, deferred :: fluid_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
@@ -241,6 +242,21 @@ contains
     continue
 
   end subroutine eos_convert_fluid
+
+!------------------------------------------------------------------------
+
+  subroutine eos_process_initial(self, primary, region)
+
+    !! Carry out processing of initial conditions - to be overridden
+    !! as needed by derived EOSes.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables) !! Primary variables
+    PetscInt, intent(in) :: region !! Thermodynamic region
+
+    continue
+
+  end subroutine eos_process_initial
 
 !------------------------------------------------------------------------
 

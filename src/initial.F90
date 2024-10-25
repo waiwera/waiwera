@@ -959,14 +959,28 @@ contains
     end if
 
     if (err == 0) then
-       if (mesh%has_minc .and. (.not. minc_specified)) then
-          call setup_minc_initial(mesh, eos, y, fluid_vector, y_range_start, &
-               fluid_range_start)
-          if (num_tracers > 0) then
-             call setup_minc_initial_tracer(mesh, tracer_vector, &
-                  tracer_range_start, num_tracers)
+
+       call process_initial_primary(mesh, eos, y, fluid_vector, y_range_start, &
+            fluid_range_start, err)
+
+       if (err == 0) then
+          if (mesh%has_minc .and. (.not. minc_specified)) then
+             call setup_minc_initial(mesh, eos, y, fluid_vector, y_range_start, &
+                  fluid_range_start)
+             if (num_tracers > 0) then
+                call setup_minc_initial_tracer(mesh, tracer_vector, &
+                     tracer_range_start, num_tracers)
+             end if
+          end if
+       else
+          if (present(logfile)) then
+             call logfile%write(LOG_LEVEL_ERR, 'input', &
+                  'initial.process', &
+                  str_key = trim(adjustl(filename)), &
+                  str_value = 'failed')
           end if
        end if
+
     end if
 
   end subroutine setup_initial
@@ -1212,6 +1226,69 @@ contains
     deallocate(ic)
 
   end subroutine setup_minc_initial_tracer
+
+!------------------------------------------------------------------------
+
+  subroutine process_initial_primary(mesh, eos, y, fluid_vector, y_range_start, &
+       fluid_range_start, err)
+
+    !! Carry out EOS-specific processing of initial conditions,
+    !! e.g. for handling initial variables different from primary
+    !! variables.
+
+    use mesh_module, only: mesh_type
+    use eos_module, only: eos_type
+    use fluid_module, only: fluid_type
+    use dm_utils_module, only: global_vec_section, global_section_offset, &
+         dm_get_end_interior_cell
+
+    type(mesh_type), intent(in) :: mesh
+    class(eos_type), intent(in) :: eos !! Equation of state module
+    Vec, intent(in out) :: y, fluid_vector !! Solution and fluid vectors
+    PetscInt, intent(in) :: y_range_start, fluid_range_start !! Range starts for vectors
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscSection :: y_section, fluid_section
+    PetscReal, pointer, contiguous :: y_array(:), fluid_array(:)
+    PetscReal, pointer, contiguous :: cell_primary(:)
+    type(fluid_type) :: fluid
+    DMLabel :: ghost_label
+    PetscInt :: np, c, ghost, y_offset, fluid_offset
+    PetscInt :: start_cell, end_cell, end_interior_cell
+    PetscErrorCode :: ierr
+
+    call global_vec_section(y, y_section)
+    call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+
+    call global_vec_section(fluid_vector, fluid_section)
+    call VecGetArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+
+    call fluid%init(eos%num_components, eos%num_phases)
+    np = eos%num_primary_variables
+
+    call DMGetLabel(mesh%dm, "ghost", ghost_label, ierr)
+    CHKERRQ(ierr)
+    call DMPlexGetHeightStratum(mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(mesh%dm, end_cell)
+
+    do c = start_cell, end_interior_cell - 1
+       call DMLabelGetValue(ghost_label, c, ghost, ierr); CHKERRQ(ierr)
+       if (ghost < 0) then
+          y_offset = global_section_offset(y_section, c, y_range_start)
+          cell_primary => y_array(y_offset : y_offset + np - 1)
+          fluid_offset = global_section_offset(fluid_section, c, &
+               fluid_range_start)
+          call fluid%assign(fluid_array, fluid_offset)
+          call eos%process_initial(cell_primary, nint(fluid%region))
+       end if
+    end do
+
+    call VecRestoreArrayF90(y, y_array, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayReadF90(fluid_vector, fluid_array, ierr); CHKERRQ(ierr)
+    call fluid%destroy()
+
+  end subroutine process_initial_primary
 
 !------------------------------------------------------------------------
 
