@@ -11,19 +11,20 @@
         ]
       },
       "primary": [
-        444.25624159994913,
+        22500000.0,
         374.0
       ],
       "region": 3
     }
   ],
   "eos": {
+    "initial": "pressure",
     "name": "se"
   },
   "gravity": null,
   "initial": {
     "primary": [
-      444.25624159994913,
+      22500000.0,
       374.0
     ],
     "region": 3

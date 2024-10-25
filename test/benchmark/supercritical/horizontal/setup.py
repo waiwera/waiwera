@@ -41,14 +41,14 @@ dat.start = True
 dat.output_times = {'num_times_specified': 4, 'time': [1e6, 1e7, 1e8, 1e9]}
 
 ndt = 1000
-d0, T0 = 444.25624159994913, 374. # P = 22.5 MPa
+P0, T0 = 22.5e6, 374.
 
 dat.parameter.update(
     {'max_timesteps': ndt,
      'tstop': 1.e11,
      'print_interval': ndt,
      'gravity': None,
-     'default_incons': [d0, T0],
+     'default_incons': [P0, T0],
      'const_timestep': 1e4,
      'max_timestep': 1e11,
      'relative_error': 1.e-5,
@@ -87,7 +87,7 @@ dat.add_generator(gen)
 
 dat.write(model_name + '.dat')
 
-inc = dat.grid.incons([d0, T0])
+inc = dat.grid.incons([P0, T0])
 inc.write(model_name + '.incon')
 
 dat.run(simulator = AUTOUGH2, silent = True)
@@ -98,9 +98,9 @@ geo.write_mesh(mesh_filename, dimension = 2, slice = 'x',
 jsondata = dat.json(geo, mesh_filename, bdy_incons = inc,
                     mesh_coords = 'xz')
 jsondata['mesh']['thickness'] = dy
-jsondata['eos'] = {'name': 'se'}
+jsondata['eos'] = {'name': 'se', 'initial': 'pressure'}
 jsondata['thermodynamics'] = {'name': 'IAPWS'}
-jsondata['initial']['primary'] = [d0, T0]
+jsondata['initial']['primary'] = [P0, T0]
 jsondata['initial']['region'] = 3
 jsondata['boundaries'][0]['region'] = 3
 jsondata['gravity'] = None
