@@ -106,6 +106,7 @@ jsondata['boundaries'][0]['region'] = 3
 jsondata['gravity'] = None
 jsondata['output']['final'] = False
 jsondata['output']['fields'] = {'fluid': ['liquidlike_fraction']}
+jsondata['time']['step']['solver'] = {'linear': {'preconditioner': {'type': 'bjacobi'}}}
 json.dump(jsondata, open(model_name + '.json', 'w'), indent = 2, sort_keys = True)
 
 os.chdir(orig_dir)

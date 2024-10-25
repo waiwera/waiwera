@@ -222,15 +222,9 @@
       "method": "beuler",
       "size": 10000.0,
       "solver": {
-        "nonlinear": {
-          "maximum": {
-            "iterations": 8
-          },
-          "tolerance": {
-            "function": {
-              "absolute": 1.0,
-              "relative": 1e-05
-            }
+        "linear": {
+          "preconditioner": {
+            "type": "bjacobi"
           }
         }
       }
