@@ -245,7 +245,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_process_initial(self, primary, region)
+  subroutine eos_process_initial(self, primary, region, err)
 
     !! Carry out processing of initial conditions - to be overridden
     !! as needed by derived EOSes.
@@ -253,8 +253,9 @@ contains
     class(eos_type), intent(in) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables) !! Primary variables
     PetscInt, intent(in) :: region !! Thermodynamic region
+    PetscErrorCode, intent(out) :: err !! Error code
 
-    continue
+    err = 0
 
   end subroutine eos_process_initial
 

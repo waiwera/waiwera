@@ -1257,6 +1257,8 @@ contains
     PetscInt :: start_cell, end_cell, end_interior_cell
     PetscErrorCode :: ierr
 
+    err = 0
+
     call global_vec_section(y, y_section)
     call VecGetArrayF90(y, y_array, ierr); CHKERRQ(ierr)
 
@@ -1280,7 +1282,8 @@ contains
           fluid_offset = global_section_offset(fluid_section, c, &
                fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
-          call eos%process_initial(cell_primary, nint(fluid%region))
+          call eos%process_initial(cell_primary, nint(fluid%region), err)
+          if (err > 0) exit
        end if
     end do
 
