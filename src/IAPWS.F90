@@ -2193,8 +2193,8 @@ contains
     ! Locals:
     PetscInt :: sr
     PetscReal :: nu
-    PetscInt, parameter :: maxit = 8
-    PetscReal, parameter :: ftol = 1.e-5_dp, xtol = 1.e-5_dp
+    PetscInt, parameter :: maxit = 50
+    PetscReal, parameter :: ftol = 1.e-6_dp, xtol = 1.e-7_dp
 
     err = 0
     sr =  self%subregion_index(param)
@@ -2259,7 +2259,7 @@ contains
     PetscInt :: sr
     PetscReal :: nu
     PetscInt, parameter :: maxit = 50
-    PetscReal, parameter :: ftol = 1.e-5_dp, xtol = 1.e-5_dp
+    PetscReal, parameter :: ftol = 1.e-6_dp, xtol = 1.e-7_dp
 
     err = 0
     associate(pressure => param(1))
