@@ -40,7 +40,7 @@ module eos_se_module
      !! Pure supercritical water and energy equation of state type.
      private
      PetscInt :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
-     PetscBool :: initial_pressure !! Option to allow region 3 initialisation with pressure instead of density
+     PetscBool :: pressure_conditions !! Option to allow region 3 initial and boundary conditions specified with pressure instead of density
      type(root_finder_type), public :: widom_delta_finder
      class(primary_variable_interpolator_type), pointer, public :: widom_delta_interpolator
    contains
@@ -63,7 +63,7 @@ module eos_se_module
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
      procedure, public :: convert_fluid => eos_se_convert_fluid
-     procedure, public :: process_initial => eos_se_process_initial
+     procedure, public :: process_conditions => eos_se_process_conditions
   end type eos_se_type
 
 contains
@@ -87,13 +87,13 @@ contains
     ! Locals:
     procedure(root_finder_routine), pointer :: fs, fw, ft
     PetscReal :: pressure_scale, temperature_scale, density_scale
-    character(10) :: initial
+    character(10) :: conditions
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
     PetscReal, parameter :: default_density_scale = critical%density !! Default scale factor for non-dimensionalising density
-    character(10), parameter :: default_initial = "density"
+    character(10), parameter :: default_conditions = "density"
 
     self%name = "se"
     self%description = "Pure supercritical water and energy"
@@ -145,9 +145,9 @@ contains
     call init_line_finder(self%widom_delta_finder, &
          self%widom_delta_interpolator, fw, init_interpolator = PETSC_TRUE)
 
-    call fson_get_mpi(json, "eos.initial", default_initial, &
-         initial, logfile)
-    self%initial_pressure = (str_to_lower(initial) == "pressure")
+    call fson_get_mpi(json, "eos.conditions", default_conditions, &
+         conditions, logfile)
+    self%pressure_conditions = (str_to_lower(conditions) == "pressure")
 
   contains
 
@@ -1459,7 +1459,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_process_initial(self, primary, region, err)
+  subroutine eos_se_process_conditions(self, primary, region, err)
 
     !! Carry out processing of initial and boundary conditions -
     !! allowing initialisation of region 3 with pressure and
@@ -1473,7 +1473,7 @@ contains
     PetscReal :: density
     err = 0
 
-    if ((self%initial_pressure) .and. (region == 3)) then
+    if ((self%pressure_conditions) .and. (region == 3)) then
        select type (region3 => self%thermo%region(3)%ptr)
        type is (IAPWS_region3_type)
           call region3%density(primary, density, err, polish = PETSC_TRUE)
@@ -1483,7 +1483,7 @@ contains
        end select
     end if
 
-  end subroutine eos_se_process_initial
+  end subroutine eos_se_process_conditions
 
 !------------------------------------------------------------------------
 

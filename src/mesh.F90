@@ -1194,7 +1194,7 @@ contains
                       call fluid%assign(fluid_array, fluid_offset)
                       ! Set fluid region and properties:
                       fluid%region = dble(region)
-                      call eos%process_initial(primary, region, err)
+                      call eos%process_conditions(primary, region, err)
                       if (err == 0) then
                          call eos%fluid_properties(primary, rock, fluid, err)
                          if (err == 0) then

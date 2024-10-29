@@ -69,7 +69,7 @@ module eos_module
      procedure(eos_transition_procedure), public, deferred :: transition
      procedure, public :: phase_composition => eos_phase_composition
      procedure, public :: convert_fluid => eos_convert_fluid
-     procedure, public :: process_initial => eos_process_initial
+     procedure, public :: process_conditions => eos_process_conditions
      procedure(eos_fluid_properties_procedure), public, deferred :: fluid_properties
      procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
@@ -245,7 +245,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_process_initial(self, primary, region, err)
+  subroutine eos_process_conditions(self, primary, region, err)
 
     !! Carry out processing of initial and boundary conditions - to be
     !! overridden as needed by derived EOSes.
@@ -257,7 +257,7 @@ contains
 
     err = 0
 
-  end subroutine eos_process_initial
+  end subroutine eos_process_conditions
 
 !------------------------------------------------------------------------
 

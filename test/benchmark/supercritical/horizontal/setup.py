@@ -98,7 +98,7 @@ geo.write_mesh(mesh_filename, dimension = 2, slice = 'x',
 jsondata = dat.json(geo, mesh_filename, bdy_incons = inc,
                     mesh_coords = 'xz')
 jsondata['mesh']['thickness'] = dy
-jsondata['eos'] = {'name': 'se', 'initial': 'pressure'}
+jsondata['eos'] = {'name': 'se', 'conditions': 'pressure'}
 jsondata['thermodynamics'] = {'name': 'IAPWS'}
 jsondata['initial']['primary'] = [P0, T0]
 jsondata['initial']['region'] = 3

@@ -1282,7 +1282,7 @@ contains
           fluid_offset = global_section_offset(fluid_section, c, &
                fluid_range_start)
           call fluid%assign(fluid_array, fluid_offset)
-          call eos%process_initial(cell_primary, nint(fluid%region), err)
+          call eos%process_conditions(cell_primary, nint(fluid%region), err)
           if (err > 0) exit
        end if
     end do
