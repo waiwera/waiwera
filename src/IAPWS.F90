@@ -2246,7 +2246,7 @@ contains
 
   subroutine region3_saturation_density(self, param, liquid, &
        density, err, polish)
-    !! Calculates liquid or vapour density on saturation line for a
+    !! Calculates liquid or vapour density on saturation line for
     !! given parameters (pressure, temperature).
 
     class(IAPWS_region3_type), intent(in out) :: self
