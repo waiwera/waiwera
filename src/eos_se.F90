@@ -126,12 +126,14 @@ contains
          temperature_scale, logfile)
     call fson_get_mpi(json, "eos.primary.scale.density", default_density_scale, &
          density_scale, logfile)
-    allocate(self%primary_scale(2, 4))
+    allocate(self%primary_scale(2, 6))
     self%primary_scale = reshape([ &
           pressure_scale, temperature_scale, &
           pressure_scale, temperature_scale, &
           density_scale, temperature_scale, &
-          pressure_scale, 1._dp], [2, 4])
+          pressure_scale, 1._dp, &
+          0._dp, 0._dp, &
+          density_scale, temperature_scale], [2, 6])
 
     self%thermo => thermo
 
