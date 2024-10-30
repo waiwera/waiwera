@@ -49,6 +49,7 @@ module eos_se_module
      procedure, public :: destroy => eos_se_destroy
      procedure, public :: transition => eos_se_transition
      procedure, public :: transition_to_single_phase => eos_se_transition_to_single_phase
+     procedure, public :: transition_to_two_phase => eos_se_transition_to_two_phase
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
      procedure, public :: transition_region3_to_single_phase => eos_se_transition_region3_to_single_phase
      procedure, public :: transition_region4_to_supercritical => eos_se_transition_region4_to_supercritical
@@ -464,6 +465,71 @@ contains
     end subroutine region4_above_bdy_1_3_transitions
 
   end subroutine eos_se_transition_to_single_phase
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_transition_to_two_phase(self, saturation_pressure, &
+       old_primary, old_fluid, primary, fluid, transition, err)
+    !! For eos_se, make transition from single-phase to two-phase
+    !! (region 4 or 6).
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: saturation_pressure
+    type(fluid_type), intent(in) :: old_fluid
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: liquid_density, vapour_density, new_temperature
+
+    err = 0
+
+    call self%eos_we_type%transition_to_two_phase(saturation_pressure, &
+         old_primary, old_fluid, primary, fluid, transition, err)
+
+    if (err == 0) then
+       associate (pressure => primary(1), vapour_saturation => primary(2))
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+
+            if (pressure > thermo%saturation_pressure_bdy_1_3) then ! T > 350:
+
+               call self%thermo%saturation%temperature(pressure, new_temperature, err)
+               if (err == 0) then
+
+                  select type (region3 => thermo%region(3)%ptr)
+                  type is (IAPWS_region3_type)
+
+                     call region3%saturation_density([pressure, &
+                          new_temperature], PETSC_TRUE, liquid_density, &
+                          err, polish = PETSC_TRUE)
+                     if (err == 0) then
+                        call region3%saturation_density([pressure, &
+                             new_temperature], PETSC_FALSE, vapour_density, &
+                             err, polish = PETSC_TRUE)
+                        if (err == 0) then
+                           fluid%region = dble(6)
+                           associate (density => primary(1), temperature => primary(2))
+                             density = (1._dp - vapour_saturation) * liquid_density + &
+                                  vapour_saturation * vapour_density
+                             temperature = new_temperature
+                           end associate
+                        end if
+                     end if
+                  end select
+
+               end if
+            end if
+         end select
+       end associate
+
+    end if
+
+  end subroutine eos_se_transition_to_two_phase
 
 !------------------------------------------------------------------------
 
