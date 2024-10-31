@@ -62,6 +62,7 @@ module eos_se_module
      procedure :: region6_fluid_properties => eos_se_region6_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
+     procedure, public :: phase_composition => eos_se_phase_composition
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
      procedure, public :: convert_fluid => eos_se_convert_fluid
      procedure, public :: process_conditions => eos_se_process_conditions
@@ -1486,6 +1487,39 @@ contains
     fluid%phase(3)%saturation = s(3)
 
   end subroutine eos_se_phase_saturations
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_phase_composition(self, fluid, err)
+    !! Determines fluid phase composition for eos se from bulk
+    !! properties and thermodynamic region.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: region, effective_region, phases
+
+    region = nint(fluid%region)
+
+    if (region == 6) then
+       effective_region = 4
+    else
+       effective_region = region
+    end if
+
+    phases = self%thermo%phase_composition(effective_region, &
+         fluid%pressure, fluid%temperature)
+    if (phases > 0) then
+       fluid%phase_composition = dble(phases)
+       err = 0
+    else
+       err = 1
+    end if
+
+  end subroutine eos_se_phase_composition
 
 !------------------------------------------------------------------------
 
