@@ -1571,7 +1571,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
-    PetscReal :: p, props(2)
+    PetscReal :: props(2)
     PetscBool :: failed
 
     changed = PETSC_FALSE
