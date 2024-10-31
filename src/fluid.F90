@@ -115,6 +115,7 @@ module fluid_module
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
      procedure, public :: is_supercritical => fluid_is_supercritical
+     procedure, public :: total_density => fluid_total_density
   end type fluid_type
 
   type, public, abstract :: fluid_modifier_type
@@ -552,6 +553,29 @@ contains
     fluid_is_supercritical = btest(phases, 2)
 
   end function fluid_is_supercritical
+
+!------------------------------------------------------------------------
+
+  PetscReal function fluid_total_density(self) result(density)
+    !! Returns total density computed from the sum of
+    !! saturation-weighted phase densities.
+
+    class(fluid_type), intent(in) :: self
+    ! Locals:
+    PetscInt :: phases, p
+
+    density = 0._dp
+    phases = nint(self%phase_composition)
+
+    do p = 1, self%num_phases
+       if (btest(phases, p - 1)) then
+          associate (phase => self%phase(p))
+            density = density + phase%saturation * phase%density
+          end associate
+       end if
+    end do
+
+  end function fluid_total_density
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
