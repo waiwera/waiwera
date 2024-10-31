@@ -1514,6 +1514,9 @@ contains
     case (4)
        primary(1) = fluid%pressure
        primary(2) = fluid%phase(2)%saturation
+    case (6)
+       primary(1) = fluid%total_density()
+       primary(2) = fluid%temperature
     end select
 
   end subroutine eos_se_primary_variables
