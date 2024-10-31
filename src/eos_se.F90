@@ -59,7 +59,7 @@ module eos_se_module
      procedure :: region2_supercritical_fluid_properties => eos_se_region2_supercritical_fluid_properties
      procedure :: region2_fluid_properties => eos_se_region2_fluid_properties
      procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
-     procedure :: region4_above_bdy_1_3_fluid_properties => eos_se_region4_above_bdy_1_3_fluid_properties
+     procedure :: region6_fluid_properties => eos_se_region6_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
@@ -1157,18 +1157,10 @@ contains
     case (3)
        call self%region3_fluid_properties(primary, rock, fluid, err)
     case (4)
-       associate(pressure => primary(1))
-         select type (thermo => self%thermo)
-         type is (IAPWS_type)
-            if (pressure <= thermo%saturation_pressure_bdy_1_3) then ! T <= 350:
-               call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
-               call fluid%phase(3)%zero()
-            else
-               call self%region4_above_bdy_1_3_fluid_properties(primary, &
-                    rock, fluid, err)
-            end if
-         end select
-       end associate
+       call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
+       call fluid%phase(3)%zero()
+    case (6)
+       call self%region6_fluid_properties(primary, rock, fluid, err)
     end select
 
   end subroutine eos_se_fluid_properties
@@ -1345,10 +1337,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_region4_above_bdy_1_3_fluid_properties(self, primary, &
+  subroutine eos_se_region6_fluid_properties(self, primary, &
        rock, fluid, err)
-    !! Calculate region 4 fluid properties from region and primary variables
-    !! for temperatures above the region 1/3 boundary.
+    !! Calculate region 6 fluid properties from region and primary variables.
 
     use fluid_module, only: fluid_type
     use rock_module, only: rock_type
@@ -1360,20 +1351,20 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p, phases
-    PetscReal :: density, sl, properties(2)
+    PetscReal :: sl, properties(2), density_difference
     PetscReal :: relative_permeability(2), capillary_pressure(2)
-    PetscBool :: liquid
+    PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
 
-    associate(pressure => primary(1), vapour_saturation => primary(2))
+    associate(density => primary(1), temperature => primary(2))
 
       select type (region3 => self%thermo%region(3)%ptr)
       type is (IAPWS_region3_type)
 
-         fluid%pressure = pressure
-         call self%thermo%saturation%temperature(fluid%pressure, &
-              fluid%temperature, err)
+         fluid%temperature = temperature
+         call self%thermo%saturation%pressure(temperature, &
+              fluid%pressure, err)
          if (err == 0) then
 
             fluid%partial_pressure(1) = fluid%pressure
@@ -1381,72 +1372,76 @@ contains
 
             call self%phase_composition(fluid, err)
             if (err == 0) then
-               call self%phase_saturations(primary, fluid)
 
-               phases = nint(fluid%phase_composition)
+               call region3%saturation_density([fluid%pressure, &
+                    fluid%temperature], PETSC_TRUE, fluid%phase(1)%density, &
+                    err, polish = PETSC_TRUE)
+               if (err == 0) then
+                  call region3%saturation_density([fluid%pressure, &
+                       fluid%temperature], PETSC_FALSE, fluid%phase(2)%density, &
+                       err, polish = PETSC_TRUE)
+                  if (err == 0) then
 
-               sl = fluid%phase(1)%saturation
-               relative_permeability = rock%relative_permeability%values(sl)
-               capillary_pressure = [rock%capillary_pressure%value(sl, &
-                    fluid%temperature), 0._dp]
+                     density_difference = fluid%phase(1)%density - fluid%phase(2)%density
+                     if (density_difference > small) then
+                        sl = (density - fluid%phase(2)%density) / density_difference
+                     else
+                        sl = 0.5_dp
+                     end if
+                     fluid%phase(1)%saturation = sl
+                     fluid%phase(2)%saturation = 1._dp - sl
 
-               fluid%liquidlike_fraction = sl
-               fluid%supercritical_phases = 0._dp
+                     phases = nint(fluid%phase_composition)
 
-               do p = 1, 2
-                  associate(phase => fluid%phase(p))
+                     relative_permeability = rock%relative_permeability%values(sl)
+                     capillary_pressure = [rock%capillary_pressure%value(sl, &
+                          fluid%temperature), 0._dp]
 
-                    if (btest(phases, p - 1)) then
+                     fluid%liquidlike_fraction = sl
+                     fluid%supercritical_phases = 0._dp
 
-                       liquid = (p == 1)
-                       call region3%saturation_density([fluid%pressure, &
-                            fluid%temperature], liquid, density, err, &
-                            polish = PETSC_TRUE)
+                     do p = 1, 2
+                        associate(phase => fluid%phase(p))
 
-                       if (err == 0) then
+                          if (btest(phases, p - 1)) then
 
-                          call region3%properties([density, fluid%temperature], &
-                               properties, err)
+                             call region3%properties([phase%density, &
+                                  fluid%temperature], properties, err)
 
-                          if (err == 0) then
+                             if (err == 0) then
 
-                             phase%density = density
-                             phase%internal_energy = properties(2)
-                             phase%specific_enthalpy = phase%internal_energy + &
-                                  fluid%pressure / phase%density
+                                phase%internal_energy = properties(2)
+                                phase%specific_enthalpy = phase%internal_energy + &
+                                     fluid%pressure / phase%density
 
-                             phase%mass_fraction(1) = 1._dp
-                             phase%relative_permeability = relative_permeability(p)
-                             phase%capillary_pressure = capillary_pressure(p)
+                                phase%mass_fraction(1) = 1._dp
+                                phase%relative_permeability = relative_permeability(p)
+                                phase%capillary_pressure = capillary_pressure(p)
 
-                             call region3%viscosity(fluid%temperature, fluid%pressure, &
-                                  phase%density, phase%viscosity)
+                                call region3%viscosity(fluid%temperature, fluid%pressure, &
+                                     phase%density, phase%viscosity)
+
+                             else
+                                exit
+                             end if
 
                           else
-                             exit
+                             call phase%zero()
                           end if
 
-                       else
-                          exit
-                       end if
+                        end associate
+                     end do
 
-                    else
-                       call phase%zero()
-                    end if
+                     call fluid%phase(3)%zero()
 
-                  end associate
-               end do
-
-               call fluid%phase(3)%zero()
-
+                  end if
+               end if
             end if
          end if
-
       end select
-
     end associate
 
-  end subroutine eos_se_region4_above_bdy_1_3_fluid_properties
+  end subroutine eos_se_region6_fluid_properties
 
 !------------------------------------------------------------------------
 
@@ -1480,6 +1475,10 @@ contains
        s(p) = 1._dp
     case (4)
        s = [1._dp - primary(2), primary(2), 0._dp]
+    case (6)
+       ! region 6 phase saturations are computed in the fluid_properties() routine,
+       ! as this requires the liquid and vapour densities to be calculated:
+       s = 0._dp
     end select
 
     fluid%phase(1)%saturation = s(1)
