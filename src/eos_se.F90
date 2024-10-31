@@ -1572,38 +1572,45 @@ contains
     ! Locals:
     PetscInt :: region
     PetscReal :: p, props(2)
+    PetscBool :: failed
 
     changed = PETSC_FALSE
     err = 0
 
     region = nint(fluid%region)
-    if (region == 3) then
-       call self%thermo%region(region)%ptr%properties(primary, props, err)
-       if (err == 0) p = props(1)
-    else
-       p = primary(1)
-    end if
+    select case (region)
+    case (1, 2)
+       failed = (out(primary(1), 0._dp, 100.e6_dp) .or. &
+            out(primary(2), 0._dp, 800._dp))
+    case (3)
+       call self%thermo%region(3)%ptr%properties(primary, props, err)
+       if (err == 0) then
+          failed = (out(props(1), 0._dp, 100.e6_dp) .or. &
+               out(primary(2), 0._dp, 800._dp) .or. &
+               out(primary(1), 0._dp, 1100._dp))
+       else
+          failed = PETSC_TRUE
+       end if
+    case (4)
+       failed = (out(primary(1), 0._dp, 100.e6_dp) .or. &
+            out(primary(2), -1._dp, 2._dp))
+    case (6)
+       failed = (out(primary(1), 0._dp, 1100._dp) .or. &
+            out(primary(2), 0._dp, 800._dp))
+    end select
 
-    if (err == 0) then
-      if ((p < 0._dp) .or. (p > 100.e6_dp)) then
-         err = 1
-      else
-         if (region == 4) then
-            associate (vapour_saturation => primary(2))
-              if ((vapour_saturation < -1._dp) .or. &
-                   (vapour_saturation > 2._dp)) then
-                 err = 1
-              end if
-            end associate
-         else
-            associate (t => primary(2))
-              if ((t < 0._dp) .or. (t > 800._dp)) then
-                 err = 1
-              end if
-            end associate
-         end if
-      end if
-   end if
+    if (failed) err = 1
+
+ contains
+
+   PetscBool function out(v, lo, hi)
+     PetscReal, intent(in) :: v, lo, hi
+     if ((v < lo) .or. (v > hi)) then
+        out = PETSC_TRUE
+     else
+        out = PETSC_FALSE
+     end if
+   end function out
 
   end subroutine eos_se_check_primary_variables
 
