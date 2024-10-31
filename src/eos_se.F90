@@ -51,8 +51,9 @@ module eos_se_module
      procedure, public :: transition_to_single_phase => eos_se_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_se_transition_to_two_phase
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
-     procedure, public :: transition_region3_to_single_phase => eos_se_transition_region3_to_single_phase
+     procedure, public :: transition_region3_or_6_to_single_phase => eos_se_transition_region3_or_6_to_single_phase
      procedure, public :: transition_region4_to_supercritical => eos_se_transition_region4_to_supercritical
+     procedure, public :: transition_region4_to_region6 => eos_se_transition_region4_to_region6
      procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure :: region2_supercritical_fluid_properties => eos_se_region2_supercritical_fluid_properties
@@ -237,9 +238,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_transition_region3_to_single_phase(self, old_fluid, &
-       new_region, primary, fluid, transition, err)
-    !! For eos_se, carry out transition from region 3 to the
+  subroutine eos_se_transition_region3_or_6_to_single_phase(self, &
+       old_fluid, new_region, primary, fluid, transition, err)
+    !! For eos_se, carry out transition from region 3 or 6 to the
     !! single-phase new_region (1 or 2).
 
     use fluid_module, only: fluid_type
@@ -267,7 +268,7 @@ contains
        transition = PETSC_TRUE
     end if
 
-  end subroutine eos_se_transition_region3_to_single_phase
+  end subroutine eos_se_transition_region3_or_6_to_single_phase
 
 !------------------------------------------------------------------------
 
@@ -307,6 +308,62 @@ contains
     end associate
 
   end subroutine eos_se_transition_region4_to_supercritical
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_transition_region4_to_region6(self, primary, fluid, &
+       transition, err)
+      !! For eos_se, make transition from region 4 to region 6 (or
+      !! possibly region 3 if the critical temperature has been
+      !! exceeded).
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: new_temperature, liquid_density, vapour_density
+
+    err = 0
+
+    associate (pressure => primary(1), vapour_saturation => primary(2))
+      if (pressure > self%thermo%critical%pressure) then
+         call self%transition_region4_to_supercritical(primary, fluid, &
+              transition)
+      else
+         call self%thermo%saturation%temperature(pressure, &
+              new_temperature, err)
+         if (err == 0) then
+
+            select type (region3 => self%thermo%region(3)%ptr)
+            type is (IAPWS_region3_type)
+
+               call region3%saturation_density([pressure, &
+                    new_temperature], PETSC_TRUE, liquid_density, &
+                    err, polish = PETSC_TRUE)
+               if (err == 0) then
+                  call region3%saturation_density([pressure, &
+                       new_temperature], PETSC_FALSE, vapour_density, &
+                       err, polish = PETSC_TRUE)
+                  if (err == 0) then
+                     fluid%region = dble(6)
+                     transition = PETSC_TRUE
+                     associate (density => primary(1), temperature => primary(2))
+                       density = (1._dp - vapour_saturation) * liquid_density + &
+                            vapour_saturation * vapour_density
+                       temperature = new_temperature
+                     end associate
+                  end if
+               end if
+            end select
+         end if
+      end if
+    end associate
+
+  end subroutine eos_se_transition_region4_to_region6
 
 !------------------------------------------------------------------------
 
@@ -361,22 +418,19 @@ contains
             if (interpolated_pressure > thermo%critical%pressure) then
                call self%transition_region4_to_supercritical(primary, fluid, &
                     transition)
+            else if (interpolated_pressure > thermo%saturation_pressure_bdy_1_3) then
+               call region4_above_bdy_1_3_transitions()
             else
                associate (pressure => primary(1))
                  pressure = interpolated_pressure
 
                  call thermo%saturation%temperature(pressure, temperature, err)
                  if (err == 0) then
-
-                    if (pressure <= thermo%saturation_pressure_bdy_1_3) then
-                       pressure = pressure_factor * pressure
-                       fluid%region = dble(new_region)
-                       transition = PETSC_TRUE
-                    else
-                       call region4_above_bdy_1_3_transitions()
-                    end if
-
+                    pressure = pressure_factor * pressure
+                    fluid%region = dble(new_region)
+                    transition = PETSC_TRUE
                  end if
+
                end associate
             end if
           end associate
@@ -563,6 +617,8 @@ contains
        call region_3_transitions()
     case (4)
        call region_4_transitions()
+    case (6)
+       call region_6_transitions()
     end select
 
   contains
@@ -770,8 +826,8 @@ contains
 
 !........................................................................
 
-    subroutine region3_to_below_bdy_1_3_transitions()
-      !! Transitions from region 3 to temperatures below the region
+    subroutine region3_or_6_to_below_bdy_1_3_transitions()
+      !! Transitions from region 3 or 6 to temperatures below the region
       !! 1/3 boundary, in region 1, 2 or 4.
 
       ! Locals:
@@ -793,7 +849,7 @@ contains
 
                  if (density > liquid_density) then
 
-                    call self%transition_region3_to_single_phase(old_fluid, &
+                    call self%transition_region3_or_6_to_single_phase(old_fluid, &
                          1, primary, fluid, transition, err)
 
                  else if (density > vapour_density) then
@@ -806,7 +862,7 @@ contains
 
                  else
 
-                    call self%transition_region3_to_single_phase(old_fluid, &
+                    call self%transition_region3_or_6_to_single_phase(old_fluid, &
                          2, primary, fluid, transition, err)
 
                  end if
@@ -816,18 +872,16 @@ contains
         end if
       end associate
 
-    end subroutine region3_to_below_bdy_1_3_transitions
+    end subroutine region3_or_6_to_below_bdy_1_3_transitions
 
 !........................................................................
 
-    subroutine region3_to_two_phase_above_bdy_1_3_transitions()
-      !! Transitions from region 3 to two-phase, at temperatures above
-      !! the region 1/3 boundary.
+    subroutine region3_to_6_transitions()
+      !! Transitions from region 3 to region 6 (two-phase, at
+      !! temperatures above the region 1/3 boundary).
 
       ! Locals:
       PetscReal :: pressure, liquid_density, vapour_density
-      PetscReal :: density_difference, Sv
-      PetscReal, parameter :: small = 1.e-6_dp
 
       associate (density => primary(1), temperature => primary(2))
         select type (thermo => self%thermo)
@@ -853,15 +907,7 @@ contains
 
                           if ((vapour_density < density) .and. &
                                (density < liquid_density)) then
-                             density_difference = liquid_density - vapour_density
-                             if (density_difference > small) then
-                                Sv = (liquid_density - density) / density_difference
-                             else
-                                Sv = 0.5_dp
-                             end if
-                             fluid%region = dble(4)
-                             primary(1) = pressure
-                             primary(2) = Sv
+                             fluid%region = dble(6)
                              transition = PETSC_TRUE
                           end if
 
@@ -876,13 +922,13 @@ contains
         end select
       end associate
 
-    end subroutine region3_to_two_phase_above_bdy_1_3_transitions
+    end subroutine region3_to_6_transitions
 
 !........................................................................
 
     subroutine region3_to_above_bdy_1_3_transitions()
       !! Transitions from region 3 to temperatures above the region
-      !! 1/3 boundary, in region 2 or 4.
+      !! 1/3 boundary, in region 2 or 6.
 
       ! Locals:
       PetscReal :: pressure_bdy_2_3, props(2)
@@ -897,22 +943,22 @@ contains
            call thermo%region(2)%ptr%properties([pressure_bdy_2_3, temperature], &
                 props, err)
            if (err == 0) then
-              associate(density_bdy_2_3 => props(1))
+              associate (density_bdy_2_3 => props(1))
 
                 if (density < density_bdy_2_3) then
 
-                   call self%transition_region3_to_single_phase(old_fluid, &
+                   call self%transition_region3_or_6_to_single_phase(old_fluid, &
                         2, primary, fluid, transition, err)
 
                    if (err > 0) then
                       primary = [density_bdy_2_3, temperature]
                       density = (1._dp - eps) * density
-                      call self%transition_region3_to_single_phase(old_fluid, &
+                      call self%transition_region3_or_6_to_single_phase(old_fluid, &
                            2, primary, fluid, transition, err)
                    end if
 
                 else
-                   call region3_to_two_phase_above_bdy_1_3_transitions()
+                   call region3_to_6_transitions()
                 end if
               end associate
 
@@ -932,7 +978,7 @@ contains
         select type (thermo => self%thermo)
         type is (IAPWS_type)
            if (temperature < thermo%temperature_bdy_1_3) then
-              call region3_to_below_bdy_1_3_transitions()
+              call region3_or_6_to_below_bdy_1_3_transitions()
            else
               call region3_to_above_bdy_1_3_transitions()
            end if
@@ -944,22 +990,141 @@ contains
 !........................................................................
 
     subroutine region_4_transitions()
-      !! Transitions from region 4 to 1, 2 or 3
+      !! Transitions from region 4 to 1, 2, 3 or 6
 
-      associate (pressure => primary(1), vapour_saturation => primary(2))
-        if (vapour_saturation < 0._dp) then
-           call self%transition_to_single_phase(old_primary, old_fluid, &
-                1, primary, fluid, transition, err)
-        else if (vapour_saturation > 1._dp) then
-           call self%transition_to_single_phase(old_primary, old_fluid, &
-                2, primary, fluid, transition, err)
-        else if (pressure > self%thermo%critical%pressure) then
-           call self%transition_region4_to_supercritical(primary, fluid, &
-                transition)
-        end if
-      end associate
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+         associate (pressure => primary(1), vapour_saturation => primary(2))
+           if (vapour_saturation < 0._dp) then
+              call self%transition_to_single_phase(old_primary, old_fluid, &
+                   1, primary, fluid, transition, err)
+           else if (vapour_saturation > 1._dp) then
+              call self%transition_to_single_phase(old_primary, old_fluid, &
+                   2, primary, fluid, transition, err)
+           else if (pressure > thermo%saturation_pressure_bdy_1_3) then
+              call self%transition_region4_to_region6(primary, fluid, &
+                   transition, err)
+           end if
+         end associate
+      end select
 
     end subroutine region_4_transitions
+
+!........................................................................
+
+    subroutine region6_to_3_transitions()
+      !! Transitions from region 6 to region 3.
+
+      ! Locals:
+      PetscReal :: pressure, liquid_density, vapour_density
+
+      associate (density => primary(1), temperature => primary(2))
+        select type (thermo => self%thermo)
+        type is (IAPWS_type)
+
+           if (temperature <= thermo%critical%temperature) then
+
+              call thermo%saturation%pressure(temperature, pressure, err)
+              if (err == 0) then
+                 select type (region3 => thermo%region(3)%ptr)
+                 type is (IAPWS_region3_type)
+                    call region3%saturation_density([pressure, &
+                         temperature], PETSC_TRUE, liquid_density, &
+                         err, polish = PETSC_TRUE)
+                    if (err == 0) then
+                       if (density > liquid_density) then
+                          fluid%region = dble(3)
+                          transition = PETSC_TRUE
+                       else
+                          call region3%saturation_density([pressure, &
+                               temperature], PETSC_FALSE, vapour_density, &
+                               err, polish = PETSC_TRUE)
+                          if (err == 0) then
+                             if (density < vapour_density) then
+                                fluid%region = dble(3)
+                                transition = PETSC_TRUE
+                             end if
+                          end if
+                       end if
+                    end if
+                 end select
+              end if
+
+           else ! T > Tc:
+              fluid%region = dble(3)
+              transition = PETSC_TRUE
+           end if
+
+        end select
+      end associate
+
+    end subroutine region6_to_3_transitions
+
+!........................................................................
+
+    subroutine region6_to_above_bdy_1_3_transitions()
+      !! Transitions from region 6 to temperatures above the region
+      !! 1/3 boundary, in region 2 or 3.
+
+      ! Locals:
+      PetscReal :: pressure_bdy_2_3, props(2)
+      PetscReal, parameter :: eps = 1.e-6_dp
+
+      associate (density => primary(1), temperature => primary(2))
+        select type (thermo => self%thermo)
+        type is (IAPWS_type)
+
+           call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
+           pressure_bdy_2_3 = min(pressure_bdy_2_3, thermo%max_pressure)
+           call thermo%region(2)%ptr%properties([pressure_bdy_2_3, temperature], &
+                props, err)
+           if (err == 0) then
+              associate(density_bdy_2_3 => props(1))
+
+                if (density < density_bdy_2_3) then
+
+                   call self%transition_region3_or_6_to_single_phase(old_fluid, &
+                        2, primary, fluid, transition, err)
+
+                   if (err > 0) then
+                      primary = [density_bdy_2_3, temperature]
+                      density = (1._dp - eps) * density
+                      call self%transition_region3_or_6_to_single_phase(old_fluid, &
+                           2, primary, fluid, transition, err)
+                   end if
+
+                else
+                   call region6_to_3_transitions()
+                end if
+              end associate
+
+           end if
+
+        end select
+
+      end associate
+
+    end subroutine region6_to_above_bdy_1_3_transitions
+
+!........................................................................
+
+    subroutine region_6_transitions()
+      !! Transitions from region 6 to 1, 2, 3 or 4.
+
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+         associate (temperature => primary(2))
+           if (temperature < thermo%temperature_bdy_1_3) then
+              call region3_or_6_to_below_bdy_1_3_transitions()
+           else
+              call region6_to_above_bdy_1_3_transitions()
+           end if
+         end associate
+      end select
+
+    end subroutine region_6_transitions
+
+!........................................................................
 
   end subroutine eos_se_transition
 
