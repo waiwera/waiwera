@@ -777,6 +777,7 @@ contains
     PetscInt :: index, tracer_array_size
     PetscBool :: minc_specified, use_original_dm, has_file, initial_time
     character(8) :: time_str
+    character(240) :: str_key
     PetscBool, parameter :: default_minc_specified = PETSC_FALSE
     PetscReal, parameter :: default_tracer = 0._dp
 
@@ -974,9 +975,14 @@ contains
           end if
        else
           if (present(logfile)) then
+             if (has_file) then
+                str_key = trim(adjustl(filename))
+             else
+                str_key = 'initial.primary'
+             end if
              call logfile%write(LOG_LEVEL_ERR, 'input', &
                   'initial.process', &
-                  str_key = trim(adjustl(filename)), &
+                  str_key = str_key, &
                   str_value = 'failed')
           end if
        end if
