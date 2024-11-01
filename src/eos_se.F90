@@ -413,17 +413,18 @@ contains
 
       ! Locals:
       PetscBool :: liquid
-      PetscReal :: factor, bdy_34_density, bdy_23_pressure, props(2)
-      PetscReal, parameter :: small = 1.e-6_dp
+      PetscReal :: density_increment, bdy_34_density, bdy_23_pressure, props(2)
+      PetscReal, parameter :: small_density = 1._dp
+      PetscReal, parameter :: factor = 1._dp - 1.e-6_dp
 
       select type (thermo => self%thermo)
       type is (IAPWS_type)
 
          liquid = (new_region == 1)
          if (liquid) then
-            factor = 1._dp + small
+            density_increment = small_density
          else
-            factor = 1._dp - small
+            density_increment = -small_density
          end if
 
          select type (region3 => thermo%region(3)%ptr)
@@ -435,7 +436,7 @@ contains
          if (err == 0) then
             associate (density => primary(1), temperature => primary(2))
 
-              density = factor * bdy_34_density
+              density = bdy_34_density + density_increment
               fluid%region = dble(3)
               transition = PETSC_TRUE
 
