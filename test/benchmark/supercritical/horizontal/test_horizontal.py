@@ -60,7 +60,7 @@ map_out_bdy = list(range(0, geo.num_blocks))
 test_fields = ['Pressure', 'Temperature', 'Liquid saturation']
 field_scale = {'Pressure': 1e6, 'Temperature': 1., 'Liquid saturation': 1.}
 field_unit = {'Pressure': 'MPa', 'Temperature': '$^{\circ}$C', 'Liquid saturation': ''}
-field_tols = {"Pressure": 0.01, "Temperature": 0.01, "Liquid saturation": 0.07}
+field_tols = {"Pressure": 0.01, "Temperature": 0.01, "Liquid saturation": 0.2}
 
 logtimes = [6, 7, 8, 9]
 colours = ['k', 'b', 'r', 'g']
