@@ -2408,7 +2408,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: delta(2), xi, theta, s, xi0, xi1, xim
-    PetscReal, parameter :: eps = 1.e-9_dp
+    PetscReal, parameter :: eps = epsilon(pi_liq)
 
     err = 0
     pseudo_phases = 0
