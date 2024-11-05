@@ -41,6 +41,7 @@ module eos_wse_module
    contains
      private
      procedure, public :: init => eos_wse_init
+     procedure, public :: destroy => eos_wse_destroy
      procedure, public :: transition => eos_wse_transition
      procedure, public :: transition_to_single_phase => eos_wse_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wse_transition_to_two_phase
@@ -174,6 +175,18 @@ contains
     call self%permeability_modifier%init(perm_json, logfile)
 
   end subroutine eos_wse_init
+
+!------------------------------------------------------------------------
+
+  subroutine eos_wse_destroy(self)
+    !! Destroy eos_wse object.
+
+    class(eos_wse_type), intent(in out) :: self
+
+    call self%eos_we_type%destroy()
+    call self%permeability_modifier%destroy()
+
+  end subroutine eos_wse_destroy
 
 !------------------------------------------------------------------------
 
