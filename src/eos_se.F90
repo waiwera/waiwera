@@ -1352,7 +1352,7 @@ contains
     class(eos_se_type), intent(in) :: self
     type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
     ! Locals:
-    PetscInt :: num_sc, sc_phases
+    PetscInt :: num_sc, sc_phases, p
     type(fluid_type), pointer :: scf
     type(fluid_type) :: tmp
 
@@ -1378,6 +1378,9 @@ contains
        tmp%phase_composition = scf%supercritical_phases
        tmp%phase(1)%saturation = scf%liquidlike_fraction
        tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
+       do p = 1, 2
+          tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
+       end do
 
        call scf%assign_internal()
        call tmp%destroy()
