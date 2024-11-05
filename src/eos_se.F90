@@ -27,6 +27,7 @@ module eos_se_module
   use root_finder_module
   use thermodynamics_module
   use IAPWS_module
+  use fluid_module
 
   implicit none
   private
@@ -43,6 +44,7 @@ module eos_se_module
      PetscBool :: pressure_conditions !! Option to allow region 3 initial and boundary conditions specified with pressure instead of density
      type(root_finder_type), public :: widom_delta_finder
      class(primary_variable_interpolator_type), pointer, public :: widom_delta_interpolator
+     class(fluid_modifier_type), allocatable, public :: relative_permeability_modifier !! Modifies effective relative permeability for temperature effects
    contains
      private
      procedure, public :: init => eos_se_init
@@ -73,7 +75,7 @@ contains
     !! Initialise pure supercritical water and energy EOS.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi
+    use fson_mpi_module, only: fson_get_mpi, fson_has_mpi
     use logfile_module
     use thermodynamics_module
     use IAPWS_module, only: critical
@@ -86,6 +88,8 @@ contains
     ! Locals:
     procedure(root_finder_routine), pointer :: fs, fw, ft
     PetscReal :: pressure_scale, temperature_scale, density_scale
+    character(max_fluid_modifier_name_length) :: relative_permeability_modifier_type_name
+    type(fson_value), pointer :: rperm_json
     character(10) :: conditions
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
@@ -93,6 +97,8 @@ contains
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
     PetscReal, parameter :: default_density_scale = critical%density !! Default scale factor for non-dimensionalising density
     character(10), parameter :: default_conditions = "density"
+    character(max_fluid_modifier_name_length), parameter :: &
+         default_relative_permeability_modifier_type_name = "none"
 
     self%name = "se"
     self%description = "Pure supercritical water and energy"
@@ -148,6 +154,28 @@ contains
          conditions, logfile)
     self%pressure_conditions = (str_to_lower(conditions) == "pressure")
 
+    ! Set up relative permeability modifier:
+    call fson_get_mpi(json, "eos.relative_permeability_modifier.type", &
+         default_relative_permeability_modifier_type_name, &
+         relative_permeability_modifier_type_name, logfile)
+    select case (str_to_lower(relative_permeability_modifier_type_name))
+    case ("linear")
+       allocate(fluid_relative_permeability_linear_temperature_type :: &
+            self%relative_permeability_modifier)
+       select type (modifier => self%relative_permeability_modifier)
+       type is (fluid_relative_permeability_linear_temperature_type)
+          modifier%critical_temperature = self%thermo%critical%temperature
+       end select
+    case default ! null modifier
+       allocate(fluid_modifier_type :: self%relative_permeability_modifier)
+    end select
+    if (fson_has_mpi(json, "eos.relative_permeability_modifier")) then
+       call fson_get_mpi(json, "eos.relative_permeability_modifier", rperm_json)
+    else
+       rperm_json => null()
+    end if
+    call self%relative_permeability_modifier%init(rperm_json, logfile)
+
   contains
 
     subroutine init_line_finder(finder, interpolator, f, init_interpolator)
@@ -200,6 +228,8 @@ contains
     call self%widom_delta_interpolator%destroy()
     deallocate(self%widom_delta_interpolator)
 
+    call self%relative_permeability_modifier%destroy()
+
   end subroutine eos_se_destroy
 
 !------------------------------------------------------------------------
@@ -207,8 +237,6 @@ contains
   subroutine eos_se_transition_single_phase_to_region3(self, primary, &
        fluid, transition, err)
     !! For eos_se, carry out transition from single phase to region 3.
-
-    use fluid_module, only: fluid_type
 
     class(eos_se_type), intent(in out) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
@@ -937,6 +965,7 @@ contains
             end if
          end select
        end associate
+       call self%relative_permeability_modifier%modify(fluid)
     end select
 
   end subroutine eos_se_fluid_properties

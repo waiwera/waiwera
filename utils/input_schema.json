@@ -162,6 +162,12 @@
                                                    }, "additionalProperties": false
                                                }
                                            }, "additionalProperties": false},
+                               "relative_permeability_modifier": {"type": "object",
+                                                                  "properties": {
+                                                                      "type": {"type": "string",
+                                                                               "enum": ["none", "None",
+                                                                                        "linear", "Linear"]},
+                                                         }},
                                "temperature": {"type": "number"},
                                "conditions": {"type": "string",
                                            "enum": ["density", "Density",

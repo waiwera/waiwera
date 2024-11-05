@@ -117,14 +117,14 @@ module fluid_module
      procedure, public :: is_supercritical => fluid_is_supercritical
   end type fluid_type
 
-  type, public, abstract :: fluid_modifier_type
+  type, public :: fluid_modifier_type
      !! Abstract type for fluid modification object.
      private
      character(max_fluid_modifier_name_length), public :: name !! Name of fluid modifier
    contains
      private
-     procedure(fluid_modifier_init_routine), public, deferred :: init
-     procedure(fluid_modifier_modify_routine), public, deferred :: modify
+     procedure, public :: init => fluid_modifier_init
+     procedure, public :: modify => fluid_modifier_modify
      procedure, public :: destroy => fluid_modifier_destroy
   end type fluid_modifier_type
 
@@ -132,7 +132,6 @@ module fluid_module
      !! Type for null permeability factor - assigns permeability factor 1.
    contains
      private
-     procedure, public :: init => fluid_permeability_factor_null_init
      procedure, public :: modify => fluid_permeability_factor_null_modify
   end type fluid_permeability_factor_null_type
 
@@ -157,25 +156,14 @@ module fluid_module
      procedure, public :: modify => fluid_permeability_factor_verma_pruess_modify
   end type fluid_permeability_factor_verma_pruess_type
 
-  abstract interface
-
-     subroutine fluid_modifier_init_routine(self, json, logfile)
-       !! Initializes fluid modifier object from JSON data.
-       use logfile_module
-       import :: fluid_modifier_type, fson_value
-       class(fluid_modifier_type), intent(in out) :: self
-       type(fson_value), pointer, intent(in) :: json
-       type(logfile_type), intent(in out), optional :: logfile
-     end subroutine fluid_modifier_init_routine
-
-     subroutine fluid_modifier_modify_routine(self, fluid)
-       !! Routine for modifying the specified fluid object.
-       import :: fluid_type, fluid_modifier_type
-       class(fluid_modifier_type), intent(in out) :: self
-       type(fluid_type), intent(in out) :: fluid
-     end subroutine fluid_modifier_modify_routine
-
-  end interface
+  type, public, extends(fluid_modifier_type) :: &
+       fluid_relative_permeability_linear_temperature_type
+     !! Type for linear variation in relative permeability with temperature
+     PetscReal, public :: critical_temperature !! Critical temperature
+   contains
+     private
+     procedure, public :: modify => fluid_relative_permeability_linear_temperature_modify
+  end type fluid_relative_permeability_linear_temperature_type
 
   public :: fluid_type, phase_type
   public :: create_fluid_vector
@@ -638,28 +626,42 @@ contains
 ! Fluid modifier types:
 !------------------------------------------------------------------------
 
-  subroutine fluid_modifier_destroy(self)
-    !! Destroys fluid modifier object. To be overridden by derived types.
-    class(fluid_modifier_type), intent(in out) :: self
-
-    continue
-
-  end subroutine fluid_modifier_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine fluid_permeability_factor_null_init(self, json, logfile)
-    !! Initializes null permeability factor object from JSON data.
+  subroutine fluid_modifier_init(self, json, logfile)
+    !! Initializes fluid modifier object - to be overridden by derived
+    !! types.
 
     use logfile_module
 
-    class(fluid_permeability_factor_null_type), intent(in out) :: self
+    class(fluid_modifier_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
 
     continue
 
-  end subroutine fluid_permeability_factor_null_init
+  end subroutine fluid_modifier_init
+
+!........................................................................
+
+  subroutine fluid_modifier_modify(self, fluid)
+    !! Default null fluid modifier - to be overridden by derived types.
+
+    class(fluid_modifier_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+
+    continue
+
+  end subroutine fluid_modifier_modify
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_modifier_destroy(self)
+    !! Destroys fluid modifier object - to be overridden by derived
+    !! types.
+    class(fluid_modifier_type), intent(in out) :: self
+
+    continue
+
+  end subroutine fluid_modifier_destroy
 
 !........................................................................
 
@@ -749,6 +751,32 @@ contains
          ** self%exponent)
 
   end subroutine fluid_permeability_factor_verma_pruess_modify
+
+!........................................................................
+
+  subroutine fluid_relative_permeability_linear_temperature_modify(self, fluid)
+    !! Modifies relative permeability linearly with temperature,
+    !! according to the equation given by Feng et al. (2021). As the
+    !! critical temperature is approached, relative permeabilities are
+    !! adjusted to approach simple linear curves from 0 to 1.
+
+    use thermodynamics_module, only: thermodynamics_type
+
+    class(fluid_relative_permeability_linear_temperature_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+    ! Locals:
+    PetscReal :: xi
+    PetscInt :: p
+
+    xi = fluid%temperature / self%critical_temperature
+    do p = 1, 2
+       associate(phase => fluid%phase(p))
+         phase%relative_permeability = xi * phase%saturation + &
+              (1._dp - xi) * phase%relative_permeability
+       end associate
+    end do
+
+  end subroutine fluid_relative_permeability_linear_temperature_modify
 
 !------------------------------------------------------------------------
 
