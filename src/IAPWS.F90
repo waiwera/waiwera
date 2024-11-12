@@ -2043,7 +2043,7 @@ contains
                end if
             end if
          end if
-      else if (p > self%psat_623) then
+      else if (p >= self%psat_623) then
          call self%thermo%saturation%temperature(p, tsat, err)
          tsatk = tsat + tc_k
          if (err == 0) then
