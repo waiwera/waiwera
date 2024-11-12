@@ -1448,40 +1448,90 @@ contains
     !!
     !! Returns err = 1 if called outside its operating range (0 < t <=
     !! self%max_temperature, 0 < p <= 100 MPa).
+    !!
+    !! For temperatures close to the region 1/3 boundary, properties
+    !! are interpolated between the region 1/3 properties, to avoid
+    !! continuity problems at the boundary.
 
     class(IAPWS_region1_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: props(:) !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    PetscReal:: tk, rt, pi, tau, gampi, gamt
-    
-    associate (p => param(1), t => param(2))
+    PetscReal :: T_a, xi
+    PetscReal :: props_a(2), props_b(2), rho_b, u_b
+    PetscReal, parameter :: dT = 0.05 !! size of interpolation zone
 
-      ! Check input:
-      if ((0._dp < t) .and. (t <= self%max_temperature) .and. &
-           (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
-         !      
-         tk = t + tc_k
-         rt = specific_gas_constant * tk
-         pi = p / self%pstar
-         tau = self%tstar / tk
+    select type (thermo => self%thermo)
+    type is (IAPWS_type)
+       associate (T_b => thermo%temperature_bdy_1_3, &
+            p => param(1), t => param(2), u_b => props_b(2))
 
-         call self%pi%compute(7.1_dp - pi)
-         call self%pj%compute(tau - 1.222_dp)
+         T_a = T_b - dT
 
-         gampi = -sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
-         gamt = sum(self%nJ * self%pi%power(self%I) * self%pj%power(self%J_1))
+         if (t < T_a) then
+            call properties(param, props, err)
+         else
 
-         props(1) = self%pstar / (rt * gampi)      ! density
-         props(2) = rt * (tau * gamt - pi * gampi) ! internal energy
-         err = 0
+            xi = (t - T_a) / dT
+            call properties([p, T_a], props_a, err)
+            if (err == 0) then
+               select type (region3 => thermo%region(3)%ptr)
+               type is (IAPWS_region3_type)
+                  call region3%density(param, rho_b, err, polish = PETSC_TRUE)
+                  if (err == 0) then
+                     call region3%properties([rho_b, T_b], props_b, err)
+                     if (err == 0) then
+                        call properties(param, props, err)
+                        props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
+                     end if
+                  end if
+               end select
+            end if
 
-      else
-         err = 1
-      end if
+         end if
+       end associate
+    end select
 
-    end associate
+  contains
+
+    subroutine properties(param, props, err)
+
+      PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+      PetscReal, intent(out):: props(:) !! (density, internal energy)
+      PetscInt, intent(out) :: err !! error code
+
+      ! Locals:
+      PetscReal:: tk, rt, pi, tau, gampi, gamt
+
+      associate (p => param(1), t => param(2))
+
+        ! Check input:
+        if ((0._dp < t) .and. (t <= self%max_temperature) .and. &
+             (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
+
+           tk = t + tc_k
+           rt = specific_gas_constant * tk
+           pi = p / self%pstar
+           tau = self%tstar / tk
+
+           call self%pi%compute(7.1_dp - pi)
+           call self%pj%compute(tau - 1.222_dp)
+
+           gampi = -sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
+           gamt = sum(self%nJ * self%pi%power(self%I) * self%pj%power(self%J_1))
+
+           props(1) = self%pstar / (rt * gampi)      ! density
+           props(2) = rt * (tau * gamt - pi * gampi) ! internal energy
+           err = 0
+
+        else
+           err = 1
+        end if
+
+      end associate
+
+    end subroutine properties
 
   end subroutine region1_properties
 
