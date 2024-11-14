@@ -1373,77 +1373,80 @@ contains
   subroutine eos_se_convert_fluid(self, fluid1, fluid2)
 
     !! For fluid objects on face between sub- and super-critical
-    !! cells, convert single-phase supercritical fluid to two-phase
-    !! for the flux calculation.
+    !! cells, convert supercritical fluid to equivalent sub-critical
+    !! fluid for the flux calculation.
 
     use fluid_module, only: fluid_type
 
     class(eos_se_type), intent(in) :: self
     type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
     ! Locals:
-    PetscInt :: num_sc, sc_phases, p
-    type(fluid_type), pointer :: scf
+    PetscInt :: num_sc, sub_phases, p
+    type(fluid_type), pointer :: sup, sub
     type(fluid_type) :: tmp
 
     num_sc = 0
-    call check(fluid1)
-    call check(fluid2)
+    call identify_fluids(fluid1)
+    call identify_fluids(fluid2)
 
     if (num_sc == 1) then
 
-       ! Create a temporary fluid to modify the scf internal data,
+       ! Create a temporary fluid to modify the sup internal data,
        ! while maintaining access to its original data:
-       call tmp%init(scf%num_components, scf%num_phases)
-       call tmp%assign(scf%internal_data, 1)
+       call tmp%init(sup%num_components, sup%num_phases)
+       call tmp%assign(sup%internal_data, 1)
 
-       tmp%pressure = scf%pressure
-       tmp%temperature = scf%temperature
+       sub_phases = nint(sub%phase_composition)
 
-       sc_phases = nint(scf%supercritical_phases)
-       call copy_phase(1)
-       call copy_phase(2)
+       select case (sub_phases)
+       case (int(b'001'))
+
+          call tmp%phase(1)%copy(sup%phase(3))
+          call tmp%phase(2)%zero()
+
+       case (int(b'010'))
+
+          call tmp%phase(1)%zero()
+          call tmp%phase(2)%copy(sup%phase(3))
+
+       case (int(b'011'))
+
+          call tmp%phase(1)%copy(sup%phase(3))
+          call tmp%phase(2)%copy(sup%phase(3))
+          tmp%phase(1)%saturation = sup%liquidlike_fraction
+          tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
+          do p = 1, 2
+             tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
+          end do
+
+       end select
+
+       tmp%pressure = sup%pressure
+       tmp%temperature = sup%temperature
+       tmp%phase_composition = sub_phases
        call tmp%phase(3)%zero()
 
-       tmp%phase_composition = scf%supercritical_phases
-       tmp%phase(1)%saturation = scf%liquidlike_fraction
-       tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
-       do p = 1, 2
-          tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
-       end do
-
-       call scf%assign_internal()
+       call sup%assign_internal()
        call tmp%destroy()
 
     end if
 
   contains
 
-    subroutine check(fluid)
-      ! If fluid is supercritical, assign scf pointer to it and
-      ! increment num_sc.
+    subroutine identify_fluids(fluid)
+      ! If fluid is supercritical, assign sup pointer to it and
+      ! increment num_sc, otherwise assign sub pointer.
 
       type(fluid_type), target, intent(in) :: fluid
 
       if (fluid%is_supercritical()) then
-         scf => fluid
+         sup => fluid
          num_sc = num_sc + 1
+      else
+         sub => fluid
       end if
 
-    end subroutine check
-
-    subroutine copy_phase(i)
-      ! Copy supercritical phase to phase i if it is present,
-      ! otherwise zero it out.
-
-      PetscInt, intent(in) :: i
-
-      if (btest(sc_phases, i - 1)) then
-          call tmp%phase(i)%copy(scf%phase(3))
-       else
-          call tmp%phase(i)%zero()
-       end if
-
-     end subroutine copy_phase
+    end subroutine identify_fluids
 
   end subroutine eos_se_convert_fluid
 
