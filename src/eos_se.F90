@@ -1382,7 +1382,7 @@ contains
     type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
     ! Locals:
     PetscInt :: num_sc, sub_phases, super_phases, p
-    type(fluid_type), pointer :: sup, sub
+    type(fluid_type), pointer :: super, sub
     type(fluid_type) :: tmp
 
     num_sc = 0
@@ -1391,47 +1391,47 @@ contains
 
     if (num_sc == 1) then
 
-       ! Create a temporary fluid to modify the sup internal data,
+       ! Create a temporary fluid to modify the super internal data,
        ! while maintaining access to its original data:
-       call tmp%init(sup%num_components, sup%num_phases)
-       call tmp%assign(sup%internal_data, 1)
+       call tmp%init(super%num_components, super%num_phases)
+       call tmp%assign(super%internal_data, 1)
 
        sub_phases = nint(sub%phase_composition)
 
        select case (sub_phases)
        case (int(b'001'))
 
-          call tmp%phase(1)%copy(sup%phase(3))
+          call tmp%phase(1)%copy(super%phase(3))
           call tmp%phase(2)%zero()
           tmp%phase_composition = sub_phases
 
        case (int(b'010'))
 
           call tmp%phase(1)%zero()
-          call tmp%phase(2)%copy(sup%phase(3))
+          call tmp%phase(2)%copy(super%phase(3))
           tmp%phase_composition = sub_phases
 
        case (int(b'011'))
 
-          super_phases = nint(sup%supercritical_phases)
+          super_phases = nint(super%supercritical_phases)
           tmp%phase_composition = super_phases
 
           select case (super_phases)
           case (int(b'001'))
 
-             call tmp%phase(1)%copy(sup%phase(3))
+             call tmp%phase(1)%copy(super%phase(3))
              call tmp%phase(2)%zero()
 
           case (int(b'010'))
 
              call tmp%phase(1)%zero()
-             call tmp%phase(2)%copy(sup%phase(3))
+             call tmp%phase(2)%copy(super%phase(3))
 
           case (int(b'011'))
 
-             call tmp%phase(1)%copy(sup%phase(3))
-             call tmp%phase(2)%copy(sup%phase(3))
-             tmp%phase(1)%saturation = sup%liquidlike_fraction
+             call tmp%phase(1)%copy(super%phase(3))
+             call tmp%phase(2)%copy(super%phase(3))
+             tmp%phase(1)%saturation = super%liquidlike_fraction
              tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
              do p = 1, 2
                 tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
@@ -1441,11 +1441,11 @@ contains
 
        end select
 
-       tmp%pressure = sup%pressure
-       tmp%temperature = sup%temperature
+       tmp%pressure = super%pressure
+       tmp%temperature = super%temperature
        call tmp%phase(3)%zero()
 
-       call sup%assign_internal()
+       call super%assign_internal()
        call tmp%destroy()
 
     end if
@@ -1453,13 +1453,13 @@ contains
   contains
 
     subroutine identify_fluids(fluid)
-      ! If fluid is supercritical, assign sup pointer to it and
+      ! If fluid is supercritical, assign super pointer to it and
       ! increment num_sc, otherwise assign sub pointer.
 
       type(fluid_type), target, intent(in) :: fluid
 
       if (fluid%is_supercritical()) then
-         sup => fluid
+         super => fluid
          num_sc = num_sc + 1
       else
          sub => fluid
