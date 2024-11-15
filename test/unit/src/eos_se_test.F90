@@ -995,12 +995,24 @@ contains
 
        call convert_fluid_test( &
             [50.e6_dp, 340._dp], 1, [200._dp, 400._dp], 3, &
-            [1, 2], [0._dp, 1._dp, 0._dp], "L-SV")
+            [1, 1], [1._dp, 0._dp, 0._dp], "L-SV")
 
        call convert_fluid_test( &
             [50.e6_dp, 340._dp], 1, [280._dp, 400._dp], 3, &
-            [1, 3], [0.34576855753421931_dp, 0.65423144246578069_dp, &
-            0._dp], "L-S2P")
+            [1, 1], [1._dp, 0._dp, 0._dp], "L-S2P")
+
+       call convert_fluid_test( &
+            [18.e6_dp, 0.3_dp], 4, [500._dp, 380._dp], 3, &
+            [3, 1], [1._dp, 0._dp, 0._dp], "2P-SL")
+
+       call convert_fluid_test( &
+            [18.e6_dp, 0.3_dp], 4, [200._dp, 400._dp], 3, &
+            [3, 2], [0._dp, 1._dp, 0._dp], "2P-SV")
+
+       call convert_fluid_test( &
+            [18.e6_dp, 0.3_dp], 4, [280._dp, 400._dp], 3, &
+            [3, 3], [0.34576855753421920_dp, 0.65423144246578080_dp, &
+            0._dp], "2P-S2P")
 
     end if
 
