@@ -312,8 +312,10 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_se_transition_region4_to_supercritical(self, primary, fluid, &
-       transition)
-      !! For eos_se, make transition from region 4 to supercritical region 3.
+       transition, err)
+      !! For eos_se, make transition from region 4 to supercritical
+      !! region 3. The new primary variables are extrapolated along
+      !! the Widom line, at the given pressure (> critical pressure).
 
     use fluid_module, only: fluid_type
 
@@ -321,14 +323,31 @@ contains
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal, parameter :: small = 1.e-6_dp
+    PetscReal :: t_widom, density_widom
+    PetscReal, parameter :: small = 1.e-3_dp
 
-    associate (density => primary(1), temperature => primary(2))
-      fluid%region = dble(3)
-      density = self%thermo%critical%density
-      temperature = (1._dp + small) * self%thermo%critical%temperature
-      transition = PETSC_TRUE
+    err = 0
+    associate (pressure => primary(1))
+      select type (region3 => self%thermo%region(3)%ptr)
+      type is (IAPWS_region3_type)
+         call region3%widom(pressure, t_widom, err)
+         call region3%density([pressure, t_widom], density_widom, err, &
+              polish = PETSC_TRUE)
+         associate (density => primary(1), temperature => primary(2))
+           if (err == 0) then
+              density = density_widom
+              temperature = t_widom
+           else ! fallback
+              density = self%thermo%critical%density
+              temperature = (1._dp + small) * self%thermo%critical%temperature
+              err = 0
+           end if
+           fluid%region = dble(3)
+           transition = PETSC_TRUE
+         end associate
+      end select
     end associate
 
   end subroutine eos_se_transition_region4_to_supercritical
@@ -385,7 +404,7 @@ contains
 
             if (interpolated_pressure > thermo%critical%pressure) then
                call self%transition_region4_to_supercritical(primary, fluid, &
-                    transition)
+                    transition, err)
             else
                associate (pressure => primary(1))
                  pressure = interpolated_pressure
@@ -916,7 +935,7 @@ contains
                 2, primary, fluid, transition, err)
         else if (pressure > self%thermo%critical%pressure) then
            call self%transition_region4_to_supercritical(primary, fluid, &
-                transition)
+                transition, err)
         end if
       end associate
 
