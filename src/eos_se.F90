@@ -1381,7 +1381,7 @@ contains
     class(eos_se_type), intent(in) :: self
     type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
     ! Locals:
-    PetscInt :: num_sc, sub_phases, p
+    PetscInt :: num_sc, sub_phases, super_phases, p
     type(fluid_type), pointer :: sup, sub
     type(fluid_type) :: tmp
 
@@ -1403,27 +1403,46 @@ contains
 
           call tmp%phase(1)%copy(sup%phase(3))
           call tmp%phase(2)%zero()
+          tmp%phase_composition = sub_phases
 
        case (int(b'010'))
 
           call tmp%phase(1)%zero()
           call tmp%phase(2)%copy(sup%phase(3))
+          tmp%phase_composition = sub_phases
 
        case (int(b'011'))
 
-          call tmp%phase(1)%copy(sup%phase(3))
-          call tmp%phase(2)%copy(sup%phase(3))
-          tmp%phase(1)%saturation = sup%liquidlike_fraction
-          tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
-          do p = 1, 2
-             tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
-          end do
+          super_phases = nint(sup%supercritical_phases)
+          tmp%phase_composition = super_phases
+
+          select case (super_phases)
+          case (int(b'001'))
+
+             call tmp%phase(1)%copy(sup%phase(3))
+             call tmp%phase(2)%zero()
+
+          case (int(b'010'))
+
+             call tmp%phase(1)%zero()
+             call tmp%phase(2)%copy(sup%phase(3))
+
+          case (int(b'011'))
+
+             call tmp%phase(1)%copy(sup%phase(3))
+             call tmp%phase(2)%copy(sup%phase(3))
+             tmp%phase(1)%saturation = sup%liquidlike_fraction
+             tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
+             do p = 1, 2
+                tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
+             end do
+
+          end select
 
        end select
 
        tmp%pressure = sup%pressure
        tmp%temperature = sup%temperature
-       tmp%phase_composition = sub_phases
        call tmp%phase(3)%zero()
 
        call sup%assign_internal()
