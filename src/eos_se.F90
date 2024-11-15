@@ -329,26 +329,29 @@ contains
     PetscReal, parameter :: small = 1.e-3_dp
 
     err = 0
-    associate (pressure => primary(1))
-      select type (region3 => self%thermo%region(3)%ptr)
-      type is (IAPWS_region3_type)
+    select type (region3 => self%thermo%region(3)%ptr)
+    type is (IAPWS_region3_type)
+
+       associate (pressure => primary(1))
          call region3%widom(pressure, t_widom, err)
          call region3%density([pressure, t_widom], density_widom, err, &
               polish = PETSC_TRUE)
-         associate (density => primary(1), temperature => primary(2))
-           if (err == 0) then
-              density = density_widom
-              temperature = t_widom
-           else ! fallback
-              density = self%thermo%critical%density
-              temperature = (1._dp + small) * self%thermo%critical%temperature
-              err = 0
-           end if
-           fluid%region = dble(3)
-           transition = PETSC_TRUE
-         end associate
-      end select
-    end associate
+       end associate
+
+       associate (density => primary(1), temperature => primary(2))
+         if (err == 0) then
+            density = density_widom
+            temperature = t_widom
+         else ! fallback
+            density = self%thermo%critical%density
+            temperature = (1._dp + small) * self%thermo%critical%temperature
+            err = 0
+         end if
+         fluid%region = dble(3)
+         transition = PETSC_TRUE
+       end associate
+
+    end select
 
   end subroutine eos_se_transition_region4_to_supercritical
 
