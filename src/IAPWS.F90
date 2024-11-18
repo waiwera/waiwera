@@ -2258,7 +2258,7 @@ contains
     ! Locals:
     PetscInt :: sr
     PetscReal :: nu
-    PetscInt, parameter :: maxit = 50
+    PetscInt, parameter :: maxit = 70
     PetscReal, parameter :: ftol = 1.e-6_dp, xtol = 1.e-7_dp
 
     err = 0
