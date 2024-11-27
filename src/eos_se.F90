@@ -1301,9 +1301,9 @@ contains
        s = [1._dp - primary(2), primary(2), 0._dp]
     end select
 
-    fluid%phase(1)%saturation = s(1)
-    fluid%phase(2)%saturation = s(2)
-    fluid%phase(3)%saturation = s(3)
+    do p = 1, 3
+       fluid%phase(p)%saturation = s(p)
+    end do
 
   end subroutine eos_se_phase_saturations
 
