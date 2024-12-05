@@ -829,25 +829,24 @@ contains
                          temperature], PETSC_TRUE, liquid_density, &
                          err, polish = PETSC_TRUE)
                     if (err == 0) then
-                       call region3%saturation_density([pressure, &
-                            temperature], PETSC_FALSE, vapour_density, &
-                            err, polish = PETSC_TRUE)
-                       if (err == 0) then
-
-                          if ((vapour_density < density) .and. &
-                               (density < liquid_density)) then
-                             density_difference = liquid_density - vapour_density
-                             if (density_difference > small) then
-                                Sv = (liquid_density - density) / density_difference
-                             else
-                                Sv = 0.5_dp
+                       if (density < liquid_density) then
+                          call region3%saturation_density([pressure, &
+                               temperature], PETSC_FALSE, vapour_density, &
+                               err, polish = PETSC_TRUE)
+                          if (err == 0) then
+                             if (density > vapour_density) then
+                                density_difference = liquid_density - vapour_density
+                                if (density_difference > small) then
+                                   Sv = (liquid_density - density) / density_difference
+                                else
+                                   Sv = 0.5_dp
+                                end if
+                                fluid%region = dble(4)
+                                primary(1) = pressure
+                                primary(2) = Sv
+                                transition = PETSC_TRUE
                              end if
-                             fluid%region = dble(4)
-                             primary(1) = pressure
-                             primary(2) = Sv
-                             transition = PETSC_TRUE
                           end if
-
                        end if
                     end if
                  end select
