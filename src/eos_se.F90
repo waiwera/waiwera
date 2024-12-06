@@ -810,7 +810,7 @@ contains
       ! Locals:
       PetscReal :: pressure, liquid_density, vapour_density
       PetscReal :: density_difference, Sv
-      PetscReal, parameter :: small = 1.e-6_dp
+      PetscReal, parameter :: small = 1.e-6_dp, dT = 0.1_dp
 
       associate (density => primary(1), temperature => primary(2))
         select type (thermo => self%thermo)
@@ -838,6 +838,13 @@ contains
                                 density_difference = liquid_density - vapour_density
                                 if (density_difference > small) then
                                    Sv = (liquid_density - density) / density_difference
+                                   if (temperature > thermo%critical%temperature - dT) then
+                                      if (Sv > 0.5_dp) then
+                                         Sv = 1._dp - small
+                                      else
+                                         Sv = small
+                                      end if
+                                   end if
                                 else
                                    Sv = 0.5_dp
                                 end if
