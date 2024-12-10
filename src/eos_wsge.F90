@@ -630,6 +630,8 @@ contains
     halite = self%halite(region)
     if (halite) then
        call halite_solubility(fluid%temperature, salt_mass_fraction, err)
+    else if (region == 2) then
+       salt_mass_fraction = 0._dp
     else
        salt_mass_fraction = primary(3)
     end if
@@ -745,7 +747,7 @@ contains
 
           if (err == 0) then
              associate(solid_phase => fluid%phase(3))
-               if (halite) then
+               if (halite .or. (region == 2)) then
                   call halite_properties(fluid%pressure, fluid%temperature, &
                        properties, err)
                   if (err == 0) then
