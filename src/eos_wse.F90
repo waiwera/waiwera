@@ -732,6 +732,9 @@ contains
 
        if (err == 0) then
           associate(solid_phase => fluid%phase(3))
+            ! Need to compute halite properties for region 2 in
+            ! case incremented salt variable means halite has
+            ! appeared:
             if (halite .or. (region == 2)) then
                call halite_properties(fluid%pressure, fluid%temperature, &
                     properties, err)
