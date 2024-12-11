@@ -269,7 +269,7 @@ contains
          end if
 
       else
-
+         err = 0
          if (old_halite) then
             call halite_solubility(old_fluid%temperature, salt_mass_fraction, err)
          else
