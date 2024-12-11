@@ -240,6 +240,7 @@ contains
       type is (eos_wse_primary_variable_interpolator_type)
          interpolator%halite = old_halite
       end select
+      call self%primary_variable_interpolator%set_index(1)
       call self%primary_variable_interpolator%find_component_at_index( &
            saturation_bound, 2, xi, err)
 
