@@ -686,6 +686,8 @@ contains
     Vec :: x, f, y, w, g
     PetscBool :: changed_y, changed_w
     SNESLineSearchReason :: reason
+    PetscInt :: iter, max_iter
+    PetscBool :: domain_err
 
     call SNESLineSearchGetSNES(linesearch, solver, ierr); CHKERRQ(ierr)
     call SNESLineSearchGetVecs(linesearch, x, f, y, w, g, ierr); CHKERRQ(ierr)
@@ -693,16 +695,39 @@ contains
     call SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_SUCCEEDED, &
          ierr); CHKERRQ(ierr)
 
+    call SNESLineSearchPreCheck(linesearch, x, y, changed_y, ierr); CHKERRQ(ierr)
     call VecWAXPY(w, -lambda, y, x, ierr); CHKERRQ(ierr)
 
     call SNESLineSearchPostCheck(linesearch, x, y, w, changed_y, changed_w, &
          ierr); CHKERRQ(ierr)
 
     call SNESLineSearchGetReason(linesearch, reason, ierr); CHKERRQ(ierr)
+
     if (reason == SNES_LINESEARCH_SUCCEEDED) then
+
+       if (changed_y .and. .not. changed_w) then
+          call VecWAXPY(w, -lambda, y, x, ierr); CHKERRQ(ierr)
+       end if
        call VecCopy(w, x, ierr); CHKERRQ(ierr)
-       call SNESComputeFunction(solver, x, f, ierr); CHKERRQ(ierr)
-       call SNESLineSearchComputeNorms(linesearch, ierr); CHKERRQ(ierr)
+       call SNESGetIterationNumber(solver, iter, ierr); CHKERRQ(ierr)
+       call SNESGetTolerances(solver, PETSC_NULL_REAL, PETSC_NULL_REAL, &
+            PETSC_NULL_REAL, max_iter, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+
+       if (iter < max_iter - 1) then
+
+          call SNESComputeFunction(solver, x, f, ierr); CHKERRQ(ierr)
+          call SNESGetFunctionDomainError(solver, domain_err, ierr); CHKERRQ(ierr)
+          if (domain_err) then
+             call SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_FAILED_DOMAIN, &
+                  ierr); CHKERRQ(ierr)
+          else
+             call SNESLineSearchComputeNorms(linesearch, ierr); CHKERRQ(ierr)
+          end if
+
+       else
+          call SNESLineSearchComputeNorms(linesearch, ierr); CHKERRQ(ierr)
+       end if
+
     else
        call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
     end if
