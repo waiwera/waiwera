@@ -183,6 +183,7 @@ contains
 
     self%primary_variable_interpolator%val(:, 1) = old_primary
     self%primary_variable_interpolator%val(:, 2) = primary
+    call self%primary_variable_interpolator%set_index(1)
     call self%primary_variable_interpolator%find_component_at_index(&
          saturation_bound, 2, xi, err)
 

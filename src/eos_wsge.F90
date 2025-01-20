@@ -240,6 +240,7 @@ contains
       type is (eos_wse_primary_variable_interpolator_type)
          interpolator%halite = old_halite
       end select
+      call self%primary_variable_interpolator%set_index(1)
       call self%primary_variable_interpolator%find_component_at_index( &
            saturation_bound, 2, xi, err)
 
@@ -268,7 +269,7 @@ contains
          end if
 
       else
-
+         err = 0
          if (old_halite) then
             call halite_solubility(old_fluid%temperature, salt_mass_fraction, err)
          else
@@ -632,6 +633,8 @@ contains
     halite = self%halite(region)
     if (halite) then
        call halite_solubility(fluid%temperature, salt_mass_fraction, err)
+    else if (region == 2) then
+       salt_mass_fraction = 0._dp
     else
        salt_mass_fraction = primary(3)
     end if
@@ -741,7 +744,10 @@ contains
 
           if (err == 0) then
              associate(solid_phase => fluid%phase(3))
-               if (halite) then
+               ! Need to compute halite properties for region 2 in
+               ! case incremented salt variable means halite has
+               ! appeared:
+               if (halite .or. (region == 2)) then
                   call halite_properties(fluid%pressure, fluid%temperature, &
                        properties, err)
                   if (err == 0) then
