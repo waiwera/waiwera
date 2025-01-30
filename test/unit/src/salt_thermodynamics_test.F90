@@ -15,8 +15,10 @@ module salt_thermodynamics_test
 
   public :: setup, teardown
   public :: test_halite_solubility
+  public :: test_halite_solubility_two_phase
   public :: test_halite_properties
   public :: test_brine_saturation_pressure
+  public :: test_brine_saturation_temperature
   public :: test_brine_viscosity
   public :: test_brine_properties
 
@@ -89,6 +91,66 @@ contains
     end subroutine solubility_case
 
   end subroutine test_halite_solubility
+
+!------------------------------------------------------------------------
+
+  subroutine test_halite_solubility_two_phase(test)
+    ! Two-phase halite solubility
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    type(IFC67_type) :: thermo
+    PetscInt :: i
+    PetscInt, parameter :: n = 20
+    character(16) :: case
+    PetscReal :: p
+    PetscReal, parameter :: p0 = 1.e5_dp, p1 = 13.5e6_dp
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+       call thermo%init()
+       call solubility_case("-1 bar",  -1.e5_dp, 1)
+       call solubility_case("23 MPa",  23.e6_dp, 1)
+       do i = 1, n
+          p = p0 + (i - 1._dp) / (n - 1._dp) * (p1 - p0)
+          write(case, '(a4, f6.2, a4)') 'P = ', p / 1.e6_dp, ' MPa'
+          call solubility_case(case, p, 0)
+       end do
+       call thermo%destroy()
+    end if
+
+  contains
+
+    subroutine solubility_case(name, pressure, expected_err)
+
+      character(*), intent(in) :: name
+      PetscReal, intent(in) :: pressure
+      PetscErrorCode, intent(in) :: expected_err
+      ! Locals:
+      PetscReal :: s, temperature, expected_solubility
+      PetscErrorCode :: err, err2
+
+      err2 = 0
+      call halite_solubility_two_phase(pressure, thermo, s, err)
+      if (expected_err == 0) then
+         call brine_saturation_temperature(pressure, s, thermo, &
+              temperature, err)
+         if (err == 0) then
+            call halite_solubility(temperature, expected_solubility, err2)
+            if (err2 == 0) then
+               call test%assert(expected_solubility, s, trim(name) // " value")
+            end if
+         end if
+      end if
+      call test%assert(expected_err, err, trim(name) // " error")
+      call test%assert(0, err2, trim(name) // " error2")
+
+    end subroutine solubility_case
+
+  end subroutine test_halite_solubility_two_phase
 
 !------------------------------------------------------------------------
 
@@ -233,6 +295,72 @@ contains
     end subroutine zero_salt_case
 
   end subroutine test_brine_saturation_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine test_brine_saturation_temperature(test)
+    ! Brine saturation temperature
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(IFC67_type) :: thermo
+    PetscMPIInt :: rank
+    PetscInt, parameter :: m = 50, n = 10
+    character(24) :: case
+    PetscReal :: p, x
+    PetscInt :: i, j
+    PetscReal, parameter :: p0 = 1.e5_dp, p1 = 16.5e6_dp
+    PetscReal, parameter :: x0 = 0._dp, x1 = 0.3_dp
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+
+       call thermo%init()
+
+       do i = 1, m
+          p = p0 + (i - 1._dp) / (m - 1._dp) * (p1 - p0)
+          do j = 1, n
+             x = x0 + (j - 1._dp) / (n - 1._dp) * (x1 - x0)
+             write(case, '(f6.2, a4, f6.2)') p / 1.e6_dp, ' MPa, ', x
+             call sat_case(case, p, x, 0)
+          end do
+       end do
+
+       call thermo%destroy()
+
+    end if
+
+  contains
+
+    subroutine sat_case(name, pressure, salt_mass_fraction, &
+         expected_err)
+
+      character(*), intent(in) :: name
+      PetscReal, intent(in) :: pressure
+      PetscReal, intent(in) :: salt_mass_fraction
+      PetscErrorCode, intent(in) :: expected_err
+      ! Locals:
+      PetscReal :: Ps, Ts
+      PetscErrorCode :: err, err2
+
+      err2 = 0
+
+      call brine_saturation_temperature(pressure, salt_mass_fraction, &
+           thermo, Ts, err)
+      call test%assert(expected_err, err, trim(name) // " error")
+      if (expected_err == 0) then
+         call brine_saturation_pressure(Ts, salt_mass_fraction, thermo, Ps, err2)
+         if (err2 == 0) then
+            call test%assert(Ps, pressure, trim(name) // " value")
+         end if
+         call test%assert(0, err2, trim(name) // " error2")
+      end if
+
+    end subroutine sat_case
+
+  end subroutine test_brine_saturation_temperature
 
 !------------------------------------------------------------------------
 
