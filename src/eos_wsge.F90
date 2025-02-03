@@ -225,51 +225,86 @@ contains
        pressure_factor = 1._dp - small
     end if
 
-    associate (pressure => primary(1), temperature => primary(2), &
-         salt => primary(3), partial_pressure => primary(4), &
-         interpolated_pressure => interpolated_primary(1), &
-         interpolated_salt => interpolated_primary(3), &
-         interpolated_partial_pressure => interpolated_primary(4))
-
+    associate (pressure => primary(1), salt => primary(3), &
+         partial_pressure => primary(4))
       salt = max(0._dp, salt)
       partial_pressure = max(0._dp, min(partial_pressure, pressure))
+    end associate
 
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-      select type (interpolator => self%primary_variable_interpolator)
-      type is (eos_wse_primary_variable_interpolator_type)
-         interpolator%halite = old_halite
-      end select
-      call self%primary_variable_interpolator%set_index(1)
-      call self%primary_variable_interpolator%find_component_at_index( &
-           saturation_bound, 2, xi, err)
+    select type (interpolator => self%primary_variable_interpolator)
+    type is (eos_wse_primary_variable_interpolator_type)
+       call interpolator%setup(old_primary, primary, old_halite, new_water_region)
+    end select
+    call self%primary_variable_interpolator%find_component_at_index( &
+         saturation_bound, 2, xi, err)
 
-      if (err == 0) then
+    if (err == 0) then
+       call transition_to_single_phase_interpolated(xi)
+    else
+       call transition_to_single_phase_fallback()
+    end if
 
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         interpolated_brine_pressure = interpolated_pressure - &
-              interpolated_partial_pressure
-         pressure = pressure_factor * interpolated_brine_pressure + &
-              interpolated_partial_pressure
-         salt = interpolated_salt
-         partial_pressure = interpolated_partial_pressure
-         if (old_halite) then
-            call halite_solubility_two_phase(interpolated_brine_pressure, &
-                 self%thermo, salt_mass_fraction, err)
-         else
-            salt_mass_fraction = salt
-         end if
-         if (err == 0) then
-            call brine_saturation_temperature(interpolated_brine_pressure, &
-                 salt_mass_fraction, self%thermo, temperature, err)
-            if (err == 0) then
-               fluid%region = dble(new_region)
-               transition = PETSC_TRUE
-            end if
-         end if
+  contains
 
-      else
-         err = 0
+!........................................................................
+
+    subroutine transition_to_single_phase_interpolated(xi)
+      !! Transition to single-phase using interpolated primary
+      !! variables.
+
+      PetscReal, intent(in) :: xi
+      ! Locals:
+      PetscReal :: salt_mass_fraction
+
+      associate (pressure => primary(1), temperature => primary(2), &
+           salt => primary(3), partial_pressure => primary(4), &
+           interpolated_pressure => interpolated_primary(1), &
+           interpolated_salt => interpolated_primary(3), &
+           interpolated_partial_pressure => interpolated_primary(4))
+
+        interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
+        interpolated_brine_pressure = interpolated_pressure - &
+             interpolated_partial_pressure
+        pressure = pressure_factor * interpolated_brine_pressure + &
+             interpolated_partial_pressure
+        salt = interpolated_salt
+        partial_pressure = interpolated_partial_pressure
+
+        if (new_water_region == 1) then
+           if (old_halite) then
+              call halite_solubility_two_phase(interpolated_brine_pressure, &
+                   self%thermo, salt_mass_fraction, err)
+           else
+              salt_mass_fraction = salt
+           end if
+           if (err == 0) then
+              call brine_saturation_temperature(interpolated_brine_pressure, &
+                   salt_mass_fraction, self%thermo, temperature, err)
+           end if
+        else ! dry steam:
+           call self%thermo%saturation%temperature(interpolated_brine_pressure, &
+                temperature, err)
+        end if
+
+        if (err == 0) then
+           fluid%region = dble(new_region)
+           transition = PETSC_TRUE
+        end if
+
+      end associate
+
+    end subroutine transition_to_single_phase_interpolated
+
+!........................................................................
+
+    subroutine transition_to_single_phase_fallback()
+      !! Transition to single-phase using fallback primary variables.
+
+      ! Locals:
+      PetscReal :: salt_mass_fraction
+
+      err = 0
+      if (new_water_region == 1) then
          if (old_halite) then
             call halite_solubility(old_fluid%temperature, salt_mass_fraction, err)
          else
@@ -279,16 +314,25 @@ contains
             salt_mass_fraction = max(0._dp, salt_mass_fraction)
             call brine_saturation_pressure(old_fluid%temperature, salt_mass_fraction, &
                  self%thermo, old_saturation_pressure, err)
-            if (err == 0) then
-               pressure = pressure_factor * old_saturation_pressure + partial_pressure
-               temperature = old_fluid%temperature
-               fluid%region = dble(new_region)
-               transition = PETSC_TRUE
-            end if
          end if
+      else ! dry steam:
+         call self%thermo%saturation%pressure(old_fluid%temperature, &
+              old_saturation_pressure, err)
       end if
 
-    end associate
+      if (err == 0) then
+         associate (pressure => primary(1), temperature => primary(2), &
+              partial_pressure => primary(4))
+           pressure = pressure_factor * old_saturation_pressure + partial_pressure
+           temperature = old_fluid%temperature
+           fluid%region = dble(new_region)
+           transition = PETSC_TRUE
+         end associate
+      end if
+
+    end subroutine transition_to_single_phase_fallback
+
+!........................................................................
 
   end subroutine eos_wsge_transition_to_single_phase
 
@@ -307,7 +351,7 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region, old_water_region, new_region
+    PetscInt :: old_region, old_water_region, new_region, new_water_region
     PetscBool :: old_halite
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal :: xi, solid_saturation
@@ -323,16 +367,20 @@ contains
       old_region = nint(old_fluid%region)
       old_water_region = self%water_region(old_region)
       old_halite = self%halite(old_region)
+      if (old_halite) then
+         new_region = 8
+      else
+         new_region = 4
+      end if
 
       salt = max(0._dp, salt)
       partial_pressure = max(0._dp, min(partial_pressure, pressure))
 
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
       select type (interpolator => self%primary_variable_interpolator)
       type is (eos_wse_primary_variable_interpolator_type)
-         interpolator%halite = old_halite
+         call interpolator%setup(old_primary, primary, old_halite, new_water_region)
       end select
+
       call self%saturation_line_finder%find()
 
       if (self%saturation_line_finder%err == 0) then
@@ -347,10 +395,8 @@ contains
 
       if (old_halite) then
          solid_saturation = primary(3)
-         new_region = 8
       else
          solid_saturation = 0._dp
-         new_region = 4
       end if
       if (old_water_region == 1) then
          vapour_saturation = small
@@ -414,7 +460,7 @@ contains
 
        salt_mass_fraction = primary(3)
        if (salt_mass_fraction > 0._dp) then
-          ! halite precipitates out of vapour:
+          ! halite precipitates:
           solid_saturation = small
           primary(3) = solid_saturation
           fluid%region = dble(6)
@@ -517,28 +563,28 @@ contains
        associate (pressure => primary(1), temperature => primary(2), &
             partial_pressure => primary(4))
 
-         if (old_halite) then
-            call halite_solubility(temperature, salt_mass_fraction, err)
-         else
-            salt_mass_fraction = primary(3)
+         if (old_water_region == 1) then
+            if (old_halite) then
+               call halite_solubility(temperature, salt_mass_fraction, err)
+            else
+               salt_mass_fraction = primary(3)
+            end if
+            if (err == 0) then
+               salt_mass_fraction = max(0._dp, salt_mass_fraction)
+               call brine_saturation_pressure(temperature, salt_mass_fraction, &
+                    self%thermo, saturation_pressure, err)
+            end if
+         else ! dry steam:
+            call self%thermo%saturation%pressure(temperature, saturation_pressure, err)
          end if
 
          if (err == 0) then
-
-            salt_mass_fraction = max(0._dp, salt_mass_fraction)
-
-            call brine_saturation_pressure(temperature, salt_mass_fraction, &
-                 self%thermo, saturation_pressure, err)
-
-            if (err == 0) then
-               water_pressure = pressure - partial_pressure
-               if (((old_water_region == 1) .and. (water_pressure < saturation_pressure)) .or. &
-                    ((old_water_region == 2) .and. (water_pressure > saturation_pressure))) then
-                  call self%transition_to_two_phase(saturation_pressure, &
-                       old_primary, old_fluid, primary, fluid, transition, err)
-               end if
+            water_pressure = pressure - partial_pressure
+            if (((old_water_region == 1) .and. (water_pressure < saturation_pressure)) .or. &
+                 ((old_water_region == 2) .and. (water_pressure > saturation_pressure))) then
+               call self%transition_to_two_phase(saturation_pressure, &
+                    old_primary, old_fluid, primary, fluid, transition, err)
             end if
-
          end if
 
        end associate
@@ -947,13 +993,17 @@ contains
        allocate(var(context%dim))
        var = context%interpolate_at_index(x)
        associate(P => var(1), T => var(2), Pg => var(4))
-         if (context%halite) then
-            call halite_solubility(T, salt_mass_fraction, err)
-         else
-            salt_mass_fraction = var(3)
+         if (context%water_region == 1) then
+            if (context%halite) then
+               call halite_solubility(T, salt_mass_fraction, err)
+            else
+               salt_mass_fraction = var(3)
+            end if
+            call brine_saturation_pressure(T, salt_mass_fraction, &
+                 context%thermo, Ps, err)
+         else ! dry steam:
+            call context%thermo%saturation%pressure(T, Ps, err)
          end if
-         call brine_saturation_pressure(T, salt_mass_fraction, &
-              context%thermo, Ps, err)
          dp = P - Pg - Ps
        end associate
        deallocate(var)
