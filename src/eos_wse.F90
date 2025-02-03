@@ -241,6 +241,10 @@ contains
        pressure_factor = 1._dp - small
     end if
 
+    associate (salt => primary(3))
+      salt = max(0._dp, salt)
+    end associate
+
     select type (interpolator => self%primary_variable_interpolator)
     type is (eos_wse_primary_variable_interpolator_type)
        call interpolator%setup(old_primary, primary, old_halite, new_water_region)
