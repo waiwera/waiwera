@@ -202,7 +202,7 @@ contains
     PetscBool :: old_halite
     PetscReal :: old_saturation_pressure, pressure_factor
     PetscReal :: saturation_bound, xi, interpolated_brine_pressure
-    PetscReal :: solid_saturation, salt_mass_fraction
+    PetscReal :: solid_saturation
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
 
