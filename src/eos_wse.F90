@@ -352,7 +352,7 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region, old_water_region, new_region, new_water_region
+    PetscInt :: old_region, old_water_region, new_region
     PetscBool :: old_halite
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal :: xi, solid_saturation
@@ -372,13 +372,12 @@ contains
       else
          new_region = 4
       end if
-      new_water_region = self%water_region(new_region)
 
       salt = max(0._dp, salt)
 
       select type (interpolator => self%primary_variable_interpolator)
       type is (eos_wse_primary_variable_interpolator_type)
-         call interpolator%setup(old_primary, primary, old_halite, new_water_region)
+         call interpolator%setup(old_primary, primary, old_halite, old_water_region)
       end select
 
       call self%saturation_line_finder%find()
