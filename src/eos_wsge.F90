@@ -413,17 +413,19 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wsge_halite_transition(self, primary, fluid, transition, err)
+  subroutine eos_wsge_halite_transition(self, old_fluid, primary, fluid, &
+       transition, err)
     !! For eos_wsge, check for halite transitions (e.g. precipitation,
     !! dissolution).
 
     class(eos_wsge_type), intent(in out) :: self
+    type(fluid_type), intent(in) :: old_fluid !! from last iteration
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(in out) :: transition
     PetscErrorCode, intent(in out) :: err
     ! Locals:
-    PetscInt :: region
+    PetscInt :: region, current_old_region, last_old_region
     PetscReal :: temperature, solubility, brine_pressure
     PetscReal :: solid_saturation, salt_mass_fraction
     PetscReal, parameter :: small = 1.e-6_dp
@@ -450,9 +452,7 @@ contains
           if (salt_mass_fraction > solubility) then
              ! halite precipitates out of liquid:
              solid_saturation = small
-             primary(3) = solid_saturation
-             fluid%region = dble(region + 4)
-             transition = PETSC_TRUE
+             call do_transition(solid_saturation, region + 4)
           end if
        end if
 
@@ -462,9 +462,7 @@ contains
        if (salt_mass_fraction > 0._dp) then
           ! halite precipitates:
           solid_saturation = small
-          primary(3) = solid_saturation
-          fluid%region = dble(6)
-          transition = PETSC_TRUE
+          call do_transition(solid_saturation, 6)
        end if
 
     case (5, 8) ! Liquid phase present with halite
@@ -474,22 +472,37 @@ contains
           ! halite dissolves into liquid:
 
           if (region == 5) then ! liquid
+
              temperature = primary(2)
              call halite_solubility(temperature, solubility, err)
+             if (err == 0) then
+                salt_mass_fraction = solubility - small
+                call do_transition(salt_mass_fraction, region - 4)
+             end if
+
           else ! two-phase
-             associate(pressure => primary(1), partial_pressure => primary(4))
-               brine_pressure = pressure - partial_pressure
-               call halite_solubility_two_phase(brine_pressure, self%thermo, &
-                    solubility, err)
-             end associate
+
+             current_old_region = nint(fluid%old_region)
+             last_old_region = nint(old_fluid%old_region)
+             if ((current_old_region == 6) .or. (last_old_region == 6)) then
+                !! Liquid condensed from dry steam on current or
+                !! last iteration - so had zero salt mass fraction:
+                salt_mass_fraction = small
+                call do_transition(salt_mass_fraction, region - 4)
+             else
+                associate(pressure => primary(1), partial_pressure => primary(4))
+                  brine_pressure = pressure - partial_pressure
+                  call halite_solubility_two_phase(brine_pressure, self%thermo, &
+                       solubility, err)
+                end associate
+                if (err == 0) then
+                   salt_mass_fraction = solubility - small
+                   call do_transition(salt_mass_fraction, region - 4)
+                end if
+             end if
+
           end if
 
-          if (err == 0) then
-             salt_mass_fraction = solubility - small
-             primary(3) = salt_mass_fraction
-             fluid%region = dble(region - 4)
-             transition = PETSC_TRUE
-          end if
        end if
 
     case (6) ! Vapour phase only with halite
@@ -498,12 +511,23 @@ contains
        if (solid_saturation < 0._dp) then
           ! halite disappears (can't dissolve into vapour phase):
           salt_mass_fraction = 0._dp
-          primary(3) = salt_mass_fraction
-          fluid%region = dble(2)
-          transition = PETSC_TRUE
+          call do_transition(salt_mass_fraction, 2)
        end if
 
     end select
+
+  contains
+
+    subroutine do_transition(salt, new_region)
+
+      PetscReal, intent(in) :: salt
+      PetscInt, intent(in) :: new_region
+
+      primary(3) = salt
+      fluid%region = dble(new_region)
+      transition = PETSC_TRUE
+
+    end subroutine do_transition
 
   end subroutine eos_wsge_halite_transition
 
@@ -591,7 +615,7 @@ contains
     end if
 
     if (err == 0) then
-       call self%halite_transition(primary, fluid, transition, err)
+       call self%halite_transition(old_fluid, primary, fluid, transition, err)
     end if
 
   end subroutine eos_wsge_transition
