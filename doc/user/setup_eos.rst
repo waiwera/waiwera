@@ -88,7 +88,7 @@ Permeability modification
 
 For some equations of state, the fluid state can change the effective local permeability. For example, when the :ref:`water_salt_eos` is used, a solid halite phase can be present when salt precipitates out of solution.
 
-This effect can be represented using the **"eos.permeability_modifier"** value. This object a **"type"** string value which determines how the permeability is reduced as the effective porosity decreases. Its possible values are "none", "power" and "verma-pruess".
+This effect can be represented using the **"eos.permeability_modifier"** value. This object has a **"type"** string value which determines how the permeability is reduced as the effective porosity decreases. Its possible values are "none", "power" and "verma-pruess".
 
 .. admonition:: JSON input
 
