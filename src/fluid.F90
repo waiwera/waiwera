@@ -33,14 +33,15 @@ module fluid_module
   implicit none
   private
 
-  PetscInt, parameter, public :: num_fluid_variables = 6
+  PetscInt, parameter, public :: num_fluid_variables = 7
   PetscInt, parameter, public :: num_phase_variables = 8
   PetscInt, parameter, public :: max_fluid_variable_name_length = 19
   character(max_fluid_variable_name_length), public :: &
        fluid_variable_names(num_fluid_variables) = [ &
        "pressure           ", "temperature        ", &
-       "region             ", "phases             ", &
-       "permeability_factor", "partial_pressure   "]
+       "region             ", "old_region         ", &
+       "phases             ", "permeability_factor", &
+       "partial_pressure   "]
   PetscInt, parameter, public :: max_phase_variable_name_length = 21
   character(max_phase_variable_name_length), public :: &
        phase_variable_names(num_phase_variables) = [ &
@@ -81,6 +82,7 @@ module fluid_module
      PetscReal, pointer, public :: pressure    !! Pressure
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
+     PetscReal, pointer, public :: old_region  !! Thermodynamic region at start of time step
      PetscReal, pointer, public :: phase_composition   !! Phase composition
      PetscReal, pointer, public :: permeability_factor !! Fluid-induced permeability modification factor 
      PetscReal, pointer, contiguous, public :: partial_pressure(:) !! Component partial pressures
@@ -240,9 +242,10 @@ contains
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
     self%region => data(offset + 2)
-    self%phase_composition => data(offset + 3)
-    self%permeability_factor => data(offset + 4)
-    self%partial_pressure => data(offset + 5: offset + 5 + self%num_components - 1)
+    self%old_region => data(offset + 3)
+    self%phase_composition => data(offset + 4)
+    self%permeability_factor => data(offset + 5)
+    self%partial_pressure => data(offset + 6: offset + 6 + self%num_components - 1)
     
     associate(bulk_dof => num_fluid_variables + self%num_components - 1)
       i = offset + bulk_dof
@@ -275,6 +278,7 @@ contains
     nullify(self%pressure)
     nullify(self%temperature)
     nullify(self%region)
+    nullify(self%old_region)
     nullify(self%phase_composition)
     nullify(self%permeability_factor)
     nullify(self%partial_pressure)
