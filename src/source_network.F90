@@ -75,13 +75,13 @@ contains
 
     class(source_network_type), intent(in out) :: self
 
-       call self%sources%init(owner = PETSC_TRUE)
-       call self%groups%init(owner = PETSC_TRUE)
-       call self%separated_sources%init(owner = PETSC_FALSE)
-       call self%source_controls%init(owner = PETSC_TRUE)
-       call self%network_controls%init(owner = PETSC_TRUE)
-       call self%reinjectors%init(owner = PETSC_TRUE)
-       call self%dependencies%init(owner = PETSC_TRUE)
+    call self%sources%init(owner = PETSC_TRUE)
+    call self%groups%init(owner = PETSC_TRUE)
+    call self%separated_sources%init(owner = PETSC_FALSE)
+    call self%source_controls%init(owner = PETSC_TRUE)
+    call self%network_controls%init(owner = PETSC_TRUE)
+    call self%reinjectors%init(owner = PETSC_TRUE)
+    call self%dependencies%init(owner = PETSC_TRUE)
 
   end subroutine source_network_init
 
