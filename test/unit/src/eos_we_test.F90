@@ -119,6 +119,7 @@ contains
 
     primary = [pressure, vapour_saturation]
     fluid%region = dble(region)
+    fluid%old_region = fluid%region
     fluid%permeability_factor = 1._dp
     call eos%fluid_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)

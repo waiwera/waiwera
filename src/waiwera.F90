@@ -54,11 +54,10 @@ program waiwera
         call simulation%log_statistics()
         call timestepper%run()
         call timestepper%destroy()
+        call simulation%destroy()
      else
         call fson_destroy_mpi(json)
      end if
-
-     call simulation%destroy()
 
   end if
 

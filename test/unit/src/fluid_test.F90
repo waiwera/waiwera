@@ -75,11 +75,12 @@ contains
        call test%assert(fluid_data(offset), fluid%pressure, "pressure")
        call test%assert(fluid_data(offset+1), fluid%temperature, "temperature")
        call test%assert(fluid_data(offset+2), fluid%region, "region")
-       call test%assert(fluid_data(offset+3), fluid%phase_composition, "phase composition")
-       call test%assert(fluid_data(offset+4), fluid%permeability_factor, "permeability factor")
-       call test%assert(fluid_data(offset+5), fluid%liquidlike_fraction, "liquidlike fraction")
-       call test%assert(fluid_data(offset+6), fluid%supercritical_phases, "supercritical phases")
-       call test%assert(fluid_data(offset+7: offset+7 + num_components - 1), &
+       call test%assert(fluid_data(offset+3), fluid%old_region, "old region")
+       call test%assert(fluid_data(offset+4), fluid%phase_composition, "phase composition")
+       call test%assert(fluid_data(offset+5), fluid%permeability_factor, "permeability factor")
+       call test%assert(fluid_data(offset+6), fluid%liquidlike_fraction, "liquidlike fraction")
+       call test%assert(fluid_data(offset+7), fluid%supercritical_phases, "supercritical phases")
+       call test%assert(fluid_data(offset+8: offset+8 + num_components - 1), &
             fluid%partial_pressure, "partial pressure")
 
        i = offset + num_fluid_variables + num_components - 1
@@ -134,7 +135,8 @@ contains
        call fluid%init(num_components, num_phases)
        allocate(fluid_data(offset - 1 + fluid%dof))
 
-       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, 0._dp, 0._dp, &
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, &
+            0._dp, 0._dp, &
             935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
@@ -173,7 +175,8 @@ contains
        call fluid%init(num_components, num_phases)
 
        allocate(fluid_data(offset - 1 + fluid%dof))
-       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, 0._dp, 0._dp, &
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, &
+            0._dp, 0._dp, &
             935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
@@ -217,7 +220,8 @@ contains
        call fluid%init(num_components, num_phases)
 
        allocate(fluid_data(offset - 1 + fluid%dof))
-       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, 0._dp, 0._dp, &
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, &
+            0._dp, 0._dp, &
             935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 0._dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 0._dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 

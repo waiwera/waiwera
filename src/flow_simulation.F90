@@ -2469,6 +2469,7 @@ contains
           old_cell_primary = self%eos%unscale(old_scaled_cell_primary, &
                nint(old_fluid%region))
 
+          fluid%old_region = fluid%region
           call self%eos%transition(old_cell_primary, cell_primary, &
                old_fluid, fluid, transition, err)
 

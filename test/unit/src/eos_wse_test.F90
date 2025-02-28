@@ -382,7 +382,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 4
-       expected_primary = [8.501510451467e6_dp, 1._dp - small, 3.03013436e-02_dp]
+       expected_primary = [85.621455812056474e5_dp, 1._dp - small, 4.2429116241129744e-2_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [84.0e5_dp, 302._dp, 0.01_dp]
