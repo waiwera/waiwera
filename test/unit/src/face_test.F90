@@ -788,12 +788,12 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            56.0e6_dp, 400._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
+            56.0e6_dp, 400._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             600._dp, 7.e-5_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
             1850.e3_dp, 1760.e3_dp, 1._dp, &
-            50.0e6_dp, 340._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            50.0e6_dp, 340._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             712._dp, 9.e-5_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
@@ -885,14 +885,14 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            16.e6_dp, 347.35653444596915_dp, 4._dp, 3._dp, &
+            16.e6_dp, 347.35653444596915_dp, 4._dp, 4._dp, 3._dp, &
             1._dp, 0.7_dp, 3._dp, 0._dp, &  ! cell 1
             584.9537549266726_dp, 6.705610248476079e-05_dp, 0.7_dp, 0.7_dp, 0._dp, &
             1649.6719434728284e3_dp, 1622.3193538616963e3_dp, 1._dp, & ! liquid
             107.43296467569115_dp, 2.3362689988441827e-5_dp, 0.3_dp, 0.3_dp, 0._dp, &
             2580.8044282594847e3_dp, 2431.874348480905e3_dp, 1._dp, & ! vapour
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! supercritical
-            24.0e6_dp, 380._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            24.0e6_dp, 380._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             382.839167051206_dp, 4.5486482996368864e-05_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical

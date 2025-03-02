@@ -56,7 +56,7 @@ contains
     PetscInt :: i, ip, nc, phase_dof
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscInt, parameter :: expected_dof = 9 + 2 * 9
+    PetscInt, parameter :: expected_dof = 10 + 2 * 9
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
