@@ -27,6 +27,6 @@ module version_module
   
   PetscInt, parameter :: max_version_string_length = 64
   character(len = max_version_string_length), public :: &
-       waiwera_version = "1.5.1b3"
+       waiwera_version = "1.5.1b4"
 
 end module version_module

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pywaiwera"
-version = "1.5.1b3"
+version = "1.5.1b4"
 description = "Python package for the Waiwera simulator"
 readme = "README.md"
 authors = [
