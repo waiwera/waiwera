@@ -1401,7 +1401,7 @@ contains
   subroutine eos_se_convert_fluid(self, fluid1, fluid2)
 
     !! For fluid objects on face between sub- and super-critical
-    !! cells, convert supercritical fluid to equivalent sub-critical
+    !! cells, convert sub-critical fluid to equivalent single-phase
     !! fluid for the flux calculation.
 
     use fluid_module, only: fluid_type
@@ -1409,7 +1409,7 @@ contains
     class(eos_se_type), intent(in) :: self
     type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
     ! Locals:
-    PetscInt :: num_sc, sub_phases, super_phases, p
+    PetscInt :: num_sc, sub_phases
     type(fluid_type), pointer :: super, sub
     type(fluid_type) :: tmp
 
@@ -1419,61 +1419,40 @@ contains
 
     if (num_sc == 1) then
 
-       ! Create a temporary fluid to modify the super internal data,
+       ! Create a temporary fluid to modify the sub internal data,
        ! while maintaining access to its original data:
-       call tmp%init(super%num_components, super%num_phases)
-       call tmp%assign(super%internal_data, 1)
+       call tmp%init(sub%num_components, sub%num_phases)
+       call tmp%assign(sub%internal_data, 1)
 
        sub_phases = nint(sub%phase_composition)
 
        select case (sub_phases)
        case (int(b'001'))
-
-          call tmp%phase(1)%copy(super%phase(3))
-          call tmp%phase(2)%zero()
-          tmp%phase_composition = sub_phases
-
+          call tmp%phase(3)%copy(sub%phase(1))
        case (int(b'010'))
-
-          call tmp%phase(1)%zero()
-          call tmp%phase(2)%copy(super%phase(3))
-          tmp%phase_composition = sub_phases
-
+          call tmp%phase(3)%copy(sub%phase(2))
        case (int(b'011'))
-
-          super_phases = nint(super%supercritical_phases)
-          tmp%phase_composition = super_phases
-
-          select case (super_phases)
-          case (int(b'001'))
-
-             call tmp%phase(1)%copy(super%phase(3))
-             call tmp%phase(2)%zero()
-
-          case (int(b'010'))
-
-             call tmp%phase(1)%zero()
-             call tmp%phase(2)%copy(super%phase(3))
-
-          case (int(b'011'))
-
-             call tmp%phase(1)%copy(super%phase(3))
-             call tmp%phase(2)%copy(super%phase(3))
-             tmp%phase(1)%saturation = super%liquidlike_fraction
-             tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
-             do p = 1, 2
-                tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
-             end do
-
-          end select
-
+          associate (phase => tmp%phase(3))
+            phase%saturation = 1._dp
+            phase%relative_permeability = 1._dp
+            phase%mass_fraction = 1._dp
+            phase%density = sub%phase(1)%saturation * sub%phase(1)%density + &
+                 sub%phase(2)%saturation * sub%phase(2)%density
+            phase%viscosity = phase%density / (sub%phase(1)%mobility() + &
+                 sub%phase(2)%mobility())
+            phase%specific_enthalpy = ( &
+                 sub%phase(1)%specific_enthalpy * sub%phase(1)%density + &
+                 sub%phase(2)%specific_enthalpy * sub%phase(2)%density) / phase%density
+          end associate
        end select
 
-       tmp%pressure = super%pressure
-       tmp%temperature = super%temperature
-       call tmp%phase(3)%zero()
+       tmp%pressure = sub%pressure
+       tmp%temperature = sub%temperature
+       tmp%phase_composition = real(b'100')
+       call tmp%phase(1)%zero()
+       call tmp%phase(2)%zero()
 
-       call super%assign_internal()
+       call sub%assign_internal()
        call tmp%destroy()
 
     end if
