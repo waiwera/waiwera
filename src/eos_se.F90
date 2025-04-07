@@ -1435,6 +1435,7 @@ contains
           associate (phase => tmp%phase(3))
             phase%saturation = 1._dp
             phase%relative_permeability = 1._dp
+            phase%capillary_pressure = 0._dp
             phase%mass_fraction = 1._dp
             phase%density = sub%phase(1)%saturation * sub%phase(1)%density + &
                  sub%phase(2)%saturation * sub%phase(2)%density
