@@ -1449,7 +1449,7 @@ contains
 
        tmp%pressure = sub%pressure
        tmp%temperature = sub%temperature
-       tmp%phase_composition = real(b'100')
+       tmp%phase_composition = real(int(b'100'))
        call tmp%phase(1)%zero()
        call tmp%phase(2)%zero()
 
