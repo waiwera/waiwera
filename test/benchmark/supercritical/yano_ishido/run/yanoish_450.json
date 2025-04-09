@@ -1,0 +1,104 @@
+{
+  "eos": {
+    "conditions": "pressure",
+    "name": "se",
+    "relative_permeability_modifier": "linear"
+  },
+  "initial": {
+    "primary": [
+      30000000.0,
+      450.0
+    ],
+    "region": 2
+  },
+  "mesh": {
+    "filename": "yanoish.msh",
+    "radial": true,
+    "zones": {
+      "reservoir": {
+        "-": [
+          "well",
+          "skin"
+        ]
+      },
+      "skin": {
+        "x": [
+          0.1,
+          0.9
+        ]
+      },
+      "well": {
+        "x": [
+          0,
+          0.1
+        ]
+      }
+    }
+  },
+  "output": {
+    "frequency": 1,
+    "initial": true
+  },
+  "rock": {
+    "relative_permeability": {
+      "liquid": [
+        0.3,
+        0.7
+      ],
+      "type": "linear",
+      "vapour": [
+        0.3,
+        0.7
+      ]
+    },
+    "types": [
+      {
+        "density": 2700,
+        "name": "well",
+        "permeability": 1e-10,
+        "porosity": 0.99,
+        "specific_heat": 1000,
+        "wet_conductivity": 2.5,
+        "zones": "well"
+      },
+      {
+        "density": 2700,
+        "name": "skin",
+        "permeability": 1e-12,
+        "porosity": 0.05,
+        "specific_heat": 1000,
+        "wet_conductivity": 2.5,
+        "zones": "skin"
+      },
+      {
+        "density": 2700,
+        "name": "rock",
+        "permeability": 1e-14,
+        "porosity": 0.05,
+        "specific_heat": 1000,
+        "wet_conductivity": 2.5,
+        "zones": "reservoir"
+      }
+    ]
+  },
+  "source": [
+    {
+      "cell": 0,
+      "rate": -15.7
+    }
+  ],
+  "time": {
+    "step": {
+      "adapt": {
+        "on": true
+      },
+      "maximum": {
+        "number": 1000,
+        "size": 100000.0
+      },
+      "size": 1
+    },
+    "stop": 1000000.0
+  },
+  "title": "Yano-Ishido problem"
+}
