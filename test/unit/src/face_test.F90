@@ -759,7 +759,7 @@ contains
     PetscReal, parameter :: expected_component_flux(2) = &
          [0.002736740571428572_dp, 5065.470057142858_dp]
     PetscReal, parameter :: expected_phase_flux(3) = &
-         [0._dp, 0._dp, 0.002736740571428572_dp]
+         [0.002736740571428572_dp, 0._dp, 0._dp]
     PetscMPIInt :: rank
     PetscInt :: ierr
 
