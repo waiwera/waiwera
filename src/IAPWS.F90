@@ -2258,8 +2258,8 @@ contains
     ! Locals:
     PetscInt :: sr
     PetscReal :: nu
-    PetscInt, parameter :: maxit = 250
-    PetscReal, parameter :: ftol = 1.e-6_dp, xtol = 1.e-7_dp
+    PetscInt, parameter :: maxit = 300
+    PetscReal, parameter :: ftol = 1.e-8_dp, xtol = 1.e-7_dp
 
     err = 0
     associate(pressure => param(1))
