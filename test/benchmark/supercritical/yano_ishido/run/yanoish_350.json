@@ -9,7 +9,7 @@
       30000000.0,
       350.0
     ],
-    "region": 3
+    "region": 1
   },
   "mesh": {
     "filename": "yanoish.msh",
@@ -87,6 +87,9 @@
       "rate": -15.7
     }
   ],
+  "thermodynamics": {
+    "extrapolate": true
+  },
   "time": {
     "step": {
       "adapt": {

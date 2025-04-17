@@ -73,8 +73,9 @@ sim['output'] = {'initial': True, 'frequency': 1}
 P0 = 30e6
 for T0 in np.arange(200., 550., 50.):
     region = I97.region(T0, P0)
-    if int(T0) == 350: region = 3
     sim['initial'] = {'primary': [P0, T0], 'region': region}
+    if int(T0) == 350: sim['thermodynamics'] = {'extrapolate': True}
+    elif 'thermodynamics' in sim: del sim['thermodynamics']
     case_model_name = '%s_%d.json' % (model_name, int(T0))
     json.dump(sim, open(case_model_name, 'w'), indent = 2, sort_keys = True)
 
