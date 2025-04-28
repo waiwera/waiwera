@@ -656,6 +656,7 @@ module IAPWS_test
       ! Locals:
       character(6) :: phase_str
       PetscInt :: expected_sr
+      PetscBool :: density_pos
 
       if (liquid) then
          phase_str = 'liquid'
@@ -674,6 +675,13 @@ module IAPWS_test
               liquid, density, err, polish = PETSC_TRUE)
          call test%assert(0, err, ' ' // phase_str // ' err ' // istr)
          if (err == 0) then
+            if (liquid) then
+               density_pos = (density >= IAPWS%critical%density)
+            else
+               density_pos = (density <= IAPWS%critical%density)
+            end if
+            call test%assert(density_pos, &
+                 phase_str // ' density position ' // istr)
             call region3%properties([density, Ts], props, err)
             associate(P2 => props(1))
               call test%assert(pressure(i), P2, ' ' // phase_str // &
