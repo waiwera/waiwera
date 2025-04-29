@@ -176,6 +176,7 @@ module IAPWS_test
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
        do i = 1, n
           param = params(i,:)
@@ -184,11 +185,17 @@ module IAPWS_test
           call test%assert(u(i), props(2), 'energy')
           call test%assert(0, err, 'error')
        end do
+
        do i = 1, nerr
           param = err_params(i,:)
           call IAPWS%supercritical%properties(param, props, err)
           call test%assert(1, err, 'error')
        end do
+
+       param = [IAPWS%critical%density, IAPWS%critical%temperature]
+       call IAPWS%supercritical%properties(param, props, err)
+       call test%assert(IAPWS%critical%pressure, props(1), 'critical pressure')
+
     end if
 
   end subroutine test_IAPWS_region3
