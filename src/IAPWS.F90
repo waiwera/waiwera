@@ -66,6 +66,8 @@ module IAPWS_module
        private
        procedure, public :: temperature => saturation_temperature
        procedure, public :: pressure => saturation_pressure
+       procedure :: near_critical_temperature_correction => &
+            saturation_near_critical_temperature_correction
   end type IAPWS_saturation_type
 
 !------------------------------------------------------------------------
@@ -2534,10 +2536,21 @@ contains
     PetscInt, intent(out) :: err  !! Error code
     ! Locals:
     PetscReal:: tk
-    PetscReal:: theta, theta2, a, b, c, x
+    PetscReal:: teff, theta, theta2, a, b, c, x
+    PetscReal :: xi, dT
+    PetscReal, parameter :: T0 = 373.9459627047695_dp
 
     if ((t >= 0._dp).and.(t <= self%thermo%critical%temperature)) then
-       tk = t + tc_k      
+
+       if (t >= T0) then
+          xi = (t - T0) / (self%thermo%critical%temperature - T0)
+          dT = self%near_critical_temperature_correction(xi)
+          teff = t - dT
+       else
+          teff = t
+       end if
+
+       tk = teff + tc_k
        theta = tk + self%n(9) / (tk - self%n(10))
        theta2 = theta * theta
        a = theta2 + self%n(1) * theta + self%n(2)
@@ -2547,6 +2560,7 @@ contains
        x = x * x
        p = self%pstar * x * x
        err = 0
+
     else
        err = 1
     end if
@@ -2565,6 +2579,8 @@ contains
     PetscInt, intent(out) :: err !! Error code
     ! Locals:
     PetscReal:: beta, beta2, d, e, f, g, x
+    PetscReal :: xi, dT
+    PetscReal, parameter :: P0 = 22.06399e6_dp
 
     if ((p >= 611.213_dp).and.(p <= self%thermo%critical%pressure)) then
        beta2 = dsqrt(p / self%pstar)
@@ -2576,11 +2592,38 @@ contains
        x = self%n(10) + d
        t = 0.5_dp * (self%n(10) + d - dsqrt(x*x - 4._dp * (self%n(9) + self%n(10) * d))) - tc_k
        err = 0
+
+       if (P >= P0) then
+          xi = (p - P0) / (self%thermo%critical%pressure - P0)
+          dT = self%near_critical_temperature_correction(xi)
+          t = t + dT
+       end if
+
     else
        err = 1
     end if
 
   end subroutine saturation_temperature
+
+!------------------------------------------------------------------------
+
+  PetscReal function saturation_near_critical_temperature_correction(self, xi) &
+       result (dT)
+
+    !! Correct saturation temperature very near the critical point so
+    !! that the critical temperature is returned more accurately at
+    !! the critical point, and saturation densities can be computed
+    !! more reliably near it.
+
+    class(IAPWS_saturation_type), intent(in) :: self
+    PetscReal, intent(in) :: xi !! Non-dimensional pressure between P0 and Pc
+    ! Locals:
+    PetscReal, parameter :: a = 0.9011289491758242_dp
+    PetscReal, parameter :: b = 1.3839468010701242e-8_dp
+
+    dT = xi * (1._dp - a * xi) * b
+
+  end function saturation_near_critical_temperature_correction
 
 !------------------------------------------------------------------------
 ! Region 2/3 boundary
