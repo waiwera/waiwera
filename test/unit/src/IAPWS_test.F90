@@ -654,8 +654,8 @@ module IAPWS_test
     PetscInt :: i, ierr, sr
     character(2) :: istr
     PetscMPIInt :: rank
-    PetscReal :: Ts, density, props(2)
     PetscErrorCode :: err
+    PetscReal :: Ts, dl, dv
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -663,21 +663,24 @@ module IAPWS_test
        do i = 1, n
           write(istr, '(i2)') i
           call IAPWS%saturation%temperature(pressure(i), Ts, err)
-          call density_case(i, PETSC_TRUE)
-          call density_case(i, PETSC_FALSE)
+          call density_case(i, PETSC_TRUE, dl)
+          call density_case(i, PETSC_FALSE, dv)
+          call test%assert(dv <= dl, ' density order ' // istr)
        end do
 
     end if
 
   contains
 
-    subroutine density_case(i, liquid)
+    subroutine density_case(i, liquid, density)
 
       PetscInt, intent(in) :: i
       PetscBool, intent(in) :: liquid
+      PetscReal, intent(out) :: density
       ! Locals:
       character(6) :: phase_str
       PetscInt :: expected_sr
+      PetscReal :: props(2)
       PetscBool :: density_pos
 
       if (liquid) then
