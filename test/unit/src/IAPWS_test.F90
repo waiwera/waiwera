@@ -221,6 +221,7 @@ module IAPWS_test
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        do i = 1, n
           call IAPWS%saturation%pressure(t(i), ps, err)
           call test%assert(p(i), ps, 'pressure')
@@ -229,12 +230,24 @@ module IAPWS_test
           call test%assert(t(i), ts, 'temperature')
           call test%assert(0, err, 'temperature no error')
        end do
+
        do i = 1, nerr
           call IAPWS%saturation%pressure(terr(i), ps, err)
           call test%assert(1, err, 'pressure error')
           call IAPWS%saturation%temperature(perr(i), ts, err)
           call test%assert(1, err, 'temperature error')
        end do
+
+       call IAPWS%saturation%pressure(IAPWS%critical%temperature, ps, err)
+       call test%assert(0, err, 'critical pressure error')
+       call test%assert(IAPWS%critical%pressure, ps, 'critical pressure', &
+            tol = 1.e-11_dp)
+
+       call IAPWS%saturation%temperature(IAPWS%critical%pressure, ts, err)
+       call test%assert(0, err, 'critical temperature error')
+       call test%assert(IAPWS%critical%temperature, ts, 'critical temperature', &
+            tol = 1.e-12_dp)
+
     end if
 
   end subroutine test_IAPWS_saturation
