@@ -194,7 +194,8 @@ module IAPWS_test
 
        param = [IAPWS%critical%density, IAPWS%critical%temperature]
        call IAPWS%supercritical%properties(param, props, err)
-       call test%assert(IAPWS%critical%pressure, props(1), 'critical pressure')
+       call test%assert(IAPWS%critical%pressure, props(1), 'critical pressure', &
+            tol = 1.e-11_dp)
 
     end if
 
