@@ -150,120 +150,141 @@ contains
 
     a = self%interval(1)
     b = self%interval(2)
-    call self%f(a, self%context, fa, err)
-    if (err == 0) then
-       call self%f(b, self%context, fb, err)
+
+    if (abs(b - a) <= self%root_tolerance) then
+
+       c = 0.5_dp * (a + b)
+       call self%f(c, self%context, fc, err)
+
        if (err == 0) then
-
-          if (fa * fb > 0._dp) then
-             self%err = ROOT_FINDER_INTERVAL_NOT_BRACKETED
+          if (abs(fc) <= self%function_tolerance) then
+             found = PETSC_TRUE
+             self%root = c
           else
+             self%err = ROOT_FINDER_INTERVAL_NOT_BRACKETED
+          end if
+       else
+          self%err = ROOT_FINDER_FUNCTION_ERR
+       end if
 
-             c = b
-             fc = fb
+    else
 
-             do iter = 1, self%max_iterations
+       call self%f(a, self%context, fa, err)
+       if (err == 0) then
+          call self%f(b, self%context, fb, err)
+          if (err == 0) then
 
-                if (fb * fc > 0._dp) then
-                   c = a
-                   fc = fa
-                   d = b - a
-                   e = d
-                end if
+             if (fa * fb > 0._dp) then
+                self%err = ROOT_FINDER_INTERVAL_NOT_BRACKETED
+             else
 
-                if (abs(fc) < abs(fb)) then
-                   a = b
-                   b = c
-                   c = a
-                   fa = fb
-                   fb = fc
-                   fc = fa
-                end if
+                c = b
+                fc = fb
 
-                dx = 0.5_dp * (c - b)
+                do iter = 1, self%max_iterations
 
-                if ((abs(dx) <= self%root_tolerance) .or. &
-                     (abs(fb) <= self%function_tolerance)) then
+                   if (fb * fc > 0._dp) then
+                      c = a
+                      fc = fa
+                      d = b - a
+                      e = d
+                   end if
 
-                   ! Root found:
-                   found = PETSC_TRUE
-                   exit
+                   if (abs(fc) < abs(fb)) then
+                      a = b
+                      b = c
+                      c = a
+                      fa = fb
+                      fb = fc
+                      fc = fa
+                   end if
 
-                else
+                   dx = 0.5_dp * (c - b)
 
-                   if ((abs(e) >= self%root_tolerance) .and. &
-                        (abs(fa) > abs(fb))) then
+                   if ((abs(dx) <= self%root_tolerance) .or. &
+                        (abs(fb) <= self%function_tolerance)) then
 
-                      ! Inverse quadratic interpolation:
-                      s = fb / fa
-                      if (abs(a - c) <= small) then
-                         p = 2._dp * dx * s
-                         q = 1._dp - s
+                      ! Root found:
+                      found = PETSC_TRUE
+                      exit
+
+                   else
+
+                      if ((abs(e) >= self%root_tolerance) .and. &
+                           (abs(fa) > abs(fb))) then
+
+                         ! Inverse quadratic interpolation:
+                         s = fb / fa
+                         if (abs(a - c) <= small) then
+                            p = 2._dp * dx * s
+                            q = 1._dp - s
+                         else
+                            q = fa / fc
+                            r = fb / fc
+                            p = s * (2._dp * dx * q * (q - r) - (b - a) * (r - 1._dp))
+                            q = (q - 1._dp) * (r - 1._dp) * (s - 1._dp)
+                         end if
+
+                         ! Check bounds:
+                         if (p > 0._dp) then
+                            q = -q
+                         else
+                            p = -p
+                         end if
+
+                         pc = min(3._dp * dx * q - abs(self%root_tolerance * q), &
+                              abs(e * q))
+                         if (2._dp * p < pc) then
+                            ! Accept interpolation:
+                            e = d
+                            d = p / q
+                         else
+                            ! Interpolation failed- use bisection:
+                            d = dx
+                            e = d
+                         end if
+
                       else
-                         q = fa / fc
-                         r = fb / fc
-                         p = s * (2._dp * dx * q * (q - r) - (b - a) * (r - 1._dp))
-                         q = (q - 1._dp) * (r - 1._dp) * (s - 1._dp)
-                      end if
-
-                      ! Check bounds:
-                      if (p > 0._dp) then
-                         q = -q
-                      else
-                         p = -p
-                      end if
-
-                      pc = min(3._dp * dx * q - abs(self%root_tolerance * q), &
-                           abs(e * q))
-                      if (2._dp * p < pc) then
-                         ! Accept interpolation:
-                         e = d
-                         d = p / q
-                      else
-                         ! Interpolation failed- use bisection:
+                         ! Bounds decreasing too slowly- use bisection:
                          d = dx
                          e = d
                       end if
 
-                   else
-                      ! Bounds decreasing too slowly- use bisection:
-                      d = dx
-                      e = d
+                      a = b
+                      fa = fb
+                      if (abs(d) > self%root_tolerance) then
+                         b = b + d
+                      else
+                         b = b + sign(self%root_tolerance, dx)
+                      end if
+                      call self%f(b, self%context, fb, err)
+                      if (err > 0) then
+                         self%err = ROOT_FINDER_FUNCTION_ERR
+                         exit
+                      end if
+
                    end if
 
-                   a = b
-                   fa = fb
-                   if (abs(d) > self%root_tolerance) then
-                      b = b + d
-                   else
-                      b = b + sign(self%root_tolerance, dx)
-                   end if
-                   call self%f(b, self%context, fb, err)
-                   if (err > 0) then
-                      self%err = ROOT_FINDER_FUNCTION_ERR
-                      exit
-                   end if
+                end do
 
+                self%iterations = iter
+                if (self%err /= ROOT_FINDER_FUNCTION_ERR) then
+                   if (.not. found) then
+                      self%err = ROOT_FINDER_ITERATIONS_EXCEEDED
+                   else
+                      self%root = b
+                   end if
                 end if
 
-             end do
-
-             self%iterations = iter
-             if (self%err /= ROOT_FINDER_FUNCTION_ERR) then
-                if (.not. found) then
-                   self%err = ROOT_FINDER_ITERATIONS_EXCEEDED
-                else
-                   self%root = b
-                end if
              end if
 
+          else
+             self%err = ROOT_FINDER_FUNCTION_ERR
           end if
-
        else
           self%err = ROOT_FINDER_FUNCTION_ERR
        end if
-    else
-       self%err = ROOT_FINDER_FUNCTION_ERR
+
     end if
 
   end subroutine root_finder_find
