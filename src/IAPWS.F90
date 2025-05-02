@@ -2251,6 +2251,8 @@ contains
     !! Calculates liquid or vapour density on saturation line for
     !! given parameters (pressure, temperature).
 
+    use root_finder_module
+
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Saturation pressure and temperature
     PetscBool, intent(in) :: liquid !! True if liquid density required, false for vapour
@@ -2259,11 +2261,12 @@ contains
     PetscBool, intent(in) :: polish !! Whether to polish result with Newton iteration
     ! Locals:
     PetscInt :: sr
-    PetscReal :: nu
-    PetscInt, parameter :: maxit = 300
+    PetscReal :: nu, param_eff(2)
+    PetscInt, parameter :: maxit_newton = 10
     PetscReal, parameter :: ftol = 1.e-8_dp, xtol = 1.e-7_dp
 
     err = 0
+    param_eff = param
     associate(pressure => param(1))
       sr =  self%saturation_subregion_index(pressure, liquid)
     end associate
@@ -2272,7 +2275,10 @@ contains
        nu = self%subregion(sr)%specific_volume(param)
        density = 1._dp / nu
        if (polish) then
-          call newton1d(f, df, density, ftol, xtol, maxit, err)
+          call newton1d(fn, df, density, ftol, xtol, maxit_newton, err)
+          if ((err > 0) .and. (sr >= 25)) then
+             call near_critical_density(density, err)
+          end if
        end if
     else
        err = 1
@@ -2282,19 +2288,19 @@ contains
 
 !........................................................................
 
-    PetscReal function f(x, err)
+    PetscReal function fn(x, err)
       PetscReal, intent(in) :: x
       PetscErrorCode, intent(out) :: err
       ! Locals:
       PetscReal :: props(2)
 
       associate(density => x, pcalc => props(1), &
-           p => param(1), t => param(2))
+           p => param_eff(1), t => param_eff(2))
         call self%properties([density, t], props, err)
-        f = pcalc - p
+        fn = pcalc - p
       end associate
 
-    end function f
+    end function fn
 
 !........................................................................
 
@@ -2303,11 +2309,114 @@ contains
       PetscErrorCode, intent(out) :: err
 
       err = 0
-      associate(density => x, t => param(2))
+      associate(density => x, t => param_eff(2))
         df = self%dpdd([density, t])
       end associate
 
     end function df
+
+!........................................................................
+
+    subroutine fsub(x, context, f, err)
+
+       PetscReal, intent(in) :: x
+       class(*), pointer, intent(in out) :: context
+       PetscReal, intent(out) :: f
+       PetscErrorCode, intent(out) :: err
+
+       f = fn(x, err)
+
+     end subroutine fsub
+
+!........................................................................
+
+     subroutine density_bounds(liquid, bounds, err)
+       !! Returns bounds for density, bracketing the root for liquid
+       !! or vapour saturation density. A simple grid search is
+       !! carried out for the bounds.
+
+       PetscBool, intent(in) :: liquid
+       PetscReal, intent(out) :: bounds(2)
+       PetscErrorCode, intent(out) :: err
+       ! Locals:
+       PetscReal :: sn, dd, d1, d2, f1, f2
+       PetscReal, parameter :: start = 2._dp
+       PetscReal, parameter :: dinc = 0.1_dp
+
+       err = 0
+
+       if (liquid) then
+          sn = -1._dp
+       else
+          sn = 1._dp
+       end if
+
+       dd = start
+       d1 = self%thermo%critical%density - sn * dd
+       f1 = fn(d1, err)
+
+       if (err == 0) then
+
+          do while (dd > 0._dp)
+             dd = dd - dinc
+             d2 = self%thermo%critical%density - sn * dd
+             f2 = fn(d2, err)
+             if (err == 0) then
+                if (f1 * f2 > 0._dp) then
+                   d1 = d2
+                   f1 = f2
+                else
+                   exit
+                end if
+             else
+                exit
+             end if
+          end do
+
+          if (err == 0) then
+             if (liquid) then
+                bounds = [d2, d1]
+             else
+                bounds = [d1, d2]
+             end if
+          end if
+
+       end if
+
+     end subroutine density_bounds
+
+!........................................................................
+
+     subroutine near_critical_density(density, err)
+
+       ! If Newton's method has failed near the critical point (sr =
+       ! 25 or 26), try a root finder instead for finding the density.
+
+       PetscReal, intent(out) :: density
+       PetscErrorCode, intent(out) :: err !! Error code
+       ! Locals:
+       type(root_finder_type) :: root_finder
+       procedure(root_finder_routine), pointer :: fp
+       PetscReal :: bounds(2)
+       PetscInt, parameter :: maxit = 50
+
+       err = 0
+       fp => fsub
+
+       call density_bounds(liquid, bounds, err)
+       if (err == 0) then
+
+          call root_finder%init(fp, bounds, xtol, ftol, maxit)
+          call root_finder%find()
+
+          err = root_finder%err
+          if (err == 0) then
+             density = root_finder%root
+          end if
+
+       end if
+
+     end subroutine near_critical_density
 
   end subroutine region3_saturation_density
 
