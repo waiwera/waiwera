@@ -209,13 +209,14 @@ module IAPWS_test
     
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 3, nerr = 1
+    PetscInt, parameter :: n = 3, nerr = 1, nnc = 2
     PetscReal, parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
     PetscReal, parameter :: p(n) = [0.353658941e4_dp, 0.263889776e7_dp, &
          0.123443146e8_dp]
     PetscReal :: ps, ts
     PetscInt :: i, err
     PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
+    PetscReal :: tnc(nnc) = [373.94597_dp, 373.94599_dp]
     PetscInt :: ierr
     PetscMPIInt :: rank
 
@@ -227,7 +228,7 @@ module IAPWS_test
           call test%assert(p(i), ps, 'pressure')
           call test%assert(0, err, 'pressure no error')
           call IAPWS%saturation%temperature(ps, ts, err)
-          call test%assert(t(i), ts, 'temperature')
+          call test%assert(t(i), ts, 'temperature', tol = 1.e-11_dp)
           call test%assert(0, err, 'temperature no error')
        end do
 
@@ -247,6 +248,14 @@ module IAPWS_test
        call test%assert(0, err, 'critical temperature error')
        call test%assert(IAPWS%critical%temperature, ts, 'critical temperature', &
             tol = 1.e-12_dp)
+
+       do i = 1, nnc
+          call IAPWS%saturation%pressure(tnc(i), ps, err)
+          call test%assert(0, err, 'near-critical pressure no error')
+          call IAPWS%saturation%temperature(ps, ts, err)
+          call test%assert(tnc(i), ts, 'near-critical temperature', tol = 1.e-12_dp)
+          call test%assert(0, err, 'near-critical temperature no error')
+       end do
 
     end if
 
