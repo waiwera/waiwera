@@ -2340,7 +2340,7 @@ contains
        PetscErrorCode, intent(out) :: err
        ! Locals:
        PetscReal :: sn, dd, d1, d2, f1, f2
-       PetscReal, parameter :: start = 2._dp
+       PetscReal, parameter :: start = 2.5_dp
        PetscReal, parameter :: dinc = 0.1_dp
 
        err = 0
