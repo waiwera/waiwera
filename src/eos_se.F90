@@ -464,7 +464,7 @@ contains
       ! Locals:
       PetscBool :: liquid
       PetscReal :: density_increment, bdy_34_density, bdy_23_pressure, props(2)
-      PetscReal, parameter :: small_density = 1._dp
+      PetscReal, parameter :: small_density = 0.1_dp
       PetscReal, parameter :: factor = 1._dp - 1.e-6_dp
 
       select type (thermo => self%thermo)
