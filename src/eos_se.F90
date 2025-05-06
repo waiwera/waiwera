@@ -314,8 +314,11 @@ contains
   subroutine eos_se_transition_region4_to_supercritical(self, primary, fluid, &
        transition, err)
       !! For eos_se, make transition from region 4 to supercritical
-      !! region 3. The new primary variables are extrapolated along
-      !! the Widom line, at the given pressure (> critical pressure).
+      !! region 3. The pressure (> critical pressure) is retained,
+      !! while temperature is interpolated between the bounds of the
+      !! Widom delta at that temperature, according to the old vapour
+      !! saturation (effectively used as an estimate of 1 - liquidlike
+      !! fraction).
 
     use fluid_module, only: fluid_type
 
@@ -325,23 +328,26 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: t_widom, density_widom
+    PetscReal :: delta(2), t_delta, density_delta
     PetscReal, parameter :: small = 1.e-3_dp
 
     err = 0
     select type (region3 => self%thermo%region(3)%ptr)
     type is (IAPWS_region3_type)
 
-       associate (pressure => primary(1))
-         call region3%widom(pressure, t_widom, err)
-         call region3%density([pressure, t_widom], density_widom, err, &
-              polish = PETSC_TRUE)
+       associate (pressure => primary(1), Sv => primary(2))
+         call region3%widom_delta(pressure, delta, err)
+         if (err == 0) then
+            t_delta = (1._dp - Sv) * delta(1) + Sv * delta(2)
+            call region3%density([pressure, t_delta], density_delta, err, &
+                 polish = PETSC_TRUE)
+         end if
        end associate
 
        associate (density => primary(1), temperature => primary(2))
          if (err == 0) then
-            density = density_widom
-            temperature = t_widom
+            density = density_delta
+            temperature = t_delta
          else ! fallback
             density = self%thermo%critical%density
             temperature = (1._dp + small) * self%thermo%critical%temperature

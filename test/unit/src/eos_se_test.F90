@@ -391,7 +391,7 @@ contains
        old_fluid%temperature = 370._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [270.62650311650299_dp, 374.55973422518571_dp]
+       expected_primary = [260.87719013424550_dp, 374.61506569531872_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [21.043367318975246e6_dp, 0.6_dp]
