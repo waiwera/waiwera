@@ -316,7 +316,7 @@ contains
       !! For eos_se, make transition from region 4 to supercritical
       !! region 3. The pressure (> critical pressure) is retained,
       !! while temperature is interpolated between the bounds of the
-      !! Widom delta at that temperature, according to the old vapour
+      !! Widom delta at that pressure, according to the old vapour
       !! saturation (effectively used as an estimate of 1 - liquidlike
       !! fraction).
 
