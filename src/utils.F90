@@ -71,7 +71,8 @@ module utils_module
        array_is_permutation, array_is_permutation_of, &
        array_unique, array_progressive_limit, newton1d, sign_test, &
        hermite_spline_00, hermite_spline_01, hermite_spline_10, &
-       hermite_spline_11, hermite_interpolate
+       hermite_spline_11, hermite_interpolate, &
+       hermite_spline_inv_00
 
 contains
 
@@ -901,6 +902,18 @@ contains
     h = polynomial(coefs, xi)
 
   end function hermite_splines
+
+  PetscReal function hermite_spline_inv_00(h) result(xi)
+    !! Inverse of cubic Hermite spline basis function 00.
+
+    PetscReal, intent(in) :: h
+    ! Locals:
+    PetscReal :: theta
+
+    theta = acos(2._dp * h - 1._dp)
+    xi = 0.5_dp - sin(pi / 6._dp - theta / 3._dp)
+
+  end function hermite_spline_inv_00
 
 !------------------------------------------------------------------------
 
