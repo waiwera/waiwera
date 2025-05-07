@@ -321,6 +321,7 @@ contains
       !! fraction).
 
     use fluid_module, only: fluid_type
+    use utils_module, only: hermite_spline_inv_00
 
     class(eos_se_type), intent(in out) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
@@ -328,17 +329,18 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: delta(2), t_delta, density_delta
+    PetscReal :: delta(2), xi, t_delta, density_delta
     PetscReal, parameter :: small = 1.e-3_dp
 
     err = 0
     select type (region3 => self%thermo%region(3)%ptr)
     type is (IAPWS_region3_type)
 
-       associate (pressure => primary(1), Sv => primary(2))
+       associate (pressure => primary(1), Sl => 1._dp - primary(2))
          call region3%widom_delta(pressure, delta, err)
          if (err == 0) then
-            t_delta = (1._dp - Sv) * delta(1) + Sv * delta(2)
+            xi = hermite_spline_inv_00(Sl)
+            t_delta = (1._dp - xi) * delta(1) + xi * delta(2)
             call region3%density([pressure, t_delta], density_delta, err, &
                  polish = PETSC_TRUE)
          end if
