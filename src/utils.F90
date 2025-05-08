@@ -908,9 +908,11 @@ contains
 
     PetscReal, intent(in) :: h
     ! Locals:
-    PetscReal :: theta
+    PetscReal :: r, theta
 
-    theta = acos(2._dp * h - 1._dp)
+    r = 2._dp * h - 1._dp
+    r = min(max(-1._dp, r), 1._dp)
+    theta = acos(r)
     xi = 0.5_dp - sin(pi / 6._dp - theta / 3._dp)
 
   end function hermite_spline_inv_00
