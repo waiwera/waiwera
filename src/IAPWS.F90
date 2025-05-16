@@ -2249,6 +2249,8 @@ contains
     !! Calculates liquid or vapour density on saturation line for
     !! given parameters (pressure, temperature).
 
+    use root_finder_module
+
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Saturation pressure and temperature
     PetscBool, intent(in) :: liquid !! True if liquid density required, false for vapour
@@ -2258,8 +2260,13 @@ contains
     ! Locals:
     PetscInt :: sr
     PetscReal :: nu
-    PetscInt, parameter :: maxit_newton = 30
+    PetscInt, parameter :: maxit_newton = 10
     PetscReal, parameter :: ftol = 1.e-8_dp, xtol = 1.e-7_dp
+    type(root_finder_type) :: root_finder
+    procedure(root_finder_routine), pointer :: fp
+    PetscReal :: bounds(2)
+    PetscInt, parameter :: maxit = 50
+    PetscReal, parameter :: drho = 1._dp !! Bracketing density bounds size
     PetscReal, parameter :: P0 = 22.063940e6_dp !! Near-critical pressure threshold
 
     err = 0
@@ -2271,6 +2278,17 @@ contains
             density = 1._dp / nu
             if (polish) then
                call newton1d(fn, df, density, ftol, xtol, maxit_newton, err)
+               if (err > 0) then
+                  ! Try Brent's method if Newton fails:
+                  fp => fsub
+                  bounds = [density - drho, density + drho]
+                  call root_finder%init(fp, bounds, xtol, ftol, maxit)
+                  call root_finder%find()
+                  err = root_finder%err
+                  if (err == 0) then
+                     density = root_finder%root
+                  end if
+               end if
             end if
          end if
       else
@@ -2308,6 +2326,19 @@ contains
       end associate
 
     end function df
+
+!........................................................................
+
+    subroutine fsub(x, context, f, err)
+
+      PetscReal, intent(in) :: x
+      class(*), pointer, intent(in out) :: context
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      f = fn(x, err)
+
+    end subroutine fsub
 
 !........................................................................
 
