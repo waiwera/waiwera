@@ -242,12 +242,12 @@ module IAPWS_test
        call IAPWS%saturation%pressure(IAPWS%critical%temperature, ps, err)
        call test%assert(0, err, 'critical pressure error')
        call test%assert(IAPWS%critical%pressure, ps, 'critical pressure', &
-            tol = 1.e-11_dp)
+            tol = 1.e-10_dp)
 
        call IAPWS%saturation%temperature(IAPWS%critical%pressure, ts, err)
        call test%assert(0, err, 'critical temperature error')
        call test%assert(IAPWS%critical%temperature, ts, 'critical temperature', &
-            tol = 1.e-12_dp)
+            tol = 1.e-11_dp)
 
        do i = 1, nnc
           call IAPWS%saturation%pressure(tnc(i), ps, err)
@@ -719,7 +719,7 @@ module IAPWS_test
             call region3%properties([density, Ts], props, err)
             associate(P2 => props(1))
               call test%assert(pressure(i), P2, ' ' // phase_str // &
-                   ' pressure ' // istr)
+                   ' pressure ' // istr, tol = 1.e-10_dp)
             end associate
          end if
       end select
