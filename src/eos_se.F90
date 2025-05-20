@@ -1402,7 +1402,12 @@ contains
   subroutine eos_se_convert_fluid(self, fluid1, fluid2)
 
     !! For fluid objects on face, convert supercritical fluid to
-    !! equivalent two-phase fluid for the flux calculation.
+    !! equivalent two-phase fluid for the flux calculation. This
+    !! enables the flux between sub-critical and supercritical cells
+    !! to be computed twice, once treating the supercritical fluid as
+    !! liquid and once treating it as vapour. The effective flux is
+    !! calculated as a weighted sum of the two, according to the
+    !! liquidlike fraction of the supercritical fluid.
 
     use fluid_module, only: fluid_type
 
