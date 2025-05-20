@@ -80,8 +80,8 @@ contains
     class(relative_permeability_type), allocatable :: rp
     class(capillary_pressure_type), allocatable :: cp
     type(fson_value), pointer :: json
-    character(120) :: json_str = &
-         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
+    character(240) :: json_str = &
+         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}, "eos": {"type": "se", "relative_permeability_modifier": {"type": "none"}}}'
     PetscErrorCode :: err
     PetscReal, parameter :: zero_phase(8) = 0._dp
     PetscMPIInt :: rank

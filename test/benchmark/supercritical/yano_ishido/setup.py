@@ -31,9 +31,7 @@ geo.write_mesh(mesh_filename, dimension = 2, slice = 'x', file_format = 'gmsh22'
 sim = {}
 sim['title'] = 'Yano-Ishido problem'
 sim['mesh'] = {'filename': mesh_filename, 'radial': True}
-sim['eos'] = {'name': 'se',
-              'relative_permeability_modifier': 'linear',
-              'conditions': 'pressure'}
+sim['eos'] = {'name': 'se', 'conditions': 'pressure'}
 
 # rock properties:
 skin_r = 0.9

@@ -19,7 +19,10 @@
   ],
   "eos": {
     "conditions": "pressure",
-    "name": "se"
+    "name": "se",
+    "relative_permeability_modifier": {
+      "type": "none"
+    }
   },
   "gravity": null,
   "initial": {

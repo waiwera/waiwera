@@ -1,8 +1,7 @@
 {
   "eos": {
     "conditions": "pressure",
-    "name": "se",
-    "relative_permeability_modifier": "linear"
+    "name": "se"
   },
   "initial": {
     "primary": [

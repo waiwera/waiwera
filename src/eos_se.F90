@@ -98,7 +98,7 @@ contains
     PetscReal, parameter :: default_density_scale = critical%density !! Default scale factor for non-dimensionalising density
     character(10), parameter :: default_conditions = "density"
     character(max_fluid_modifier_name_length), parameter :: &
-         default_relative_permeability_modifier_type_name = "none"
+         default_relative_permeability_modifier_type_name = "linear"
 
     self%name = "se"
     self%description = "Pure supercritical water and energy"
