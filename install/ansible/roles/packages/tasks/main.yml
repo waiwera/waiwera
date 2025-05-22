@@ -33,22 +33,6 @@
     update_cache: yes
     install_recommends: no
 
-- name: Install pip
-  package:
-    name:  "{{ pip_install }}"
-    state: present
-    install_recommends: no
-
-- name: Update pip to latest version with pip
-  pip:
-    name: pip
-    executable: "{{ pip_ex }}"
-    extra_args: --upgrade
-  tags:
-    - pip
-  register: pip_error
-  ignore_errors: True
-
 - name: Test for pre-existing mpi install
   command: mpiexec --version
   register: mpi_test

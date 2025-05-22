@@ -1,17 +1,32 @@
 ---
 
-- name: Test for pre-existing meson install
-  command: meson --version
-  register: meson_test
+- name: Create Python virtual environment directory
+  file:
+    path: "{{ waiwera_path }}/venv"
+    state: directory
+
+- name: Create Python virtual environment
+  command: "python3 -m venv {{ waiwera_path }}/venv"
+
+- name: Activate Python virtual environment
+  shell: "source {{ waiwera_path }}/venv/bin/activate"
+  args:
+    executable: /bin/bash
+
+- name: Update pip to latest version with pip
+  pip:
+    name: pip
+    executable: "{{ waiwera_path }}/venv/bin/{{ pip_ex }}"
+    extra_args: --upgrade
+   tags:
+     - pip
+  register: pip_error
   ignore_errors: True
 
 - name: Install meson via pip
-  import_role:
-    name: meson
-  tags:
-    - meson
-    - pip
-  when: meson_test is failed
+  pip:
+    name: "{{ meson_version }}"
+    executable: "{{ waiwera_path }}/venv/bin/{{ pip_ex }}"
 
 - name: Test for pre-existing ninja install
   command: ninja --version
