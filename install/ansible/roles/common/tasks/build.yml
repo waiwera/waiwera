@@ -18,8 +18,8 @@
     name: pip
     executable: "{{ waiwera_path }}/venv/bin/{{ pip_ex }}"
     extra_args: --upgrade
-   tags:
-     - pip
+  tags:
+    - pip
   register: pip_error
   ignore_errors: True
 
