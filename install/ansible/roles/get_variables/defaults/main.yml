@@ -27,8 +27,8 @@ libraries:
   - liblapack-dev
 
 mpi:
-  - mpich
-  - libmpich-dev
+  - openmpi-bin
+  - libopenmpi-dev
   - openssh-client
 
 petsc_dependencies:
