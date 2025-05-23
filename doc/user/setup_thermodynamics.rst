@@ -9,8 +9,8 @@ Waiwera includes implementations of two different "thermodynamic formulations" f
 
 .. index:: thermodynamics; IFC-67, thermodynamics; IAPWS-97
 
-* the IFC-67 formulation [IFC-67]_
-* the IAPWS-97 formulation [IAPWS-97]_
+* the [IFC-67]_ formulation
+* the [IAPWS-97]_ formulation
 
 The Waiwera JSON input file has a **"thermodynamics"** value for specifying the water thermodynamic formulation. This can be either a string containing the formulation name ("IFC67" or "IAPWS", either upper or lower case) or an object containing a **name** string value. If not specified, the default is "iapws".
 
@@ -72,14 +72,33 @@ The IAPWS-97 regions are shown on a pressure-temperature diagram in :numref:`iap
 Extrapolating liquid water thermodynamics
 =========================================
 
-The thermodynamics for liquid water (region 1) are valid up to a maximum temperature of 350 :math:`^{\circ}`\ C (for both IAPWS-97 and IFC-67 formulations). Currently Waiwera does not offer equations of state for supercritical water, so liquid temperatures over 350 :math:`^{\circ}`\ C cannot be simulated.
+The thermodynamics for liquid water (region 1) are valid up to a maximum temperature of 350 :math:`^{\circ}`\ C (for both IAPWS-97 and IFC-67 formulations). Most of Waiwera's equations of state (apart from the :ref:`supercritical_eoses`) do not have support for region 3, so liquid temperatures over 350 :math:`^{\circ}`\ C cannot be simulated.
 
 However, for some models temperatures may need to exceed this limit temporarily, for example, while running to steady state. In such cases it can be valid to relax this hard limit on liquid temperatures slightly in order to obtain a solution. The **"thermodynamics.extrapolate"** JSON input value can be used to activate this option. This is a Boolean value which defaults to ``false``.
 
-Setting it to ``true`` allows the liquid water thermodynamics to be extrapolated up to a revised maximum of 360 :math:`^{\circ}`\ C. The liquid water thermodynamics are still approximately correct up to this temperature. However, it is not recommended to rely on this option for models that genuinely require output temperatures over 350 :math:`^{\circ}`\ C.
+Setting it to ``true`` allows the region 1 liquid water thermodynamics to be extrapolated up to a revised maximum of 360 :math:`^{\circ}`\ C. The liquid water thermodynamics are still approximately correct up to this temperature. However, it is not recommended to rely on this option for models that genuinely require output temperatures over 350 :math:`^{\circ}`\ C. In such cases one of the :ref:`supercritical_eoses` should be used if possible.
 
 Example:
 
 .. code-block:: json
 
   {"thermodynamics": {"name": "iapws", "extrapolate": true}}
+
+Supercritical water thermodynamics
+==================================
+
+As the critical point of water (at approximately P = 22 MPa, T = 374 :math:`^{\circ}`\ C for IAPWS-97) is approached along the two-phase saturation line, the properties of liquid water and vapour converge, until at the critical point the two phases are indistinguishable. If the pressure and temperature are both above their critical values, there are no longer separate phases, only single-phase supercritical fluid.
+
+.. More general discussion of liquid- and vapour-like behaviour, then Widom line, then Widom delta, pi_liq (below)
+
+However, it is currently thought that supercritical fluid, despite being single-phase, contains at the microscopic level a mixture of liquid-like and vapour-like particles, and depending on the relative proportions of these types of particles, the supercritical fluid has more liquid-like or vapour-like behaviour. This can be described quantitatively by the "liquid-like fraction" :math:`\pi_{liq}` of the supercritical fluid, which is the proportion of liquid-like particles, taking values between 0 and 1 [Ha_et_al_2018]_.
+
+.. Figure showing SC zone, Widom line and delta
+
+.. Point out that SC zone is shared by regions 2 and 3
+
+.. Widom line and delta (parameters alpha, beta)
+
+.. Calculation of pi_liq in Waiwera
+
+.. [Ha_et_al_2018] Ha, M.Y., Yoon, T.J., Tlusty, T., Jho, Y. and Lee, W.B. (2018). "Widom Delta of Supercritical Gas-Liquid Coexistence", J. Phys. Chem. Lett. 2018 (9), 1734 - 1738.

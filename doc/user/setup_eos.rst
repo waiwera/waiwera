@@ -17,27 +17,37 @@ In the Waiwera JSON input file, the **"eos"** value specifies the equation of st
 
    **JSON path**: eos
 
-   +-----------------------+----------+-------------------+-----------------------+
-   |**name**               |**type**  |**default**        |**value**              |
-   +-----------------------+----------+-------------------+-----------------------+
-   |"name"                 |string    |"we"               |abbreviated EOS module |
-   |                       |          |                   |name                   |
-   +-----------------------+----------+-------------------+-----------------------+
-   |"primary"              |object    |{}                 |primary variable       |
-   |                       |          |                   |parameters             |
-   |                       |          |                   |                       |
-   |                       |          |                   |                       |
-   +-----------------------+----------+-------------------+-----------------------+
-   |"temperature"          |number    |20\                |constant temperature ( |
-   |                       |          |:math:`^{\circ}`\ C|:math:`^{\circ}`\ C)   |
-   |                       |          |                   |for :ref:`water_eos`   |
-   |                       |          |                   |EOS                    |
-   +-----------------------+----------+-------------------+-----------------------+
-   |"permeability_modifier"|object    |{}                 |parameters for effect  |
-   |                       |          |                   |of fluid on            |
-   |                       |          |                   |permeability           |
-   |                       |          |                   |                       |
-   +-----------------------+----------+-------------------+-----------------------+
+   +--------------------------------+----------+-------------------+-----------------------+
+   |**name**                        |**type**  |**default**        |**value**              |
+   +--------------------------------+----------+-------------------+-----------------------+
+   |"name"                          |string    |"we"               |abbreviated EOS module |
+   |                                |          |                   |name                   |
+   +--------------------------------+----------+-------------------+-----------------------+
+   |"primary"                       |object    |{}                 |primary variable       |
+   |                                |          |                   |parameters             |
+   |                                |          |                   |                       |
+   |                                |          |                   |                       |
+   +--------------------------------+----------+-------------------+-----------------------+
+   |"temperature"                   |number    |20\                |constant temperature ( |
+   |                                |          |:math:`^{\circ}`\ C|:math:`^{\circ}`\ C)   |
+   |                                |          |                   |for :ref:`water_eos`   |
+   |                                |          |                   |EOS                    |
+   +--------------------------------+----------+-------------------+-----------------------+
+   |"permeability_modifier"         |object    |{}                 |parameters for effect  |
+   |                                |          |                   |of fluid on            |
+   |                                |          |                   |permeability           |
+   |                                |          |                   |                       |
+   +--------------------------------+----------+-------------------+-----------------------+
+   |"relative_permeability_modifier"|object    |depends on EOS     |parameters for effect  |
+   |                                |          |                   |of fluid on relative   |
+   |                                |          |                   |permeability           |
+   |                                |          |                   |                       |
+   +--------------------------------+----------+-------------------+-----------------------+
+   |"conditions"                    |string    |depends on EOS     |alternative methods of |
+   |                                |          |                   |specifying initial and |
+   |                                |          |                   |boundary conditions    |
+   |                                |          |                   |                       |
+   +--------------------------------+----------+-------------------+-----------------------+
 
 For example:
 
@@ -146,6 +156,42 @@ and
 When the parameter :math:`n` takes the value 2, the pores are represented by a series of one-dimensional tubes, whereas when it takes the value 3, the pores are represented by parallel-plate fracture segments. The parameter :math:`\phi_r` is the fraction of the original porosity at which the permeability is reduced to zero, and the parameter :math:`\Gamma` is the fractional length of the pore bodies.
 
 .. [Verma-Pruess] Verma, A. and Pruess, K. (1988). "Thermohydrologic conditions and silica redistribution near high-level nuclear wastes emplaced in saturated geological formations", J. Geophysical Research, 93, B2, 1159 - 1173.
+
+Relative permeability modification
+==================================
+
+For some equations of state, the fluid state can change the effective local relative permeability. For example, when the :ref:`supercritical_eos` is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached.
+
+This effect can be represented using the **"eos.relative_permeability_modifier"** value. This object has a **"type"** string value which determines how the relative permeability is modified according to temperature. Its possible values are "none" and "linear". If the type is "none", there is no relative permeability modification (the default for most equations of state).
+
+.. admonition:: JSON input
+
+   **JSON object**: fluid relative permeability modifier
+
+   **JSON path**: eos.relative_permeability_modifier
+
+   +-------------+----------+-------------------+-----------------------+
+   |**name**     |**type**  |**default**        |**value**              |
+   +-------------+----------+-------------------+-----------------------+
+   |"type"       |string    |"none"             |relative permeability  |
+   |             |          |                   |modifier type          |
+   +-------------+----------+-------------------+-----------------------+
+
+If the type is "linear" (the default for the :ref:`supercritical_eos`), the effective relative permeability :math:`K^r_p` is given by:
+
+.. math::
+
+   K^r_p = \frac{T}{T_c} S_p + (1 - \frac{T}{T_c}) k^r_p
+
+where :math:`k^r_p` is the original unmodified relative permeability, :math:`S_p` is the saturation of phase :math:`p`, :math:`T` is temperature (:math:`^{\circ}`\ C) and :math:`T_c` is critical temperature of water (:math:`^{\circ}`\ C). As the critical point is approached, the properties of the liquid and vapour phases converge, so that the relative permeability functions approach simple saturation functions (:math:`K^r_p = S_p`) and do not include any other interactions between phases.
+
+.. index:: simulation; initial conditions, initial conditions
+.. index:: simulation; boundary conditions, boundary conditions
+
+Alternative initial and boundary conditions
+===========================================
+
+In general, :ref:`initial_conditions` and :ref:`boundary_conditions` are set by specifying the primary variables for the equation of state being used. However, for convenience, some equations of state allow the user to specify them using variables different from the primary variables. This can be done using the **"eos.conditions"** value. Its possible values depend on the EOS being used.
 
 Water EOS modules
 =================
@@ -468,3 +514,50 @@ Water, salt, carbon dioxide and energy ("wsce")
 |**default output fluid         |["pressure", "temperature", "region", "CO2_partial_pressure",            |
 |fields**:                      |"vapour_saturation", "liquid_salt_mass_fraction", "solid_saturation"]    |
 +-------------------------------+-------------------------------------------------------------------------+
+
+.. _supercritical_eoses:
+
+Supercritical water EOS modules
+===============================
+
+.. index:: equation of state (EOS); supercritical water ("se")
+.. _supercritical_water_eos:
+
+Supercritical water and energy ("se")
+-------------------------------------
+
++-------------------------------+--------------------------------------------------+
+|**abbreviated name**:          |"se"                                              |
++-------------------------------+--------------------------------------------------+
+|**component names**:           |["water", "energy"]                               |
++-------------------------------+--------------------------------------------------+
+|**phase names**:               |["liquid", "vapour", "supercritical"]             |
++-------------------------------+--------------------------------------------------+
+|**primary variable names**:    |**regions 1, 2**: ["pressure", "temperature"]     |
+|                               +--------------------------------------------------+
+|                               |**region 3**: ["density", "temperature"]          |
+|                               +--------------------------------------------------+
+|                               |**region 4**: ["pressure", "vapour_saturation"]   |
++-------------------------------+--------------------------------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C]         |
+|                               |                                                  |
++-------------------------------+--------------------------------------------------+
+|**default region**:            |1 (liquid)                                        |
++-------------------------------+--------------------------------------------------+
+|**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100, "density":  |
+|                               |322}                                              |
++-------------------------------+--------------------------------------------------+
+|**default output fluid         |["pressure", "temperature", "region",             |
+|fields**:                      |"vapour_saturation", "liquid_density",            |
+|                               |"vapour_density", "supercritical_density",        |
+|                               |"liquidlike_fraction", "supercritical_phases"]    |
++-------------------------------+--------------------------------------------------+
+
+This is based on the :ref:`water_energy_eos` EOS, but extends its capabilities to supercritical fluids. It can only be used with the IAPWS-97 thermodynamics module (see :ref:`water_thermodynamics`). Whereas the "we" EOS is limited to liquid water, dry steam and two-phase conditions, with liquid water and two-phase only simulated below temperatures of 350 :math:`^{\circ}`\ C, the "se" EOS module can also simulate IAPWS-97 region 3 (see :ref:`thermodynamic_regions`), which covers near-critical and supercritical fluids.
+
+.. third phase for SCF
+
+.. ref to pi_liq, Widom in thermodynamics section
+
+.. primary variables for region 3, and alternative spec (P,T)
+

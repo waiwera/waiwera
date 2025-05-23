@@ -1,5 +1,7 @@
 .. index:: simulation; boundary conditions, boundary conditions
 
+.. _boundary_conditions:
+
 *******************
 Boundary conditions
 *******************
