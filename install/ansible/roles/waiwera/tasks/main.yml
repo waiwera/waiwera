@@ -8,7 +8,7 @@
       state: absent
       path: "{{ waiwera_path }}/build/"
 
-  - name: waiwera - Meson build
+  - name: waiwera - meson build
     shell: "{{ waiwera_path }}/venv/bin/meson setup build --buildtype={{ petsc_arch }} --prefix={{ base_dir }} -Dlibdir=lib -Dset_rpath=true"
     args:
       chdir: "{{ waiwera_path }}"
