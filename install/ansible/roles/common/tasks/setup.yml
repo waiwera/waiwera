@@ -18,6 +18,11 @@
     - never
     - cluster
 
+- name: Create ~/.profile
+  file:
+    path: ~/.profile
+    state: touch
+
 - name: Add paths to bash_profile
   blockinfile:
     dest: ~/.profile
