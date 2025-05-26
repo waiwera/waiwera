@@ -17,19 +17,10 @@
       - meson
       - build
 
-  - name: waiwera - ninja
-    block:
-    - name: waiwera - Ninja build
-      shell: meson compile -C build
-      when: ansible_distribution != 'CentOS'
-      args:
-        chdir: "{{ waiwera_path }}"
-
-    - name: waiwera - Ninja build, CentOS
-      shell: "ninja-build -C build"
-      when: ansible_distribution == 'CentOS'
-      args:
-        chdir: "{{ waiwera_path }}"
+  - name: waiwera - meson compile
+    shell: meson compile -C build
+    args:
+      chdir: "{{ waiwera_path }}"
     tags:
       - ninja
       - build
