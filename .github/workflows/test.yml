@@ -19,6 +19,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install --user ansible
+        pip install --user meson
         pip install --user waiwera-credo
     - name: Get PETSc version
       id: get-petsc-version
@@ -42,7 +43,6 @@ jobs:
       run: |
         echo "${HOME}/.local/bin" >> $GITHUB_PATH
         echo "${HOME}/bin" >> $GITHUB_PATH
-        echo "./venv/bin" >> $GITHUB_PATH
 
     - name: Unit tests
       run: python unit_tests.py
