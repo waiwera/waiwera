@@ -113,6 +113,7 @@ if not os.path.isdir(build_dir): os.mkdir(build_dir)
 os.chdir(build_dir)
 
 meson_args = [
+    "setup",
     "--buildtype", build_type, "..",
     "--prefix", args.prefix,
     "-Dlibdir=" + args.libdir,
