@@ -64,7 +64,7 @@ The IAPWS-97 regions are shown on a pressure-temperature diagram in :numref:`iap
 
 .. _iapws_regions_plot:
 .. figure:: iapws_regions.*
-           :scale: 67 %
+           :scale: 75 %
            :align: center
 
            IAPWS-97 thermodynamic regions
@@ -89,16 +89,69 @@ Supercritical water thermodynamics
 
 As the critical point of water (at approximately P = 22 MPa, T = 374 :math:`^{\circ}`\ C for IAPWS-97) is approached along the two-phase saturation line, the properties of liquid water and vapour converge, until at the critical point the two phases are indistinguishable. If the pressure and temperature are both above their critical values, there are no longer separate phases, only single-phase supercritical fluid.
 
-.. More general discussion of liquid- and vapour-like behaviour, then Widom line, then Widom delta, pi_liq (below)
+The Widom line
+--------------
 
-However, it is currently thought that supercritical fluid, despite being single-phase, contains at the microscopic level a mixture of liquid-like and vapour-like particles, and depending on the relative proportions of these types of particles, the supercritical fluid has more liquid-like or vapour-like behaviour. This can be described quantitatively by the "liquid-like fraction" :math:`\pi_{liq}` of the supercritical fluid, which is the proportion of liquid-like particles, taking values between 0 and 1 [Ha_et_al_2018]_.
+The properties of supercritical fluid can be liquid-like or vapour-like, or something in between, depending on its pressure and temperature. Several lines on the pressure-temperature diagram, based on various physical properties, and extending from the critical point, have been proposed to distinguish liquid-like and vapour-like supercritical fluid.
 
-.. Figure showing SC zone, Widom line and delta
+One of these lines is known as the **Widom line**. An expression for the location of the Widom line, based on experimental data, has been given by [Banuti_et_al_2017]_:
 
-.. Point out that SC zone is shared by regions 2 and 3
+.. math::
+   :label: widom_eqn
 
-.. Widom line and delta (parameters alpha, beta)
+   P = P_c e^{A_s (T^k/T^k_c - 1)}
 
-.. Calculation of pi_liq in Waiwera
+where :math:`P_c` is the critical pressure (Pa), :math:`T^k_c` is the critical temperature (K), :math:`T^k` is the temperature (K) and :math:`A_s` is a dimensionless constant, which for water has the value 6.479.
 
+The Widom delta
+---------------
+
+The behaviour of supercritical fluid does not change suddenly from liquid-like to vapour-like as the Widom line is crossed. A transition zone around the line has been identified, known as the **Widom delta**, within which the fluid's behaviour is in between liquid-like and vapour-like [Ha_et_al_2018]_.
+
+As yet, there do not appear to be any published expressions for the locations of the Widom delta boundaries.  In Waiwera the temperature difference between the upper and lower Widom delta boundaries is assumed to vary linearly with pressure, so that the boundaries :math:`T^l_{\delta}` and :math:`T^v_{\delta}` are given by:
+
+.. math::
+   :label: widom_delta_eqn
+
+           T^l_{\delta} = T_w(P) - \frac{\alpha}{2} (P - P_0) / P_c
+
+           T^v_{\delta} = T_w(P) + \frac{\alpha}{2} (P - P_0) / P_c
+
+where :math:`T_w` is the Widom line temperature (:math:`^{\circ}`\ C) for the pressure :math:`P`, found by inverting equation :eq:`widom_eqn`, and :math:`\alpha` is a growth factor with default value 25 :math:`^{\circ}`\ C. :math:`P_0` is a reference pressure chosen slightly lower than :math:`P_c` (by default 0.1 :math:`^{\circ}`\ C lower) so that the Widom delta has a very small but finite width at the critical point. This avoids numerical issues with infinitely sharp transitions between liquid-like and vapour-like supercritical fluid at the critical point.
+
+:numref:`supercritical_plot` shows the supercritical zone shaded grey on a pressure-temperature plot, with the dashed lines representing the boundaries between region 3 and regions 1 and 2. It also shows the Widom line (red) given by equation :eq:`widom_eqn` and the Widom delta boundaries (blue) given by equation :eq:`widom_delta_eqn`, with the default value of the growth parameter :math:`\alpha`. It can be seen that, for this value of :math:`\alpha`, the Widom delta lies within region 3. Most, but not all, of region 3 is supercritical. A significant proportion of region 2 is vapour-like supercritical fluid.
+
+.. _supercritical_plot:
+.. figure:: supercritical.*
+           :scale: 50 %
+           :align: center
+
+           Supercritical zone (shaded grey), Widom line (red) and Widom delta boundaries (blue)
+
+Liquidlike fraction
+-------------------
+
+It is currently thought that supercritical fluid, despite being single-phase, contains at the microscopic level a mixture of molecules with liquid-like and vapour-like behaviour. It is the relative proportions of these two types of particles that determines whether the supercritical fluid has more liquid-like or vapour-like behaviour. This can be described quantitatively by the "liquid-like fraction" :math:`\pi_{liq}` of the supercritical fluid, which is the proportion of liquid-like particles, taking values between 0 and 1 [Ha_et_al_2018]_.
+
+In Waiwera the liquid-like fraction is calculated for a given supercritical pressure and temperature based on the Widom delta boundaries. First the non-dimensional location of the temperature within the Widom delta boundaries is calculated from:
+
+.. math::
+   :label: widom_xi
+
+   \xi = \frac{T - T^l_{\delta}}{T^v_{\delta} - T^l_{\delta}}
+
+Then the liquid-like fraction is calculated as:
+
+.. math::
+   :label: widom_pi_liq
+
+   \pi_{liq} = \begin{cases}
+   1 & \xi < 0 \\
+   h_{00}(\xi) & 0 \le \xi \le 1 \\
+   0 & \xi > 1
+   \end{cases}
+
+where :math:`h_{00}` is the cubic Hermite spline interpolant between 1 and 0 on the unit interval, with zero gradient at each end.
+
+.. [Banuti_et_al_2017] Banuti, D.T., Raju, M. and Ihme, M. (2017). "Similarity law for Widom lines and coexistence lines", Phys. Rev. E 95, 052120.
 .. [Ha_et_al_2018] Ha, M.Y., Yoon, T.J., Tlusty, T., Jho, Y. and Lee, W.B. (2018). "Widom Delta of Supercritical Gas-Liquid Coexistence", J. Phys. Chem. Lett. 2018 (9), 1734 - 1738.
