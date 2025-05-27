@@ -84,10 +84,14 @@ Example:
 
   {"thermodynamics": {"name": "iapws", "extrapolate": true}}
 
+.. _supercritical_thermodynamics:
+
 Supercritical water thermodynamics
 ==================================
 
 As the critical point of water (at approximately P = 22 MPa, T = 374 :math:`^{\circ}`\ C for IAPWS-97) is approached along the two-phase saturation line, the properties of liquid water and vapour converge, until at the critical point the two phases are indistinguishable. If the pressure and temperature are both above their critical values, there are no longer separate phases, only single-phase supercritical fluid.
+
+.. _widom_line:
 
 The Widom line
 --------------
@@ -102,6 +106,8 @@ One of these lines is known as the **Widom line**. An expression for the locatio
    P = P_c e^{A_s (T^k/T^k_c - 1)}
 
 where :math:`P_c` is the critical pressure (Pa), :math:`T^k_c` is the critical temperature (K), :math:`T^k` is the temperature (K) and :math:`A_s` is a dimensionless constant, which for water has the value 6.479.
+
+.. _widom_delta:
 
 The Widom delta
 ---------------
@@ -119,7 +125,7 @@ As yet, there do not appear to be any published expressions for the locations of
 
 where :math:`T_w` is the Widom line temperature (:math:`^{\circ}`\ C) for the pressure :math:`P`, found by inverting equation :eq:`widom_eqn`, and :math:`\alpha` is a growth factor with default value 25 :math:`^{\circ}`\ C. :math:`P_0` is a reference pressure chosen slightly lower than :math:`P_c` (by default 0.1 :math:`^{\circ}`\ C lower) so that the Widom delta has a very small but finite width at the critical point. This avoids numerical issues with infinitely sharp transitions between liquid-like and vapour-like supercritical fluid at the critical point.
 
-:numref:`supercritical_plot` shows the supercritical zone shaded grey on a pressure-temperature plot, with the dashed lines representing the boundaries between region 3 and regions 1 and 2. It also shows the Widom line (red) given by equation :eq:`widom_eqn` and the Widom delta boundaries (blue) given by equation :eq:`widom_delta_eqn`, with the default value of the growth parameter :math:`\alpha`. It can be seen that, for this value of :math:`\alpha`, the Widom delta lies within region 3. Most, but not all, of region 3 is supercritical. A significant proportion of region 2 is vapour-like supercritical fluid.
+:numref:`supercritical_plot` shows the supercritical zone shaded grey on a pressure-temperature plot, with the dashed lines representing the boundaries between IAPWS-97 region 3 and regions 1 and 2. It also shows the Widom line (red) given by equation :eq:`widom_eqn` and the Widom delta boundaries (blue) given by equation :eq:`widom_delta_eqn`, with the default value of the growth parameter :math:`\alpha`. It can be seen that, for this value of :math:`\alpha`, the Widom delta lies within region 3. Most, but not all, of region 3 is supercritical. A significant proportion of region 2 is vapour-like supercritical fluid.
 
 .. _supercritical_plot:
 .. figure:: supercritical.*
@@ -128,12 +134,14 @@ where :math:`T_w` is the Widom line temperature (:math:`^{\circ}`\ C) for the pr
 
            Supercritical zone (shaded grey), Widom line (red) and Widom delta boundaries (blue)
 
+.. _liquidlike_fraction:
+
 Liquidlike fraction
 -------------------
 
 It is currently thought that supercritical fluid, despite being single-phase, contains at the microscopic level a mixture of molecules with liquid-like and vapour-like behaviour. It is the relative proportions of these two types of particles that determines whether the supercritical fluid has more liquid-like or vapour-like behaviour. This can be described quantitatively by the "liquid-like fraction" :math:`\pi_{liq}` of the supercritical fluid, which is the proportion of liquid-like particles, taking values between 0 and 1 [Ha_et_al_2018]_.
 
-In Waiwera the liquid-like fraction is calculated for a given supercritical pressure and temperature based on the Widom delta boundaries. First the non-dimensional location of the temperature within the Widom delta boundaries is calculated from:
+In Waiwera the liquid-like fraction is estimated for a given supercritical pressure and temperature based on the Widom delta boundaries. First the non-dimensional location of the temperature within the Widom delta boundaries is calculated from:
 
 .. math::
    :label: widom_xi
