@@ -246,29 +246,39 @@ The fluid fields available for output are of two types: "bulk" fields and "phase
 
 The available bulk fluid fields are:
 
-+---------------------------+-----------------------------+
-|**field name**             |**value**                    |
-+---------------------------+-----------------------------+
-|"pressure"                 |fluid pressure (Pa)          |
-|                           |                             |
-+---------------------------+-----------------------------+
-|"temperature"              |fluid temperature            |
-|                           |(:math:`^{\circ}`\ C)        |
-+---------------------------+-----------------------------+
-|"region"                   |thermodynamic region         |
-|                           |                             |
-+---------------------------+-----------------------------+
-|"phases"                   |fluid phase composition      |
-|                           |                             |
-+---------------------------+-----------------------------+
-|"permeability_factor"      |fluid permeability factor    |
-|                           |                             |
-+---------------------------+-----------------------------+
-|`component_name` +         |partial pressures of mass    |
-|"_partial_pressure"        |components (Pa)              |
-+---------------------------+-----------------------------+
++---------------------------+-------------------------------------+
+|**field name**             |**value**                            |
++---------------------------+-------------------------------------+
+|"pressure"                 |fluid pressure (Pa)                  |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|"temperature"              |fluid temperature                    |
+|                           |(:math:`^{\circ}`\ C)                |
++---------------------------+-------------------------------------+
+|"region"                   |thermodynamic region                 |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|"phases"                   |fluid phase composition              |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|"permeability_factor"      |fluid permeability factor            |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|"liquidlike_fraction"      |fluid :ref:`liquidlike_fraction`     |
+|                           |:math:`\pi_{liq}` (primarily for     |
+|                           |supercritical fluids)                |
++---------------------------+-------------------------------------+
+|"supercritical_phases"     |sub-critical phase composition       |
+|                           |corresponding to :math:`\pi_{liq}`   |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|`component_name` +         |partial pressures of mass            |
+|"_partial_pressure"        |components (Pa)                      |
++---------------------------+-------------------------------------+
 
 The permeability factor in each cell gives the effect of the fluid on the local permeability. For most equations of state this is identically 1 (i.e. no effect), but for some (e.g. :ref:`water_salt_eos`) the fluid may alter the effective permeability.
+
+There are two fields related to supercritical fluids (see :ref:`supercritical_thermodynamics`). The :ref:`liquidlike_fraction` :math:`\pi_{liq}` describes whether the supercritical fluid behaves in a more liquid-like or vapour-like way. The "supercritical phases" field gives the sub-critical phase composition corresponding to :math:`\pi_{liq}`, treating the Widom delta as two-phase-like. These values are used only for computing fluxes between sub-critical and supercritical cells.
 
 There is a partial pressure field for each mass component in the :ref:`eos` module being used. For example, for the :ref:`water_air_energy_eos` EOS, the mass component names are "water" and "air", so the corresponding partial pressure fluid field names are "water_partial_pressure" and "air_partial_pressure".
 
