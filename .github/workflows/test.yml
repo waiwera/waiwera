@@ -45,12 +45,7 @@ jobs:
         echo "${HOME}/bin" >> $GITHUB_PATH
 
     - name: Unit tests
-      run: |
-        python unit_tests.py
-        err=$?
-        if [ $err -ne 0 ]; then
-            cat build/meson-logs/testlog-mpiexec.txt
-        fi
+      run: python unit_tests.py
 
     - name: Benchmark tests
       run: python benchmark_tests.py -np 2
