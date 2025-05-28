@@ -160,7 +160,7 @@ When the parameter :math:`n` takes the value 2, the pores are represented by a s
 Relative permeability modification
 ==================================
 
-For some equations of state, the fluid state can change the effective local relative permeability. For example, when the :ref:`supercritical_eos` is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached.
+For some equations of state, the fluid state can change the effective local relative permeability. For example, when the :ref:`supercritical_water_eos` EOS is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached.
 
 This effect can be represented using the **"eos.relative_permeability_modifier"** value. This object has a **"type"** string value which determines how the relative permeability is modified according to temperature. Its possible values are "none" and "linear". If the type is "none", there is no relative permeability modification (the default for most equations of state).
 
@@ -177,7 +177,7 @@ This effect can be represented using the **"eos.relative_permeability_modifier"*
    |             |          |                   |modifier type          |
    +-------------+----------+-------------------+-----------------------+
 
-If the type is "linear" (the default for the :ref:`supercritical_eos`), the effective relative permeability :math:`K^r_p` is given by:
+If the type is "linear" (the default for the :ref:`supercritical_water_eos` EOS), the effective relative permeability :math:`K^r_p` is given by:
 
 .. math::
 
@@ -553,11 +553,12 @@ Supercritical water and energy ("se")
 |                               |"liquidlike_fraction", "supercritical_phases"]    |
 +-------------------------------+--------------------------------------------------+
 
-This is based on the :ref:`water_energy_eos` EOS, but extends its capabilities to supercritical fluids. It can only be used with the IAPWS-97 thermodynamics module (see :ref:`water_thermodynamics`). Whereas the "we" EOS is limited to liquid water, dry steam and two-phase conditions, with liquid water and two-phase only simulated below temperatures of 350 :math:`^{\circ}`\ C, the "se" EOS module can also simulate IAPWS-97 region 3 (see :ref:`thermodynamic_regions`), which covers near-critical and supercritical fluids.
+This is based on the :ref:`water_energy_eos` EOS, but extends its capabilities to supercritical fluids. It can only be used in conjunction with the IAPWS-97 thermodynamics module (see :ref:`water_thermodynamics`). Whereas the "we" EOS is limited to liquid water, dry steam and two-phase conditions, with liquid water and two-phase only simulated below temperatures of 350 :math:`^{\circ}`\ C, the "se" EOS module can also simulate IAPWS-97 region 3 (see :ref:`thermodynamic_regions`), which covers near-critical and supercritical fluids.
 
-.. third phase for SCF
+The primary variables for this EOS are the same as those for the "we" EOS in regions 1, 2 and 4. For region 3, it is not possible to use pressure and temperature as primary variables, as the thermodynamic equations are poorly behaved near the critical point when expressed as functions of these variables. Instead, Waiwera follows the IAPWS-97 formulation and uses density and temperature as primary variables in region 3.
 
-.. ref to pi_liq, Widom in thermodynamics section
+However, for convenience it is possible to specify region 3 initial and boundary conditions using the more familiar pressure and temperature variables, if desired. This can be done via the **"eos.conditions"** value in the Waiwera input JSON file. This is a string value, and setting its value to "pressure" means that all initial and boundary conditions are interpreted as pressures and temperatures (and are converted internally to densities and temperatures).
 
-.. primary variables for region 3, and alternative spec (P,T)
+As supercritical fluid is single-phase but can behave in a liquid-like or vapour-like way, or somewhere in between the two (see :ref:`supercritical_thermodynamics`), EOS "se" results for supercritical cells are given not in terms of liquid or vapour phases but as a separate third "supercritical" phase. This has the usual phase properties such as density, viscosity etc. and it is possible to include results for them in the Waiwera HDF5 output in the usual way (see :ref:`output_fluid_fields`). By default the HDF5 output also includes cell values for the :ref:`liquidlike_fraction` of the supercritical fluid. (For convenience, results for liquid-like fraction are also given for sub-critical cells, with the value set to 1 for liquid water, 0 for dry steam and to the liquid phase saturation for two-phase fluid.)
+
 
