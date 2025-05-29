@@ -39,6 +39,9 @@ module eos_we_module
      private
      procedure, public :: init => eos_we_init
      procedure, public :: destroy => eos_we_destroy
+     procedure, public :: region_1_transitions => eos_we_region_1_transitions
+     procedure, public :: region_2_transitions => eos_we_region_2_transitions
+     procedure, public :: region_4_transitions => eos_we_region_4_transitions
      procedure, public :: transition => eos_we_transition
      procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
@@ -272,6 +275,105 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_we_region_1_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_we, carry out phase transitions from region 1.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: saturation_pressure
+
+    associate (pressure => primary(1), temperature => primary(2))
+
+      call self%thermo%saturation%pressure(temperature, &
+           saturation_pressure, err)
+
+      if (err == 0) then
+         if (pressure < saturation_pressure) then
+            call self%transition_to_two_phase(saturation_pressure, &
+                 old_primary, old_fluid, primary, fluid, transition, err)
+         end if
+      end if
+
+    end associate
+
+  end subroutine eos_we_region_1_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_region_2_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_we, carry out phase transitions from region 2.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: saturation_pressure
+
+    associate (pressure => primary(1), temperature => primary(2))
+
+      call self%thermo%saturation%pressure(temperature, &
+           saturation_pressure, err)
+
+      if (err == 0) then
+         if (pressure > saturation_pressure) then
+            call self%transition_to_two_phase(saturation_pressure, &
+                 old_primary, old_fluid, primary, fluid, transition, err)
+         end if
+      end if
+
+    end associate
+
+  end subroutine eos_we_region_2_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_region_4_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_we, carry out phase transitions from region 4.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+
+    associate (vapour_saturation => primary(2))
+
+      if (vapour_saturation < 0._dp) then
+         call self%transition_to_single_phase(old_primary, old_fluid, &
+              1, primary, fluid, transition, err)
+      else if (vapour_saturation > 1._dp) then
+         call self%transition_to_single_phase(old_primary, old_fluid, &
+              2, primary, fluid, transition, err)
+      end if
+
+    end associate
+
+  end subroutine eos_we_region_4_transitions
+
+!------------------------------------------------------------------------
+
   subroutine eos_we_transition(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
     !! For eos_we, check primary variables for a cell and make
@@ -288,40 +390,22 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
-    PetscReal :: saturation_pressure
 
     err = 0
     transition = PETSC_FALSE
     old_region = nint(old_fluid%region)
 
-    if (old_region == 4) then  ! Two-phase
-       associate (vapour_saturation => primary(2))
-
-         if (vapour_saturation < 0._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 1, primary, fluid, transition, err)
-         else if (vapour_saturation > 1._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 2, primary, fluid, transition, err)
-         end if
-
-     end associate
-    else  ! Single-phase
-       associate (pressure => primary(1), temperature => primary(2))
-
-         call self%thermo%saturation%pressure(temperature, &
-              saturation_pressure, err)
-
-         if (err == 0) then
-            if (((old_region == 1) .and. (pressure < saturation_pressure)) .or. &
-                 ((old_region == 2) .and. (pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, &
-                    old_primary, old_fluid, primary, fluid, transition, err)
-            end if
-         end if
-
-       end associate
-    end if
+    select case (old_region)
+    case (1)
+       call self%region_1_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (2)
+       call self%region_2_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (4)
+       call self%region_4_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    end select
 
   end subroutine eos_we_transition
 
