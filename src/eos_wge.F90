@@ -6,19 +6,17 @@ module eos_wge_module
   use petscsys
   use kinds_module
   use eos_module
+  use eos_we_module
   use ncg_thermodynamics_module
   use root_finder_module
 
   implicit none
   private
 
-  type, public, extends(eos_type) :: eos_wge_type
+  type, public, extends(eos_we_type) :: eos_wge_type
      !! Pure water, non-condensible gas and energy equation of state type.
      private
      class(ncg_thermodynamics_type), allocatable, public :: gas
-     type(root_finder_type) :: saturation_line_finder
-     type(primary_variable_interpolator_type), pointer :: &
-          primary_variable_interpolator
    contains
      private
      procedure, public :: init => eos_wge_init
@@ -26,11 +24,9 @@ module eos_wge_module
      procedure, public :: transition => eos_wge_transition
      procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
-     procedure, public :: fluid_properties => eos_wge_fluid_properties
      procedure :: bulk_properties => eos_wge_bulk_properties
      procedure :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
-     procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
   end type eos_wge_type
 
@@ -134,15 +130,8 @@ contains
 
     class(eos_wge_type), intent(in out) :: self
 
-    deallocate(self%primary_variable_names)
-    deallocate(self%phase_names, self%component_names)
-    deallocate(self%default_primary)
-    deallocate(self%primary_scale)
-    self%thermo => null()
+    call self%eos_we_type%destroy()
 
-    call self%saturation_line_finder%destroy()
-    call self%primary_variable_interpolator%destroy()
-    deallocate(self%primary_variable_interpolator)
     if (allocated(self%gas)) then
        call self%gas%destroy()
        deallocate(self%gas)
@@ -348,29 +337,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_fluid_properties(self, primary, rock, fluid, err)
-    !! Calculate fluid properties from region and primary variables
-    !! for non-isothermal water and non-condensible gas.
-
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
-
-    class(eos_wge_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(rock_type), intent(in out) :: rock !! Rock object
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
-
-    err = 0
-    call self%bulk_properties(primary, fluid, err)
-    if (err == 0) then
-       call self%phase_properties(primary, rock, fluid, err)
-    end if
-
-  end subroutine eos_wge_fluid_properties
-
-!------------------------------------------------------------------------
-
   subroutine eos_wge_bulk_properties(self, primary, fluid, err)
     !! Calculate fluid bulk properties from region and primary variables
     !! for non-isothermal water and non-condensible gas.
@@ -413,34 +379,6 @@ contains
     end if
 
   end subroutine eos_wge_bulk_properties
-
-!------------------------------------------------------------------------
-
-  subroutine eos_wge_phase_saturations(self, primary, fluid)
-    !! Assigns fluid phase saturations from fluid region and primary variables.
-
-    use fluid_module, only: fluid_type
-    class(eos_wge_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    ! Locals:
-    PetscInt :: region
-
-    region = nint(fluid%region)
-
-    select case (region)
-    case (1)
-       fluid%phase(1)%saturation = 1._dp
-       fluid%phase(2)%saturation = 0._dp
-    case (2)
-       fluid%phase(1)%saturation = 0._dp
-       fluid%phase(2)%saturation = 1._dp
-    case (4)
-       fluid%phase(1)%saturation = 1._dp - primary(2)
-       fluid%phase(2)%saturation = primary(2)
-    end select
-
-  end subroutine eos_wge_phase_saturations
 
 !------------------------------------------------------------------------
 
@@ -575,14 +513,7 @@ contains
     ! Locals:
     PetscInt :: region
 
-    primary(1) = fluid%pressure
-
-    region = nint(fluid%region)
-    if (region == 4) then
-       primary(2) = fluid%phase(2)%saturation
-    else
-       primary(2) = fluid%temperature
-    end if
+    call self%eos_we_type%primary_variables(fluid, primary)
 
     primary(3) = fluid%partial_pressure(2)
 
