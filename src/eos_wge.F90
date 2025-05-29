@@ -21,7 +21,6 @@ module eos_wge_module
      private
      procedure, public :: init => eos_wge_init
      procedure, public :: destroy => eos_wge_destroy
-     procedure, public :: transition => eos_wge_transition
      procedure, public :: water_pressure => eos_wge_water_pressure
      procedure, public :: set_water_pressure => eos_wge_set_water_pressure
      procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
@@ -310,64 +309,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_transition(self, old_primary, primary, &
-       old_fluid, fluid, transition, err)
-    !! Check primary variables for eos_wge and make thermodynamic
-    !! region transitions if needed.
-
-    use fluid_module, only: fluid_type
-    
-    class(eos_wge_type), intent(in out) :: self
-    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in) :: old_fluid
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: old_region
-    PetscReal :: saturation_pressure
-    PetscReal :: water_pressure
-
-    err = 0
-    transition = PETSC_FALSE
-    old_region = nint(old_fluid%region)
-
-    if (old_region == 4) then  ! Two-phase
-       associate (vapour_saturation => primary(2))
-
-         if (vapour_saturation < 0._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 1, primary, fluid, transition, err)
-         else if (vapour_saturation > 1._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 2, primary, fluid, transition, err)
-         end if
-
-     end associate
-    else  ! Single-phase
-       associate (pressure => primary(1), temperature => primary(2), &
-            partial_pressure => primary(3))
-
-         call self%thermo%saturation%pressure(temperature, &
-              saturation_pressure, err)
-
-         if (err == 0) then
-            water_pressure = pressure - partial_pressure
-            if (((old_region == 1) .and. (water_pressure < saturation_pressure)) .or. &
-                 ((old_region == 2) .and. (water_pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, &
-                    old_primary, old_fluid, primary, fluid, transition, err)
-            end if
-         end if
-
-       end associate
-    end if
-
-  end subroutine eos_wge_transition
-
-!------------------------------------------------------------------------
-
   subroutine eos_wge_bulk_properties(self, primary, fluid, err)
     !! Calculate fluid bulk properties from region and primary variables
     !! for non-isothermal water and non-condensible gas.
@@ -541,8 +482,6 @@ contains
     class(eos_wge_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(out) :: primary(self%num_primary_variables)
-    ! Locals:
-    PetscInt :: region
 
     call self%eos_we_type%primary_variables(fluid, primary)
 
