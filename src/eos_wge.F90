@@ -22,6 +22,8 @@ module eos_wge_module
      procedure, public :: init => eos_wge_init
      procedure, public :: destroy => eos_wge_destroy
      procedure, public :: transition => eos_wge_transition
+     procedure, public :: water_pressure => eos_wge_water_pressure
+     procedure, public :: set_water_pressure => eos_wge_set_water_pressure
      procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
      procedure :: bulk_properties => eos_wge_bulk_properties
@@ -138,6 +140,35 @@ contains
     end if
 
   end subroutine eos_wge_destroy
+
+!------------------------------------------------------------------------
+
+  PetscReal function eos_wge_water_pressure(self, primary) result(water_pressure)
+    !! For eos_wge, return water pressure from primary variables.
+
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+
+    associate (pressure => primary(1), partial_pressure => primary(3))
+      water_pressure = pressure - partial_pressure
+    end associate
+
+  end function eos_wge_water_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine eos_wge_set_water_pressure(self, water_pressure, primary)
+    !! For eos_wge, update primary variables for specified water pressure.
+
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in) :: water_pressure
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+
+    associate (pressure => primary(1), partial_pressure => primary(3))
+      pressure = water_pressure + partial_pressure
+    end associate
+
+  end subroutine eos_wge_set_water_pressure
 
 !------------------------------------------------------------------------
 
