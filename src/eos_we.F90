@@ -49,6 +49,7 @@ module eos_we_module
      procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
      procedure, public :: fluid_properties => eos_we_fluid_properties
+     procedure :: partial_pressures => eos_we_partial_pressures
      procedure :: bulk_properties => eos_we_bulk_properties
      procedure :: phase_properties => eos_we_phase_properties
      procedure, public :: primary_variables => eos_we_primary_variables
@@ -159,7 +160,7 @@ contains
     !! For eos_we, return water pressure from primary variables.
 
     class(eos_we_type), intent(in) :: self
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
 
     associate (pressure => primary(1))
       water_pressure = pressure
@@ -480,6 +481,20 @@ contains
 
 !------------------------------------------------------------------------
 
+  function eos_we_partial_pressures(self, primary) result (partial_pressures)
+    !! Set partial pressures from primary variables for non-isothermal
+    !! pure water.
+
+    class(eos_we_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal :: partial_pressures(self%num_components)
+
+    partial_pressures(1) = primary(1)
+
+  end function eos_we_partial_pressures
+
+!------------------------------------------------------------------------
+
   subroutine eos_we_bulk_properties(self, primary, fluid, err)
     !! Calculate fluid bulk properties from region and primary variables
     !! for non-isothermal pure water.
@@ -494,12 +509,14 @@ contains
     PetscInt :: region
 
     err = 0
-    fluid%pressure = primary(1)
     region = nint(fluid%region)
+
+    fluid%pressure = primary(1)
+    fluid%partial_pressure = self%partial_pressures(primary)
 
     if (region == 4) then
        ! Two-phase
-       call self%thermo%saturation%temperature(fluid%pressure, &
+       call self%thermo%saturation%temperature(fluid%partial_pressure(1), &
             fluid%temperature, err)
     else
        ! Single-phase
@@ -511,7 +528,6 @@ contains
        call self%phase_composition(fluid, err)
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
-          fluid%partial_pressure(1) = fluid%pressure
           fluid%liquidlike_fraction = fluid%phase(1)%saturation
           fluid%supercritical_phases = 0._dp
        end if
