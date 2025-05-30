@@ -24,6 +24,7 @@ module eos_wge_module
      procedure, public :: water_pressure => eos_wge_water_pressure
      procedure, public :: set_water_pressure => eos_wge_set_water_pressure
      procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
+     procedure, public :: enforce_consistency => eos_wge_enforce_consistency
      procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
      procedure :: bulk_properties => eos_wge_bulk_properties
      procedure :: phase_properties => eos_wge_phase_properties
@@ -175,6 +176,9 @@ contains
        new_region, primary, fluid, transition, err)
     !! For eos_wge, make transition from two-phase to single-phase with
     !! specified region.
+  subroutine eos_wge_enforce_consistency(self, primary)
+    !! Check internal consistency of primary variables and adjust if
+    !! necessary.
 
     use fluid_module, only: fluid_type
 
@@ -182,6 +186,7 @@ contains
     type(fluid_type), intent(in) :: old_fluid
     PetscInt, intent(in) :: new_region
     PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(out) :: transition
@@ -206,6 +211,7 @@ contains
     associate (pressure => primary(1), temperature => primary(2), &
          partial_pressure => primary(3))
 
+    associate (pressure => primary(1), partial_pressure => primary(3))
       partial_pressure = max(0._dp, min(partial_pressure, pressure))
       self%primary_variable_interpolator%val(:, 1) = old_primary
       self%primary_variable_interpolator%val(:, 2) = primary
@@ -249,6 +255,7 @@ contains
     end associate
 
   end subroutine eos_wge_transition_to_single_phase
+  end subroutine eos_wge_enforce_consistency
 
 !------------------------------------------------------------------------
 
