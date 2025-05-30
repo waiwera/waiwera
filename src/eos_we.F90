@@ -41,6 +41,7 @@ module eos_we_module
      procedure, public :: destroy => eos_we_destroy
      procedure, public :: water_pressure => eos_we_water_pressure
      procedure, public :: set_water_pressure => eos_we_set_water_pressure
+     procedure, public :: enforce_consistency => eos_we_enforce_consistency
      procedure, public :: region_1_transitions => eos_we_region_1_transitions
      procedure, public :: region_2_transitions => eos_we_region_2_transitions
      procedure, public :: region_4_transitions => eos_we_region_4_transitions
@@ -183,6 +184,19 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_we_enforce_consistency(self, primary)
+    !! Check internal consistency of primary variables and adjust if
+    !! necessary. Overridden by derived EOSes.
+
+    class(eos_we_type), intent(in) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+
+    continue
+
+  end subroutine eos_we_enforce_consistency
+
+!------------------------------------------------------------------------
+
   subroutine eos_we_transition_to_single_phase(self, old_primary, old_fluid, &
        new_region, primary, fluid, transition, err)
     !! For eos_we, make transition from two-phase to single-phase with
@@ -206,6 +220,8 @@ contains
 
     err = 0
     transition = PETSC_FALSE
+
+    call self%enforce_consistency(primary)
 
     if (new_region == 1) then
        saturation_bound = 0._dp
