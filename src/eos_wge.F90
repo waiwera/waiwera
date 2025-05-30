@@ -24,7 +24,7 @@ module eos_wge_module
      procedure, public :: water_pressure => eos_wge_water_pressure
      procedure, public :: set_water_pressure => eos_wge_set_water_pressure
      procedure, public :: enforce_consistency => eos_wge_enforce_consistency
-     procedure :: bulk_properties => eos_wge_bulk_properties
+     procedure :: partial_pressures => eos_wge_partial_pressures
      procedure :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
@@ -145,7 +145,7 @@ contains
     !! For eos_wge, return water pressure from primary variables.
 
     class(eos_wge_type), intent(in) :: self
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
 
     associate (pressure => primary(1), partial_pressure => primary(3))
       water_pressure = pressure - partial_pressure
@@ -185,48 +185,18 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_bulk_properties(self, primary, fluid, err)
-    !! Calculate fluid bulk properties from region and primary variables
-    !! for non-isothermal water and non-condensible gas.
+  function eos_wge_partial_pressures(self, primary) result (partial_pressures)
+    !! Set partial pressures from primary variables for non-isothermal
+    !! water and non-condensible gas.
 
-    use fluid_module, only: fluid_type
-
-    class(eos_wge_type), intent(in out) :: self
+    class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscInt :: region
+    PetscReal :: partial_pressures(self%num_components)
 
-    err = 0
-    fluid%pressure = primary(1)
-    region = nint(fluid%region)
+    partial_pressures(1) = self%water_pressure(primary)
+    partial_pressures(2) = primary(3)
 
-    associate(partial_pressure => primary(3))
-      fluid%partial_pressure(1) = fluid%pressure - partial_pressure
-      fluid%partial_pressure(2) = partial_pressure
-    end associate
-
-    if (region == 4) then
-       ! Two-phase
-       call self%thermo%saturation%temperature( &
-            fluid%partial_pressure(1), fluid%temperature, err)
-    else
-       ! Single-phase
-       fluid%temperature = primary(2)
-    end if
-
-    if (err == 0) then
-       fluid%permeability_factor = 1._dp
-       call self%phase_composition(fluid, err)
-       if (err == 0) then
-          call self%phase_saturations(primary, fluid)
-          fluid%liquidlike_fraction = fluid%phase(1)%saturation
-          fluid%supercritical_phases = 0._dp
-       end if
-    end if
-
-  end subroutine eos_wge_bulk_properties
+  end function eos_wge_partial_pressures
 
 !------------------------------------------------------------------------
 
