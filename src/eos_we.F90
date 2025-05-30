@@ -285,39 +285,35 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
-    PetscReal :: interpolated_primary(self%num_primary_variables)
-    PetscReal :: xi, water_pressure
+    PetscReal :: xi
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
-    associate (vapour_saturation => primary(2), &
-      interpolated_pressure => interpolated_primary(1))
 
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-      call self%saturation_line_finder%find()
+    call self%enforce_consistency(primary)
 
-      if (self%saturation_line_finder%err == 0) then
-         xi = self%saturation_line_finder%root
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         water_pressure = interpolated_pressure
-      else
-         water_pressure = saturation_pressure
-      end if
+    self%primary_variable_interpolator%val(:, 1) = old_primary
+    self%primary_variable_interpolator%val(:, 2) = primary
+    call self%saturation_line_finder%find()
 
-      call self%set_water_pressure(water_pressure, primary)
+    if (self%saturation_line_finder%err == 0) then
+       xi = self%saturation_line_finder%root
+       primary = self%primary_variable_interpolator%interpolate(xi)
+    else
+       call self%set_water_pressure(saturation_pressure, primary)
+    end if
 
+    associate (vapour_saturation => primary(2))
       old_region = nint(old_fluid%region)
       if (old_region == 1) then
          vapour_saturation = small
       else
          vapour_saturation = 1._dp - small
       end if
-
-      fluid%region = dble(4)
-      transition = PETSC_TRUE
-
     end associate
+
+    fluid%region = dble(4)
+    transition = PETSC_TRUE
 
   end subroutine eos_we_transition_to_two_phase
 
