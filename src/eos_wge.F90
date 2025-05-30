@@ -24,7 +24,6 @@ module eos_wge_module
      procedure, public :: water_pressure => eos_wge_water_pressure
      procedure, public :: set_water_pressure => eos_wge_set_water_pressure
      procedure, public :: enforce_consistency => eos_wge_enforce_consistency
-     procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
      procedure :: bulk_properties => eos_wge_bulk_properties
      procedure :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
@@ -183,63 +182,6 @@ contains
     end associate
 
   end subroutine eos_wge_enforce_consistency
-
-!------------------------------------------------------------------------
-
-  subroutine eos_wge_transition_to_two_phase(self, saturation_pressure, &
-       old_primary, old_fluid, primary, fluid, transition, err)
-    !! For eos_wge, make transition from single-phase to two-phase.
-
-    use fluid_module, only: fluid_type
-
-    class(eos_wge_type), intent(in out) :: self
-    PetscReal, intent(in) :: saturation_pressure
-    type(fluid_type), intent(in) :: old_fluid
-    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: old_region
-    PetscReal :: interpolated_primary(self%num_primary_variables)
-    PetscReal :: xi
-    PetscReal, parameter :: small = 1.e-6_dp
-
-    err = 0
-    associate (pressure => primary(1), vapour_saturation => primary(2), &
-         partial_pressure => primary(3))
-
-      partial_pressure = max(0._dp, min(partial_pressure, pressure))
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-      call self%saturation_line_finder%find()
-
-      if (self%saturation_line_finder%err == 0) then
-         xi = self%saturation_line_finder%root
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         associate(interpolated_pressure => interpolated_primary(1), &
-              interpolated_partial_pressure => interpolated_primary(3))
-           pressure = interpolated_pressure
-           partial_pressure = interpolated_partial_pressure
-         end associate
-      else
-         pressure = saturation_pressure + partial_pressure
-      end if
-
-      old_region = nint(old_fluid%region)
-      if (old_region == 1) then
-         vapour_saturation = small
-      else
-         vapour_saturation = 1._dp - small
-      end if
-
-      fluid%region = dble(4)
-      transition = PETSC_TRUE
-
-    end associate
-
-  end subroutine eos_wge_transition_to_two_phase
 
 !------------------------------------------------------------------------
 
