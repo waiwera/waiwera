@@ -214,8 +214,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: old_saturation_pressure, pressure_factor
-    PetscReal :: saturation_bound, xi
-    PetscReal :: interpolated_primary(self%num_primary_variables)
+    PetscReal :: saturation_bound, xi, new_water_pressure
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
@@ -237,28 +236,27 @@ contains
     call self%primary_variable_interpolator%find_component_at_index(&
          saturation_bound, 2, xi, err)
 
-    associate (temperature => primary(2), &
-         interpolated_pressure => interpolated_primary(1))
+    associate (temperature => primary(2))
 
       if (err == 0) then
 
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         call self%set_water_pressure(pressure_factor * interpolated_pressure, primary)
-         call self%thermo%saturation%temperature(interpolated_pressure, &
+         primary = self%primary_variable_interpolator%interpolate(xi)
+         new_water_pressure = self%water_pressure(primary)
+         call self%thermo%saturation%temperature(new_water_pressure, &
               temperature, err)
          if (err == 0) then
+            call self%set_water_pressure(pressure_factor * new_water_pressure, primary)
             fluid%region = dble(new_region)
             transition = PETSC_TRUE
          end if
 
       else ! fallback
 
-         call self%thermo%saturation%pressure(old_fluid%temperature, &
-              old_saturation_pressure, err)
+         temperature = old_fluid%temperature
+         call self%thermo%saturation%pressure(temperature, old_saturation_pressure, err)
          if (err == 0) then
             call self%set_water_pressure(pressure_factor * old_saturation_pressure, &
                  primary)
-            temperature = old_fluid%temperature
             fluid%region = dble(new_region)
             transition = PETSC_TRUE
          end if
