@@ -23,7 +23,6 @@ module eos_wge_module
      procedure, public :: destroy => eos_wge_destroy
      procedure, public :: water_pressure => eos_wge_water_pressure
      procedure, public :: set_water_pressure => eos_wge_set_water_pressure
-     procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
      procedure, public :: enforce_consistency => eos_wge_enforce_consistency
      procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
      procedure :: bulk_properties => eos_wge_bulk_properties
@@ -172,89 +171,17 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_transition_to_single_phase(self, old_primary, old_fluid, &
-       new_region, primary, fluid, transition, err)
-    !! For eos_wge, make transition from two-phase to single-phase with
-    !! specified region.
   subroutine eos_wge_enforce_consistency(self, primary)
     !! Check internal consistency of primary variables and adjust if
     !! necessary.
 
-    use fluid_module, only: fluid_type
-
-    class(eos_wge_type), intent(in out) :: self
-    type(fluid_type), intent(in) :: old_fluid
-    PetscInt, intent(in) :: new_region
-    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
     class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: old_saturation_pressure, pressure_factor
-    PetscReal :: saturation_bound, xi, interpolated_water_pressure
-    PetscReal :: interpolated_primary(self%num_primary_variables)
-    PetscReal, parameter :: small = 1.e-6_dp
-
-    err = 0
-    transition = PETSC_FALSE
-
-    if (new_region == 1) then
-       saturation_bound = 0._dp
-       pressure_factor = 1._dp + small
-    else
-       saturation_bound = 1._dp
-       pressure_factor = 1._dp - small
-    end if
-
-    associate (pressure => primary(1), temperature => primary(2), &
-         partial_pressure => primary(3))
 
     associate (pressure => primary(1), partial_pressure => primary(3))
       partial_pressure = max(0._dp, min(partial_pressure, pressure))
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-      call self%primary_variable_interpolator%set_index(1)
-      call self%primary_variable_interpolator%find_component_at_index(&
-           saturation_bound, 2, xi, err)
-
-      if (err == 0) then
-
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         associate(interpolated_pressure => interpolated_primary(1), &
-              interpolated_partial_pressure => interpolated_primary(3))
-           interpolated_water_pressure = interpolated_pressure - &
-                interpolated_partial_pressure
-           pressure = pressure_factor * interpolated_water_pressure + &
-                interpolated_partial_pressure
-           partial_pressure = interpolated_partial_pressure
-         end associate
-
-         call self%thermo%saturation%temperature(interpolated_water_pressure, &
-              temperature, err)
-         if (err == 0) then
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
-
-      else
-
-         call self%thermo%saturation%pressure(old_fluid%temperature, &
-              old_saturation_pressure, err)
-         if (err == 0) then
-            pressure = pressure_factor * old_saturation_pressure + &
-                 partial_pressure
-            temperature = old_fluid%temperature
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
-
-      end if
-
     end associate
 
-  end subroutine eos_wge_transition_to_single_phase
   end subroutine eos_wge_enforce_consistency
 
 !------------------------------------------------------------------------
