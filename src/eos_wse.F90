@@ -43,6 +43,7 @@ module eos_wse_module
      procedure, public :: init => eos_wse_init
      procedure, public :: destroy => eos_wse_destroy
      procedure, public :: saturation_pressure => eos_wse_saturation_pressure
+     procedure, public :: region_4_transitions => eos_wse_region_4_transitions
      procedure, public :: transition => eos_wse_transition
      procedure, public :: transition_to_single_phase => eos_wse_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wse_transition_to_two_phase
@@ -586,6 +587,58 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_wse_region_4_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_wse, carry out phase transitions from region 4.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_wse_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: region_offset, old_region, new_region
+    PetscReal :: solid_saturation
+    PetscBool :: old_halite
+
+    old_region = nint(old_fluid%region)
+    old_halite = self%halite(old_region)
+
+    if (old_halite) then
+       region_offset = 4
+    else
+       region_offset = 0
+    end if
+
+    associate (vapour_saturation => primary(2))
+
+      if (vapour_saturation < 0._dp) then
+         new_region = region_offset + 1
+         call self%transition_to_single_phase(old_primary, old_fluid, &
+              new_region, primary, fluid, transition, err)
+      else
+         if (old_halite) then
+            solid_saturation = primary(3)
+         else
+            solid_saturation = 0._dp
+         end if
+         if (vapour_saturation > 1._dp - solid_saturation) then
+            new_region = region_offset + 2
+            call self%transition_to_single_phase(old_primary, old_fluid, &
+                 new_region, primary, fluid, transition, err)
+         end if
+      end if
+
+    end associate
+
+  end subroutine eos_wse_region_4_transitions
+
+!------------------------------------------------------------------------
+
   subroutine eos_wse_transition(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
     !! For eos_wse, check primary variables for a cell and make
@@ -599,70 +652,23 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region, old_water_region, region_offset, new_region
-    PetscBool :: old_halite
-    PetscReal :: solid_saturation, salt_mass_fraction, saturation_pressure
+    PetscInt :: old_region
 
     err = 0
     transition = PETSC_FALSE
     old_region = nint(old_fluid%region)
-    old_water_region = self%water_region(old_region)
-    old_halite = self%halite(old_region)
 
-    if (old_water_region == 4) then  ! Two-phase
-       if (old_halite) then
-          region_offset = 4
-       else
-          region_offset = 0
-       end if
-       associate (vapour_saturation => primary(2))
-
-         if (vapour_saturation < 0._dp) then
-            new_region = region_offset + 1
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 new_region, primary, fluid, transition, err)
-         else
-            if (old_halite) then
-               solid_saturation = primary(3)
-            else
-               solid_saturation = 0._dp
-            end if
-            if (vapour_saturation > 1._dp - solid_saturation) then
-               new_region = region_offset + 2
-               call self%transition_to_single_phase(old_primary, old_fluid, &
-                    new_region, primary, fluid, transition, err)
-            end if
-         end if
-
-     end associate
-    else  ! Single-phase
-       associate (pressure => primary(1), temperature => primary(2))
-
-         if (old_water_region == 1) then
-            if (old_halite) then
-               call halite_solubility(temperature, salt_mass_fraction, err)
-            else
-               salt_mass_fraction = primary(3)
-            end if
-            if (err == 0) then
-               salt_mass_fraction = max(0._dp, salt_mass_fraction)
-               call brine_saturation_pressure(temperature, salt_mass_fraction, &
-                    self%thermo, saturation_pressure, err)
-            end if
-         else ! dry steam:
-            call self%thermo%saturation%pressure(temperature, saturation_pressure, err)
-         end if
-
-         if (err == 0) then
-            if (((old_water_region == 1) .and. (pressure < saturation_pressure)) .or. &
-                 ((old_water_region == 2) .and. (pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, &
-                    old_primary, old_fluid, primary, fluid, transition, err)
-            end if
-         end if
-
-       end associate
-    end if
+    select case (old_region)
+    case (1)
+       call self%region_1_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (2)
+       call self%region_2_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (4)
+       call self%region_4_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    end select
 
     if (err == 0) then
        call self%halite_transition(old_fluid, primary, fluid, transition, err)
