@@ -237,6 +237,7 @@ contains
     ! Locals:
     PetscReal :: old_saturation_pressure, pressure_factor
     PetscReal :: saturation_bound, xi, new_water_pressure
+    PetscReal :: old_fluid_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
@@ -275,7 +276,9 @@ contains
       else ! fallback
 
          temperature = old_fluid%temperature
-         call self%thermo%saturation%pressure(temperature, old_saturation_pressure, err)
+         call self%primary_variables(old_fluid, old_fluid_primary)
+         call self%saturation_pressure(old_fluid_primary, nint(old_fluid%region), &
+              old_saturation_pressure, err)
          if (err == 0) then
             call self%set_water_pressure(pressure_factor * old_saturation_pressure, &
                  primary)
