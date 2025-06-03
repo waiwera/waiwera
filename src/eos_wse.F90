@@ -42,6 +42,7 @@ module eos_wse_module
      private
      procedure, public :: init => eos_wse_init
      procedure, public :: destroy => eos_wse_destroy
+     procedure, public :: saturation_pressure => eos_wse_saturation_pressure
      procedure, public :: transition => eos_wse_transition
      procedure, public :: transition_to_single_phase => eos_wse_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wse_transition_to_two_phase
@@ -212,6 +213,47 @@ contains
     call self%permeability_modifier%destroy()
 
   end subroutine eos_wse_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine eos_wse_saturation_pressure(self, primary, region, &
+       saturation_pressure, err)
+    !! Returns water saturation pressure for given primary variables
+    !! (region 1 or 2).
+
+    class(eos_wse_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal, intent(out) :: saturation_pressure
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: water_region
+    PetscBool :: halite
+    PetscReal :: salt_mass_fraction
+
+    water_region = self%water_region(region)
+    halite = self%halite(region)
+
+    associate (pressure => primary(1), temperature => primary(2))
+
+      if (water_region == 1) then
+         if (halite) then
+            call halite_solubility(temperature, salt_mass_fraction, err)
+         else
+            salt_mass_fraction = primary(3)
+         end if
+         if (err == 0) then
+            salt_mass_fraction = max(0._dp, salt_mass_fraction)
+            call brine_saturation_pressure(temperature, salt_mass_fraction, &
+                 self%thermo, saturation_pressure, err)
+         end if
+      else ! dry steam:
+         call self%thermo%saturation%pressure(temperature, saturation_pressure, err)
+      end if
+
+    end associate
+
+  end subroutine eos_wse_saturation_pressure
 
 !------------------------------------------------------------------------
 
