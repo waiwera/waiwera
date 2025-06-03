@@ -42,6 +42,7 @@ module eos_we_module
      procedure, public :: water_pressure => eos_we_water_pressure
      procedure, public :: set_water_pressure => eos_we_set_water_pressure
      procedure, public :: enforce_consistency => eos_we_enforce_consistency
+     procedure, public :: saturation_pressure => eos_we_saturation_pressure
      procedure, public :: region_1_transitions => eos_we_region_1_transitions
      procedure, public :: region_2_transitions => eos_we_region_2_transitions
      procedure, public :: region_4_transitions => eos_we_region_4_transitions
@@ -198,6 +199,26 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_we_saturation_pressure(self, primary, region, &
+       saturation_pressure, err)
+    !! Returns water saturation pressure for given primary variables
+    !! (region 1 or 2).
+
+    class(eos_we_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal, intent(out) :: saturation_pressure
+    PetscErrorCode, intent(out) :: err
+
+    associate (temperature => primary(2))
+      call self%thermo%saturation%pressure(temperature, &
+           saturation_pressure, err)
+    end associate
+
+  end subroutine eos_we_saturation_pressure
+
+!------------------------------------------------------------------------
+
   subroutine eos_we_transition_to_single_phase(self, old_primary, old_fluid, &
        new_region, primary, fluid, transition, err)
     !! For eos_we, make transition from two-phase to single-phase with
@@ -335,12 +356,14 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: water_pressure, saturation_pressure
+    PetscInt :: old_region
+
+    old_region = nint(old_fluid%region)
 
     associate (temperature => primary(2))
 
       water_pressure = self%water_pressure(primary)
-      call self%thermo%saturation%pressure(temperature, &
-           saturation_pressure, err)
+      call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
       if (err == 0) then
          if (water_pressure < saturation_pressure) then
@@ -370,12 +393,14 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: water_pressure, saturation_pressure
+    PetscInt :: old_region
+
+    old_region = nint(old_fluid%region)
 
     associate (temperature => primary(2))
 
       water_pressure = self%water_pressure(primary)
-      call self%thermo%saturation%pressure(temperature, &
-           saturation_pressure, err)
+      call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
       if (err == 0) then
          if (water_pressure > saturation_pressure) then
