@@ -49,17 +49,16 @@ module eos_se_module
      private
      procedure, public :: init => eos_se_init
      procedure, public :: destroy => eos_se_destroy
+     procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
+     procedure, public :: region_1_transitions => eos_se_region_1_transitions
+     procedure, public :: region_2_transitions => eos_se_region_2_transitions
+     procedure, public :: region_3_transitions => eos_se_region_3_transitions
+     procedure, public :: region_4_transitions => eos_se_region_4_transitions
      procedure, public :: transition => eos_se_transition
      procedure, public :: transition_to_single_phase => eos_se_transition_to_single_phase
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
-     procedure, public :: transition_region3_to_single_phase => eos_se_transition_region3_to_single_phase
      procedure, public :: transition_region4_to_supercritical => eos_se_transition_region4_to_supercritical
-     procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: fluid_properties => eos_se_fluid_properties
-     procedure :: region2_supercritical_fluid_properties => eos_se_region2_supercritical_fluid_properties
-     procedure :: region2_fluid_properties => eos_se_region2_fluid_properties
-     procedure :: region3_fluid_properties => eos_se_region3_fluid_properties
-     procedure :: region4_above_bdy_1_3_fluid_properties => eos_se_region4_above_bdy_1_3_fluid_properties
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
@@ -234,9 +233,25 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_se_set_delta_interpolator_bdy(self, bdy_index)
+    !! Sets Widom delta interpolator boundary type.
+
+    class(eos_se_type), intent(in out) :: self
+    PetscInt, intent(in) :: bdy_index
+
+    select type (interpolator => self%widom_delta_interpolator)
+    type is (widom_delta_interpolator_type)
+       interpolator%bdy_index = bdy_index
+    end select
+
+  end subroutine eos_se_set_delta_interpolator_bdy
+
+!------------------------------------------------------------------------
+
   subroutine eos_se_transition_single_phase_to_region3(self, primary, &
        fluid, transition, err)
-    !! For eos_se, carry out transition from single phase to region 3.
+    !! For eos_se, carry out transition from single-phase (region 1 or
+    !! 2) to region 3.
 
     class(eos_se_type), intent(in out) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
@@ -259,55 +274,6 @@ contains
     end if
 
   end subroutine eos_se_transition_single_phase_to_region3
-
-!------------------------------------------------------------------------
-
-  subroutine eos_se_transition_region3_to_single_phase(self, old_fluid, &
-       new_region, primary, fluid, transition, err)
-    !! For eos_se, carry out transition from region 3 to the
-    !! single-phase new_region (1 or 2).
-
-    use fluid_module, only: fluid_type
-
-    class(eos_se_type), intent(in out) :: self
-    type(fluid_type), intent(in) :: old_fluid
-    PetscInt, intent(in) :: new_region
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: pressure
-
-    err = 0
-    select type (region => self%thermo%region(new_region)%ptr)
-    class is (IAPWS_region_type)
-       pressure = old_fluid%pressure
-       call region%pressure(primary, pressure, err)
-    end select
-
-    if (err == 0) then
-       fluid%region = dble(new_region)
-       primary(1) = pressure
-       transition = PETSC_TRUE
-    end if
-
-  end subroutine eos_se_transition_region3_to_single_phase
-
-!------------------------------------------------------------------------
-
-  subroutine eos_se_set_delta_interpolator_bdy(self, bdy_index)
-    !! Sets Widom delta interpolator boundary type.
-
-    class(eos_se_type), intent(in out) :: self
-    PetscInt, intent(in) :: bdy_index
-
-    select type (interpolator => self%widom_delta_interpolator)
-    type is (widom_delta_interpolator_type)
-       interpolator%bdy_index = bdy_index
-    end select
-
-  end subroutine eos_se_set_delta_interpolator_bdy
 
 !------------------------------------------------------------------------
 
@@ -524,10 +490,10 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_transition(self, old_primary, primary, &
+  subroutine eos_se_region_1_transitions(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
-    !! For eos_se, check primary variables for a cell and make
-    !! thermodynamic region transitions if needed.
+    !! For eos_se, carry out phase transitions from region 1 to 3 or
+    !! 4.
 
     use fluid_module, only: fluid_type
 
@@ -539,22 +505,54 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: old_region
+    PetscReal :: saturation_pressure, xi
 
-    err = 0
-    transition = PETSC_FALSE
-    old_region = nint(old_fluid%region)
+    associate (pressure => primary(1), temperature => primary(2))
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
 
-    select case (old_region)
-    case (1)
-       call region_1_transitions()
-    case (2)
-       call region_2_transitions()
-    case (3)
-       call region_3_transitions()
-    case (4)
-       call region_4_transitions()
-    end select
+         if (temperature <= thermo%critical%temperature) then
+
+            call thermo%saturation%pressure(temperature, &
+                 saturation_pressure, err)
+            if (err == 0) then
+               if (pressure < saturation_pressure) then
+                  call self%transition_to_two_phase(saturation_pressure, &
+                       old_primary, old_fluid, primary, fluid, transition, err)
+               else if (temperature > thermo%temperature_bdy_1_3) then
+                  call self%transition_single_phase_to_region3(primary, &
+                       fluid, transition, err)
+               end if
+            end if
+
+         else
+
+            if (pressure > thermo%critical%pressure) then
+               call region_1_to_supercritical_transitions()
+            else
+
+               self%primary_variable_interpolator%val(:, 1) = old_primary
+               self%primary_variable_interpolator%val(:, 2) = primary
+               call self%primary_variable_interpolator%set_index(1)
+               call self%primary_variable_interpolator%find_component_at_index(&
+                    thermo%critical%temperature, 2, xi, err)
+               if (err == 0) then
+
+                  primary = self%primary_variable_interpolator%interpolate(xi)
+                  if (pressure < thermo%critical%pressure) then
+                     call self%transition_to_two_phase(pressure, old_primary, &
+                          old_fluid, primary, fluid, transition, err)
+                  else
+                     call self%transition_single_phase_to_region3(primary, &
+                          fluid, transition, err)
+                  end if
+
+               end if
+            end if
+         end if
+
+      end select
+    end associate
 
   contains
 
@@ -601,62 +599,77 @@ contains
 
     end subroutine region_1_to_supercritical_transitions
 
-!........................................................................
+  end subroutine eos_se_region_1_transitions
 
-    subroutine region_1_transitions()
-      !! Transitions from region 1 to 3 or 4
+!------------------------------------------------------------------------
 
-      ! Locals:
-      PetscReal :: saturation_pressure, xi
+  subroutine eos_se_region_2_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_se, carry out phase transitions from region 2 to 3 or
+    !! 4.
 
-      associate (pressure => primary(1), temperature => primary(2))
-        select type (thermo => self%thermo)
-        type is (IAPWS_type)
+    use fluid_module, only: fluid_type
 
-           if (temperature <= thermo%critical%temperature) then
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: saturation_pressure, pressure_bdy_2_3
 
-              call thermo%saturation%pressure(temperature, &
-                   saturation_pressure, err)
-              if (err == 0) then
-                 if (pressure < saturation_pressure) then
-                    call self%transition_to_two_phase(saturation_pressure, &
-                         old_primary, old_fluid, primary, fluid, transition, err)
-                 else if (temperature > thermo%temperature_bdy_1_3) then
-                    call self%transition_single_phase_to_region3(primary, &
-                         fluid, transition, err)
-                 end if
-              end if
+    associate (pressure => primary(1), temperature => primary(2))
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
 
-           else
+         if (temperature <= thermo%critical%temperature) then
 
-              if (pressure > thermo%critical%pressure) then
-                 call region_1_to_supercritical_transitions()
-              else
+            call thermo%saturation%pressure(temperature, &
+                 saturation_pressure, err)
+            if (err == 0) then
 
-                 self%primary_variable_interpolator%val(:, 1) = old_primary
-                 self%primary_variable_interpolator%val(:, 2) = primary
-                 call self%primary_variable_interpolator%set_index(1)
-                 call self%primary_variable_interpolator%find_component_at_index(&
-                      thermo%critical%temperature, 2, xi, err)
-                 if (err == 0) then
+               if (pressure > saturation_pressure) then
 
-                    primary = self%primary_variable_interpolator%interpolate(xi)
-                    if (pressure < thermo%critical%pressure) then
-                       call self%transition_to_two_phase(pressure, old_primary, &
-                            old_fluid, primary, fluid, transition, err)
-                    else
-                       call self%transition_single_phase_to_region3(primary, &
-                            fluid, transition, err)
-                    end if
+                  call self%transition_to_two_phase(saturation_pressure, &
+                       old_primary, old_fluid, primary, fluid, transition, err)
 
-                 end if
-              end if
-           end if
+               else if (temperature > thermo%temperature_bdy_1_3) then
 
-        end select
-      end associate
+                  call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
+                  if (pressure > pressure_bdy_2_3) then
+                     call self%transition_single_phase_to_region3(primary, &
+                          fluid, transition, err)
+                  end if
 
-    end subroutine region_1_transitions
+               end if
+            end if
+
+         else
+            select type (region3 => thermo%region(3)%ptr)
+            type is (IAPWS_region3_type)
+
+               call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
+
+               if (pressure > pressure_bdy_2_3) then
+
+                  if (pressure > thermo%critical%pressure) then
+                     call region2_to_supercritical_transitions()
+                  else
+                     call self%transition_single_phase_to_region3(primary, &
+                          fluid, transition, err)
+                  end if
+
+               end if
+
+            end select
+         end if
+
+      end select
+    end associate
+
+  contains
 
 !........................................................................
 
@@ -700,64 +713,37 @@ contains
 
     end subroutine region2_to_supercritical_transitions
 
-!........................................................................
+  end subroutine eos_se_region_2_transitions
 
-    subroutine region_2_transitions()
-      !! Transitions from region 2 to 3 or 4
+!------------------------------------------------------------------------
 
-      ! Locals:
-      PetscReal :: saturation_pressure, pressure_bdy_2_3
+  subroutine eos_se_region_3_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_se, carry out phase transitions from region 3 to 1, 2
+    !! or 4.
 
-      associate (pressure => primary(1), temperature => primary(2))
-        select type (thermo => self%thermo)
-        type is (IAPWS_type)
+    use fluid_module, only: fluid_type
 
-           if (temperature <= thermo%critical%temperature) then
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
 
-              call thermo%saturation%pressure(temperature, &
-                   saturation_pressure, err)
-              if (err == 0) then
+    associate (temperature => primary(2))
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+         if (temperature < thermo%temperature_bdy_1_3) then
+            call region3_to_below_bdy_1_3_transitions()
+         else
+            call region3_to_above_bdy_1_3_transitions()
+         end if
+      end select
+    end associate
 
-                 if (pressure > saturation_pressure) then
-
-                    call self%transition_to_two_phase(saturation_pressure, &
-                         old_primary, old_fluid, primary, fluid, transition, err)
-
-                 else if (temperature > thermo%temperature_bdy_1_3) then
-
-                    call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
-                    if (pressure > pressure_bdy_2_3) then
-                       call self%transition_single_phase_to_region3(primary, &
-                            fluid, transition, err)
-                    end if
-
-                 end if
-              end if
-
-           else
-              select type (region3 => thermo%region(3)%ptr)
-              type is (IAPWS_region3_type)
-
-                 call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
-
-                 if (pressure > pressure_bdy_2_3) then
-
-                    if (pressure > thermo%critical%pressure) then
-                       call region2_to_supercritical_transitions()
-                    else
-                       call self%transition_single_phase_to_region3(primary, &
-                            fluid, transition, err)
-                    end if
-
-                 end if
-
-              end select
-           end if
-
-        end select
-      end associate
-
-    end subroutine region_2_transitions
+  contains
 
 !........................................................................
 
@@ -784,8 +770,7 @@ contains
 
                  if (density > liquid_density) then
 
-                    call self%transition_region3_to_single_phase(old_fluid, &
-                         1, primary, fluid, transition, err)
+                    call region3_to_single_phase_transitions(1)
 
                  else if (density > vapour_density) then
 
@@ -797,8 +782,7 @@ contains
 
                  else
 
-                    call self%transition_region3_to_single_phase(old_fluid, &
-                         2, primary, fluid, transition, err)
+                    call region3_to_single_phase_transitions(2)
 
                  end if
 
@@ -891,14 +875,12 @@ contains
 
                 if (density < density_bdy_2_3) then
 
-                   call self%transition_region3_to_single_phase(old_fluid, &
-                        2, primary, fluid, transition, err)
+                   call region3_to_single_phase_transitions(2)
 
                    if (err > 0) then
                       primary = [density_bdy_2_3, temperature]
                       density = (1._dp - eps) * density
-                      call self%transition_region3_to_single_phase(old_fluid, &
-                           2, primary, fluid, transition, err)
+                      call region3_to_single_phase_transitions(2)
                    end if
 
                 else
@@ -909,47 +891,106 @@ contains
            end if
 
         end select
-
       end associate
+
     end subroutine region3_to_above_bdy_1_3_transitions
 
-!........................................................................
+!------------------------------------------------------------------------
 
-    subroutine region_3_transitions()
-      !! Transitions from region 3 to 1, 2 or 4
+    subroutine region3_to_single_phase_transitions(new_region)
+      !! Transitions from region 3 to the single-phase new_region (1 or
+      !! 2).
 
-      associate (temperature => primary(2))
-        select type (thermo => self%thermo)
-        type is (IAPWS_type)
-           if (temperature < thermo%temperature_bdy_1_3) then
-              call region3_to_below_bdy_1_3_transitions()
-           else
-              call region3_to_above_bdy_1_3_transitions()
-           end if
-        end select
-      end associate
+      PetscInt, intent(in) :: new_region
+      ! Locals:
+      PetscReal :: pressure
 
-    end subroutine region_3_transitions
+      err = 0
+      select type (region => self%thermo%region(new_region)%ptr)
+      class is (IAPWS_region_type)
+         pressure = old_fluid%pressure
+         call region%pressure(primary, pressure, err)
+      end select
 
-!........................................................................
+      if (err == 0) then
+         fluid%region = dble(new_region)
+         primary(1) = pressure
+         transition = PETSC_TRUE
+      end if
 
-    subroutine region_4_transitions()
-      !! Transitions from region 4 to 1, 2 or 3
+    end subroutine region3_to_single_phase_transitions
 
-      associate (pressure => primary(1), vapour_saturation => primary(2))
-        if (vapour_saturation < 0._dp) then
-           call self%transition_to_single_phase(old_primary, old_fluid, &
-                1, primary, fluid, transition, err)
-        else if (vapour_saturation > 1._dp) then
-           call self%transition_to_single_phase(old_primary, old_fluid, &
-                2, primary, fluid, transition, err)
-        else if (pressure > self%thermo%critical%pressure) then
-           call self%transition_region4_to_supercritical(primary, fluid, &
-                transition, err)
-        end if
-      end associate
+  end subroutine eos_se_region_3_transitions
 
-    end subroutine region_4_transitions
+!------------------------------------------------------------------------
+
+  subroutine eos_se_region_4_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_se, carry out phase transitions from region 4 to 1, 2
+    !! or 3.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+
+    associate (pressure => primary(1), vapour_saturation => primary(2))
+      if (vapour_saturation < 0._dp) then
+         call self%transition_to_single_phase(old_primary, old_fluid, &
+              1, primary, fluid, transition, err)
+      else if (vapour_saturation > 1._dp) then
+         call self%transition_to_single_phase(old_primary, old_fluid, &
+              2, primary, fluid, transition, err)
+      else if (pressure > self%thermo%critical%pressure) then
+         call self%transition_region4_to_supercritical(primary, fluid, &
+              transition, err)
+      end if
+    end associate
+
+  end subroutine eos_se_region_4_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_transition(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_se, check primary variables for a cell and make
+    !! thermodynamic region transitions if needed.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt :: old_region
+
+    err = 0
+    transition = PETSC_FALSE
+    old_region = nint(old_fluid%region)
+
+    select case (old_region)
+    case (1)
+       call self%region_1_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (2)
+       call self%region_2_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (3)
+       call self%region_3_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (4)
+       call self%region_4_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    end select
 
   end subroutine eos_se_transition
 
@@ -978,9 +1019,9 @@ contains
        call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
        call fluid%phase(3)%zero()
     case (2)
-       call self%region2_fluid_properties(primary, rock, fluid, err)
+       call region2_fluid_properties()
     case (3)
-       call self%region3_fluid_properties(primary, rock, fluid, err)
+       call region3_fluid_properties()
     case (4)
        associate(pressure => primary(1))
          select type (thermo => self%thermo)
@@ -989,290 +1030,256 @@ contains
                call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
                call fluid%phase(3)%zero()
             else
-               call self%region4_above_bdy_1_3_fluid_properties(primary, &
-                    rock, fluid, err)
+               call region4_above_bdy_1_3_fluid_properties()
             end if
          end select
        end associate
        call self%relative_permeability_modifier%modify(fluid)
     end select
 
-  end subroutine eos_se_fluid_properties
+  contains
 
-!------------------------------------------------------------------------
+!........................................................................
 
-  subroutine eos_se_region2_supercritical_fluid_properties(self, primary, &
-       rock, fluid, err)
-    !! Calculate region 2 supercritical fluid properties from region
-    !! and primary variables for pure supercritical water and energy
-    !! EOS.
+    subroutine region2_fluid_properties()
+      !! Calculate region 2 fluid properties from region and primary
+      !! variables for pure supercritical water and energy EOS.
 
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
+      err = 0
+      fluid%pressure = primary(1)
+      fluid%temperature = primary(2)
+      call self%phase_composition(fluid, err)
 
-    class(eos_se_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(rock_type), intent(in out) :: rock !! Rock object
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: p
-    PetscReal :: properties(2)
-
-    err = 0
-
-    do p = 1, 2
-       call fluid%phase(p)%zero()
-    end do
-
-    fluid%permeability_factor = 1._dp
-    call self%phase_saturations(primary, fluid)
-    fluid%partial_pressure(1) = fluid%pressure
-    fluid%liquidlike_fraction = 0._dp
-    fluid%supercritical_phases = 2._dp
-
-    associate (region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
-      call region%properties(primary, properties, err)
       if (err == 0) then
-
-         phase%density = properties(1)
-         phase%internal_energy = properties(2)
-         phase%specific_enthalpy = phase%internal_energy + &
-              fluid%pressure / phase%density
-
-         phase%mass_fraction(1) = 1._dp
-         phase%relative_permeability = 1._dp
-         phase%capillary_pressure = 0._dp
-
-         call region%viscosity(fluid%temperature, fluid%pressure, &
-              phase%density, phase%viscosity)
+         if (fluid%is_supercritical()) then
+            call region2_supercritical_fluid_properties()
+         else
+            call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
+            call fluid%phase(3)%zero()
+         end if
       end if
-    end associate
 
-  end subroutine eos_se_region2_supercritical_fluid_properties
+    end subroutine region2_fluid_properties
+
+!........................................................................
+
+    subroutine region2_supercritical_fluid_properties()
+      !! Calculate region 2 supercritical fluid properties from region
+      !! and primary variables for pure supercritical water and energy
+      !! EOS.
+
+      ! Locals:
+      PetscInt :: p
+      PetscReal :: properties(2)
+
+      err = 0
+
+      do p = 1, 2
+         call fluid%phase(p)%zero()
+      end do
+
+      fluid%permeability_factor = 1._dp
+      call self%phase_saturations(primary, fluid)
+      fluid%partial_pressure(1) = fluid%pressure
+      fluid%liquidlike_fraction = 0._dp
+      fluid%supercritical_phases = 2._dp
+
+      associate (region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
+        call region%properties(primary, properties, err)
+        if (err == 0) then
+
+           phase%density = properties(1)
+           phase%internal_energy = properties(2)
+           phase%specific_enthalpy = phase%internal_energy + &
+                fluid%pressure / phase%density
+
+           phase%mass_fraction(1) = 1._dp
+           phase%relative_permeability = 1._dp
+           phase%capillary_pressure = 0._dp
+
+           call region%viscosity(fluid%temperature, fluid%pressure, &
+                phase%density, phase%viscosity)
+        end if
+      end associate
+
+    end subroutine region2_supercritical_fluid_properties
+
+!........................................................................
+
+    subroutine region3_fluid_properties()
+      !! Calculate region 3 fluid properties from region and primary variables
+      !! for pure supercritical water and energy EOS.
+
+      ! Locals:
+      PetscInt :: p, pseudo_phases
+      PetscReal :: properties(2), sl, pi_liq
+      PetscReal :: relative_permeability(2), capillary_pressure(2)
+
+      err = 0
+
+      associate(density => primary(1), temperature => primary(2))
+
+        select type (region => self%thermo%region(3)%ptr)
+        type is (IAPWS_region3_type)
+
+           fluid%temperature = temperature
+           call region%properties(primary, properties, err)
+
+           if (err == 0) then
+
+              associate(pressure => properties(1), internal_energy => properties(2))
+
+                fluid%pressure = pressure
+                fluid%partial_pressure(1) = fluid%pressure
+                fluid%permeability_factor = 1._dp
+
+                call self%phase_composition(fluid, err)
+                if (err == 0) then
+
+                   do p = 1, self%num_phases
+                      call fluid%phase(p)%zero()
+                   end do
+
+                   call self%phase_saturations(primary, fluid)
+
+                   p = self%region3_phase(nint(fluid%phase_composition))
+                   associate(phase => fluid%phase(p))
+                     phase%saturation = 1._dp
+                     phase%density = density
+                     phase%internal_energy = internal_energy
+                     phase%specific_enthalpy = phase%internal_energy + &
+                          fluid%pressure / phase%density
+                     phase%mass_fraction(1) = 1._dp
+                     call region%viscosity(fluid%temperature, fluid%pressure, &
+                          phase%density, phase%viscosity)
+
+                     if (fluid%temperature <= self%thermo%critical%temperature) then
+                        sl = fluid%phase(1)%saturation
+                        relative_permeability = rock%relative_permeability%values(sl)
+                        capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
+                             0._dp]
+                        phase%relative_permeability = relative_permeability(p)
+                        phase%capillary_pressure =  capillary_pressure(p)
+                     else
+                        phase%relative_permeability = 1._dp
+                        phase%capillary_pressure =  0._dp
+                     end if
+
+                   end associate
+
+                   call region%pi_liquidlike(pressure, temperature, density, &
+                        pi_liq, pseudo_phases, err)
+                   if (err == 0) then
+                      fluid%liquidlike_fraction = pi_liq
+                      fluid%supercritical_phases = dble(pseudo_phases)
+                   end if
+
+                end if
+              end associate
+           end if
+
+        end select
+      end associate
+
+    end subroutine region3_fluid_properties
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_region2_fluid_properties(self, primary, rock, fluid, err)
-    !! Calculate region 2 fluid properties from region and primary
-    !! variables for pure supercritical water and energy EOS.
+    subroutine region4_above_bdy_1_3_fluid_properties()
+      !! Calculate region 4 fluid properties from region and primary variables
+      !! for temperatures above the region 1/3 boundary.
 
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
+      ! Locals:
+      PetscInt :: p, phases
+      PetscReal :: density, sl, properties(2)
+      PetscReal :: relative_permeability(2), capillary_pressure(2)
+      PetscBool :: liquid
 
-    class(eos_se_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(rock_type), intent(in out) :: rock !! Rock object
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
+      err = 0
 
-    err = 0
-    fluid%pressure = primary(1)
-    fluid%temperature = primary(2)
-    call self%phase_composition(fluid, err)
+      associate(pressure => primary(1), vapour_saturation => primary(2))
 
-    if (err == 0) then
-       if (fluid%is_supercritical()) then
-          call self%region2_supercritical_fluid_properties(primary, rock, fluid, err)
-       else
-          call self%eos_we_type%fluid_properties(primary, rock, fluid, err)
-          call fluid%phase(3)%zero()
-       end if
-    end if
+        select type (region3 => self%thermo%region(3)%ptr)
+        type is (IAPWS_region3_type)
 
-  end subroutine eos_se_region2_fluid_properties
+           fluid%pressure = pressure
+           call self%thermo%saturation%temperature(fluid%pressure, &
+                fluid%temperature, err)
+           if (err == 0) then
 
-!------------------------------------------------------------------------
-
-  subroutine eos_se_region3_fluid_properties(self, primary, rock, fluid, err)
-    !! Calculate region 3 fluid properties from region and primary variables
-    !! for pure supercritical water and energy EOS.
-
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
-
-    class(eos_se_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(rock_type), intent(in out) :: rock !! Rock object
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: p, pseudo_phases
-    PetscReal :: properties(2), sl, pi_liq
-    PetscReal :: relative_permeability(2), capillary_pressure(2)
-
-    err = 0
-
-    associate(density => primary(1), temperature => primary(2))
-
-      select type (region => self%thermo%region(3)%ptr)
-      type is (IAPWS_region3_type)
-
-         fluid%temperature = temperature
-         call region%properties(primary, properties, err)
-
-         if (err == 0) then
-
-            associate(pressure => properties(1), internal_energy => properties(2))
-
-              fluid%pressure = pressure
               fluid%partial_pressure(1) = fluid%pressure
               fluid%permeability_factor = 1._dp
 
               call self%phase_composition(fluid, err)
               if (err == 0) then
-
-                 do p = 1, self%num_phases
-                    call fluid%phase(p)%zero()
-                 end do
-
                  call self%phase_saturations(primary, fluid)
 
-                 p = self%region3_phase(nint(fluid%phase_composition))
-                 associate(phase => fluid%phase(p))
-                   phase%saturation = 1._dp
-                   phase%density = density
-                   phase%internal_energy = internal_energy
-                   phase%specific_enthalpy = phase%internal_energy + &
-                        fluid%pressure / phase%density
-                   phase%mass_fraction(1) = 1._dp
-                   call region%viscosity(fluid%temperature, fluid%pressure, &
-                        phase%density, phase%viscosity)
+                 phases = nint(fluid%phase_composition)
 
-                   if (fluid%temperature <= self%thermo%critical%temperature) then
-                      sl = fluid%phase(1)%saturation
-                      relative_permeability = rock%relative_permeability%values(sl)
-                      capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
-                           0._dp]
-                      phase%relative_permeability = relative_permeability(p)
-                      phase%capillary_pressure =  capillary_pressure(p)
-                   else
-                      phase%relative_permeability = 1._dp
-                      phase%capillary_pressure =  0._dp
-                   end if
+                 sl = fluid%phase(1)%saturation
+                 relative_permeability = rock%relative_permeability%values(sl)
+                 capillary_pressure = [rock%capillary_pressure%value(sl, &
+                      fluid%temperature), 0._dp]
 
-                 end associate
+                 fluid%liquidlike_fraction = sl
+                 fluid%supercritical_phases = 0._dp
 
-                 call region%pi_liquidlike(pressure, temperature, density, &
-                      pi_liq, pseudo_phases, err)
-                 if (err == 0) then
-                    fluid%liquidlike_fraction = pi_liq
-                    fluid%supercritical_phases = dble(pseudo_phases)
-                 end if
+                 do p = 1, 2
+                    associate(phase => fluid%phase(p))
+
+                      if (btest(phases, p - 1)) then
+
+                         liquid = (p == 1)
+                         call region3%saturation_density([fluid%pressure, &
+                              fluid%temperature], liquid, density, err, &
+                              polish = PETSC_TRUE)
+
+                         if (err == 0) then
+
+                            call region3%properties([density, fluid%temperature], &
+                                 properties, err)
+
+                            if (err == 0) then
+
+                               phase%density = density
+                               phase%internal_energy = properties(2)
+                               phase%specific_enthalpy = phase%internal_energy + &
+                                    fluid%pressure / phase%density
+
+                               phase%mass_fraction(1) = 1._dp
+                               phase%relative_permeability = relative_permeability(p)
+                               phase%capillary_pressure = capillary_pressure(p)
+
+                               call region3%viscosity(fluid%temperature, fluid%pressure, &
+                                    phase%density, phase%viscosity)
+
+                            else
+                               exit
+                            end if
+
+                         else
+                            exit
+                         end if
+
+                      else
+                         call phase%zero()
+                      end if
+
+                    end associate
+                 end do
+
+                 call fluid%phase(3)%zero()
 
               end if
-            end associate
-         end if
+           end if
 
-      end select
-    end associate
+        end select
 
-  end subroutine eos_se_region3_fluid_properties
+      end associate
 
-!------------------------------------------------------------------------
+    end subroutine region4_above_bdy_1_3_fluid_properties
 
-  subroutine eos_se_region4_above_bdy_1_3_fluid_properties(self, primary, &
-       rock, fluid, err)
-    !! Calculate region 4 fluid properties from region and primary variables
-    !! for temperatures above the region 1/3 boundary.
-
-    use fluid_module, only: fluid_type
-    use rock_module, only: rock_type
-
-    class(eos_se_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(rock_type), intent(in out) :: rock !! Rock object
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: p, phases
-    PetscReal :: density, sl, properties(2)
-    PetscReal :: relative_permeability(2), capillary_pressure(2)
-    PetscBool :: liquid
-
-    err = 0
-
-    associate(pressure => primary(1), vapour_saturation => primary(2))
-
-      select type (region3 => self%thermo%region(3)%ptr)
-      type is (IAPWS_region3_type)
-
-         fluid%pressure = pressure
-         call self%thermo%saturation%temperature(fluid%pressure, &
-              fluid%temperature, err)
-         if (err == 0) then
-
-            fluid%partial_pressure(1) = fluid%pressure
-            fluid%permeability_factor = 1._dp
-
-            call self%phase_composition(fluid, err)
-            if (err == 0) then
-               call self%phase_saturations(primary, fluid)
-
-               phases = nint(fluid%phase_composition)
-
-               sl = fluid%phase(1)%saturation
-               relative_permeability = rock%relative_permeability%values(sl)
-               capillary_pressure = [rock%capillary_pressure%value(sl, &
-                    fluid%temperature), 0._dp]
-
-               fluid%liquidlike_fraction = sl
-               fluid%supercritical_phases = 0._dp
-
-               do p = 1, 2
-                  associate(phase => fluid%phase(p))
-
-                    if (btest(phases, p - 1)) then
-
-                       liquid = (p == 1)
-                       call region3%saturation_density([fluid%pressure, &
-                            fluid%temperature], liquid, density, err, &
-                            polish = PETSC_TRUE)
-
-                       if (err == 0) then
-
-                          call region3%properties([density, fluid%temperature], &
-                               properties, err)
-
-                          if (err == 0) then
-
-                             phase%density = density
-                             phase%internal_energy = properties(2)
-                             phase%specific_enthalpy = phase%internal_energy + &
-                                  fluid%pressure / phase%density
-
-                             phase%mass_fraction(1) = 1._dp
-                             phase%relative_permeability = relative_permeability(p)
-                             phase%capillary_pressure = capillary_pressure(p)
-
-                             call region3%viscosity(fluid%temperature, fluid%pressure, &
-                                  phase%density, phase%viscosity)
-
-                          else
-                             exit
-                          end if
-
-                       else
-                          exit
-                       end if
-
-                    else
-                       call phase%zero()
-                    end if
-
-                  end associate
-               end do
-
-               call fluid%phase(3)%zero()
-
-            end if
-         end if
-
-      end select
-
-    end associate
-
-  end subroutine eos_se_region4_above_bdy_1_3_fluid_properties
+  end subroutine eos_se_fluid_properties
 
 !------------------------------------------------------------------------
 
