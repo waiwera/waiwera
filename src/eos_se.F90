@@ -259,12 +259,17 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: density
+    PetscReal :: water_pressure, density
 
     err = 0
+    call self%enforce_consistency(primary)
+    water_pressure = self%water_pressure(primary)
     select type (region3 => self%thermo%region(3)%ptr)
     type is (IAPWS_region3_type)
-       call region3%density(primary, density, err, polish = PETSC_TRUE)
+       associate (temperature => primary(2))
+         call region3%density([water_pressure, temperature], density, &
+              err, polish = PETSC_TRUE)
+       end associate
     end select
 
     if (err == 0) then
@@ -295,20 +300,21 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: delta(2), xi, t_delta, density_delta
+    PetscReal :: delta(2), xi, t_delta, density_delta, water_pressure
     PetscReal, parameter :: small = 1.e-3_dp
 
     err = 0
     select type (region3 => self%thermo%region(3)%ptr)
     type is (IAPWS_region3_type)
 
-       associate (pressure => primary(1), Sl => 1._dp - primary(2))
-         call region3%widom_delta(pressure, delta, err)
+       water_pressure = self%water_pressure(primary)
+       associate (Sl => 1._dp - primary(2))
+         call region3%widom_delta(water_pressure, delta, err)
          if (err == 0) then
             xi = hermite_spline_inv_00(Sl)
             t_delta = (1._dp - xi) * delta(1) + xi * delta(2)
-            call region3%density([pressure, t_delta], density_delta, err, &
-                 polish = PETSC_TRUE)
+            call region3%density([water_pressure, t_delta], density_delta, &
+                 err, polish = PETSC_TRUE)
          end if
        end associate
 
@@ -351,6 +357,8 @@ contains
     PetscReal :: old_saturation_pressure, pressure_factor
     PetscReal :: saturation_bound, xi
     PetscReal :: interpolated_primary(self%num_primary_variables)
+    PetscReal :: old_fluid_primary(self%num_primary_variables)
+    PetscReal :: interpolated_water_pressure, water_pressure
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
@@ -376,53 +384,53 @@ contains
        if (err == 0) then
 
           interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-          associate (interpolated_pressure => interpolated_primary(1), &
-               temperature => primary(2))
-
-            if (interpolated_pressure > thermo%critical%pressure) then
+          interpolated_water_pressure = self%water_pressure(interpolated_primary)
+          associate (interpolated_pressure => interpolated_primary(1))
+            if (interpolated_water_pressure > thermo%critical%pressure) then
                call self%transition_region4_to_supercritical(primary, fluid, &
                     transition, err)
             else
-               associate (pressure => primary(1))
-                 pressure = interpolated_pressure
-
-                 call thermo%saturation%temperature(pressure, temperature, err)
-                 if (err == 0) then
-
-                    if (pressure <= thermo%saturation_pressure_bdy_1_3) then
-                       pressure = pressure_factor * pressure
-                       fluid%region = dble(new_region)
-                       transition = PETSC_TRUE
-                    else
-                       call region4_above_bdy_1_3_transitions()
-                    end if
-
-                 end if
+               primary = interpolated_primary
+               associate (temperature => primary(2))
+                 call thermo%saturation%temperature(interpolated_water_pressure, &
+                      temperature, err)
                end associate
+               if (err == 0) then
+                  if (interpolated_water_pressure <= &
+                       thermo%saturation_pressure_bdy_1_3) then
+                     water_pressure = pressure_factor * interpolated_water_pressure
+                     call self%set_water_pressure(water_pressure, primary)
+                     fluid%region = dble(new_region)
+                     transition = PETSC_TRUE
+                  else
+                     call region4_above_bdy_1_3_transitions()
+                  end if
+
+               end if
             end if
           end associate
 
        end if
 
-       if (err > 0) then
+       if (err > 0) then ! fallback
 
-          call thermo%saturation%pressure(old_fluid%temperature, &
-               old_saturation_pressure, err)
-          if (err == 0) then
-             associate(pressure => primary(1), temperature => primary(2))
+         call self%primary_variables(old_fluid, old_fluid_primary)
+         call self%saturation_pressure(old_fluid_primary, nint(old_fluid%region), &
+              old_saturation_pressure, err)
 
-               pressure = pressure_factor * old_saturation_pressure
-               temperature = old_fluid%temperature
-
-               if (pressure <= thermo%saturation_pressure_bdy_1_3) then
-                  fluid%region = dble(new_region)
-                  transition = PETSC_TRUE
-               else
-                  call region4_above_bdy_1_3_transitions()
-               end if
-
-             end associate
-          end if
+         if (err == 0) then
+            associate(temperature => primary(2))
+              temperature = old_fluid%temperature
+            end associate
+            if (old_saturation_pressure <= thermo%saturation_pressure_bdy_1_3) then
+               water_pressure = pressure_factor * old_saturation_pressure
+               call self%set_water_pressure(water_pressure, primary)
+               fluid%region = dble(new_region)
+               transition = PETSC_TRUE
+            else
+               call region4_above_bdy_1_3_transitions()
+            end if
+         end if
 
        end if
 
@@ -433,11 +441,14 @@ contains
 !........................................................................
 
     subroutine region4_above_bdy_1_3_transitions()
-      !! Transitions from region 4 to subcritical regions 1, 2 or 3.
+      !! Transitions from region 4 to subcritical regions 1, 2 or
+      !! 3. It is assumed the primary array contains pressures and
+      !! temperatures.
 
       ! Locals:
       PetscBool :: liquid
       PetscReal :: density_increment, bdy_34_density, bdy_23_pressure, props(2)
+      PetscReal :: water_primary(2)
       PetscReal, parameter :: small_density = 0.1_dp
       PetscReal, parameter :: factor = 1._dp - 1.e-6_dp
 
@@ -453,7 +464,12 @@ contains
 
          select type (region3 => thermo%region(3)%ptr)
          type is (IAPWS_region3_type)
-            call region3%saturation_density(primary, liquid, bdy_34_density, &
+            associate (water_pressure => water_primary(1), &
+                 water_temperature => water_primary(2), temperature => primary(2))
+              water_pressure = self%water_pressure(primary)
+              water_temperature = temperature
+            end associate
+            call region3%saturation_density(water_primary, liquid, bdy_34_density, &
                  err, polish = PETSC_TRUE)
          end select
 
@@ -469,11 +485,11 @@ contains
                  call thermo%region(2)%ptr%properties([bdy_23_pressure, &
                       temperature], props, err)
                  if (err == 0) then
-                    associate(pressure => primary(1), bdy_23_density => &
-                         props(1))
+                    associate(bdy_23_density => props(1))
                       if (density < bdy_23_density) then
+                         call self%set_water_pressure(factor * bdy_23_pressure, &
+                              primary)
                          fluid%region = dble(2)
-                         pressure = factor * bdy_23_pressure
                       end if
                     end associate
                  end if
@@ -505,18 +521,22 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: saturation_pressure, xi
+    PetscReal :: water_pressure, saturation_pressure, xi
+    PetscInt :: old_region
 
-    associate (pressure => primary(1), temperature => primary(2))
+    old_region = nint(old_fluid%region)
+    water_pressure = self%water_pressure(primary)
+
+    associate (temperature => primary(2))
       select type (thermo => self%thermo)
       type is (IAPWS_type)
 
          if (temperature <= thermo%critical%temperature) then
 
-            call thermo%saturation%pressure(temperature, &
+            call self%saturation_pressure(primary, old_region, &
                  saturation_pressure, err)
             if (err == 0) then
-               if (pressure < saturation_pressure) then
+               if (water_pressure < saturation_pressure) then
                   call self%transition_to_two_phase(saturation_pressure, &
                        old_primary, old_fluid, primary, fluid, transition, err)
                else if (temperature > thermo%temperature_bdy_1_3) then
@@ -527,8 +547,8 @@ contains
 
          else
 
-            if (pressure > thermo%critical%pressure) then
-               call region_1_to_supercritical_transitions()
+            if (water_pressure > thermo%critical%pressure) then
+               call region_1_to_supercritical_transitions(water_pressure)
             else
 
                self%primary_variable_interpolator%val(:, 1) = old_primary
@@ -539,8 +559,9 @@ contains
                if (err == 0) then
 
                   primary = self%primary_variable_interpolator%interpolate(xi)
-                  if (pressure < thermo%critical%pressure) then
-                     call self%transition_to_two_phase(pressure, old_primary, &
+                  water_pressure = self%water_pressure(primary)
+                  if (water_pressure < thermo%critical%pressure) then
+                     call self%transition_to_two_phase(water_pressure, old_primary, &
                           old_fluid, primary, fluid, transition, err)
                   else
                      call self%transition_single_phase_to_region3(primary, &
@@ -558,17 +579,18 @@ contains
 
 !........................................................................
 
-    subroutine region_1_to_supercritical_transitions()
+    subroutine region_1_to_supercritical_transitions(water_pressure)
       !! Transitions from region 1 to supercritical region 3
 
+      PetscReal, intent(in) :: water_pressure
       ! Locals:
       PetscReal :: delta(2), xi
 
-      associate (pressure => primary(1), temperature => primary(2))
+      associate (temperature => primary(2))
         select type (region3 => self%thermo%region(3)%ptr)
         type is (IAPWS_region3_type)
 
-           call region3%widom_delta(pressure, delta, err)
+           call region3%widom_delta(water_pressure, delta, err)
 
            if (err == 0) then
 
@@ -618,19 +640,23 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: saturation_pressure, pressure_bdy_2_3
+    PetscReal :: water_pressure, saturation_pressure, pressure_bdy_2_3
+    PetscInt :: old_region
 
-    associate (pressure => primary(1), temperature => primary(2))
+    old_region = nint(old_fluid%region)
+    water_pressure = self%water_pressure(primary)
+
+    associate (temperature => primary(2))
       select type (thermo => self%thermo)
       type is (IAPWS_type)
 
          if (temperature <= thermo%critical%temperature) then
 
-            call thermo%saturation%pressure(temperature, &
+            call self%saturation_pressure(primary, old_region, &
                  saturation_pressure, err)
             if (err == 0) then
 
-               if (pressure > saturation_pressure) then
+               if (water_pressure > saturation_pressure) then
 
                   call self%transition_to_two_phase(saturation_pressure, &
                        old_primary, old_fluid, primary, fluid, transition, err)
@@ -638,7 +664,7 @@ contains
                else if (temperature > thermo%temperature_bdy_1_3) then
 
                   call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
-                  if (pressure > pressure_bdy_2_3) then
+                  if (water_pressure > pressure_bdy_2_3) then
                      call self%transition_single_phase_to_region3(primary, &
                           fluid, transition, err)
                   end if
@@ -652,10 +678,10 @@ contains
 
                call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
 
-               if (pressure > pressure_bdy_2_3) then
+               if (water_pressure > pressure_bdy_2_3) then
 
-                  if (pressure > thermo%critical%pressure) then
-                     call region2_to_supercritical_transitions()
+                  if (water_pressure > thermo%critical%pressure) then
+                     call region2_to_supercritical_transitions(water_pressure)
                   else
                      call self%transition_single_phase_to_region3(primary, &
                           fluid, transition, err)
@@ -673,17 +699,18 @@ contains
 
 !........................................................................
 
-    subroutine region2_to_supercritical_transitions()
+    subroutine region2_to_supercritical_transitions(water_pressure)
       !! Transitions from region 2 to supercritical region 3
 
+      PetscReal, intent(in) :: water_pressure
       ! Locals:
       PetscReal :: delta(2), xi
 
-      associate (pressure => primary(1), temperature => primary(2))
+      associate (temperature => primary(2))
         select type (region3 => self%thermo%region(3)%ptr)
         type is (IAPWS_region3_type)
 
-           call region3%widom_delta(pressure, delta, err)
+           call region3%widom_delta(water_pressure, delta, err)
 
            if (err == 0) then
 
@@ -753,19 +780,22 @@ contains
 
       ! Locals:
       PetscReal :: liquid_props(2), vapour_props(2)
-      PetscReal :: pressure, Sv
+      PetscReal :: saturation_pressure, Sv
+      PetscInt :: old_region
+
+      old_region = nint(old_fluid%region)
 
       associate (density => primary(1), temperature => primary(2), &
            liquid_density => liquid_props(1), vapour_density => vapour_props(1))
 
-        call self%thermo%saturation%pressure(temperature, pressure, err)
+        call self%saturation_pressure(primary, old_region, saturation_pressure, err)
         if (err == 0) then
 
-           call self%thermo%region(1)%ptr%properties([pressure, temperature], &
-                liquid_props, err)
+           call self%thermo%region(1)%ptr%properties([saturation_pressure, &
+                temperature], liquid_props, err)
            if (err == 0) then
-              call self%thermo%region(2)%ptr%properties([pressure, temperature], &
-                   vapour_props, err)
+              call self%thermo%region(2)%ptr%properties([saturation_pressure, &
+                   temperature], vapour_props, err)
               if (err == 0) then
 
                  if (density > liquid_density) then
@@ -776,7 +806,7 @@ contains
 
                     fluid%region = dble(4)
                     Sv = (liquid_density - density) / (liquid_density - vapour_density)
-                    primary(1) = pressure
+                    call self%set_water_pressure(saturation_pressure, primary)
                     primary(2) = Sv
                     transition = PETSC_TRUE
 
@@ -800,7 +830,7 @@ contains
       !! the region 1/3 boundary.
 
       ! Locals:
-      PetscReal :: pressure, liquid_density, vapour_density
+      PetscReal :: saturation_pressure, liquid_density, vapour_density
       PetscReal :: density_difference, Sv
       PetscReal, parameter :: small = 1.e-6_dp
 
@@ -811,18 +841,20 @@ contains
            if ((temperature <= thermo%critical%temperature) .and. &
                 (density <= thermo%min_liquid_density_bdy_1_3)) then
 
-              call thermo%saturation%pressure(temperature, pressure, err)
+              call self%saturation_pressure([old_fluid%pressure, temperature], &
+                   nint(old_fluid%region), saturation_pressure, err)
+
               if (err == 0) then
 
                  select type (region3 => thermo%region(3)%ptr)
                  type is (IAPWS_region3_type)
 
-                    call region3%saturation_density([pressure, &
+                    call region3%saturation_density([saturation_pressure, &
                          temperature], PETSC_TRUE, liquid_density, &
                          err, polish = PETSC_TRUE)
                     if (err == 0) then
                        if (density < liquid_density) then
-                          call region3%saturation_density([pressure, &
+                          call region3%saturation_density([saturation_pressure, &
                                temperature], PETSC_FALSE, vapour_density, &
                                err, polish = PETSC_TRUE)
                           if (err == 0) then
@@ -834,7 +866,7 @@ contains
                                    Sv = 0.5_dp
                                 end if
                                 fluid%region = dble(4)
-                                primary(1) = pressure
+                                primary(1) = saturation_pressure
                                 primary(2) = Sv
                                 transition = PETSC_TRUE
                              end if
@@ -878,8 +910,7 @@ contains
                    call region3_to_single_phase_transitions(2)
 
                    if (err > 0) then
-                      primary = [density_bdy_2_3, temperature]
-                      density = (1._dp - eps) * density
+                      density = (1._dp - eps) * density_bdy_2_3
                       call region3_to_single_phase_transitions(2)
                    end if
 
@@ -903,18 +934,21 @@ contains
 
       PetscInt, intent(in) :: new_region
       ! Locals:
-      PetscReal :: pressure
+      PetscReal :: water_pressure
+      PetscReal :: old_fluid_primary(self%num_primary_variables)
 
       err = 0
       select type (region => self%thermo%region(new_region)%ptr)
       class is (IAPWS_region_type)
-         pressure = old_fluid%pressure
-         call region%pressure(primary, pressure, err)
+         old_fluid_primary = old_primary
+         old_fluid_primary(1) = old_fluid%pressure
+         water_pressure = self%water_pressure(old_fluid_primary)
+         call region%pressure(primary(1:2), water_pressure, err)
       end select
 
       if (err == 0) then
          fluid%region = dble(new_region)
-         primary(1) = pressure
+         call self%set_water_pressure(water_pressure, primary)
          transition = PETSC_TRUE
       end if
 
@@ -938,15 +972,19 @@ contains
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: water_pressure
 
-    associate (pressure => primary(1), vapour_saturation => primary(2))
+    water_pressure = self%water_pressure(primary)
+
+    associate (vapour_saturation => primary(2))
       if (vapour_saturation < 0._dp) then
          call self%transition_to_single_phase(old_primary, old_fluid, &
               1, primary, fluid, transition, err)
       else if (vapour_saturation > 1._dp) then
          call self%transition_to_single_phase(old_primary, old_fluid, &
               2, primary, fluid, transition, err)
-      else if (pressure > self%thermo%critical%pressure) then
+      else if (water_pressure > self%thermo%critical%pressure) then
          call self%transition_region4_to_supercritical(primary, fluid, &
               transition, err)
       end if
@@ -1492,13 +1530,17 @@ contains
     PetscInt, intent(in) :: region !! Thermodynamic region
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscReal :: density
+    PetscReal :: water_pressure, density
     err = 0
 
     if ((self%pressure_conditions) .and. (region == 3)) then
        select type (region3 => self%thermo%region(3)%ptr)
        type is (IAPWS_region3_type)
-          call region3%density(primary, density, err, polish = PETSC_TRUE)
+          water_pressure = self%water_pressure(primary)
+          associate (temperature => primary(2))
+            call region3%density([water_pressure, temperature], &
+                 density, err, polish = PETSC_TRUE)
+          end associate
           if (err == 0) then
              primary(1) = density
           end if
