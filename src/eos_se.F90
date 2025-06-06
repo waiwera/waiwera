@@ -40,8 +40,8 @@ module eos_se_module
   type, public, extends(eos_we_type) :: eos_se_type
      !! Pure supercritical water and energy equation of state type.
      private
-     PetscInt :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
-     PetscBool :: pressure_conditions !! Option to allow region 3 initial and boundary conditions specified with pressure instead of density
+     PetscInt, public :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
+     PetscBool, public :: pressure_conditions !! Option to allow region 3 initial and boundary conditions specified with pressure instead of density
      type(root_finder_type), public :: widom_delta_finder
      class(primary_variable_interpolator_type), pointer, public :: widom_delta_interpolator
      class(fluid_modifier_type), allocatable, public :: relative_permeability_modifier !! Modifies effective relative permeability for temperature effects

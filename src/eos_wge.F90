@@ -30,6 +30,8 @@ module eos_wge_module
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
   end type eos_wge_type
 
+  public :: eos_wge_saturation_difference
+
 contains
 
 !------------------------------------------------------------------------
