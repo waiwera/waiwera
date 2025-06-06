@@ -259,36 +259,36 @@ contains
     call self%primary_variable_interpolator%find_component_at_index(&
          saturation_bound, 2, xi, err)
 
-    associate (temperature => primary(2))
+    if (err == 0) then
 
-      if (err == 0) then
-
-         primary = self%primary_variable_interpolator%interpolate(xi)
-         new_water_pressure = self%water_pressure(primary)
+       primary = self%primary_variable_interpolator%interpolate(xi)
+       new_water_pressure = self%water_pressure(primary)
+       associate (temperature => primary(2))
          call self%thermo%saturation%temperature(new_water_pressure, &
               temperature, err)
-         if (err == 0) then
-            call self%set_water_pressure(pressure_factor * new_water_pressure, primary)
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
+       end associate
+       if (err == 0) then
+          call self%set_water_pressure(pressure_factor * new_water_pressure, primary)
+          fluid%region = dble(new_region)
+          transition = PETSC_TRUE
+       end if
 
-      else ! fallback
+    else ! fallback
 
+       associate (temperature => primary(2))
          temperature = old_fluid%temperature
-         call self%primary_variables(old_fluid, old_fluid_primary)
-         call self%saturation_pressure(old_fluid_primary, nint(old_fluid%region), &
-              old_saturation_pressure, err)
-         if (err == 0) then
-            call self%set_water_pressure(pressure_factor * old_saturation_pressure, &
-                 primary)
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
+       end associate
+       call self%primary_variables(old_fluid, old_fluid_primary)
+       call self%saturation_pressure(old_fluid_primary, nint(old_fluid%region), &
+            old_saturation_pressure, err)
+       if (err == 0) then
+          call self%set_water_pressure(pressure_factor * old_saturation_pressure, &
+               primary)
+          fluid%region = dble(new_region)
+          transition = PETSC_TRUE
+       end if
 
-      end if
-
-    end associate
+    end if
 
   end subroutine eos_we_transition_to_single_phase
 
