@@ -60,7 +60,8 @@ contains
     !! Initialise supercritical water, NCG and energy EOS.
 
     use fson
-    use fson_mpi_module, only: fson_get_mpi, fson_has_mpi
+    use fson_mpi_module, only: fson_get_mpi, fson_has_mpi, fson_type_mpi
+    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL
     use logfile_module
     use thermodynamics_module
     use IAPWS_module, only: critical
@@ -73,6 +74,7 @@ contains
     ! Locals:
     procedure(root_finder_routine), pointer :: fs, fw, ft
     PetscReal :: pressure_scale, temperature_scale, density_scale, partial_pressure_scale
+    PetscInt :: scale_type
     character(max_fluid_modifier_name_length) :: relative_permeability_modifier_type_name
     type(fson_value), pointer :: rperm_json
     character(10) :: conditions
@@ -122,12 +124,22 @@ contains
          temperature_scale, logfile)
     call fson_get_mpi(json, "eos.primary.scale.density", default_density_scale, &
          density_scale, logfile)
-    allocate(self%primary_scale(2, 4))
+    scale_type = fson_type_mpi(json, "eos.primary.scale.partial_pressure")
+    select case (scale_type)
+    case (TYPE_STRING, TYPE_NULL)
+       self%scale => eos_sge_scale_adaptive
+       self%unscale => eos_sge_unscale_adaptive
+       partial_pressure_scale = 0._dp
+    case (TYPE_REAL)
+       call fson_get_mpi(json, "eos.primary.scale.partial_pressure", &
+            default_partial_pressure_scale, partial_pressure_scale, logfile)
+    end select
+    allocate(self%primary_scale(3, 4))
     self%primary_scale = reshape([ &
-          pressure_scale, temperature_scale, &
-          pressure_scale, temperature_scale, &
-          density_scale, temperature_scale, &
-          pressure_scale, 1._dp], [2, 4])
+          pressure_scale, temperature_scale, partial_pressure_scale, &
+          pressure_scale, temperature_scale, partial_pressure_scale, &
+          density_scale, temperature_scale, partial_pressure_scale, &
+          pressure_scale, 1._dp, partial_pressure_scale], [3, 4])
 
     self%thermo => thermo
 
@@ -629,6 +641,46 @@ contains
    end if
 
   end subroutine eos_sge_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  function eos_sge_scale_adaptive(self, primary, region) result(scaled_primary)
+    !! Non-dimensionalise eos_sge primary variables by scaling. The
+    !! first two variables (pressure or density and temperature or
+    !! saturation) are scaled by fixed constants. The third variable,
+    !! NCG partial pressure, is scaled adaptively by total pressure in
+    !! the cell.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: scaled_primary(self%num_primary_variables)
+
+    scaled_primary(1:2) = primary(1:2) / self%primary_scale(1:2, region)
+    associate(scaled_partial_pressure => scaled_primary(3), &
+         pressure => primary(1), partial_pressure => primary(3))
+      scaled_partial_pressure = partial_pressure / pressure
+    end associate
+
+  end function eos_sge_scale_adaptive
+
+!------------------------------------------------------------------------
+
+  function eos_sge_unscale_adaptive(self, scaled_primary, region) result(primary)
+    !! Re-dimensionalise eos_sge scaled primary variables.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: scaled_primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal :: primary(self%num_primary_variables)
+
+    primary(1:2) = scaled_primary(1:2) * self%primary_scale(1:2, region)
+    associate(scaled_partial_pressure => scaled_primary(3), &
+         pressure => primary(1), partial_pressure => primary(3))
+      partial_pressure = scaled_partial_pressure * pressure
+    end associate
+
+  end function eos_sge_unscale_adaptive
 
 !------------------------------------------------------------------------
 
