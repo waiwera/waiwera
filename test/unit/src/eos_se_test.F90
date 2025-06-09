@@ -1,6 +1,7 @@
 module eos_se_test_module
 
-  ! Tests for eos_se module (non-isothermal pure water equation of state)
+  ! Tests for eos_se module (supercritical pure water equation of
+  ! state)
 
 #include <petsc/finclude/petsc.h>
 

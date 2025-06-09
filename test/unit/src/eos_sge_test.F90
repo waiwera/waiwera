@@ -1,6 +1,7 @@
 module eos_sge_test_module
 
-  ! Tests for eos_sge module (non-isothermal water and NCG equation of state)
+  ! Tests for eos_sge module (supercritical water and NCG equation of
+  ! state)
 
 #include <petsc/finclude/petsc.h>
 
