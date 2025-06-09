@@ -592,23 +592,37 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region
-    PetscReal :: p, props(2)
+    PetscReal :: total_pressure, water_pressure, max_partial_pressure, props(2)
+    PetscReal, parameter :: small = 1.e-6_dp
 
     changed = PETSC_FALSE
     err = 0
 
     region = nint(fluid%region)
     if (region == 3) then
-       call self%thermo%region(region)%ptr%properties(primary, props, err)
-       if (err == 0) p = props(1)
+       call self%thermo%region(region)%ptr%properties(primary(1:2), props, err)
+       if (err == 0) water_pressure = props(1)
     else
-       p = primary(1)
+       water_pressure = self%water_pressure(primary)
     end if
 
     if (err == 0) then
-      if ((p < 0._dp) .or. (p > 100.e6_dp)) then
+      if ((water_pressure < 0._dp) .or. (water_pressure > 100.e6_dp)) then
          err = 1
       else
+
+         associate (partial_pressure => primary(3))
+           total_pressure = water_pressure + partial_pressure
+           max_partial_pressure = (1._dp - small) * total_pressure
+           if (partial_pressure > max_partial_pressure) then
+              partial_pressure = max_partial_pressure
+              changed = PETSC_TRUE
+           else if (partial_pressure < 0._dp) then
+              partial_pressure = 0._dp
+              changed = PETSC_TRUE
+           end if
+         end associate
+
          if (region == 4) then
             associate (vapour_saturation => primary(2))
               if ((vapour_saturation < -1._dp) .or. &
