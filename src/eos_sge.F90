@@ -569,24 +569,10 @@ contains
     class(eos_sge_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(out) :: primary(self%num_primary_variables)
-    ! Locals:
-    PetscInt :: region, phases, p
 
-    region = nint(fluid%region)
-    select case (region)
-    case (1, 2)
-       primary(1) = fluid%pressure
-       primary(2) = fluid%temperature
-    case (3)
-       primary(2) = fluid%temperature
-       phases = self%thermo%phase_composition(region, fluid%pressure, &
-            fluid%temperature)
-       p = self%region3_phase(phases)
-       primary(1) = fluid%phase(p)%density
-    case (4)
-       primary(1) = fluid%pressure
-       primary(2) = fluid%phase(2)%saturation
-    end select
+    call self%eos_se_type%primary_variables(fluid, primary)
+
+    primary(3) = fluid%partial_pressure(2)
 
   end subroutine eos_sge_primary_variables
 
