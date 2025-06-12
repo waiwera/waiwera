@@ -40,6 +40,7 @@ module eos_wsge_module
    contains
      private
      procedure, public :: init => eos_wsge_init
+     procedure, public :: partial_pressures => eos_wsge_partial_pressures
      procedure, public :: transition => eos_wsge_transition
      procedure, public :: transition_to_single_phase => eos_wsge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wsge_transition_to_two_phase
@@ -181,6 +182,21 @@ contains
     call self%permeability_modifier%init(perm_json, logfile)
 
   end subroutine eos_wsge_init
+
+!------------------------------------------------------------------------
+
+  function eos_wsge_partial_pressures(self, primary) result (partial_pressures)
+    !! Set partial pressures from primary variables for non-isothermal
+    !! water, salt and non-condensible gas.
+
+    class(eos_wsge_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal :: partial_pressures(self%num_components)
+
+    partial_pressures(1) = self%water_pressure(primary)
+    partial_pressures(2) = primary(3)
+
+  end function eos_wsge_partial_pressures
 
 !------------------------------------------------------------------------
 
