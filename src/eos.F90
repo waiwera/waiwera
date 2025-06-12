@@ -66,12 +66,15 @@ module eos_module
      private
      procedure(eos_init_procedure), public, deferred :: init
      procedure, public :: destroy => eos_destroy
+     procedure, public :: partial_pressures => eos_partial_pressures
+     procedure, public :: water_pressure => eos_water_pressure
+     procedure, public :: set_water_pressure => eos_set_water_pressure
      procedure(eos_transition_procedure), public, deferred :: transition
      procedure, public :: phase_composition => eos_phase_composition
      procedure, public :: convert_fluid => eos_convert_fluid
      procedure, public :: process_conditions => eos_process_conditions
      procedure(eos_fluid_properties_procedure), public, deferred :: fluid_properties
-     procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
+     procedure, public :: primary_variables => eos_primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
      procedure, public :: conductivity => eos_conductivity
      procedure, public :: component_index => eos_component_index
@@ -263,6 +266,22 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_primary_variables(self, fluid, primary)
+    !! Determine primary variables from fluid properties. To be
+    !! overridden by derived types.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscReal, intent(out) :: primary(self%num_primary_variables)
+
+    primary(1) = fluid%pressure
+
+  end subroutine eos_primary_variables
+
+!------------------------------------------------------------------------
+
   PetscReal function eos_conductivity(self, rock, fluid) result(cond)
     !! Returns effective rock heat conductivity for given fluid properties.
     !! This uses a square-root dependence on liquid saturation.
@@ -337,6 +356,48 @@ contains
     self%thermo => null()
 
   end subroutine eos_destroy
+
+!------------------------------------------------------------------------
+
+  function eos_partial_pressures(self, primary) result (partial_pressures)
+    !! Set partial pressures from primary variables.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal :: partial_pressures(self%num_components)
+
+    partial_pressures(1) = primary(1)
+
+  end function eos_partial_pressures
+
+!------------------------------------------------------------------------
+
+  PetscReal function eos_water_pressure(self, primary) result(water_pressure)
+    !! Return water pressure from primary variables.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+
+    associate (pressure => primary(1))
+      water_pressure = pressure
+    end associate
+
+  end function eos_water_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine eos_set_water_pressure(self, water_pressure, primary)
+    !! Update primary variables for specified water pressure.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: water_pressure
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+
+    associate (pressure => primary(1))
+      pressure = water_pressure
+    end associate
+
+  end subroutine eos_set_water_pressure
 
 !------------------------------------------------------------------------
 ! Primary variable interpolator

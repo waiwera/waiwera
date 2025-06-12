@@ -39,8 +39,6 @@ module eos_we_module
      private
      procedure, public :: init => eos_we_init
      procedure, public :: destroy => eos_we_destroy
-     procedure, public :: water_pressure => eos_we_water_pressure
-     procedure, public :: set_water_pressure => eos_we_set_water_pressure
      procedure, public :: enforce_consistency => eos_we_enforce_consistency
      procedure, public :: saturation_pressure => eos_we_saturation_pressure
      procedure, public :: region_1_transitions => eos_we_region_1_transitions
@@ -50,7 +48,6 @@ module eos_we_module
      procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
      procedure, public :: fluid_properties => eos_we_fluid_properties
-     procedure :: partial_pressures => eos_we_partial_pressures
      procedure :: bulk_properties => eos_we_bulk_properties
      procedure :: phase_properties => eos_we_phase_properties
      procedure, public :: primary_variables => eos_we_primary_variables
@@ -154,35 +151,6 @@ contains
     deallocate(self%primary_variable_interpolator)
 
   end subroutine eos_we_destroy
-
-!------------------------------------------------------------------------
-
-  PetscReal function eos_we_water_pressure(self, primary) result(water_pressure)
-    !! For eos_we, return water pressure from primary variables.
-
-    class(eos_we_type), intent(in) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables)
-
-    associate (pressure => primary(1))
-      water_pressure = pressure
-    end associate
-
-  end function eos_we_water_pressure
-
-!------------------------------------------------------------------------
-
-  subroutine eos_we_set_water_pressure(self, water_pressure, primary)
-    !! For eos_we, update primary variables for specified water pressure.
-
-    class(eos_we_type), intent(in) :: self
-    PetscReal, intent(in) :: water_pressure
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
-
-    associate (pressure => primary(1))
-      pressure = water_pressure
-    end associate
-
-  end subroutine eos_we_set_water_pressure
 
 !------------------------------------------------------------------------
 
@@ -506,20 +474,6 @@ contains
     end if
 
   end subroutine eos_we_fluid_properties
-
-!------------------------------------------------------------------------
-
-  function eos_we_partial_pressures(self, primary) result (partial_pressures)
-    !! Set partial pressures from primary variables for non-isothermal
-    !! pure water.
-
-    class(eos_we_type), intent(in) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    PetscReal :: partial_pressures(self%num_components)
-
-    partial_pressures(1) = primary(1)
-
-  end function eos_we_partial_pressures
 
 !------------------------------------------------------------------------
 
