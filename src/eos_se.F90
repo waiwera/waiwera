@@ -1086,6 +1086,7 @@ contains
       err = 0
       fluid%pressure = primary(1)
       fluid%temperature = primary(2)
+      fluid%partial_pressure = self%partial_pressures(primary)
       call self%phase_composition(fluid, err)
 
       if (err == 0) then
@@ -1118,7 +1119,6 @@ contains
 
       fluid%permeability_factor = 1._dp
       call self%phase_saturations(primary, fluid)
-      fluid%partial_pressure(1) = fluid%pressure
       fluid%liquidlike_fraction = 0._dp
       fluid%supercritical_phases = 2._dp
 
