@@ -213,9 +213,11 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region, phases
+    PetscReal :: water_pressure
 
     region = nint(fluid%region)
-    phases = self%thermo%phase_composition(region, fluid%pressure, &
+    water_pressure = fluid%partial_pressure(1)
+    phases = self%thermo%phase_composition(region, water_pressure, &
          fluid%temperature)
     if (phases > 0) then
        fluid%phase_composition = dble(phases)
