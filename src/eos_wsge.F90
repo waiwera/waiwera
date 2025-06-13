@@ -209,7 +209,8 @@ contains
     PetscReal :: partial_pressures(self%num_components)
 
     partial_pressures(1) = self%water_pressure(primary)
-    partial_pressures(2) = primary(3)
+    partial_pressures(2) = 0._dp
+    partial_pressures(3) = primary(4)
 
   end function eos_wsge_partial_pressures
 
