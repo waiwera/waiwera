@@ -668,14 +668,9 @@ contains
 
     err = 0
     fluid%pressure = primary(1)
+    fluid%partial_pressure = self%partial_pressures(primary)
     region = nint(fluid%region)
     water_region = self%water_region(region)
-
-    associate(partial_pressure => primary(4))
-      fluid%partial_pressure(1) = fluid%pressure - partial_pressure
-      fluid%partial_pressure(2) = 0._dp
-      fluid%partial_pressure(3) = partial_pressure
-    end associate
 
     if (water_region == 4) then ! two-phase
        if (region == 4) then ! without halite
