@@ -40,6 +40,7 @@ module eos_wsge_module
    contains
      private
      procedure, public :: init => eos_wsge_init
+     procedure, public :: water_pressure => eos_wsge_water_pressure
      procedure, public :: partial_pressures => eos_wsge_partial_pressures
      procedure, public :: transition => eos_wsge_transition
      procedure, public :: transition_to_single_phase => eos_wsge_transition_to_single_phase
@@ -182,6 +183,20 @@ contains
     call self%permeability_modifier%init(perm_json, logfile)
 
   end subroutine eos_wsge_init
+
+!------------------------------------------------------------------------
+
+  PetscReal function eos_wsge_water_pressure(self, primary) result(water_pressure)
+    !! For eos_wsge, return water pressure from primary variables.
+
+    class(eos_wsge_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+
+    associate (pressure => primary(1), partial_pressure => primary(4))
+      water_pressure = pressure - partial_pressure
+    end associate
+
+  end function eos_wsge_water_pressure
 
 !------------------------------------------------------------------------
 
