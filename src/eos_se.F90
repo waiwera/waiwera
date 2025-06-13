@@ -117,6 +117,7 @@ contains
     self%required_output_fluid_fields = [ &
          "pressure             ", "temperature          ", &
          "region               ", "vapour_saturation    ", &
+         "liquid_density       ", "vapour_density       ", &
          "supercritical_density"]
     self%default_output_fluid_fields = [ &
          "pressure             ", "temperature          ", &
