@@ -48,8 +48,8 @@ module eos_we_module
      procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
      procedure, public :: fluid_properties => eos_we_fluid_properties
-     procedure :: bulk_properties => eos_we_bulk_properties
-     procedure :: phase_properties => eos_we_phase_properties
+     procedure, public :: bulk_properties => eos_we_bulk_properties
+     procedure, public :: phase_properties => eos_we_phase_properties
      procedure, public :: primary_variables => eos_we_primary_variables
      procedure, public :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables

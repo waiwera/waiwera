@@ -25,7 +25,7 @@ module eos_wge_module
      procedure, public :: set_water_pressure => eos_wge_set_water_pressure
      procedure, public :: enforce_consistency => eos_wge_enforce_consistency
      procedure, public :: partial_pressures => eos_wge_partial_pressures
-     procedure :: phase_properties => eos_wge_phase_properties
+     procedure, public :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
   end type eos_wge_type

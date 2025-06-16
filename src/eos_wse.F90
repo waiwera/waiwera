@@ -50,8 +50,8 @@ module eos_wse_module
      procedure, public :: halite_transition => eos_wse_halite_transition
      procedure, public :: phase_composition => eos_wse_phase_composition
      procedure, public :: fluid_properties => eos_wse_fluid_properties
-     procedure :: bulk_properties => eos_wse_bulk_properties
-     procedure :: phase_properties => eos_wse_phase_properties
+     procedure, public :: bulk_properties => eos_wse_bulk_properties
+     procedure, public :: phase_properties => eos_wse_phase_properties
      procedure, public :: primary_variables => eos_wse_primary_variables
      procedure, public :: phase_saturations => eos_wse_phase_saturations
      procedure, public :: check_primary_variables => eos_wse_check_primary_variables
