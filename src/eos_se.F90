@@ -63,7 +63,6 @@ module eos_se_module
      procedure, public :: region_2_fluid_properties => eos_se_region_2_fluid_properties
      procedure, public :: region_3_fluid_properties => eos_se_region_3_fluid_properties
      procedure, public :: region_4_fluid_properties => eos_se_region_4_fluid_properties
-     procedure, public :: region_2_supercritical_phase_properties => eos_se_region_2_supercritical_phase_properties
      procedure, public :: primary_variables => eos_se_primary_variables
      procedure, public :: phase_saturations => eos_se_phase_saturations
      procedure, public :: check_primary_variables => eos_se_check_primary_variables
@@ -1078,29 +1077,22 @@ contains
 
     if (err == 0) then
        if (fluid%is_supercritical()) then
-          call self%region_2_supercritical_phase_properties(primary, fluid, err)
+          call region_2_supercritical_phase_properties()
        else
           call self%eos_we_type%phase_properties(primary, rock, fluid, err)
           call fluid%phase(3)%zero()
        end if
     end if
 
-  end subroutine eos_se_region_2_fluid_properties
+  contains
 
-!------------------------------------------------------------------------
+!........................................................................
 
-  subroutine eos_se_region_2_supercritical_phase_properties(self, primary, &
-       fluid, err)
+    subroutine region_2_supercritical_phase_properties()
     !! Calculate region 2 supercritical phase properties from region
     !! and primary variables for pure supercritical water and energy
     !! EOS.
 
-    use fluid_module, only: fluid_type
-
-    class(eos_se_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p
     PetscReal :: water_primary(2), properties(2)
@@ -1135,7 +1127,9 @@ contains
       end if
     end associate
 
-  end subroutine eos_se_region_2_supercritical_phase_properties
+  end subroutine region_2_supercritical_phase_properties
+
+  end subroutine eos_se_region_2_fluid_properties
 
 !------------------------------------------------------------------------
 
