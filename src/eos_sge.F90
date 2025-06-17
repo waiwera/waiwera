@@ -328,13 +328,87 @@ contains
 
     if (err == 0) then
        if (fluid%is_supercritical()) then
-          call self%region_2_supercritical_phase_properties(primary, fluid, err)
+          call region_2_supercritical_phase_properties()
        else
           call self%eos_wge%phase_properties(primary, rock, fluid, err)
           call fluid%phase(3)%zero()
           fluid%supercritical_phases = 0._dp
        end if
     end if
+
+  contains
+
+!........................................................................
+
+    subroutine region_2_supercritical_phase_properties()
+      !! Calculate region 2 supercritical phase properties from region
+      !! and primary variables for supercritical water, NCG and energy
+      !! EOS. Region 2 supercritical fluid is assumed to be
+      !! vapour-like.
+
+      ! Locals:
+      PetscInt :: p
+      PetscReal :: water_primary(2), water_properties(2)
+      PetscReal :: water_viscosity, water_enthalpy
+      PetscReal :: gas_properties(2), xg
+
+      err = 0
+      do p = 1, 2
+         call fluid%phase(p)%zero()
+      end do
+      fluid%supercritical_phases = 2._dp ! vapour-like
+
+      associate (water_pressure => water_primary(1), water_temperature => water_primary(2), &
+           region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
+
+        water_pressure = fluid%partial_pressure(1)
+        water_temperature = fluid%temperature
+
+        call self%gas%properties(fluid%partial_pressure(2), fluid%temperature, &
+             gas_properties, err)
+
+        if (err == 0) then
+
+           call region%properties(water_primary, water_properties, err)
+           if (err == 0) then
+
+              associate (water_density => water_properties(1), &
+                   water_internal_energy => water_properties(2), &
+                   gas_density => gas_properties(1), gas_enthalpy => gas_properties(2))
+
+                call self%gas%mass_fraction(fluid%partial_pressure(2), &
+                     fluid%temperature, 2, gas_density, water_density, &
+                     0._dp, xg, err)
+
+                if (err == 0) then
+
+                   call region%viscosity(water_temperature, water_pressure, &
+                        water_density, water_viscosity)
+                   call self%gas%mixture_viscosity(water_viscosity, &
+                        fluid%temperature, fluid%partial_pressure(2), xg, 2, &
+                        phase%viscosity, err)
+
+                   if (err == 0) then
+                      phase%saturation = 1._dp
+                      phase%density = water_density + gas_density
+                      phase%mass_fraction = [1._dp - xg, xg]
+                      phase%relative_permeability = 1._dp
+                      phase%capillary_pressure = 0._dp
+                      water_enthalpy = water_internal_energy &
+                           + water_pressure / water_density
+                      phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
+                           + gas_enthalpy * xg
+                      phase%internal_energy = phase%specific_enthalpy &
+                           - fluid%pressure / phase%density
+                   end if
+
+                end if
+              end associate
+           end if
+        end if
+      end associate
+
+    end subroutine region_2_supercritical_phase_properties
 
   end subroutine eos_sge_region_2_fluid_properties
 
@@ -356,6 +430,8 @@ contains
     PetscInt :: p, pseudo_phases
     PetscReal :: properties(2), PT(2), sl, pi_liq
     PetscReal :: relative_permeability(2), capillary_pressure(2)
+
+    ! TODO: modify for NCG
 
     err = 0
 
@@ -467,6 +543,8 @@ contains
       PetscReal :: density, sl, properties(2)
       PetscReal :: relative_permeability(2), capillary_pressure(2)
       PetscBool :: liquid
+
+      ! TODO: modify for NCG
 
       err = 0
 
