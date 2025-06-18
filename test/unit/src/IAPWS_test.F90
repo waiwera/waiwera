@@ -21,7 +21,7 @@ module IAPWS_test
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
        test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
        test_IAPWS_region3_saturation_density, &
-       test_region3_widom, test_region3_pi_liquidlike, &
+       test_IAPWS_widom, test_IAPWS_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure
 
   contains
@@ -731,8 +731,8 @@ module IAPWS_test
 
 !------------------------------------------------------------------------
 
-  subroutine test_region3_widom(test)
-    ! Region 3 Widom line and delta tests
+  subroutine test_IAPWS_widom(test)
+    ! IAPWS Widom line and delta tests
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -759,45 +759,39 @@ module IAPWS_test
       ! Widom line from Banuti et al. (2017)
       PetscReal, intent(in) :: t
 
-       select type (region3 => IAPWS%region(3)%ptr)
-       type is (IAPWS_region3_type)
-          widom_p = IAPWS%critical%pressure * exp(region3%widom_slope * &
-               ((t + tc_k) / IAPWS%critical%temperature_k - 1._dp))
-       end select
+      widom_p = IAPWS%critical%pressure * exp(IAPWS%widom_slope * &
+           ((t + tc_k) / IAPWS%critical%temperature_k - 1._dp))
 
-     end function widom_p
+    end function widom_p
 
-     subroutine widom_case(p, expected_delta, expected_err, name)
+    subroutine widom_case(p, expected_delta, expected_err, name)
 
-       PetscReal, intent(in) :: p, expected_delta(2)
-       PetscErrorCode, intent(in) :: expected_err
-       character(*), intent(in) :: name
-       ! Locals:
-       PetscReal :: t, delta(2)
-       PetscErrorCode :: err
+      PetscReal, intent(in) :: p, expected_delta(2)
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: t, delta(2)
+      PetscErrorCode :: err
 
-       select type (region3 => IAPWS%region(3)%ptr)
-       type is (IAPWS_region3_type)
-          call region3%widom(p, t, err)
-          call test%assert(expected_err, err, name // ' widom error')
-          if (err == 0) then
-             call test%assert(p, widom_p(t), name // ' widom temperature')
-             call region3%widom_delta(p, delta, err)
-             call test%assert(expected_err, err, name // ' widom delta error')
-             if (err == 0) then
-                call test%assert(expected_delta, delta, name // ' widom delta')
-             end if
-          end if
-       end select
+      call IAPWS%widom(p, t, err)
+      call test%assert(expected_err, err, name // ' widom error')
+      if (err == 0) then
+         call test%assert(p, widom_p(t), name // ' widom temperature')
+         call IAPWS%widom_delta(p, delta, err)
+         call test%assert(expected_err, err, name // ' widom delta error')
+         if (err == 0) then
+            call test%assert(expected_delta, delta, name // ' widom delta')
+         end if
+      end if
 
-     end subroutine widom_case
+    end subroutine widom_case
 
-  end subroutine test_region3_widom
+  end subroutine test_IAPWS_widom
 
 !------------------------------------------------------------------------
 
-  subroutine test_region3_pi_liquidlike(test)
-    ! Region 3 pi_liquidlike tests
+  subroutine test_IAPWS_pi_liquidlike(test)
+    ! IAPWS pi_liquidlike tests
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -851,20 +845,17 @@ module IAPWS_test
       PetscInt :: phases
       PetscErrorCode :: err
 
-      select type (region3 => IAPWS%region(3)%ptr)
-      type is (IAPWS_region3_type)
-         call region3%pi_liquidlike(pressure, temperature, density, &
-              pi_liq, phases, err)
-         call test%assert(expected_err, err, name // ' pi_liq error')
-         if (err == 0) then
-            call test%assert(expected_pi, pi_liq, name // ' pi_liq')
-            call test%assert(expected_phases, phases, name // ' phases')
-         end if
-      end select
+      call IAPWS%pi_liquidlike(pressure, temperature, density, &
+           pi_liq, phases, err)
+      call test%assert(expected_err, err, name // ' pi_liq error')
+      if (err == 0) then
+         call test%assert(expected_pi, pi_liq, name // ' pi_liq')
+         call test%assert(expected_phases, phases, name // ' phases')
+      end if
 
     end subroutine pi_liquidlike_case
 
-  end subroutine test_region3_pi_liquidlike
+  end subroutine test_IAPWS_pi_liquidlike
 
 !------------------------------------------------------------------------
 

@@ -314,7 +314,10 @@ contains
 
        water_pressure = self%water_pressure(primary)
        associate (Sl => 1._dp - primary(2))
-         call region3%widom_delta(water_pressure, delta, err)
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+            call thermo%widom_delta(water_pressure, delta, err)
+         end select
          if (err == 0) then
             xi = hermite_spline_inv_00(Sl)
             t_delta = (1._dp - xi) * delta(1) + xi * delta(2)
@@ -595,7 +598,10 @@ contains
         select type (region3 => self%thermo%region(3)%ptr)
         type is (IAPWS_region3_type)
 
-           call region3%widom_delta(water_pressure, delta, err)
+           select type (thermo => self%thermo)
+           type is (IAPWS_type)
+              call thermo%widom_delta(water_pressure, delta, err)
+           end select
 
            if (err == 0) then
 
@@ -715,7 +721,10 @@ contains
         select type (region3 => self%thermo%region(3)%ptr)
         type is (IAPWS_region3_type)
 
-           call region3%widom_delta(water_pressure, delta, err)
+           select type (thermo => self%thermo)
+           type is (IAPWS_type)
+              call thermo%widom_delta(water_pressure, delta, err)
+           end select
 
            if (err == 0) then
 
@@ -1203,8 +1212,11 @@ contains
 
                  end associate
 
-                 call region%pi_liquidlike(pressure, temperature, density, &
-                      pi_liq, pseudo_phases, err)
+                 select type (thermo => self%thermo)
+                 type is (IAPWS_type)
+                    call thermo%pi_liquidlike(pressure, temperature, density, &
+                         pi_liq, pseudo_phases, err)
+                 end select
                  if (err == 0) then
                     fluid%liquidlike_fraction = pi_liq
                     fluid%supercritical_phases = dble(pseudo_phases)
@@ -1613,9 +1625,9 @@ contains
        allocate(var(context%dim))
        var = context%interpolate_at_index(x)
        associate(P => var(1), T => var(2))
-         select type (region3 => context%thermo%region(3)%ptr)
-         type is (IAPWS_region3_type)
-            call region3%widom_delta(P, delta, err)
+         select type (thermo => context%thermo)
+         type is (IAPWS_type)
+            call thermo%widom_delta(P, delta, err)
             if (err == 0) then
                f = T - delta(context%bdy_index)
             end if

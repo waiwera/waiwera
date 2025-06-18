@@ -486,8 +486,11 @@ contains
 
                  end associate
 
-                 call region%pi_liquidlike(pressure, temperature, density, &
-                      pi_liq, pseudo_phases, err)
+                 select type (thermo => self%thermo)
+                 type is (IAPWS_type)
+                    call thermo%pi_liquidlike(pressure, temperature, density, &
+                         pi_liq, pseudo_phases, err)
+                 end select
                  if (err == 0) then
                     fluid%liquidlike_fraction = pi_liq
                     fluid%supercritical_phases = dble(pseudo_phases)
@@ -779,10 +782,10 @@ contains
        allocate(var(context%dim))
        var = context%interpolate_at_index(x)
        associate(P => var(1), T => var(2), Pg => var(3))
-         select type (region3 => context%thermo%region(3)%ptr)
-         type is (IAPWS_region3_type)
+         select type (thermo => context%thermo)
+         type is (IAPWS_type)
             Pw = P - Pg
-            call region3%widom_delta(Pw, delta, err)
+            call thermo%widom_delta(Pw, delta, err)
             if (err == 0) then
                f = T - delta(context%bdy_index)
             end if

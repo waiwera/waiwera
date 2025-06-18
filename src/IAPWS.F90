@@ -972,14 +972,6 @@ module IAPWS_module
           0.00000000000000e+00_dp, 0.00000000000000e+00_dp], &
           [43,26])
 
-     PetscReal, public :: widom_slope = 6.479 !! Slope A_s of Widom line for water (Banuti et al., 2017)
-     PetscReal, public :: widom_delta_growth !! Widom delta width growth factor
-     PetscReal, public :: widom_delta_offset !! Temperature offset (from critical temperature) of Widom delta
-     PetscReal, public :: widom_delta_zero_temperature !! Temperature at which Widom delta has zero width
-     PetscReal, public :: widom_delta_zero_pressure !! Pressure at which Widom delta has zero width
-     PetscReal :: widom_delta_delp = 0.02e6 ! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
-     PetscReal :: widom_delta_P1, widom_delta_T1, widom_delta_dtdp0, widom_delta_dtdp1 !! Parameters for interpolating centre of delta
-
    contains
      private
      procedure, public :: init => region3_init
@@ -994,9 +986,6 @@ module IAPWS_module
      procedure, public :: subregion_boundary_poly => region3_subregion_boundary_poly
      procedure, public :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
      procedure, public :: subregion_boundary_3ef => region3_subregion_boundary_3ef
-     procedure, public :: widom => region3_widom
-     procedure, public :: widom_delta => region3_widom_delta
-     procedure, public :: pi_liquidlike => region3_pi_liquidlike
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
@@ -1027,11 +1016,22 @@ module IAPWS_module
      PetscReal, public :: temperature_bdy_1_3 !! Temperature of boundary between regions 1 & 3
      PetscReal, public :: saturation_pressure_bdy_1_3 !! Saturation pressure at boundary between regions 1 & 3
      PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
+     PetscReal, public :: widom_slope = 6.479 !! Slope A_s of Widom line for water (Banuti et al., 2017)
+     PetscReal, public :: widom_delta_growth !! Widom delta width growth factor
+     PetscReal, public :: widom_delta_offset !! Temperature offset (from critical temperature) of Widom delta
+     PetscReal, public :: widom_delta_zero_temperature !! Temperature at which Widom delta has zero width
+     PetscReal, public :: widom_delta_zero_pressure !! Pressure at which Widom delta has zero width
+     PetscReal :: widom_delta_delp = 0.02e6 ! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
+     PetscReal :: widom_delta_P1, widom_delta_T1, widom_delta_dtdp0, widom_delta_dtdp1 !! Parameters for interpolating centre of delta
+
    contains
      private
      procedure, public :: init => IAPWS_init
      procedure, public :: destroy => IAPWS_destroy
      procedure, public :: phase_composition => IAPWS_phase_composition
+     procedure, public :: widom => IAPWS_widom
+     procedure, public :: widom_delta => IAPWS_widom_delta
+     procedure, public :: pi_liquidlike => IAPWS_pi_liquidlike
   end type IAPWS_type
 
 !------------------------------------------------------------------------
@@ -1091,15 +1091,12 @@ contains
           if (thermo_type == TYPE_OBJECT) then
              call fson_get_mpi(json, "thermodynamics.extrapolate", &
                   default_extrapolate, self%extrapolate, logfile)
-             select type (region3 => self%supercritical)
-             type is (IAPWS_region3_type)
-                call fson_get_mpi(json, "thermodynamics.widom.delta.growth", &
-                     default_widom_delta_growth, region3%widom_delta_growth, &
-                     logfile)
-                call fson_get_mpi(json, "thermodynamics.widom.delta.offset", &
-                     default_widom_delta_offset, &
-                     region3%widom_delta_offset, logfile)
-             end select
+             call fson_get_mpi(json, "thermodynamics.widom.delta.growth", &
+                  default_widom_delta_growth, self%widom_delta_growth, &
+                  logfile)
+             call fson_get_mpi(json, "thermodynamics.widom.delta.offset", &
+                  default_widom_delta_offset, &
+                  self%widom_delta_offset, logfile)
              defaults = PETSC_FALSE
           end if
        end if
@@ -1112,18 +1109,15 @@ contains
                logical_keys = ['thermodynamics.extrapolate'], &
                logical_values = [default_extrapolate])
        end if
-       select type (region3 => self%supercritical)
-       type is (IAPWS_region3_type)
-          region3%widom_delta_growth = default_widom_delta_growth
-          region3%widom_delta_offset = default_widom_delta_offset
-          if (present(logfile)) then
-             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-                  real_keys = ['thermodynamics.widom.delta.growth', &
-                  'thermodynamics.widom.delta.offset'], &
-                  real_values = [default_widom_delta_growth, &
-                  default_widom_delta_offset])
-          end if
-       end select
+       self%widom_delta_growth = default_widom_delta_growth
+       self%widom_delta_offset = default_widom_delta_offset
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               real_keys = ['thermodynamics.widom.delta.growth', &
+               'thermodynamics.widom.delta.offset'], &
+               real_values = [default_widom_delta_growth, &
+               default_widom_delta_offset])
+       end if
     end if
 
     do i = 1, self%num_regions
@@ -1136,6 +1130,18 @@ contains
     self%min_liquid_density_bdy_1_3 = props(1)
     call self%steam%properties([Psat, self%temperature_bdy_1_3], props, err)
     self%max_vapour_density_bdy_1_3 = props(1)
+
+    ! Auxiliary Widom delta parameters:
+    self%widom_delta_zero_temperature = self%critical%temperature - &
+         self%widom_delta_offset
+    call self%saturation%pressure(self%widom_delta_zero_temperature, &
+         self%widom_delta_zero_pressure, err)
+    ! Widom line interpolation parameters:
+    self%widom_delta_P1 = self%critical%pressure + self%widom_delta_delp
+    call self%widom(self%widom_delta_P1, self%widom_delta_T1, err)
+    self%widom_delta_dtdp0 = 3.729403602924551e-6_dp ! from symbolic differentiation of saturation line
+    self%widom_delta_dtdp1 = self%critical%temperature_k / &
+         (self%widom_delta_growth * self%widom_delta_P1)
 
   end subroutine IAPWS_init
 
@@ -1208,6 +1214,187 @@ contains
     end if
 
   end function IAPWS_phase_composition
+
+!------------------------------------------------------------------------
+
+  subroutine IAPWS_widom(self, pressure, temperature, err)
+    !! Returns Widom line temperature as a function of pressure. This
+    !! is the inverse of the exponential Widom function of Banuti et
+    !! al. (2017) - not actually part of the IAPWS formulation.
+
+    class(IAPWS_type), intent(in out) :: self
+    PetscReal, intent(in) :: pressure
+    PetscReal, intent(out) :: temperature
+    PetscErrorCode, intent(out) :: err
+
+    if (pressure >= self%widom_delta_zero_pressure) then
+       temperature = self%critical%temperature_k * (1._dp + &
+            log(pressure / self%critical%pressure) / self%widom_slope) &
+            - tc_k
+       err = 0
+    else
+       err = 1
+    end if
+
+  end subroutine IAPWS_widom
+
+!------------------------------------------------------------------------
+
+  subroutine IAPWS_widom_delta(self, pressure, delta, err)
+    !! Returns Widom delta minimum and maximum temperatures as a
+    !! function of pressure. These are the temperatures at which the
+    !! number fractions of liquid-like particles are 1 and 0
+    !! respectively. The centre of the Widom delta follows the Widom
+    !! line, and its width is assumed to grow linearly with pressure,
+    !! starting from a small finite width at the critical point (for
+    !! numerical purposes). As the Widom line has a different slope
+    !! from the saturation line at the critical point, the centre of
+    !! the delta is interpolated between the two over a small interval
+    !! above the critical point.
+
+    class(IAPWS_type), intent(in out) :: self
+    PetscReal, intent(in) :: pressure
+    PetscReal, intent(out) :: delta(2)
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: Tw, Tw0, dT, xi
+    PetscReal, parameter :: delP = 0.03e6 ! pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
+
+    err = 0
+
+    dT = self%widom_delta_growth * &
+         (pressure - self%widom_delta_zero_pressure) / self%critical%pressure
+
+    if (pressure >= self%widom_delta_P1) then
+
+       call self%widom(pressure, Tw, err)
+
+    else if (pressure >= self%critical%pressure) then
+
+       call self%widom(pressure, Tw0, err)
+       if (err == 0) then
+          xi = (pressure - self%critical%pressure) / self%widom_delta_delP
+          Tw = hermite_interpolate(self%critical%temperature, &
+               self%widom_delta_T1, self%widom_delta_dtdp0, self%widom_delta_dtdp1, &
+               self%widom_delta_delP, xi)
+       end if
+
+    else
+
+       call self%saturation%temperature(pressure, Tw, err)
+
+    end if
+
+    if (err == 0) then
+       delta = [Tw - 0.5_dp * dT, Tw + 0.5_dp * dT]
+    end if
+
+  end subroutine IAPWS_widom_delta
+
+!------------------------------------------------------------------------
+
+  subroutine IAPWS_pi_liquidlike(self, pressure, temperature, density, &
+       pi_liq, pseudo_phases, err)
+    !! Returns number fraction of liquid-like fluid particles as a
+    !! function of pressure and temperature. For supercritical fluid
+    !! this is assumed to vary smoothly from 1 to 0 through the Widom
+    !! delta according to a cubic Hermite polynomial with zero slope
+    !! at both ends. For sub-critical fluid, the result is determined
+    !! by the given density. Also returns a pseudo-phase composition,
+    !! corresponding to whether the fluid is completely liquidlike
+    !! (001), vapourlike (010) or in between (010).
+
+    use utils_module, only: hermite_spline_00, hermite_spline_01
+
+    class(IAPWS_type), intent(in out) :: self
+    PetscReal, intent(in) :: pressure, temperature, density
+    PetscReal, intent(out) :: pi_liq
+    PetscInt, intent(out) :: pseudo_phases
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: delta(2), xi, theta, s, xi0, xi1, xim
+    PetscReal, parameter :: eps = epsilon(pi_liq)
+
+    err = 0
+    pseudo_phases = 0
+
+    if (pressure >= self%widom_delta_zero_pressure) then
+       if (temperature >= self%widom_delta_zero_temperature) then
+
+          call self%widom_delta(pressure, delta, err)
+          if (err == 0) then
+
+             xi = (temperature - delta(1)) / (delta(2) - delta(1))
+
+             if (temperature >= self%critical%temperature) then
+
+                pi_liq = sigmoid(xi)
+
+             else
+
+                ! Between the delta zero temperature and the critical
+                ! point, space the pi contours smoothly around the
+                ! boundary of region 4:
+                theta = (temperature - self%widom_delta_zero_temperature) / &
+                     self%widom_delta_offset
+                s = hermite_spline_01(theta)
+                xi0 = 0.5_dp * s
+                xi1 = 1._dp - xi0
+                if (xi < 0.5_dp) then
+                    xim = 2._dp * xi0 * xi
+                else
+                   xim = xi1 + (2._dp * xi - 1._dp) * (1._dp - xi1)
+                end if
+                pi_liq = sigmoid(xim)
+
+             end if
+
+             if (pi_liq < eps) then
+                pseudo_phases = int(b'010')
+             else if (pi_liq < 1._dp - eps) then
+                pseudo_phases = int(b'011')
+             else
+                pseudo_phases = int(b'001')
+             end if
+
+          end if
+
+       else
+          pi_liq = 1._dp
+       end if
+
+    else
+       if (temperature >= self%widom_delta_zero_temperature) then
+          pi_liq = 0._dp
+       else
+          if (density >= self%critical%density) then
+             pi_liq = 1._dp
+          else
+             pi_liq = 0._dp
+          end if
+       end if
+    end if
+
+  contains
+
+    PetscReal function sigmoid(xi)
+      !! Sigmoid function on unit interval decreasing from 1 to 0,
+      !! with zero slopes at each end, and constant outside the unit
+      !! interval.
+
+      PetscReal, intent(in) :: xi
+
+    if (xi < 0._dp) then
+       sigmoid = 1._dp
+    else if (xi > 1._dp) then
+       sigmoid = 0._dp
+    else
+       sigmoid = hermite_spline_00(xi)
+    end if
+
+    end function sigmoid
+
+  end subroutine IAPWS_pi_liquidlike
 
 !------------------------------------------------------------------------
 ! Sub-region 3 type
@@ -1745,18 +1932,6 @@ contains
               self%subregion_n(1:N,i))
        end associate
     end do
-
-    ! Auxiliary Widom delta parameters:
-    self%widom_delta_zero_temperature = self%thermo%critical%temperature - &
-         self%widom_delta_offset
-    call self%thermo%saturation%pressure(self%widom_delta_zero_temperature, &
-         self%widom_delta_zero_pressure, err)
-    ! Widom line interpolation parameters:
-    self%widom_delta_P1 = self%thermo%critical%pressure + self%widom_delta_delp
-    call self%widom(self%widom_delta_P1, self%widom_delta_T1, err)
-    self%widom_delta_dtdp0 = 3.729403602924551e-6_dp ! from symbolic differentiation of saturation line
-    self%widom_delta_dtdp1 = self%thermo%critical%temperature_k / &
-         (self%widom_delta_growth * self%widom_delta_P1)
 
   end subroutine region3_init
 
@@ -2365,188 +2540,6 @@ contains
      end function near_critical_density
 
   end subroutine region3_saturation_density
-
-!------------------------------------------------------------------------
-
-  subroutine region3_widom(self, pressure, temperature, err)
-    !! Returns Widom line temperature as a function of pressure. This
-    !! is the inverse of the exponential Widom function of Banuti et
-    !! al. (2017) - not actually part of the IAPWS formulation.
-
-    class(IAPWS_region3_type), intent(in out) :: self
-    PetscReal, intent(in) :: pressure
-    PetscReal, intent(out) :: temperature
-    PetscErrorCode, intent(out) :: err
-
-    if (pressure >= self%widom_delta_zero_pressure) then
-       temperature = self%thermo%critical%temperature_k * (1._dp + &
-            log(pressure / self%thermo%critical%pressure) / self%widom_slope) &
-            - tc_k
-       err = 0
-    else
-       err = 1
-    end if
-
-  end subroutine region3_widom
-
-!------------------------------------------------------------------------
-
-  subroutine region3_widom_delta(self, pressure, delta, err)
-    !! Returns Widom delta minimum and maximum temperatures as a
-    !! function of pressure. These are the temperatures at which the
-    !! number fractions of liquid-like particles are 1 and 0
-    !! respectively. The centre of the Widom delta follows the Widom
-    !! line, and its width is assumed to grow linearly with pressure,
-    !! starting from a small finite width at the critical point (for
-    !! numerical purposes). As the Widom line has a different slope
-    !! from the saturation line at the critical point, the centre of
-    !! the delta is interpolated between the two over a small interval
-    !! above the critical point.
-
-    class(IAPWS_region3_type), intent(in out) :: self
-    PetscReal, intent(in) :: pressure
-    PetscReal, intent(out) :: delta(2)
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: Tw, Tw0, dT, xi
-    PetscReal, parameter :: delP = 0.03e6 ! pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
-
-    err = 0
-
-    dT = self%widom_delta_growth * &
-         (pressure - self%widom_delta_zero_pressure) / &
-         self%thermo%critical%pressure
-
-    if (pressure >= self%widom_delta_P1) then
-
-       call self%widom(pressure, Tw, err)
-
-    else if (pressure >= self%thermo%critical%pressure) then
-
-       call self%widom(pressure, Tw0, err)
-       if (err == 0) then
-          xi = (pressure - self%thermo%critical%pressure) / self%widom_delta_delP
-          Tw = hermite_interpolate(self%thermo%critical%temperature, &
-               self%widom_delta_T1, self%widom_delta_dtdp0, self%widom_delta_dtdp1, &
-               self%widom_delta_delP, xi)
-       end if
-
-    else
-
-       call self%thermo%saturation%temperature(pressure, Tw, err)
-
-    end if
-
-    if (err == 0) then
-       delta = [Tw - 0.5_dp * dT, Tw + 0.5_dp * dT]
-    end if
-
-  end subroutine region3_widom_delta
-
-!------------------------------------------------------------------------
-
-  subroutine region3_pi_liquidlike(self, pressure, temperature, density, &
-       pi_liq, pseudo_phases, err)
-    !! Returns number fraction of liquid-like fluid particles as a
-    !! function of pressure and temperature. For supercritical fluid
-    !! this is assumed to vary smoothly from 1 to 0 through the Widom
-    !! delta according to a cubic Hermite polynomial with zero slope
-    !! at both ends. For sub-critical fluid, the result is determined
-    !! by the given density. Also returns a pseudo-phase composition,
-    !! corresponding to whether the fluid is completely liquidlike
-    !! (001), vapourlike (010) or in between (010).
-
-    use utils_module, only: hermite_spline_00, hermite_spline_01
-
-    class(IAPWS_region3_type), intent(in out) :: self
-    PetscReal, intent(in) :: pressure, temperature, density
-    PetscReal, intent(out) :: pi_liq
-    PetscInt, intent(out) :: pseudo_phases
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: delta(2), xi, theta, s, xi0, xi1, xim
-    PetscReal, parameter :: eps = epsilon(pi_liq)
-
-    err = 0
-    pseudo_phases = 0
-
-    if (pressure >= self%widom_delta_zero_pressure) then
-       if (temperature >= self%widom_delta_zero_temperature) then
-
-          call self%widom_delta(pressure, delta, err)
-          if (err == 0) then
-
-             xi = (temperature - delta(1)) / (delta(2) - delta(1))
-
-             if (temperature >= self%thermo%critical%temperature) then
-
-                pi_liq = sigmoid(xi)
-
-             else
-
-                ! Between the delta zero temperature and the critical
-                ! point, space the pi contours smoothly around the
-                ! boundary of region 4:
-                theta = (temperature - self%widom_delta_zero_temperature) / &
-                     self%widom_delta_offset
-                s = hermite_spline_01(theta)
-                xi0 = 0.5_dp * s
-                xi1 = 1._dp - xi0
-                if (xi < 0.5_dp) then
-                    xim = 2._dp * xi0 * xi
-                else
-                   xim = xi1 + (2._dp * xi - 1._dp) * (1._dp - xi1)
-                end if
-                pi_liq = sigmoid(xim)
-
-             end if
-
-             if (pi_liq < eps) then
-                pseudo_phases = int(b'010')
-             else if (pi_liq < 1._dp - eps) then
-                pseudo_phases = int(b'011')
-             else
-                pseudo_phases = int(b'001')
-             end if
-
-          end if
-
-       else
-          pi_liq = 1._dp
-       end if
-
-    else
-       if (temperature >= self%widom_delta_zero_temperature) then
-          pi_liq = 0._dp
-       else
-          if (density >= self%thermo%critical%density) then
-             pi_liq = 1._dp
-          else
-             pi_liq = 0._dp
-          end if
-       end if
-    end if
-
-  contains
-
-    PetscReal function sigmoid(xi)
-      !! Sigmoid function on unit interval decreasing from 1 to 0,
-      !! with zero slopes at each end, and constant outside the unit
-      !! interval.
-
-      PetscReal, intent(in) :: xi
-
-    if (xi < 0._dp) then
-       sigmoid = 1._dp
-    else if (xi > 1._dp) then
-       sigmoid = 0._dp
-    else
-       sigmoid = hermite_spline_00(xi)
-    end if
-
-    end function sigmoid
-
-  end subroutine region3_pi_liquidlike
 
 !------------------------------------------------------------------------
 ! Viscosity
