@@ -532,17 +532,19 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
 
+    call self%eos_wge%bulk_properties(primary, fluid, err)
+
     associate(pressure => primary(1))
       select type (thermo => self%thermo)
       type is (IAPWS_type)
          if (pressure <= thermo%saturation_pressure_bdy_1_3) then ! T <= 350:
-            call self%eos_wge%fluid_properties(primary, rock, fluid, err)
-            call fluid%phase(3)%zero()
+            call self%eos_wge%phase_properties(primary, rock, fluid, err)
          else
-            call region4_above_bdy_1_3_fluid_properties()
+            call region4_above_bdy_1_3_phase_properties()
          end if
       end select
     end associate
+    call fluid%phase(3)%zero()
     call self%relative_permeability_modifier%modify(fluid)
 
   contains
