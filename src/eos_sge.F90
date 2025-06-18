@@ -551,99 +551,125 @@ contains
 
 !........................................................................
 
-    subroutine region4_above_bdy_1_3_fluid_properties()
-      !! Calculate region 4 fluid properties from region and primary variables
-      !! for temperatures above the region 1/3 boundary.
+    subroutine region4_above_bdy_1_3_phase_properties()
+      !! Calculate region 4 phase properties from region and primary
+      !! variables for temperatures above the region 1/3 boundary.
 
       ! Locals:
       PetscInt :: p, phases
-      PetscReal :: density, sl, properties(2)
-      PetscReal :: relative_permeability(2), capillary_pressure(2)
+      PetscReal :: water_density, water_properties(2), water_pressure, water_enthalpy
+      PetscReal :: water_viscosity, energy_solution, sl, xg
+      PetscReal :: relative_permeability(2), capillary_pressure
       PetscBool :: liquid
-
-      ! TODO: modify for NCG
+      PetscReal :: gas_properties(2), effective_gas_properties(2)
+      PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
 
       err = 0
 
-      associate(pressure => primary(1), vapour_saturation => primary(2))
+      select type (region3 => self%thermo%region(3)%ptr)
+      type is (IAPWS_region3_type)
 
-        select type (region3 => self%thermo%region(3)%ptr)
-        type is (IAPWS_region3_type)
+         phases = nint(fluid%phase_composition)
+         sl = fluid%phase(1)%saturation
+         relative_permeability = rock%relative_permeability%values(sl)
 
-           fluid%pressure = pressure
-           call self%thermo%saturation%temperature(fluid%pressure, &
-                fluid%temperature, err)
-           if (err == 0) then
+         call self%gas%properties(fluid%partial_pressure(2), fluid%temperature, &
+              gas_properties, err)
 
-              fluid%partial_pressure(1) = fluid%pressure
-              fluid%permeability_factor = 1._dp
+         if (err == 0) then
 
-              call self%phase_composition(fluid, err)
-              if (err == 0) then
-                 call self%phase_saturations(primary, fluid)
+            do p = 1, 2
+               associate(phase => fluid%phase(p))
 
-                 phases = nint(fluid%phase_composition)
+                 if (btest(phases, p - 1)) then
 
-                 sl = fluid%phase(1)%saturation
-                 relative_permeability = rock%relative_permeability%values(sl)
-                 capillary_pressure = [rock%capillary_pressure%value(sl, &
-                      fluid%temperature), 0._dp]
+                    liquid = (p == 1)
 
-                 fluid%liquidlike_fraction = sl
-                 fluid%supercritical_phases = 0._dp
+                    if (liquid) then
+                       water_pressure = fluid%pressure
+                       capillary_pressure = rock%capillary_pressure%value(sl, &
+                            fluid%temperature)
+                       call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
+                            constituent_henrys_constant, err)
+                       if (err == 0) then
+                          call self%gas%energy_solution(fluid%temperature, &
+                               constituent_henrys_constant, energy_solution, err)
+                       end if
+                    else
+                       water_pressure = fluid%partial_pressure(1)
+                       capillary_pressure = 0._dp
+                       henrys_constant = 0._dp
+                       energy_solution = 0._dp
+                    end if
 
-                 do p = 1, 2
-                    associate(phase => fluid%phase(p))
+                    call region3%saturation_density([fluid%pressure, &
+                         fluid%temperature], liquid, water_density, err, &
+                         polish = PETSC_TRUE)
 
-                      if (btest(phases, p - 1)) then
+                    if (err == 0) then
 
-                         liquid = (p == 1)
-                         call region3%saturation_density([fluid%pressure, &
-                              fluid%temperature], liquid, density, err, &
-                              polish = PETSC_TRUE)
+                       call region3%properties([water_density, fluid%temperature], &
+                            water_properties, err)
 
-                         if (err == 0) then
+                       if (err == 0) then
 
-                            call region3%properties([density, fluid%temperature], &
-                                 properties, err)
+                          call self%gas%effective_properties(gas_properties, p, &
+                               effective_gas_properties)
+
+                          associate(water_internal_energy => water_properties(2), &
+                               gas_density => effective_gas_properties(1), &
+                               gas_enthalpy => effective_gas_properties(2))
+
+                            call self%gas%mass_fraction(fluid%partial_pressure(2), &
+                                 fluid%temperature, p, gas_density, water_density, &
+                                 henrys_constant, xg, err)
 
                             if (err == 0) then
 
-                               phase%density = density
-                               phase%internal_energy = properties(2)
-                               phase%specific_enthalpy = phase%internal_energy + &
-                                    fluid%pressure / phase%density
-
-                               phase%mass_fraction(1) = 1._dp
-                               phase%relative_permeability = relative_permeability(p)
-                               phase%capillary_pressure = capillary_pressure(p)
-
                                call region3%viscosity(fluid%temperature, fluid%pressure, &
-                                    phase%density, phase%viscosity)
+                                    water_density, water_viscosity)
+                               call self%gas%mixture_viscosity(water_viscosity, &
+                                    fluid%temperature, fluid%partial_pressure(2), xg, p, &
+                                    phase%viscosity, err)
 
+                               if (err == 0) then
+                                  phase%density = water_density + gas_density
+                                  phase%mass_fraction = [1._dp - xg, xg]
+                                  phase%relative_permeability = relative_permeability(p)
+                                  phase%capillary_pressure = capillary_pressure
+                                  water_enthalpy = water_internal_energy &
+                                       + water_pressure / water_density
+                                  phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
+                                       + (gas_enthalpy + energy_solution) * xg
+                                  phase%internal_energy = phase%specific_enthalpy &
+                                       - fluid%pressure / phase%density
+                               else
+                                  exit
+                               end if
                             else
                                exit
                             end if
+                          end associate
 
-                         else
-                            exit
-                         end if
+                       else
+                          exit
+                       end if
 
-                      else
-                         call phase%zero()
-                      end if
+                    else
+                       exit
+                    end if
 
-                    end associate
-                 end do
+                 else
+                    call phase%zero()
+                 end if
 
-                 call fluid%phase(3)%zero()
+               end associate
+            end do
+         end if
 
-              end if
-           end if
-        end select
-      end associate
+      end select
 
-    end subroutine region4_above_bdy_1_3_fluid_properties
+    end subroutine region4_above_bdy_1_3_phase_properties
 
   end subroutine eos_sge_region_4_fluid_properties
 
