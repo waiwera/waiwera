@@ -602,7 +602,7 @@ contains
                        energy_solution = 0._dp
                     end if
 
-                    call region3%saturation_density([fluid%pressure, &
+                    call region3%saturation_density([water_pressure, &
                          fluid%temperature], liquid, water_density, err, &
                          polish = PETSC_TRUE)
 
@@ -626,7 +626,7 @@ contains
 
                             if (err == 0) then
 
-                               call region3%viscosity(fluid%temperature, fluid%pressure, &
+                               call region3%viscosity(fluid%temperature, water_pressure, &
                                     water_density, water_viscosity)
                                call self%gas%mixture_viscosity(water_viscosity, &
                                     fluid%temperature, fluid%partial_pressure(2), xg, p, &
