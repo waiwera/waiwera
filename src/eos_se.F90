@@ -1288,63 +1288,60 @@ contains
 
       err = 0
 
-      associate(pressure => primary(1), vapour_saturation => primary(2))
+      select type (region3 => self%thermo%region(3)%ptr)
+      type is (IAPWS_region3_type)
 
-        select type (region3 => self%thermo%region(3)%ptr)
-        type is (IAPWS_region3_type)
+         phases = nint(fluid%phase_composition)
+         sl = fluid%phase(1)%saturation
+         relative_permeability = rock%relative_permeability%values(sl)
+         capillary_pressure = [rock%capillary_pressure%value(sl, &
+              fluid%temperature), 0._dp]
 
-           phases = nint(fluid%phase_composition)
-           sl = fluid%phase(1)%saturation
-           relative_permeability = rock%relative_permeability%values(sl)
-           capillary_pressure = [rock%capillary_pressure%value(sl, &
-                fluid%temperature), 0._dp]
+         do p = 1, 2
+            associate(phase => fluid%phase(p))
 
-           do p = 1, 2
-              associate(phase => fluid%phase(p))
+              if (btest(phases, p - 1)) then
 
-                if (btest(phases, p - 1)) then
+                 liquid = (p == 1)
+                 call region3%saturation_density([fluid%pressure, &
+                      fluid%temperature], liquid, density, err, &
+                      polish = PETSC_TRUE)
 
-                   liquid = (p == 1)
-                   call region3%saturation_density([fluid%pressure, &
-                        fluid%temperature], liquid, density, err, &
-                        polish = PETSC_TRUE)
+                 if (err == 0) then
 
-                   if (err == 0) then
+                    call region3%properties([density, fluid%temperature], &
+                         properties, err)
 
-                      call region3%properties([density, fluid%temperature], &
-                           properties, err)
+                    if (err == 0) then
 
-                      if (err == 0) then
+                       phase%density = density
+                       phase%internal_energy = properties(2)
+                       phase%specific_enthalpy = phase%internal_energy + &
+                            fluid%pressure / phase%density
 
-                         phase%density = density
-                         phase%internal_energy = properties(2)
-                         phase%specific_enthalpy = phase%internal_energy + &
-                              fluid%pressure / phase%density
+                       phase%mass_fraction(1) = 1._dp
+                       phase%relative_permeability = relative_permeability(p)
+                       phase%capillary_pressure = capillary_pressure(p)
 
-                         phase%mass_fraction(1) = 1._dp
-                         phase%relative_permeability = relative_permeability(p)
-                         phase%capillary_pressure = capillary_pressure(p)
+                       call region3%viscosity(fluid%temperature, fluid%pressure, &
+                            phase%density, phase%viscosity)
 
-                         call region3%viscosity(fluid%temperature, fluid%pressure, &
-                              phase%density, phase%viscosity)
+                    else
+                       exit
+                    end if
 
-                      else
-                         exit
-                      end if
+                 else
+                    exit
+                 end if
 
-                   else
-                      exit
-                   end if
+              else
+                 call phase%zero()
+              end if
 
-                else
-                   call phase%zero()
-                end if
+            end associate
+         end do
 
-              end associate
-           end do
-
-        end select
-      end associate
+      end select
 
     end subroutine region4_above_bdy_1_3_phase_properties
 
