@@ -347,16 +347,16 @@ contains
       !! vapour-like.
 
       ! Locals:
-      PetscInt :: p
+      PetscInt :: p, pseudo_phases
       PetscReal :: water_primary(2), water_properties(2)
       PetscReal :: water_viscosity, water_enthalpy
-      PetscReal :: gas_properties(2), xg
+      PetscReal :: gas_properties(2), xg, pi_liq
+      PetscReal, parameter :: density = 0._dp ! not used
 
       err = 0
       do p = 1, 2
          call fluid%phase(p)%zero()
       end do
-      fluid%supercritical_phases = 2._dp ! vapour-like
 
       associate (water_pressure => water_primary(1), water_temperature => water_primary(2), &
            region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
@@ -389,6 +389,7 @@ contains
                         phase%viscosity, err)
 
                    if (err == 0) then
+
                       phase%saturation = 1._dp
                       phase%density = water_density + gas_density
                       phase%mass_fraction = [1._dp - xg, xg]
@@ -400,6 +401,17 @@ contains
                            + gas_enthalpy * xg
                       phase%internal_energy = phase%specific_enthalpy &
                            - fluid%pressure / phase%density
+
+                      select type (thermo => self%thermo)
+                      type is (IAPWS_type)
+                         call thermo%pi_liquidlike(water_pressure, &
+                              water_temperature, density, pi_liq, pseudo_phases, err)
+                      end select
+                      if (err == 0) then
+                         fluid%liquidlike_fraction = pi_liq
+                         fluid%supercritical_phases = dble(pseudo_phases)
+                      end if
+
                    end if
 
                 end if

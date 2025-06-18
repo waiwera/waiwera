@@ -1103,21 +1103,21 @@ contains
     !! EOS.
 
     ! Locals:
-    PetscInt :: p
-    PetscReal :: water_primary(2), properties(2)
+    PetscInt :: p, pseudo_phases
+    PetscReal :: water_primary(2), properties(2), pi_liq
+    PetscReal, parameter :: density = 0._dp ! not used
 
     err = 0
     do p = 1, 2
        call fluid%phase(p)%zero()
     end do
-    fluid%supercritical_phases = 2._dp ! vapour-like
 
-    associate (water_pressure => water_primary(1), water_temperature => water_primary(2))
+    associate (region => self%thermo%region(2)%ptr, phase => fluid%phase(3), &
+         water_pressure => water_primary(1), water_temperature => water_primary(2))
+
       water_pressure = self%water_pressure(primary)
       water_temperature = fluid%temperature
-    end associate
 
-    associate (region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
       call region%properties(water_primary, properties, err)
       if (err == 0) then
 
@@ -1133,6 +1133,17 @@ contains
 
          call region%viscosity(fluid%temperature, fluid%pressure, &
               phase%density, phase%viscosity)
+
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+            call thermo%pi_liquidlike(water_pressure, water_temperature, density, &
+                 pi_liq, pseudo_phases, err)
+         end select
+         if (err == 0) then
+            fluid%liquidlike_fraction = pi_liq
+            fluid%supercritical_phases = dble(pseudo_phases)
+         end if
+
       end if
     end associate
 
