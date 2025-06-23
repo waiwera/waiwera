@@ -439,29 +439,33 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: p, pseudo_phases
-    PetscReal :: properties(2), PT(2), sl, pi_liq
+    PetscInt :: p, pp, phases, pseudo_phases, effective_phases
+    PetscReal :: water_properties(2), sl, pi_pseudo_phase(2), xg
+    PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
     PetscReal :: relative_permeability(2), capillary_pressure(2)
-
-    ! TODO: modify for NCG
+    PetscReal :: gas_properties(2), effective_gas_properties(2)
+    PetscReal :: viscosity, energy_solution, water_enthalpy, water_viscosity
 
     err = 0
 
-    associate(density => primary(1), temperature => primary(2))
+    associate(water_density => primary(1), temperature => primary(2))
 
       select type (region => self%thermo%region(3)%ptr)
       type is (IAPWS_region3_type)
 
          fluid%temperature = temperature
-         call region%properties(primary, properties, err)
+         call region%properties(primary, water_properties, err)
 
          if (err == 0) then
 
-            associate(pressure => properties(1), internal_energy => properties(2))
+            associate (water_pressure => water_properties(1), &
+                 water_internal_energy => water_properties(2), &
+                 partial_pressure => primary(3), &
+                 gas_density => effective_gas_properties(1), &
+                 gas_enthalpy => effective_gas_properties(2))
 
-              fluid%pressure = pressure
-              PT = [pressure, temperature]
-              fluid%partial_pressure = self%partial_pressures(PT)
+              fluid%pressure = water_pressure + partial_pressure
+              fluid%partial_pressure = [water_pressure, partial_pressure]
               fluid%permeability_factor = 1._dp
 
               call self%phase_composition(fluid, err)
@@ -473,45 +477,95 @@ contains
 
                  call self%phase_saturations(primary, fluid)
 
-                 p = self%region3_phase(nint(fluid%phase_composition))
-                 associate(phase => fluid%phase(p))
-                   phase%saturation = 1._dp
-                   phase%density = density
-                   phase%internal_energy = internal_energy
-                   phase%specific_enthalpy = phase%internal_energy + &
-                        fluid%pressure / phase%density
-                   phase%mass_fraction(1) = 1._dp
-                   call region%viscosity(fluid%temperature, fluid%pressure, &
-                        phase%density, phase%viscosity)
+                 call self%gas%properties(fluid%partial_pressure(2), fluid%temperature, &
+                      gas_properties, err)
 
-                   if (fluid%temperature <= self%thermo%critical%temperature) then
-                      sl = fluid%phase(1)%saturation
-                      relative_permeability = rock%relative_permeability%values(sl)
-                      capillary_pressure = [rock%capillary_pressure%value(sl, fluid%temperature), &
-                           0._dp]
-                      phase%relative_permeability = relative_permeability(p)
-                      phase%capillary_pressure =  capillary_pressure(p)
-                   else
+                 if (err == 0) then
+
+                    phases = nint(fluid%phase_composition)
+                    p = self%region3_phase(phases)
+                    associate (phase => fluid%phase(p))
+
+                      phase%saturation = 1._dp
                       phase%relative_permeability = 1._dp
                       phase%capillary_pressure =  0._dp
-                   end if
 
-                 end associate
+                      select type (thermo => self%thermo)
+                      type is (IAPWS_type)
+                         call thermo%pi_liquidlike(water_pressure, temperature, water_density, &
+                              pi_pseudo_phase(1), pseudo_phases, err)
+                      end select
 
-                 select type (thermo => self%thermo)
-                 type is (IAPWS_type)
-                    call thermo%pi_liquidlike(pressure, temperature, density, &
-                         pi_liq, pseudo_phases, err)
-                 end select
-                 if (err == 0) then
-                    fluid%liquidlike_fraction = pi_liq
-                    fluid%supercritical_phases = dble(pseudo_phases)
+                      if (err == 0) then
+
+                         pi_pseudo_phase(2) = 1._dp - pi_pseudo_phase(1)
+                         fluid%liquidlike_fraction = pi_pseudo_phase(1)
+                         fluid%supercritical_phases = dble(pseudo_phases)
+                         if (fluid%is_supercritical()) then
+                            effective_phases = pseudo_phases
+                         else
+                            effective_phases = phases
+                         end if
+
+                         ! Loop over pseudo-phases:
+                         do pp = 1, 2
+                            if (btest(effective_phases, pp - 1)) then
+                               if (pp == 1) then
+                                  water_pressure = fluid%pressure
+                                  call self%gas%henrys_constant(fluid%temperature, &
+                                       henrys_constant, constituent_henrys_constant, err)
+                                  if (err == 0) then
+                                     call self%gas%energy_solution(fluid%temperature, &
+                                          constituent_henrys_constant, energy_solution, err)
+                                  end if
+                               else
+                                  water_pressure = fluid%partial_pressure(1)
+                                  henrys_constant = 0._dp
+                                  energy_solution = 0._dp
+                               end if
+                               if (err == 0) then
+                                  call self%gas%effective_properties(gas_properties, pp, &
+                                       effective_gas_properties)
+                                  call self%gas%mass_fraction(fluid%partial_pressure(2), &
+                                       fluid%temperature, pp, gas_density, water_density, &
+                                       henrys_constant, xg, err)
+                                  if (err == 0) then
+                                     call region%viscosity(fluid%temperature, fluid%pressure, &
+                                          water_density, water_viscosity)
+                                     call self%gas%mixture_viscosity(water_viscosity, &
+                                          fluid%temperature, fluid%partial_pressure(2), xg, pp, &
+                                          viscosity, err)
+                                     if (err == 0) then
+                                        phase%density = phase%density + pi_pseudo_phase(pp) * &
+                                             (water_density + gas_density)
+                                        phase%mass_fraction = phase%mass_fraction + &
+                                             pi_pseudo_phase(pp) * [1._dp - xg, xg]
+                                        water_enthalpy = water_internal_energy &
+                                             + water_pressure / water_density
+                                        phase%specific_enthalpy = phase%specific_enthalpy + &
+                                             pi_pseudo_phase(pp) * (water_enthalpy * (1._dp - xg) &
+                                             + (gas_enthalpy + energy_solution) * xg)
+                                     else
+                                        exit
+                                     end if
+                                  else
+                                     exit
+                                  end if
+                               else
+                                  exit
+                               end if
+                            end if
+                         end do
+                         if (err == 0) then
+                            phase%internal_energy = phase%specific_enthalpy &
+                                 - fluid%pressure / phase%density
+                         end if
+                      end if
+                    end associate
                  end if
-
               end if
             end associate
          end if
-
       end select
     end associate
 
