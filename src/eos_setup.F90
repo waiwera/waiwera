@@ -53,6 +53,7 @@ contains
     use eos_wse_module
     use eos_wsae_module
     use eos_wsce_module
+    use eos_sae_module
 
     type(fson_value), pointer, intent(in) :: json
     class(thermodynamics_type), intent(in) :: thermo
@@ -83,21 +84,6 @@ contains
        allocate(eos_w_type :: eos)
     case ("we")
        allocate(eos_we_type :: eos)
-    case ("se")
-       select type (thermo)
-       type is (IAPWS_type)
-          allocate(eos_se_type :: eos)
-       class default
-          err = 1
-          call mpi_broadcast_error_flag(err)
-          if (present(logfile)) then
-             call logfile%write(LOG_LEVEL_ERR, 'simulation', &
-                  'init', str_key = 'stop', &
-                  str_value = 'Invalid thermodynamics type for EOS se: ' // &
-                  trim(thermo%name), rank = 0)
-          end if
-          stop
-       end select
     case ("wce")
        allocate(eos_wce_type :: eos)
     case ("wae")
@@ -108,6 +94,22 @@ contains
        allocate(eos_wsae_type :: eos)
     case ("wsce")
        allocate(eos_wsce_type :: eos)
+    case ("se")
+       select type (thermo)
+       type is (IAPWS_type)
+          allocate(eos_se_type :: eos)
+       class default
+          call raise_thermo_error()
+          stop
+       end select
+    case ("sae")
+       select type (thermo)
+       type is (IAPWS_type)
+          allocate(eos_sae_type :: eos)
+       class default
+          call raise_thermo_error()
+          stop
+       end select
     case default
        allocate(eos_we_type :: eos)
     end select
@@ -115,6 +117,23 @@ contains
     if (err == 0) then
        call eos%init(json, thermo, logfile)
     end if
+
+  contains
+
+    subroutine raise_thermo_error()
+      !! Raises and error if thermodynamics is not compatible with the
+      !! EOS.
+
+      err = 1
+      call mpi_broadcast_error_flag(err)
+      if (present(logfile)) then
+         call logfile%write(LOG_LEVEL_ERR, 'simulation', &
+              'init', str_key = 'stop', &
+              str_value = 'Invalid thermodynamics type for EOS ' // &
+              trim(eos_name) // ': ' // trim(thermo%name), rank = 0)
+      end if
+
+    end subroutine raise_thermo_error
 
   end subroutine setup_eos
 
