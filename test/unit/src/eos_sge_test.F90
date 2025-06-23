@@ -66,6 +66,8 @@ contains
 
     ! eos_sge_transition() test
 
+    use eos_wge_module, only: eos_wge_type
+
     class(unit_test_type), intent(in out) :: test
     ! Locals:
     type(fluid_type) :: old_fluid, fluid
@@ -91,6 +93,8 @@ contains
     json => fson_parse_mpi(str = json_str)
     call thermo%init()
     call eos%init(json, thermo)
+    allocate(eos_wge_type :: eos%eos_wge)
+    call eos%eos_wge%init(json, thermo)
     call old_fluid%init(eos%num_components, eos%num_phases)
     call fluid%init(eos%num_components, eos%num_phases)
     allocate(old_fluid_data(old_fluid%dof), fluid_data(fluid%dof))

@@ -40,7 +40,7 @@ module eos_sge_module
      !! of state type.
      private
      class(ncg_thermodynamics_type), allocatable, public :: gas
-     type(eos_wge_type) :: eos_wge !! To emulate multiple inheritance from eos_se_type and eos_wge_type
+     class(eos_wge_type), allocatable, public :: eos_wge !! To emulate multiple inheritance from eos_se_type and eos_wge_type
    contains
      private
      procedure, public :: init => eos_sge_init
@@ -184,8 +184,6 @@ contains
     end if
     call self%relative_permeability_modifier%init(rperm_json, logfile)
 
-    call self%eos_wge%init(json, thermo)
-
   contains
 
     subroutine init_line_finder(finder, interpolator, f, init_interpolator)
@@ -231,7 +229,10 @@ contains
        deallocate(self%gas)
     end if
 
-    call self%eos_wge%destroy()
+    if (allocated(self%eos_wge)) then
+       call self%eos_wge%destroy()
+       deallocate(self%eos_wge)
+    end if
 
   end subroutine eos_sge_destroy
 
@@ -440,9 +441,8 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p, pp, phases, pseudo_phases, effective_phases
-    PetscReal :: water_properties(2), sl, pi_pseudo_phase(2), xg
+    PetscReal :: water_properties(2), pi_pseudo_phase(2), xg
     PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
-    PetscReal :: relative_permeability(2), capillary_pressure(2)
     PetscReal :: gas_properties(2), effective_gas_properties(2)
     PetscReal :: viscosity, energy_solution, water_enthalpy, water_viscosity
 

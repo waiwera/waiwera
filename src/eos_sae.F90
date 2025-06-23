@@ -5,6 +5,7 @@ module eos_sae_module
 
   use petscsys
   use eos_sge_module
+  use eos_wae_module, only: eos_wae_type
   use ncg_air_thermodynamics_module
 
   implicit none
@@ -62,6 +63,9 @@ contains
 
     allocate(ncg_air_thermodynamics_type :: self%gas)
     call self%gas%init()
+
+    allocate(eos_wae_type :: self%eos_wge)
+    call self%eos_wge%init(json, thermo)
 
   end subroutine eos_sae_init
 
