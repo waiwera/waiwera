@@ -545,6 +545,8 @@ contains
                                         phase%specific_enthalpy = phase%specific_enthalpy + &
                                              pi_pseudo_phase(pp) * (water_enthalpy * (1._dp - xg) &
                                              + (gas_enthalpy + energy_solution) * xg)
+                                        phase%viscosity = phase%viscosity + &
+                                             pi_pseudo_phase(pp) * viscosity
                                      else
                                         exit
                                      end if
