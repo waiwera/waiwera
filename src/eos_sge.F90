@@ -122,7 +122,7 @@ contains
          "region               ", "vapour_saturation    ", &
          "liquid_density       ", "vapour_density       ", &
          "supercritical_density", "liquidlike_fraction  ", &
-         "supercritical_phases "]
+         "gas_partial_pressure "]
 
     call fson_get_mpi(json, "eos.primary.scale.pressure", default_pressure_scale, &
          pressure_scale, logfile)
