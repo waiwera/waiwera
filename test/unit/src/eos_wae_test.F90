@@ -102,42 +102,45 @@ contains
     call rock%init()
 
     if (rank == 0) then
+       associate (bulk => expected(1: 10), phase1 => expected(11: 19), &
+            phase2 => expected(20: 28))
 
-       title = 'cold water, Pg = 0'
-       primary = [1.e5_dp, 20._dp, 0._dp]
-       region = 1
-       expected = 0._dp
-       expected(1: 10) = [1.e5_dp, 20._dp, 1._dp, 0._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
-            1.e5_dp, 0._dp]
-       expected(11: 19) = [998.2054863776967_dp, 0.0010015972622270245_dp, 1._dp, &
-            1._dp, 0._dp, 84011.81116713627_dp, 83911.6313931672_dp, 1._dp, 0._dp]
-       expected_err = 0
-       call properties_test(title, primary, region, expected, expected_err)
+         title = 'cold water, Pg = 0'
+         primary = [1.e5_dp, 20._dp, 0._dp]
+         region = 1
+         expected = 0._dp
+         bulk = [1.e5_dp, 20._dp, 1._dp, 0._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
+              1.e5_dp, 0._dp]
+         phase1 = [998.2054863776967_dp, 0.0010015972622270245_dp, 1._dp, &
+              1._dp, 0._dp, 84011.81116713627_dp, 83911.6313931672_dp, 1._dp, 0._dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
 
-       title = 'steam, Pg = 0'
-       primary = [1.e5_dp, 150._dp, 0._dp]
-       region = 2
-       expected = 0._dp
-       expected(1: 10) = [1.e5_dp, 150._dp, 2._dp, 0._dp, 2._dp, 1._dp, 0._dp, 0._dp, &
-            1.e5_dp, 0._dp]
-       expected(20: 28) = [0.5163351360139934_dp, 1.419241230472252e-5_dp, 1._dp, &
-            1._dp, 0._dp, 2776591.815449922_dp, 2582919.153984385_dp, 1._dp, 0._dp]
-       expected_err = 0
-       call properties_test(title, primary, region, expected, expected_err)
+         title = 'steam, Pg = 0'
+         primary = [1.e5_dp, 150._dp, 0._dp]
+         region = 2
+         expected = 0._dp
+         bulk = [1.e5_dp, 150._dp, 2._dp, 0._dp, 2._dp, 1._dp, 0._dp, 0._dp, &
+              1.e5_dp, 0._dp]
+         phase2 = [0.5163351360139934_dp, 1.419241230472252e-5_dp, 1._dp, &
+              1._dp, 0._dp, 2776591.815449922_dp, 2582919.153984385_dp, 1._dp, 0._dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
 
-       title = '2-phase, Pg = 0'
-       primary = [10.e5_dp, 0.4_dp, 0._dp]
-       region = 4
-       expected = 0._dp
-       expected(1: 10) = [10.e5_dp, 179.88563239146663_dp, 4._dp, 0._dp, 3._dp, &
-            1._dp, 0.6_dp, 0._dp, 10.e5_dp, 0._dp]
-       expected(11: 19) = [887.1274516747791_dp, 0.00015048492650911237_dp, 0.6_dp, &
-            0.6_dp, 0._dp, 762682.8443354106_dp, 761555.6105900089_dp, 1._dp, 0._dp]
-       expected(20: 28) = [5.145385853182684_dp, 1.4981316222701134e-5_dp, 0.4_dp, &
-            0.4_dp, 0._dp, 2777119.5376846623_dp, 2582770.65335727_dp, 1._dp, 0._dp]
-       expected_err = 0
-       call properties_test(title, primary, region, expected, expected_err)
+         title = '2-phase, Pg = 0'
+         primary = [10.e5_dp, 0.4_dp, 0._dp]
+         region = 4
+         expected = 0._dp
+         bulk = [10.e5_dp, 179.88563239146663_dp, 4._dp, 0._dp, 3._dp, &
+              1._dp, 0.6_dp, 0._dp, 10.e5_dp, 0._dp]
+         phase1 = [887.1274516747791_dp, 0.00015048492650911237_dp, 0.6_dp, &
+              0.6_dp, 0._dp, 762682.8443354106_dp, 761555.6105900089_dp, 1._dp, 0._dp]
+         phase2 = [5.145385853182684_dp, 1.4981316222701134e-5_dp, 0.4_dp, &
+              0.4_dp, 0._dp, 2777119.5376846623_dp, 2582770.65335727_dp, 1._dp, 0._dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
 
+       end associate
     end if
 
     call rock%destroy()
