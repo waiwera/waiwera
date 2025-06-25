@@ -140,6 +140,18 @@ contains
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
+         title = 'liquid water, Pg > 0'
+         primary = [10.e5_dp, 90._dp, 1.e5_dp]
+         region = 1
+         expected = 0._dp
+         bulk = [10.e5_dp, 90._dp, 1._dp, 0._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
+              9.e5_dp, 1.e5_dp]
+         phase1 = [965.7286048999848_dp, 0.00031442392084784024_dp, 1._dp, &
+              1._dp, 0._dp, 377683.87768277636_dp, 376648.3900779502_dp, &
+              0.9999858156956914_dp, 1.4184304308575404e-5_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
        end associate
     end if
 
