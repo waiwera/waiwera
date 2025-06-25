@@ -152,6 +152,18 @@ contains
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
+         title = 'steam, Pg > 0'
+         primary = [2.e5_dp, 150._dp, 1.e5_dp]
+         region = 2
+         expected = 0._dp
+         bulk = [2.e5_dp, 150._dp, 2._dp, 0._dp, 2._dp, 1._dp, 0._dp, 0._dp, &
+              1.e5_dp, 1.e5_dp]
+         phase2 = [1.3394684416068174_dp, 2.054627278536341e-05_dp, 1._dp, &
+              1._dp, 0._dp, 1162779.5459599963_dp, 1013466.5843495822_dp, &
+              0.3854776417088268_dp, 0.6145223582911732_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
        end associate
     end if
 
