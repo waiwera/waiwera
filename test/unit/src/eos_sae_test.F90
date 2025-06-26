@@ -234,6 +234,54 @@ contains
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
+         title = 'region 3 subcritical liquid, Pg > 0'
+         primary = [650._dp, 360._dp, 10.e5_dp]
+         region = 3
+         expected = 0._dp
+         bulk = [41.45712306840381e6_dp, 360._dp, 3._dp, 0._dp, 1._dp, 1._dp, &
+              1._dp, 0._dp, 40.45712306840381e6_dp, 10.e5_dp]
+         phase1 = [650._dp, 7.663779619075069e-5_dp, 1._dp, 1._dp, 0._dp, &
+              1670793.4565923912_dp, 1607013.2672563854_dp, &
+              0.995776602363838_dp, 0.004223397636161937_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
+         title = 'region 3 subcritical vapour, Pg > 0'
+         primary = [125._dp, 360._dp, 1.e6_dp]
+         region = 3
+         expected = 0._dp
+         bulk = [19.06931379044633e6_dp, 360._dp, 3._dp, 0._dp, 2._dp, 1._dp, &
+              0._dp, 0._dp, 18.06931379044633e6_dp, 1.e6_dp]
+         phase2 = [130.5012060058691_dp, 2.517178462683078e-5_dp, 1._dp, 1._dp, &
+              0._dp, 2466519.6061534435_dp, 2320395.9466557014_dp, &
+              0.9578455542731021_dp, 0.042154445726897825_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
+         title = 'region 3 liquidlike supercritical, Pg > 0'
+         primary = [500._dp, 400._dp, 2.e6_dp]
+         region = 3
+         expected = 0._dp
+         bulk = [39.23729144851866e6_dp, 400._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
+              1._dp, 1._dp, 37.23729144851866e6_dp, 2.e6_dp]
+         phase3 = [500._dp, 5.8837922820019035e-5_dp, 1._dp, 1._dp, 0._dp, &
+              2157696.3443172574_dp, 2079221.7614202201_dp, &
+              0.646883470490572_dp, 0.35311652950942796_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
+         title = 'region 3 vapourlike supercritical, Pg > 0'
+         primary = [320._dp, 500._dp, 2.e6_dp]
+         region = 3
+         expected = 0._dp
+         bulk = [59.58529377353408e6_dp, 500._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
+              0._dp, 2._dp, 57.58529377353408e6_dp, 2.e6_dp]
+         phase3 = [329.01012373437504_dp, 4.5686238006410807e-5_dp, 1._dp, 1._dp, &
+              0._dp, 2545648.992343294_dp, 2364544.249737744_dp, &
+              0.9726144483576763_dp, 0.027385551642323733_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
        end associate
     end if
 
