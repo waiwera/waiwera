@@ -164,6 +164,21 @@ contains
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
+         title = '2-phase, Pg > 0'
+         primary = [10.e5_dp, 0.4_dp, 2.e5_dp]
+         region = 4
+         expected = 0._dp
+         bulk = [10.e5_dp, 170.41351081360017_dp, 4._dp, 0._dp, 3._dp, &
+              1._dp, 0.6_dp, 0._dp, 8.e5_dp, 2.e5_dp]
+         phase1 = [897.1582523817934_dp, 0.00015941397404013526_dp, 0.6_dp, &
+              0.6_dp, 0._dp, 721122.7402064757_dp, 720008.1096523397_dp, &
+              0.999959224263865_dp, 4.0775736135034536e-05_dp]
+         phase2 = [5.73149097766101_dp, 1.7406141056041412e-05_dp, 0.4_dp, &
+              0.4_dp, 0._dp, 2056697.5008786342_dp, 1882222.8303439359_dp, &
+              0.725987048943491_dp, 0.27401295105650897_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
        end associate
     end if
 
