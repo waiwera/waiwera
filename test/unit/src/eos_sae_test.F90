@@ -184,6 +184,17 @@ contains
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
+         title = 'region 2 supercritical steam, Pg = 0'
+         primary = [40.e6_dp, 600._dp, 0._dp]
+         region = 2
+         expected = 0._dp
+         bulk = [40.e6_dp, 600._dp, 2._dp, 0._dp, 4._dp, 1._dp, 0._dp, 2._dp, &
+              40.e6_dp, 0._dp]
+         phase3 = [123.62382847002988_dp, 3.696154052412127e-5_dp, 1._dp, &
+              1._dp, 0._dp, 3350432.7456605723_dp, 3026870.528772125_dp, 1._dp, 0._dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
          title = 'region 3 Widom delta, Pg = 0'
          primary = [420._dp, 460._dp, 0._dp]
          region = 3
@@ -291,6 +302,18 @@ contains
          phase3 = [429.21744575210414_dp, 5.261854000243448e-5_dp, 1._dp, 1._dp, &
               0._dp, 2262231.824241309_dp, 2113225.395606857_dp, &
               0.9783738482549783_dp, 0.021626151745021704_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
+         title = 'region 2 supercritical steam, Pg > 0'
+         primary = [40.e6_dp, 600._dp, 5.e6_dp]
+         region = 2
+         expected = 0._dp
+         bulk = [40.e6_dp, 600._dp, 2._dp, 0._dp, 4._dp, 1._dp, 0._dp, 2._dp, &
+              35.e6_dp, 5.e6_dp]
+         phase3 = [124.95373736753187_dp, 3.764443853154568e-5_dp, 1._dp, 1._dp, &
+              0._dp, 2957148.420310664_dp, 2637029.944123383_dp, &
+              0.8403766521370382_dp, 0.15962334786296184_dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
