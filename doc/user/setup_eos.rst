@@ -160,7 +160,7 @@ When the parameter :math:`n` takes the value 2, the pores are represented by a s
 Relative permeability modification
 ==================================
 
-For some equations of state, the fluid state can change the effective local relative permeability. For example, when the :ref:`supercritical_water_eos` EOS is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached.
+For some equations of state, the fluid state can change the effective local relative permeability. For example, when the :ref:`supercritical_water_energy_eos` EOS is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached.
 
 This effect can be represented using the **"eos.relative_permeability_modifier"** value. This object has a **"type"** string value which determines how the relative permeability is modified according to temperature. Its possible values are "none" and "linear". If the type is "none", there is no relative permeability modification (the default for most equations of state).
 
@@ -177,7 +177,7 @@ This effect can be represented using the **"eos.relative_permeability_modifier"*
    |             |          |                   |modifier type          |
    +-------------+----------+-------------------+-----------------------+
 
-If the type is "linear" (the default for the :ref:`supercritical_water_eos` EOS), the effective relative permeability :math:`K^r_p` is given by:
+If the type is "linear" (the default for the :ref:`supercritical_water_energy_eos` EOS), the effective relative permeability :math:`K^r_p` is given by:
 
 .. math::
 
@@ -283,7 +283,7 @@ Water / NCG EOS modules
 
 These EOS modules simulate mixtures of water and non-condensible gases (NCGs), together with energy. They work in much the same way as the water / energy EOS ("we") apart from modifications to the fluid properties resulting from the presence of the non-condensible gas.
 
-The primary variables for these EOS modules are as for the water / energy EOS, but with an added third variable, the partial pressure of the non-condensible gas.
+The primary variables for these EOS modules are as for the water / energy EOS, but with an added third variable, the partial pressure of the non-condensible gas. (The first variable, pressure, now represents the total pressure, not the partial pressure of water.)
 
 The **"eos.primary.scale"** contains values for customising the non-dimensionalisation of pressure, temperature and gas partial pressure primary variables. Gas partial pressures can be scaled either by a fixed constant, as for the pressure and temperature variables, or by the total pressure (the default). This can be selected by setting the **"eos.primary.scale.partial_pressure"** to **"pressure"**. For example:
 
@@ -441,7 +441,7 @@ Water / salt / NCG EOS modules
 
 These EOS modules simulate mixtures of water and salt (NaCl), i.e. brine, together with non-condensible gases (NCGs) and energy. They are essentially a cross between the :ref:`water_salt_eos` and the :ref:`water_ncg_eos`, using the same formulations for salt and NCG thermodynamics. In addition, the "salting out" effect of salt concentration on the dissolution of NCG into the liquid phase is simulated.
 
-The primary variables for these EOS modules are as for the water / salt EOS, but with an added fourth variable for NCG partial pressure.
+The primary variables for these EOS modules are as for the water / salt EOS, but with an added fourth variable for NCG partial pressure. (As for the :ref:`water_ncg_eos`, the first variable represents total pressure, not partial pressure of water.)
 
 .. index:: equation of state (EOS); water / salt / air / energy ("wsae")
 .. _water_salt_air_energy_eos:
@@ -520,8 +520,8 @@ Water, salt, carbon dioxide and energy ("wsce")
 Supercritical water EOS modules
 ===============================
 
-.. index:: equation of state (EOS); supercritical water ("se")
-.. _supercritical_water_eos:
+.. index:: equation of state (EOS); supercritical water / energy ("se")
+.. _supercritical_water_energy_eos:
 
 Supercritical water and energy ("se")
 -------------------------------------
@@ -553,7 +553,7 @@ Supercritical water and energy ("se")
 |                               |"liquidlike_fraction", "supercritical_phases"]    |
 +-------------------------------+--------------------------------------------------+
 
-This is based on the :ref:`water_energy_eos` EOS, but extends its capabilities to supercritical fluids. It can only be used in conjunction with the IAPWS-97 thermodynamics module (see :ref:`water_thermodynamics`). Whereas the "we" EOS is limited to liquid water, dry steam and two-phase conditions, with liquid water and two-phase only simulated below temperatures of 350 :math:`^{\circ}`\ C, the "se" EOS module can also simulate IAPWS-97 region 3 (see :ref:`thermodynamic_regions`), which covers near-critical and supercritical fluids.
+This is based on the :ref:`water_energy_eos` EOS, but extends its capabilities to supercritical water. It can only be used in conjunction with the IAPWS-97 thermodynamics module (see :ref:`water_thermodynamics`). Whereas the "we" EOS is limited to liquid water, dry steam and two-phase conditions, with liquid water and two-phase only simulated below temperatures of 350 :math:`^{\circ}`\ C, the "se" EOS module can also simulate IAPWS-97 region 3 (see :ref:`thermodynamic_regions`), which covers near-critical and supercritical fluids. Hence all pressures and temperatures up to 100 MPa and 800 :math:`^{\circ}`\ C can be simulated.
 
 The primary variables for this EOS are the same as those for the "we" EOS in regions 1, 2 and 4. For region 3, it is not possible to use pressure and temperature as primary variables, as the thermodynamic equations are poorly behaved near the critical point when expressed as functions of these variables. Instead, Waiwera follows the IAPWS-97 formulation and uses density and temperature as primary variables in region 3.
 
@@ -561,4 +561,38 @@ However, for convenience it is possible to specify region 3 initial and boundary
 
 As supercritical fluid is single-phase but can behave in a liquid-like or vapour-like way, or somewhere in between the two (see :ref:`supercritical_thermodynamics`), EOS "se" results for supercritical cells are given not in terms of liquid or vapour phases but as a separate third "supercritical" phase. This has the usual phase properties such as density, viscosity etc. and it is possible to include results for them in the Waiwera HDF5 output in the usual way (see :ref:`output_fluid_fields`). By default the HDF5 output also includes cell values for the :ref:`liquidlike_fraction` of the supercritical fluid. (For convenience, results for liquid-like fraction are also given for sub-critical cells, with the value set to 1 for liquid water, 0 for dry steam and to the liquid phase saturation for two-phase fluid.)
 
+.. index:: equation of state (EOS); supercritical water / air / energy ("sae")
+.. _supercritical_water_air_energy_eos:
 
+Supercritical water, air and energy ("sae")
+-------------------------------------------
+
++-------------------------------+-------------------------------------------------------------------------+
+|**abbreviated name**:          |"sae"                                                                    |
++-------------------------------+-------------------------------------------------------------------------+
+|**component names**:           |["water", "air", "energy"]                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**phase names**:               |["liquid", "vapour", "supercritical"]                                    |
++-------------------------------+-------------------------------------------------------------------------+
+|**primary variable names**:    |**regions 1, 2**: ["pressure", "temperature", "air_partial_pressure"]    |
+|                               +-------------------------------------------------------------------------+
+|                               |**region 3**: ["density", "temperature", "air_partial_pressure"]         |
+|                               |                                                                         |
+|                               +-------------------------------------------------------------------------+
+|                               |**region 4**: ["pressure", "vapour_saturation", "air_partial_pressure"]  |
++-------------------------------+-------------------------------------------------------------------------+
+|**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]                          |
++-------------------------------+-------------------------------------------------------------------------+
+|**default region**:            |1 (liquid)                                                               |
++-------------------------------+-------------------------------------------------------------------------+
+|**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100, "partial_pressure": "pressure",    |
+|                               |"density": 322}                                                          |
++-------------------------------+-------------------------------------------------------------------------+
+|**default output fluid         |["pressure", "temperature", "region", "vapour_saturation",               |
+|fields**:                      |"liquid_density", "vapour_density", "supercritical_density",             |
+|                               |"liquidlike_fraction", "supercritical_phases", "air_partial_pressure"]   |
++-------------------------------+-------------------------------------------------------------------------+
+
+This combines the :ref:`supercritical_water_energy_eos` and :ref:`water_air_energy_eos` EOS modules, so that mixtures of sub- or super-critical water and air can be simulated.
+
+The primary variables are the same as those for the :ref:`supercritical_water_energy_eos` EOS, with a third variable added for the partial pressure of air. Note that for regions 1, 2 and 4 the pressure variable represents the total pressure (not partial pressure of water), but for region 3 the density variable represents the water density (not total density). However, as for the :ref:`supercritical_water_energy_eos` EOS, it is possible to specify region 3 initial and boundary conditions using pressures instead of densities, by setting the **"eos.conditions"** value in the Waiwera input JSON file to "pressure".
