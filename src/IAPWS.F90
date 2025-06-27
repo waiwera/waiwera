@@ -1302,7 +1302,7 @@ contains
     !! at both ends. For sub-critical fluid, the result is determined
     !! by the given density. Also returns a pseudo-phase composition,
     !! corresponding to whether the fluid is completely liquidlike
-    !! (001), vapourlike (010) or in between (010).
+    !! (001), vapourlike (010) or in between (011).
 
     use utils_module, only: hermite_spline_00, hermite_spline_01
 
