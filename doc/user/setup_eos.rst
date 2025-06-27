@@ -596,3 +596,5 @@ Supercritical water, air and energy ("sae")
 This combines the :ref:`supercritical_water_energy_eos` and :ref:`water_air_energy_eos` EOS modules, so that mixtures of sub- or super-critical water and air can be simulated.
 
 The primary variables are the same as those for the :ref:`supercritical_water_energy_eos` EOS, with a third variable added for the partial pressure of air. Note that for regions 1, 2 and 4 the pressure variable represents the total pressure (not partial pressure of water), but for region 3 the density variable represents the water density (not total density). However, as for the :ref:`supercritical_water_energy_eos` EOS, it is possible to specify region 3 initial and boundary conditions using pressures instead of densities, by setting the **"eos.conditions"** value in the Waiwera input JSON file to "pressure".
+
+Note also that for this EOS, the computed :ref:`liquidlike_fraction` values represent the liquid-like fraction of the water component only, independently of the air component.
