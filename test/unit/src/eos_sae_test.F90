@@ -282,6 +282,18 @@ contains
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
+         title = 'region 3 Widom delta, Pg > 0'
+         primary = [420._dp, 460._dp, 8.e6_dp]
+         region = 3
+         expected = 0._dp
+         bulk = [63.956158699122846e6_dp, 460._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
+              0.7574792388685243_dp, 3._dp, 55.956158699122846e6_dp, 8.e6_dp]
+         phase3 = [429.21744575210414_dp, 5.261854000243448e-5_dp, 1._dp, 1._dp, &
+              0._dp, 2262231.824241309_dp, 2113225.395606857_dp, &
+              0.9783738482549783_dp, 0.021626151745021704_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
        end associate
     end if
 
