@@ -33,13 +33,13 @@ In the Waiwera JSON input file, the **"eos"** value specifies the equation of st
    |                                |          |                   |for :ref:`water_eos`   |
    |                                |          |                   |EOS                    |
    +--------------------------------+----------+-------------------+-----------------------+
-   |"permeability_modifier"         |object    |{}                 |parameters for effect  |
-   |                                |          |                   |of fluid on            |
+   |"permeability_modifier"         |object |  |{}                 |parameters for effect  |
+   |                                |``null``  |                   |of fluid on            |
    |                                |          |                   |permeability           |
    |                                |          |                   |                       |
    +--------------------------------+----------+-------------------+-----------------------+
-   |"relative_permeability_modifier"|object    |depends on EOS     |parameters for effect  |
-   |                                |          |                   |of fluid on relative   |
+   |"relative_permeability_modifier"|object |  |depends on EOS     |parameters for effect  |
+   |                                |``null``  |                   |of fluid on relative   |
    |                                |          |                   |permeability           |
    |                                |          |                   |                       |
    +--------------------------------+----------+-------------------+-----------------------+
@@ -127,7 +127,7 @@ This effect can be represented using the **"eos.permeability_modifier"** value. 
    |             |          |                   |:math:`\Gamma`         |
    +-------------+----------+-------------------+-----------------------+
 
-If the type is "none", there is no permeability reduction (the default). If the type is "power", a power-law relationship is used to determine the permeability reduction :math:`k/k_0`:
+If the type is "none", there is no permeability reduction (the default). This can also be achieved by setting the **"eos.permeability_modifier"** value to ``null``. If the type is "power", a power-law relationship is used to determine the permeability reduction :math:`k/k_0`:
 
 .. math::
 
@@ -162,7 +162,7 @@ Relative permeability modification
 
 For some equations of state, the fluid state can change the effective local relative permeability. For example, when the :ref:`supercritical_water_energy_eos` EOS is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached.
 
-This effect can be represented using the **"eos.relative_permeability_modifier"** value. This object has a **"type"** string value which determines how the relative permeability is modified according to temperature. Its possible values are "none" and "linear". If the type is "none", there is no relative permeability modification (the default for most equations of state).
+This effect can be represented using the **"eos.relative_permeability_modifier"** value. This object has a **"type"** string value which determines how the relative permeability is modified according to temperature. Its possible values are "none" and "linear". If the type is "none", there is no relative permeability modification (the default for most equations of state). This can also be achieved by setting the **"eos.relative_permeability_modifier"** value to ``null``.
 
 .. admonition:: JSON input
 

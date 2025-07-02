@@ -61,7 +61,7 @@ contains
 
     use fson
     use fson_mpi_module, only: fson_get_mpi, fson_has_mpi, fson_type_mpi
-    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL
+    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL, TYPE_OBJECT
     use logfile_module
     use thermodynamics_module
     use utils_module, only: str_to_lower
@@ -75,7 +75,7 @@ contains
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale, partial_pressure_scale
-    PetscInt :: scale_type
+    PetscInt :: scale_type, modifier_type
     character(max_fluid_modifier_name_length) :: permeability_modifier_type_name
     type(fson_value), pointer :: perm_json
     PetscReal, parameter :: default_pressure = 1.0e5_dp
@@ -164,15 +164,21 @@ contains
     call self%saturation_line_finder%init(f, context = pinterp)
 
     ! Set up permeability modifier:
-    call fson_get_mpi(json, "eos.permeability_modifier.type", &
-         default_permeability_modifier_type_name, &
-         permeability_modifier_type_name, logfile)
-    select case (str_to_lower(permeability_modifier_type_name))
-    case ("power")
-       allocate(fluid_permeability_factor_power_type :: self%permeability_modifier)
-    case ("verma-pruess")
-       allocate(fluid_permeability_factor_verma_pruess_type :: self%permeability_modifier)
-    case default
+    modifier_type = fson_type_mpi(json, "eos.permeability_modifier")
+    select case (modifier_type)
+    case (TYPE_OBJECT)
+       call fson_get_mpi(json, "eos.permeability_modifier.type", &
+            default_permeability_modifier_type_name, &
+            permeability_modifier_type_name, logfile)
+       select case (str_to_lower(permeability_modifier_type_name))
+       case ("power")
+          allocate(fluid_permeability_factor_power_type :: self%permeability_modifier)
+       case ("verma-pruess")
+          allocate(fluid_permeability_factor_verma_pruess_type :: self%permeability_modifier)
+       case default
+          allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
+       end select
+    case (TYPE_NULL)
        allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
     end select
     if (fson_has_mpi(json, "eos.permeability_modifier")) then

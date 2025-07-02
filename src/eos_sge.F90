@@ -66,7 +66,7 @@ contains
 
     use fson
     use fson_mpi_module, only: fson_get_mpi, fson_has_mpi, fson_type_mpi
-    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL
+    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL, TYPE_OBJECT
     use logfile_module
     use thermodynamics_module
     use IAPWS_module, only: critical
@@ -79,7 +79,7 @@ contains
     ! Locals:
     procedure(root_finder_routine), pointer :: fs, fw, ft
     PetscReal :: pressure_scale, temperature_scale, density_scale, partial_pressure_scale
-    PetscInt :: scale_type
+    PetscInt :: scale_type, modifier_type
     character(max_fluid_modifier_name_length) :: relative_permeability_modifier_type_name
     type(fson_value), pointer :: rperm_json
     character(10) :: conditions
@@ -163,18 +163,24 @@ contains
     self%pressure_conditions = (str_to_lower(conditions) == "pressure")
 
     ! Set up relative permeability modifier:
-    call fson_get_mpi(json, "eos.relative_permeability_modifier.type", &
-         default_relative_permeability_modifier_type_name, &
-         relative_permeability_modifier_type_name, logfile)
-    select case (str_to_lower(relative_permeability_modifier_type_name))
-    case ("linear")
-       allocate(fluid_relative_permeability_linear_temperature_type :: &
-            self%relative_permeability_modifier)
-       select type (modifier => self%relative_permeability_modifier)
-       type is (fluid_relative_permeability_linear_temperature_type)
-          modifier%critical_temperature = self%thermo%critical%temperature
+    modifier_type = fson_type_mpi(json, "eos.relative_permeability_modifier")
+    select case (modifier_type)
+    case (TYPE_OBJECT)
+       call fson_get_mpi(json, "eos.relative_permeability_modifier.type", &
+            default_relative_permeability_modifier_type_name, &
+            relative_permeability_modifier_type_name, logfile)
+       select case (str_to_lower(relative_permeability_modifier_type_name))
+       case ("linear")
+          allocate(fluid_relative_permeability_linear_temperature_type :: &
+               self%relative_permeability_modifier)
+          select type (modifier => self%relative_permeability_modifier)
+          type is (fluid_relative_permeability_linear_temperature_type)
+             modifier%critical_temperature = self%thermo%critical%temperature
+          end select
+       case default ! null modifier
+          allocate(fluid_modifier_type :: self%relative_permeability_modifier)
        end select
-    case default ! null modifier
+    case (TYPE_NULL)
        allocate(fluid_modifier_type :: self%relative_permeability_modifier)
     end select
     if (fson_has_mpi(json, "eos.relative_permeability_modifier")) then
