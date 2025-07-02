@@ -13,7 +13,7 @@ Viewing simulation output
 
 Various software tools are available for viewing the groups and datasets in HDF5 files. The simplest is ``h5dump``, a command-line tool which can dump an ASCII representation of the HDF5 file's contents to the console.
 
-There are also graphical tools for viewing HDF5 files, for example `HDFView <https://portal.hdfgroup.org/display/HDF5/Learning+HDF5+with+HDFView>`_, `Silx <https://pypi.org/project/silx/>`_ (see :numref:`silx_fig`) and others. These tools typically also include features for producing simple plots of the datasets.
+There are also graphical tools for viewing HDF5 files, for example `HDFView <https://www.hdfgroup.org/download-hdfview/>`_, `Silx <https://pypi.org/project/silx/>`_ (see :numref:`silx_fig`) and others. These tools typically also include features for producing simple plots of the datasets.
 
 .. _silx_fig:
 .. figure:: silx.png
