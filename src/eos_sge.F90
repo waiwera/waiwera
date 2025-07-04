@@ -826,19 +826,23 @@ contains
     !! first two variables (pressure or density and temperature or
     !! saturation) are scaled by fixed constants. The third variable,
     !! NCG partial pressure, is scaled adaptively by total pressure in
-    !! the cell.
+    !! the cell, except in region 3 (where the first variable is
+    !! density rather than total pressure).
 
     class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
     PetscInt, intent(in) :: region
     PetscReal :: scaled_primary(self%num_primary_variables)
 
-    scaled_primary(1:2) = primary(1:2) / self%primary_scale(1:2, region)
-    ! TODO: not practical to do adaptive scaling in region 3?
-    associate(scaled_partial_pressure => scaled_primary(3), &
-         pressure => primary(1), partial_pressure => primary(3))
-      scaled_partial_pressure = partial_pressure / pressure
-    end associate
+    if (region == 3) then
+       scaled_primary = primary / self%primary_scale(:, region)
+    else
+       scaled_primary(1:2) = primary(1:2) / self%primary_scale(1:2, region)
+       associate(scaled_partial_pressure => scaled_primary(3), &
+            pressure => primary(1), partial_pressure => primary(3))
+         scaled_partial_pressure = partial_pressure / pressure
+       end associate
+    end if
 
   end function eos_sge_scale_adaptive
 
@@ -852,12 +856,15 @@ contains
     PetscInt, intent(in) :: region
     PetscReal :: primary(self%num_primary_variables)
 
-    primary(1:2) = scaled_primary(1:2) * self%primary_scale(1:2, region)
-    ! TODO: not practical to do adaptive scaling in region 3?
-    associate(scaled_partial_pressure => scaled_primary(3), &
-         pressure => primary(1), partial_pressure => primary(3))
-      partial_pressure = scaled_partial_pressure * pressure
-    end associate
+    if (region == 3) then
+       primary = scaled_primary * self%primary_scale(:, region)
+    else
+       primary(1:2) = scaled_primary(1:2) * self%primary_scale(1:2, region)
+       associate(scaled_partial_pressure => scaled_primary(3), &
+            pressure => primary(1), partial_pressure => primary(3))
+         partial_pressure = scaled_partial_pressure * pressure
+       end associate
+    end if
 
   end function eos_sge_unscale_adaptive
 
