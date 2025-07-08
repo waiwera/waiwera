@@ -80,7 +80,7 @@ Source groups are set up in the Waiwera JSON input file via the **"network.group
 Group name
 ----------
 
-A group can be given a name using its **"name"** value, which can be an arbitrary string.
+A group can be given a name using its **"name"** value, which can be an arbitrary string (up to 32 characters in length).
 
 Although the name is optional, references between objects (groups or reinjectors) in the source network are done by name. So if a group is to be referenced by another object, for example to include a group in another group, or feed its output to a reinjector, it must have a name.
 
@@ -322,7 +322,7 @@ Reinjectors are set up in the Waiwera JSON input file via the **"network.reinjec
 Reinjector name
 ---------------
 
-Like a group, a reinjector can be given a name using its **"name"** value, which can be an arbitrary string. This is optional, unless the reinjector is to be referenced by another reinjector (for example, if it serves as an output or overflow from another reinjector), in which case a name will be needed.
+Like a group, a reinjector can be given a name using its **"name"** value, which can be an arbitrary string (up to 32 characters in length). This is optional, unless the reinjector is to be referenced by another reinjector (for example, if it serves as an output or overflow from another reinjector), in which case a name will be needed.
 
 The name must also be unique, that is, no other sources, groups or reinjectors may have the same name.
 
