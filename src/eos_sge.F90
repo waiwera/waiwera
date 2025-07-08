@@ -135,7 +135,7 @@ contains
     case (TYPE_STRING, TYPE_NULL)
        self%scale => eos_sge_scale_adaptive
        self%unscale => eos_sge_unscale_adaptive
-       partial_pressure_scale = 0._dp
+       partial_pressure_scale = default_partial_pressure_scale
     case (TYPE_REAL)
        call fson_get_mpi(json, "eos.primary.scale.partial_pressure", &
             default_partial_pressure_scale, partial_pressure_scale, logfile)
