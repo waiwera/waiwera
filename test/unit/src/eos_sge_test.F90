@@ -918,7 +918,6 @@ contains
     character(2) :: json_str = '{}'
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscReal, parameter :: small = 1.e-6_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
