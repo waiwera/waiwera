@@ -22,7 +22,7 @@ module eos_sge_test_module
   private
 
   public :: setup, teardown, setup_test
-  public :: test_eos_sge_transition
+  public :: test_eos_sge_transition, test_eos_sge_scale
 
 contains
 
@@ -902,5 +902,67 @@ contains
   end subroutine test_eos_sge_transition
 
 !------------------------------------------------------------------------
+
+  subroutine test_eos_sge_scale(test)
+
+    ! eos_sge_scale(), eos_sge_unscale() test
+
+    use eos_wge_module, only: eos_wge_type
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt,  parameter :: num_primary_variables = 3
+    type(eos_sge_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
+    character(2) :: json_str = '{}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, parameter :: small = 1.e-6_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
+    allocate(eos_wge_type :: eos%eos_wge)
+    call eos%eos_wge%init(json, thermo)
+
+    if (rank == 1) then
+
+       call scale_test('region 1', [1.e5_dp, 20._dp, 0.1e5_dp], 1, &
+            [0.1_dp, 0.2_dp, 0.1_dp])
+       call scale_test('region 2', [2.e5_dp, 300._dp, 0.4e5_dp], 2, &
+            [0.2_dp, 0.3_dp, 0.2_dp])
+       call scale_test('region 3', [500._dp, 480._dp, 2.e5_dp], 2, &
+            [1.55279503106_dp, 4.8_dp, 0.2_dp])
+       call scale_test('region 4', [100.e5_dp, 0.4_dp, 10.e5_dp], 2, &
+            [10._dp, 0.4_dp, 0.1_dp])
+
+    end if
+
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+
+  contains
+
+    subroutine scale_test(title, primary, region, expected)
+
+      character(*), intent(in) :: title
+      PetscReal, intent(in) :: primary(num_primary_variables)
+      PetscInt, intent(in) :: region
+      PetscReal, intent(in) :: expected(num_primary_variables)
+      ! Locals:
+      PetscReal :: scaled(num_primary_variables), unscaled(num_primary_variables)
+
+      scaled = eos%scale(primary, region)
+      call test%assert(expected, scaled, trim(title) // 'scaled')
+      unscaled = eos%unscale(scaled, region)
+      call test%assert(primary, unscaled, trim(title) // 'unscaled')
+
+    end subroutine scale_test
+
+  end subroutine test_eos_sge_scale
 
 end module eos_sge_test_module
