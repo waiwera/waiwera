@@ -24,6 +24,7 @@ module ncg_air_thermodynamics_module
        -1.21388e-1_dp, -1.54216e-1_dp, &
        1.00041e-2_dp, 1.23190e-2_dp], &
        [2, 7])
+  PetscReal, parameter :: henry_max_temp = 370._dp
   PetscReal, parameter :: henry_salt_data(2, 5) = reshape([&
        0.183369_dp, 0.16218_dp, &
        -0.236905_dp, -1.16909e-1_dp, &
@@ -128,10 +129,13 @@ contains
     PetscReal, intent(out) :: constituent_henrys_constant( &
          self%num_constituents) !! Constituent Henry's constants
     PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: t_eff
 
     err = 0
+    t_eff = min(temperature, henry_max_temp)
     constituent_henrys_constant = 1.e5_dp * henry_p0 * &
-         polynomial(henry_data, temperature / tscale)
+         polynomial(henry_data, t_eff / tscale)
     henrys_constant = sum(constituent_weight * constituent_henrys_constant)
 
   end subroutine ncg_air_henrys_constant
@@ -189,9 +193,11 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscReal :: dhinv(2)
+    PetscReal :: t_eff
 
     err = 0
-    dhinv = 1.e5_dp * polynomial(self%henry_derivative_data, temperature / tscale)
+    t_eff = min(temperature, henry_max_temp)
+    dhinv = 1.e5_dp * polynomial(self%henry_derivative_data, t_eff / tscale)
     constituent_henrys_derivative = henry_p0 * dhinv &
          / (constituent_henrys_constant * tscale)
     henrys_derivative = sum(constituent_weight * constituent_henrys_derivative)
