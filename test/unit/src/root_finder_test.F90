@@ -15,7 +15,8 @@ module root_finder_test
   public :: setup, teardown
   public :: test_root_finder_linear, test_root_finder_quadratic, &
        test_root_finder_Zhang, test_root_finder_inverse_quadratic, &
-       test_root_finder_saturation, test_root_finder_function_err
+       test_root_finder_saturation, test_root_finder_function_err, &
+       test_root_finder_equal_bounds
 
 contains
 
@@ -364,6 +365,59 @@ contains
     end subroutine quadratic_err
 
   end subroutine test_root_finder_function_err
+
+!------------------------------------------------------------------------
+
+  subroutine test_root_finder_equal_bounds(test)
+    ! Equal lower and upper bounds
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(root_finder_type) :: finder
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    procedure(root_finder_routine), pointer :: f
+    PetscReal, parameter :: expected_root = 2._dp
+    PetscInt, parameter :: expected_iterations = 0
+
+    f => fn
+
+    ! Bounds at root:
+    call finder%init(f, [expected_root, expected_root])
+    call finder%find()
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       call test%assert(0, finder%err, "error")
+       call test%assert(expected_iterations, finder%iterations, &
+            "iterations")
+       call test%assert(expected_root, finder%root, "root")
+    end if
+
+    ! Bounds not at root:
+    call finder%init(f, [0._dp, 0._dp])
+    call finder%find()
+    if (rank == 0) then
+       call test%assert(ROOT_FINDER_INTERVAL_NOT_BRACKETED, finder%err, "error")
+    end if
+
+    call finder%destroy()
+
+  contains
+
+    subroutine fn(x, context, f, err)
+      ! Quadratic with root 2
+      PetscReal, intent(in) :: x
+      class(*), pointer, intent(in out) :: context
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      f = x * x - 4._dp
+      err = 0
+
+    end subroutine fn
+
+  end subroutine test_root_finder_equal_bounds
 
 !------------------------------------------------------------------------
 

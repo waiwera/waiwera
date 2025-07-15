@@ -402,7 +402,7 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
+            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
             84011.8_dp, 83911.6_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -495,7 +495,7 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
+            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, 0._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
             84011.8_dp, 83911.6_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -586,12 +586,13 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            2.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
+            2.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
             998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, 0._dp, &
             84105.9189422008_dp, 83905.5685743839_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
             0._dp, 0._dp, 0._dp, &
-            7.87050606076185e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            7.87050606076185e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, & ! cell 2
+            1._dp, 1._dp, 0._dp, &
             998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, 0._dp, &
             84658.2021844106_dp, 83869.9846573438_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -687,12 +688,12 @@ contains
             2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp, 2.7_dp, 0.05_dp, & ! cell 2
             2300._dp, 995._dp]
        fluid_data = [ &
-            6.2e5_dp, 160._dp, 4._dp, 3._dp, 1._dp, 0.25_dp, 3._dp, 0._dp, &  ! cell 1
+            6.2e5_dp, 160._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.25_dp, 3._dp, 0._dp, &  ! cell 1
             907.45_dp, 1.7e-4_dp, 0.25_dp, 0.75_dp, 0._dp, & ! liquid
             675574.7_dp, 674893.5_dp, 1._dp, &
             3.26_dp, 1.43e-5_dp, 0.75_dp, 0.25_dp, 0._dp,  & ! vapour
             2757430.53_dp, 2567774.0_dp, 1._dp, &
-            8.2e5_dp, 171.44_dp, 4._dp, 3._dp, 1._dp, 0.4_dp, 3._dp, 0._dp, & ! cell 2
+            8.2e5_dp, 171.44_dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.4_dp, 3._dp, 0._dp, & ! cell 2
             895.98_dp, 1.58e-4_dp, 0.4_dp, 0.6_dp, 0._dp,  & ! liquid
             725517.1_dp, 724601.9_dp, 1._dp, &
             4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, 0._dp,    & ! vapour
@@ -758,7 +759,7 @@ contains
     PetscReal, parameter :: expected_component_flux(2) = &
          [0.002736740571428572_dp, 5065.470057142858_dp]
     PetscReal, parameter :: expected_phase_flux(3) = &
-         [0._dp, 0._dp, 0.002736740571428572_dp]
+         [0.002736740571428572_dp, 0._dp, 0._dp]
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -787,12 +788,12 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            56.0e6_dp, 400._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
+            56.0e6_dp, 400._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             600._dp, 7.e-5_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
             1850.e3_dp, 1760.e3_dp, 1._dp, &
-            50.0e6_dp, 340._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            50.0e6_dp, 340._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             712._dp, 9.e-5_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
@@ -884,14 +885,14 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            16.e6_dp, 347.35653444596915_dp, 4._dp, 3._dp, &
+            16.e6_dp, 347.35653444596915_dp, 4._dp, 4._dp, 3._dp, &
             1._dp, 0.7_dp, 3._dp, 0._dp, &  ! cell 1
             584.9537549266726_dp, 6.705610248476079e-05_dp, 0.7_dp, 0.7_dp, 0._dp, &
             1649.6719434728284e3_dp, 1622.3193538616963e3_dp, 1._dp, & ! liquid
             107.43296467569115_dp, 2.3362689988441827e-5_dp, 0.3_dp, 0.3_dp, 0._dp, &
             2580.8044282594847e3_dp, 2431.874348480905e3_dp, 1._dp, & ! vapour
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! supercritical
-            24.0e6_dp, 380._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            24.0e6_dp, 380._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             382.839167051206_dp, 4.5486482996368864e-05_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical

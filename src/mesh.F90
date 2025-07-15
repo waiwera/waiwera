@@ -1146,91 +1146,109 @@ contains
           bdystr = 'boundaries[' // trim(istr) // ']'
           call fson_get_mpi(bdy, "primary", eos%default_primary, &
                primary, logfile, log_key = trim(bdystr) // ".primary")
-          call fson_get_mpi(bdy, "region", eos%default_region, &
-               region, logfile, log_key = trim(bdystr) // ".region")
-          if (num_tracers > 0) then
-             if (fson_has_mpi(bdy, "tracer")) then
-                tracer_type = fson_type_mpi(bdy, "tracer")
-                select case (tracer_type)
-                case (TYPE_REAL, TYPE_INTEGER)
-                   call fson_get_mpi(bdy, "tracer", val = tracer_scalar)
+
+          if (size(primary) == eos%num_primary_variables) then
+
+             call fson_get_mpi(bdy, "region", eos%default_region, &
+                  region, logfile, log_key = trim(bdystr) // ".region")
+             if (num_tracers > 0) then
+                if (fson_has_mpi(bdy, "tracer")) then
+                   tracer_type = fson_type_mpi(bdy, "tracer")
+                   select case (tracer_type)
+                   case (TYPE_REAL, TYPE_INTEGER)
+                      call fson_get_mpi(bdy, "tracer", val = tracer_scalar)
+                      allocate(tracer(num_tracers))
+                      tracer = tracer_scalar
+                   case (TYPE_ARRAY)
+                      call fson_get_mpi(bdy, "tracer", val = tracer)
+                   end select
+                else
                    allocate(tracer(num_tracers))
-                   tracer = tracer_scalar
-                case (TYPE_ARRAY)
-                   call fson_get_mpi(bdy, "tracer", val = tracer)
-                end select
-             else
-                allocate(tracer(num_tracers))
-                tracer = default_tracer_mass_fraction
+                   tracer = default_tracer_mass_fraction
+                end if
              end if
-          end if
-          call DMGetStratumSize(self%dm, open_boundary_label_name, &
-               ibdy, num_faces, ierr); CHKERRQ(ierr)
-          if (num_faces > 0) then
-             call DMGetStratumIS(self%dm, open_boundary_label_name, &
-                  ibdy, bdy_IS, ierr); CHKERRQ(ierr)
-             call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             do iface = 1, num_faces
-                f = bdy_faces(iface)
-                call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
-                if (size(cells) == 2) then
-                   call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
-                   CHKERRQ(ierr)
-                   if (ghost < 0) then
-                      fluid_offset = global_section_offset(fluid_section, cells(2), &
-                           fluid_range_start)
-                      do i = 1, 2
-                         rock_offsets(i) = global_section_offset(rock_section, cells(i), &
-                              rock_range_start)
-                      end do
-                      ! Copy rock type data from interior cell to boundary ghost cell:
-                      n = rock%dof - 1
-                      rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
-                      rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
-                      rock2 = rock1
-                      call rock%assign(rock_array, rock_offsets(2))
-                      call rock%assign_relative_permeability(relative_permeability)
-                      call rock%assign_capillary_pressure(capillary_pressure)
-                      call fluid%assign(fluid_array, fluid_offset)
-                      ! Set fluid region and properties:
-                      fluid%region = dble(region)
-                      call eos%process_conditions(primary, region, err)
-                      if (err == 0) then
-                         call eos%fluid_properties(primary, rock, fluid, err)
+             call DMGetStratumSize(self%dm, open_boundary_label_name, &
+                  ibdy, num_faces, ierr); CHKERRQ(ierr)
+             if (num_faces > 0) then
+                call DMGetStratumIS(self%dm, open_boundary_label_name, &
+                     ibdy, bdy_IS, ierr); CHKERRQ(ierr)
+                call ISGetIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+                do iface = 1, num_faces
+                   f = bdy_faces(iface)
+                   call DMPlexGetSupport(self%dm, f, cells, ierr); CHKERRQ(ierr)
+                   if (size(cells) == 2) then
+                      call DMLabelGetValue(ghost_label, cells(1), ghost, ierr)
+                      CHKERRQ(ierr)
+                      if (ghost < 0) then
+                         fluid_offset = global_section_offset(fluid_section, cells(2), &
+                              fluid_range_start)
+                         do i = 1, 2
+                            rock_offsets(i) = global_section_offset(rock_section, cells(i), &
+                                 rock_range_start)
+                         end do
+                         ! Copy rock type data from interior cell to boundary ghost cell:
+                         n = rock%dof - 1
+                         rock1 => rock_array(rock_offsets(1) : rock_offsets(1) + n)
+                         rock2 => rock_array(rock_offsets(2) : rock_offsets(2) + n)
+                         rock2 = rock1
+                         call rock%assign(rock_array, rock_offsets(2))
+                         call rock%assign_relative_permeability(relative_permeability)
+                         call rock%assign_capillary_pressure(capillary_pressure)
+                         call fluid%assign(fluid_array, fluid_offset)
+                         ! Set fluid region and properties:
+                         fluid%region = dble(region)
+                         call eos%process_conditions(primary, region, err)
                          if (err == 0) then
-                            if (num_tracers > 0) then
-                               ! Set tracer boundary conditions:
-                               tracer_offset = global_section_offset(tracer_section, cells(2), &
-                                    tracer_range_start)
-                               cell_tracer => tracer_array(tracer_offset: tracer_offset + &
-                                    num_tracers - 1)
-                               cell_tracer = tracer
+                            call eos%fluid_properties(primary, rock, fluid, err)
+                            if (err == 0) then
+                               if (num_tracers > 0) then
+                                  ! Set tracer boundary conditions:
+                                  tracer_offset = global_section_offset(tracer_section, cells(2), &
+                                       tracer_range_start)
+                                  cell_tracer => tracer_array(tracer_offset: tracer_offset + &
+                                       num_tracers - 1)
+                                  cell_tracer = tracer
+                               end if
+                            else
+                               if (present(logfile)) then
+                                  call logfile%write(LOG_LEVEL_ERR, 'boundary', &
+                                       'fluid_properties_not_found', &
+                                       str_key = 'index', str_value = bdystr)
+                               end if
+                               exit
                             end if
                          else
                             if (present(logfile)) then
                                call logfile%write(LOG_LEVEL_ERR, 'boundary', &
-                                    'fluid_properties_not_found', &
+                                    'processing_failed', &
                                     str_key = 'index', str_value = bdystr)
                             end if
                             exit
                          end if
-                      else
-                         if (present(logfile)) then
-                            call logfile%write(LOG_LEVEL_ERR, 'boundary', &
-                                 'processing_failed', &
-                                 str_key = 'index', str_value = bdystr)
-                         end if
-                         exit
                       end if
                    end if
-                end if
-             end do
-             call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
-             call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
+                end do
+                call ISRestoreIndicesF90(bdy_IS, bdy_faces, ierr); CHKERRQ(ierr)
+                call ISDestroy(bdy_IS, ierr); CHKERRQ(ierr)
+             end if
+
+          else
+             err = 1
+             if (present(logfile)) then
+                call logfile%write(LOG_LEVEL_ERR, 'initialize', &
+                     trim(bdystr) // '.primary', &
+                     int_keys = ['size'], int_values = [size(primary)], rank = 0)
+             end if
+             exit
           end if
-          bdy => fson_value_next_mpi(bdy)
-          deallocate(primary)
-          if (allocated(tracer)) deallocate(tracer)
+
+          if (err == 0) then
+             bdy => fson_value_next_mpi(bdy)
+             deallocate(primary)
+             if (allocated(tracer)) deallocate(tracer)
+          else
+             exit
+          end if
        end do
     end if
 

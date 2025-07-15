@@ -39,12 +39,17 @@ module eos_we_module
      private
      procedure, public :: init => eos_we_init
      procedure, public :: destroy => eos_we_destroy
+     procedure, public :: enforce_consistency => eos_we_enforce_consistency
+     procedure, public :: saturation_pressure => eos_we_saturation_pressure
+     procedure, public :: region_1_transitions => eos_we_region_1_transitions
+     procedure, public :: region_2_transitions => eos_we_region_2_transitions
+     procedure, public :: region_4_transitions => eos_we_region_4_transitions
      procedure, public :: transition => eos_we_transition
      procedure, public :: transition_to_single_phase => eos_we_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_we_transition_to_two_phase
      procedure, public :: fluid_properties => eos_we_fluid_properties
-     procedure :: bulk_properties => eos_we_bulk_properties
-     procedure :: phase_properties => eos_we_phase_properties
+     procedure, public :: bulk_properties => eos_we_bulk_properties
+     procedure, public :: phase_properties => eos_we_phase_properties
      procedure, public :: primary_variables => eos_we_primary_variables
      procedure, public :: phase_saturations => eos_we_phase_saturations
      procedure, public :: check_primary_variables => eos_we_check_primary_variables
@@ -149,6 +154,39 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_we_enforce_consistency(self, primary)
+    !! Check internal consistency of primary variables and adjust if
+    !! necessary. Overridden by derived EOSes.
+
+    class(eos_we_type), intent(in) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+
+    continue
+
+  end subroutine eos_we_enforce_consistency
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_saturation_pressure(self, primary, region, &
+       saturation_pressure, err)
+    !! Returns water saturation pressure for given primary variables
+    !! (region 1 or 2).
+
+    class(eos_we_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscReal, intent(out) :: saturation_pressure
+    PetscErrorCode, intent(out) :: err
+
+    associate (temperature => primary(2))
+      call self%thermo%saturation%pressure(temperature, &
+           saturation_pressure, err)
+    end associate
+
+  end subroutine eos_we_saturation_pressure
+
+!------------------------------------------------------------------------
+
   subroutine eos_we_transition_to_single_phase(self, old_primary, old_fluid, &
        new_region, primary, fluid, transition, err)
     !! For eos_we, make transition from two-phase to single-phase with
@@ -166,12 +204,14 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: old_saturation_pressure, pressure_factor
-    PetscReal :: saturation_bound, xi
-    PetscReal :: interpolated_primary(self%num_primary_variables)
+    PetscReal :: saturation_bound, xi, new_water_pressure
+    PetscReal :: old_fluid_primary(self%num_primary_variables)
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
     transition = PETSC_FALSE
+
+    call self%enforce_consistency(primary)
 
     if (new_region == 1) then
        saturation_bound = 0._dp
@@ -183,37 +223,40 @@ contains
 
     self%primary_variable_interpolator%val(:, 1) = old_primary
     self%primary_variable_interpolator%val(:, 2) = primary
+    call self%primary_variable_interpolator%set_index(1)
     call self%primary_variable_interpolator%find_component_at_index(&
          saturation_bound, 2, xi, err)
 
-    associate (pressure => primary(1), temperature => primary(2), &
-         interpolated_pressure => interpolated_primary(1))
+    if (err == 0) then
 
-      if (err == 0) then
-
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         pressure = pressure_factor * interpolated_pressure
-         call self%thermo%saturation%temperature(interpolated_pressure, &
+       primary = self%primary_variable_interpolator%interpolate(xi)
+       new_water_pressure = self%water_pressure(primary)
+       associate (temperature => primary(2))
+         call self%thermo%saturation%temperature(new_water_pressure, &
               temperature, err)
-         if (err == 0) then
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
+       end associate
+       if (err == 0) then
+          call self%set_water_pressure(pressure_factor * new_water_pressure, primary)
+          fluid%region = dble(new_region)
+          transition = PETSC_TRUE
+       end if
 
-      else
+    else ! fallback
 
-         call self%thermo%saturation%pressure(old_fluid%temperature, &
-              old_saturation_pressure, err)
-         if (err == 0) then
-            pressure = pressure_factor * old_saturation_pressure
-            temperature = old_fluid%temperature
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
+       associate (temperature => primary(2))
+         temperature = old_fluid%temperature
+       end associate
+       call self%primary_variables(old_fluid, old_fluid_primary)
+       call self%saturation_pressure(old_fluid_primary, nint(old_fluid%region), &
+            old_saturation_pressure, err)
+       if (err == 0) then
+          call self%set_water_pressure(pressure_factor * old_saturation_pressure, &
+               primary)
+          fluid%region = dble(new_region)
+          transition = PETSC_TRUE
+       end if
 
-      end if
-
-    end associate
+    end if
 
   end subroutine eos_we_transition_to_single_phase
 
@@ -235,39 +278,142 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
-    PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal :: xi
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
-    associate (pressure => primary(1), vapour_saturation => primary(2), &
-      interpolated_pressure => interpolated_primary(1))
 
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-      call self%saturation_line_finder%find()
+    call self%enforce_consistency(primary)
 
-      if (self%saturation_line_finder%err == 0) then
-         xi = self%saturation_line_finder%root
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         pressure = interpolated_pressure
-      else
-         pressure = saturation_pressure
-      end if
+    self%primary_variable_interpolator%val(:, 1) = old_primary
+    self%primary_variable_interpolator%val(:, 2) = primary
+    call self%saturation_line_finder%find()
 
+    if (self%saturation_line_finder%err == 0) then
+       xi = self%saturation_line_finder%root
+       primary = self%primary_variable_interpolator%interpolate(xi)
+    else
+       call self%set_water_pressure(saturation_pressure, primary)
+    end if
+
+    associate (vapour_saturation => primary(2))
       old_region = nint(old_fluid%region)
       if (old_region == 1) then
          vapour_saturation = small
       else
          vapour_saturation = 1._dp - small
       end if
+    end associate
 
-      fluid%region = dble(4)
-      transition = PETSC_TRUE
+    fluid%region = dble(4)
+    transition = PETSC_TRUE
+
+  end subroutine eos_we_transition_to_two_phase
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_region_1_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_we, carry out phase transitions from region 1.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: water_pressure, saturation_pressure
+    PetscInt :: old_region
+
+    old_region = nint(old_fluid%region)
+
+    associate (temperature => primary(2))
+
+      water_pressure = self%water_pressure(primary)
+      call self%saturation_pressure(primary, old_region, saturation_pressure, err)
+
+      if (err == 0) then
+         if (water_pressure < saturation_pressure) then
+            call self%transition_to_two_phase(saturation_pressure, &
+                 old_primary, old_fluid, primary, fluid, transition, err)
+         end if
+      end if
 
     end associate
 
-  end subroutine eos_we_transition_to_two_phase
+  end subroutine eos_we_region_1_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_region_2_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_we, carry out phase transitions from region 2.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: water_pressure, saturation_pressure
+    PetscInt :: old_region
+
+    old_region = nint(old_fluid%region)
+
+    associate (temperature => primary(2))
+
+      water_pressure = self%water_pressure(primary)
+      call self%saturation_pressure(primary, old_region, saturation_pressure, err)
+
+      if (err == 0) then
+         if (water_pressure > saturation_pressure) then
+            call self%transition_to_two_phase(saturation_pressure, &
+                 old_primary, old_fluid, primary, fluid, transition, err)
+         end if
+      end if
+
+    end associate
+
+  end subroutine eos_we_region_2_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_region_4_transitions(self, old_primary, primary, &
+       old_fluid, fluid, transition, err)
+    !! For eos_we, carry out phase transitions from region 4.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_we_type), intent(in out) :: self
+    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    type(fluid_type), intent(in) :: old_fluid
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+
+    associate (vapour_saturation => primary(2))
+
+      if (vapour_saturation < 0._dp) then
+         call self%transition_to_single_phase(old_primary, old_fluid, &
+              1, primary, fluid, transition, err)
+      else if (vapour_saturation > 1._dp) then
+         call self%transition_to_single_phase(old_primary, old_fluid, &
+              2, primary, fluid, transition, err)
+      end if
+
+    end associate
+
+  end subroutine eos_we_region_4_transitions
 
 !------------------------------------------------------------------------
 
@@ -287,40 +433,22 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: old_region
-    PetscReal :: saturation_pressure
 
     err = 0
     transition = PETSC_FALSE
     old_region = nint(old_fluid%region)
 
-    if (old_region == 4) then  ! Two-phase
-       associate (vapour_saturation => primary(2))
-
-         if (vapour_saturation < 0._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 1, primary, fluid, transition, err)
-         else if (vapour_saturation > 1._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 2, primary, fluid, transition, err)
-         end if
-
-     end associate
-    else  ! Single-phase
-       associate (pressure => primary(1), temperature => primary(2))
-
-         call self%thermo%saturation%pressure(temperature, &
-              saturation_pressure, err)
-
-         if (err == 0) then
-            if (((old_region == 1) .and. (pressure < saturation_pressure)) .or. &
-                 ((old_region == 2) .and. (pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, &
-                    old_primary, old_fluid, primary, fluid, transition, err)
-            end if
-         end if
-
-       end associate
-    end if
+    select case (old_region)
+    case (1)
+       call self%region_1_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (2)
+       call self%region_2_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    case (4)
+       call self%region_4_transitions(old_primary, primary, &
+            old_fluid, fluid, transition, err)
+    end select
 
   end subroutine eos_we_transition
 
@@ -363,12 +491,14 @@ contains
     PetscInt :: region
 
     err = 0
-    fluid%pressure = primary(1)
     region = nint(fluid%region)
+
+    fluid%pressure = primary(1)
+    fluid%partial_pressure = self%partial_pressures(primary)
 
     if (region == 4) then
        ! Two-phase
-       call self%thermo%saturation%temperature(fluid%pressure, &
+       call self%thermo%saturation%temperature(fluid%partial_pressure(1), &
             fluid%temperature, err)
     else
        ! Single-phase
@@ -380,7 +510,6 @@ contains
        call self%phase_composition(fluid, err)
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
-          fluid%partial_pressure(1) = fluid%pressure
           fluid%liquidlike_fraction = fluid%phase(1)%saturation
           fluid%supercritical_phases = 0._dp
        end if

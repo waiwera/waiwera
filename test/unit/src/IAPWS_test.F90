@@ -21,7 +21,7 @@ module IAPWS_test
        test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
        test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
        test_IAPWS_region3_saturation_density, &
-       test_region3_widom, test_region3_pi_liquidlike, &
+       test_IAPWS_widom, test_IAPWS_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure
 
   contains
@@ -176,6 +176,7 @@ module IAPWS_test
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
        do i = 1, n
           param = params(i,:)
@@ -184,11 +185,18 @@ module IAPWS_test
           call test%assert(u(i), props(2), 'energy')
           call test%assert(0, err, 'error')
        end do
+
        do i = 1, nerr
           param = err_params(i,:)
           call IAPWS%supercritical%properties(param, props, err)
           call test%assert(1, err, 'error')
        end do
+
+       param = [IAPWS%critical%density, IAPWS%critical%temperature]
+       call IAPWS%supercritical%properties(param, props, err)
+       call test%assert(IAPWS%critical%pressure, props(1), 'critical pressure', &
+            tol = 1.e-11_dp)
+
     end if
 
   end subroutine test_IAPWS_region3
@@ -201,32 +209,54 @@ module IAPWS_test
     
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 3, nerr = 1
+    PetscInt, parameter :: n = 3, nerr = 1, nnc = 2
     PetscReal, parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
     PetscReal, parameter :: p(n) = [0.353658941e4_dp, 0.263889776e7_dp, &
          0.123443146e8_dp]
     PetscReal :: ps, ts
     PetscInt :: i, err
     PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
+    PetscReal :: tnc(nnc) = [373.94597_dp, 373.94599_dp]
     PetscInt :: ierr
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        do i = 1, n
           call IAPWS%saturation%pressure(t(i), ps, err)
           call test%assert(p(i), ps, 'pressure')
           call test%assert(0, err, 'pressure no error')
           call IAPWS%saturation%temperature(ps, ts, err)
-          call test%assert(t(i), ts, 'temperature')
+          call test%assert(t(i), ts, 'temperature', tol = 1.e-11_dp)
           call test%assert(0, err, 'temperature no error')
        end do
+
        do i = 1, nerr
           call IAPWS%saturation%pressure(terr(i), ps, err)
           call test%assert(1, err, 'pressure error')
           call IAPWS%saturation%temperature(perr(i), ts, err)
           call test%assert(1, err, 'temperature error')
        end do
+
+       call IAPWS%saturation%pressure(IAPWS%critical%temperature, ps, err)
+       call test%assert(0, err, 'critical pressure error')
+       call test%assert(IAPWS%critical%pressure, ps, 'critical pressure', &
+            tol = 1.e-10_dp)
+
+       call IAPWS%saturation%temperature(IAPWS%critical%pressure, ts, err)
+       call test%assert(0, err, 'critical temperature error')
+       call test%assert(IAPWS%critical%temperature, ts, 'critical temperature', &
+            tol = 1.e-11_dp)
+
+       do i = 1, nnc
+          call IAPWS%saturation%pressure(tnc(i), ps, err)
+          call test%assert(0, err, 'near-critical pressure no error')
+          call IAPWS%saturation%temperature(ps, ts, err)
+          call test%assert(tnc(i), ts, 'near-critical temperature', tol = 1.e-12_dp)
+          call test%assert(0, err, 'near-critical temperature no error')
+       end do
+
     end if
 
   end subroutine test_IAPWS_saturation
@@ -619,20 +649,23 @@ module IAPWS_test
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 8
+    PetscInt, parameter :: n = 13
     PetscReal, parameter :: pressure(n) = &
          [16.52916425260448e6_dp, 19.00881189173929e6_dp, &
          20.5e6_dp, 21.e6_dp, 21.9e6_dp, 21.99e6_dp, &
-         22.0639911177352e6_dp, 22.064e6_dp]
+         22.04e6_dp, 22.05e6_dp, &
+         22.063603204895619e6_dp, &
+         22.0639911177352e6_dp, 22.063994473664202e6_dp, &
+         22.063991311720084e6_dp, 22.064e6_dp]
     PetscInt, parameter :: liquid_index(n) = &
-         [3, 3, 19, 19, 21, 25, 25, 25]
+         [3, 3, 19, 19, 21, 25, 25, 25, 25, 25, 25, 25, 25]
     PetscInt, parameter :: vapour_index(n) = &
-         [20, 20, 20, 18, 24, 26, 26, 26]
+         [20, 20, 20, 18, 24, 26, 26, 26, 26, 26, 26, 26, 26]
     PetscInt :: i, ierr, sr
     character(2) :: istr
     PetscMPIInt :: rank
-    PetscReal :: Ts, density, props(2)
     PetscErrorCode :: err
+    PetscReal :: Ts, dl, dv
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -640,21 +673,25 @@ module IAPWS_test
        do i = 1, n
           write(istr, '(i2)') i
           call IAPWS%saturation%temperature(pressure(i), Ts, err)
-          call density_case(i, PETSC_TRUE)
-          call density_case(i, PETSC_FALSE)
+          call density_case(i, PETSC_TRUE, dl)
+          call density_case(i, PETSC_FALSE, dv)
+          call test%assert(dv <= dl, ' density order ' // istr)
        end do
 
     end if
 
   contains
 
-    subroutine density_case(i, liquid)
+    subroutine density_case(i, liquid, density)
 
       PetscInt, intent(in) :: i
       PetscBool, intent(in) :: liquid
+      PetscReal, intent(out) :: density
       ! Locals:
       character(6) :: phase_str
       PetscInt :: expected_sr
+      PetscReal :: props(2)
+      PetscBool :: density_pos
 
       if (liquid) then
          phase_str = 'liquid'
@@ -673,10 +710,17 @@ module IAPWS_test
               liquid, density, err, polish = PETSC_TRUE)
          call test%assert(0, err, ' ' // phase_str // ' err ' // istr)
          if (err == 0) then
+            if (liquid) then
+               density_pos = (density >= IAPWS%critical%density)
+            else
+               density_pos = (density <= IAPWS%critical%density)
+            end if
+            call test%assert(density_pos, &
+                 phase_str // ' density position ' // istr)
             call region3%properties([density, Ts], props, err)
             associate(P2 => props(1))
               call test%assert(pressure(i), P2, ' ' // phase_str // &
-                   ' pressure ' // istr)
+                   ' pressure ' // istr, tol = 1.e-10_dp)
             end associate
          end if
       end select
@@ -687,8 +731,8 @@ module IAPWS_test
 
 !------------------------------------------------------------------------
 
-  subroutine test_region3_widom(test)
-    ! Region 3 Widom line and delta tests
+  subroutine test_IAPWS_widom(test)
+    ! IAPWS Widom line and delta tests
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -715,45 +759,39 @@ module IAPWS_test
       ! Widom line from Banuti et al. (2017)
       PetscReal, intent(in) :: t
 
-       select type (region3 => IAPWS%region(3)%ptr)
-       type is (IAPWS_region3_type)
-          widom_p = IAPWS%critical%pressure * exp(region3%widom_slope * &
-               ((t + tc_k) / IAPWS%critical%temperature_k - 1._dp))
-       end select
+      widom_p = IAPWS%critical%pressure * exp(IAPWS%widom_slope * &
+           ((t + tc_k) / IAPWS%critical%temperature_k - 1._dp))
 
-     end function widom_p
+    end function widom_p
 
-     subroutine widom_case(p, expected_delta, expected_err, name)
+    subroutine widom_case(p, expected_delta, expected_err, name)
 
-       PetscReal, intent(in) :: p, expected_delta(2)
-       PetscErrorCode, intent(in) :: expected_err
-       character(*), intent(in) :: name
-       ! Locals:
-       PetscReal :: t, delta(2)
-       PetscErrorCode :: err
+      PetscReal, intent(in) :: p, expected_delta(2)
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: t, delta(2)
+      PetscErrorCode :: err
 
-       select type (region3 => IAPWS%region(3)%ptr)
-       type is (IAPWS_region3_type)
-          call region3%widom(p, t, err)
-          call test%assert(expected_err, err, name // ' widom error')
-          if (err == 0) then
-             call test%assert(p, widom_p(t), name // ' widom temperature')
-             call region3%widom_delta(p, delta, err)
-             call test%assert(expected_err, err, name // ' widom delta error')
-             if (err == 0) then
-                call test%assert(expected_delta, delta, name // ' widom delta')
-             end if
-          end if
-       end select
+      call IAPWS%widom(p, t, err)
+      call test%assert(expected_err, err, name // ' widom error')
+      if (err == 0) then
+         call test%assert(p, widom_p(t), name // ' widom temperature')
+         call IAPWS%widom_delta(p, delta, err)
+         call test%assert(expected_err, err, name // ' widom delta error')
+         if (err == 0) then
+            call test%assert(expected_delta, delta, name // ' widom delta')
+         end if
+      end if
 
-     end subroutine widom_case
+    end subroutine widom_case
 
-  end subroutine test_region3_widom
+  end subroutine test_IAPWS_widom
 
 !------------------------------------------------------------------------
 
-  subroutine test_region3_pi_liquidlike(test)
-    ! Region 3 pi_liquidlike tests
+  subroutine test_IAPWS_pi_liquidlike(test)
+    ! IAPWS pi_liquidlike tests
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -807,20 +845,17 @@ module IAPWS_test
       PetscInt :: phases
       PetscErrorCode :: err
 
-      select type (region3 => IAPWS%region(3)%ptr)
-      type is (IAPWS_region3_type)
-         call region3%pi_liquidlike(pressure, temperature, density, &
-              pi_liq, phases, err)
-         call test%assert(expected_err, err, name // ' pi_liq error')
-         if (err == 0) then
-            call test%assert(expected_pi, pi_liq, name // ' pi_liq')
-            call test%assert(expected_phases, phases, name // ' phases')
-         end if
-      end select
+      call IAPWS%pi_liquidlike(pressure, temperature, density, &
+           pi_liq, phases, err)
+      call test%assert(expected_err, err, name // ' pi_liq error')
+      if (err == 0) then
+         call test%assert(expected_pi, pi_liq, name // ' pi_liq')
+         call test%assert(expected_phases, phases, name // ' phases')
+      end if
 
     end subroutine pi_liquidlike_case
 
-  end subroutine test_region3_pi_liquidlike
+  end subroutine test_IAPWS_pi_liquidlike
 
 !------------------------------------------------------------------------
 

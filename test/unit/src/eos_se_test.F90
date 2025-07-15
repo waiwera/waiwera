@@ -1,6 +1,7 @@
 module eos_se_test_module
 
-  ! Tests for eos_se module (non-isothermal pure water equation of state)
+  ! Tests for eos_se module (supercritical pure water equation of
+  ! state)
 
 #include <petsc/finclude/petsc.h>
 
@@ -80,8 +81,8 @@ contains
     class(relative_permeability_type), allocatable :: rp
     class(capillary_pressure_type), allocatable :: cp
     type(fson_value), pointer :: json
-    character(120) :: json_str = &
-         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}}'
+    character(240) :: json_str = &
+         '{"rock": {"relative_permeability": {"type": "linear", "liquid": [0.2, 0.8], "vapour": [0.2, 0.8]}}, "eos": {"type": "se", "relative_permeability_modifier": {"type": "none"}}}'
     PetscErrorCode :: err
     PetscReal, parameter :: zero_phase(8) = 0._dp
     PetscMPIInt :: rank
@@ -391,8 +392,7 @@ contains
        old_fluid%temperature = 370._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [thermo%critical%density, &
-            (1._dp + 1.e-6_dp) * thermo%critical%temperature]
+       expected_primary = [263.32515822729528_dp, 374.59899361383282_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [21.043367318975246e6_dp, 0.6_dp]
@@ -406,7 +406,7 @@ contains
        old_fluid%temperature = 356.99181334434775_dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [511.39352557031111_dp, 362.91787808947413_dp]
+       expected_primary = [510.49352557031114_dp, 362.91787808947413_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [18.e6_dp, 0.2_dp]
@@ -420,7 +420,7 @@ contains
        old_fluid%temperature = 373.93854042827775_dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [314.09804741097884_dp, 373.94040546390397_dp]
+       expected_primary = [314.99804745225049_dp, 373.94040546390397_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [22.062e6_dp, 0.99_dp]
@@ -732,7 +732,7 @@ contains
 
     if (rank == 0) then
 
-       associate(sl => fluid_data(11))
+       associate(sl => fluid_data(12))
 
          sl = 0.0_dp
          expected_cond = 1.0_dp
@@ -959,48 +959,62 @@ contains
 
        call convert_fluid_test( &
             [1.e5_dp, 20._dp], 1, [1.e5_dp, 20._dp], 1, &
-            [1, 1], [1._dp, 0._dp, 0._dp], "L-L")
+            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "L-L")
 
        call convert_fluid_test( &
             [3.e5_dp, 120._dp], 1, [1.e5_dp, 120._dp], 2, &
-            [1, 2], [0._dp, 1._dp, 0._dp], "L-V")
+            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-V")
 
        call convert_fluid_test( &
             [3.e5_dp, 120._dp], 1, [1.e5_dp, 0.3_dp], 4, &
-            [1, 3], [0.7_dp, 0.3_dp, 0._dp], "L-2P")
+            [1, 3], [1.0_dp, 0._dp, 0._dp], [0.7_dp, 0.3_dp, 0._dp], "L-2P")
 
        call convert_fluid_test( &
             [600._dp, 400._dp], 3, [600._dp, 450._dp], 3, &
-            [4, 4], [0._dp, 0._dp, 1._dp], "SL-SL")
+            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "SL-SL")
 
        call convert_fluid_test( &
             [600._dp, 450._dp], 3, [200._dp, 400._dp], 3, &
-            [4, 4], [0._dp, 0._dp, 1._dp], "SL-SV")
+            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "SL-SV")
 
        call convert_fluid_test( &
             [600._dp, 450._dp], 3, [291._dp, 400._dp], 3, &
-            [4, 4], [0._dp, 0._dp, 1._dp], "SL-S2P")
+            [1, 3], [1._dp, 0._dp, 0._dp], [0.50040775541306348_dp, &
+            0.49959224458693652_dp, 0._dp], "SL-S2P")
 
        call convert_fluid_test( &
             [40.e6_dp, 340._dp], 1, [650._dp, 360._dp], 3, &
-            [1, 1], [1._dp, 0._dp, 0._dp], "L-3L")
+            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "L-3L")
 
        call convert_fluid_test( &
             [17.e6_dp, 360._dp], 2, [150._dp, 370._dp], 3, &
-            [2, 2], [0._dp, 1._dp, 0._dp], "V-3V")
+            [2, 2], [0._dp, 1._dp, 0._dp], [0._dp, 1._dp, 0._dp], "V-3V")
 
        call convert_fluid_test( &
             [50.e6_dp, 340._dp], 1, [600._dp, 400._dp], 3, &
-            [1, 1], [1._dp, 0._dp, 0._dp], "L-SL")
+            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "L-SL")
 
        call convert_fluid_test( &
             [50.e6_dp, 340._dp], 1, [200._dp, 400._dp], 3, &
-            [1, 2], [0._dp, 1._dp, 0._dp], "L-SV")
+            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-SV")
 
        call convert_fluid_test( &
             [50.e6_dp, 340._dp], 1, [280._dp, 400._dp], 3, &
-            [1, 3], [0.34576855753421931_dp, 0.65423144246578069_dp, &
-            0._dp], "L-S2P")
+            [1, 3], [1._dp, 0._dp, 0._dp], [0.34576855753421920_dp, &
+            0.65423144246578080_dp, 0._dp], "L-S2P")
+
+       call convert_fluid_test( &
+            [18.e6_dp, 0.3_dp], 4, [500._dp, 380._dp], 3, &
+            [3, 1], [0.7_dp, 0.3_dp, 0._dp], [1._dp, 0._dp, 0._dp], "2P-SL")
+
+       call convert_fluid_test( &
+            [18.e6_dp, 0.3_dp], 4, [200._dp, 400._dp], 3, &
+            [3, 2], [0.7_dp, 0.3_dp, 0._dp], [0._dp, 1._dp, 0._dp], "2P-SV")
+
+       call convert_fluid_test( &
+            [18.e6_dp, 0.3_dp], 4, [280._dp, 400._dp], 3, &
+            [3, 3], [0.7_dp, 0.3_dp, 0._dp], &
+            [0.34576855753421920_dp, 0.65423144246578080_dp, 0._dp], "2P-S2P")
 
     end if
 
@@ -1018,16 +1032,18 @@ contains
   contains
 
     subroutine convert_fluid_test(primary1, region1, primary2, &
-         region2, expected_phase_composition, expected_saturations2, name)
+         region2, expected_phase_composition, expected_saturations1, &
+         expected_saturations2, name)
 
       PetscReal, intent(in) :: primary1(eos%num_primary_variables)
       PetscReal, intent(in) :: primary2(eos%num_primary_variables)
       PetscInt, intent(in) :: region1, region2
       PetscInt, intent(in) :: expected_phase_composition(2)
+      PetscReal, intent(in) :: expected_saturations1(eos%num_mobile_phases)
       PetscReal, intent(in) :: expected_saturations2(eos%num_mobile_phases)
       character(*), intent(in) :: name
       ! Locals:
-      PetscReal :: sat2(eos%num_mobile_phases)
+      PetscReal :: sat1(eos%num_mobile_phases), sat2(eos%num_mobile_phases)
 
       fluid(1)%region = dble(region1)
       call eos%fluid_properties(primary1, rock, fluid(1), err)
@@ -1040,6 +1056,9 @@ contains
            nint(fluid(1)%phase_composition), name // ' phases 1')
       call test%assert(expected_phase_composition(2), &
            nint(fluid(2)%phase_composition), name // ' phases 2')
+      sat1 = [fluid(1)%phase(1)%saturation, fluid(1)%phase(2)%saturation, &
+           fluid(1)%phase(3)%saturation]
+      call test%assert(expected_saturations1, sat1, name // ' saturations 1')
       sat2 = [fluid(2)%phase(1)%saturation, fluid(2)%phase(2)%saturation, &
            fluid(2)%phase(3)%saturation]
       call test%assert(expected_saturations2, sat2, name // ' saturations 2')

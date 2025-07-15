@@ -147,7 +147,7 @@ The variable-stepsize BDF2 method discretises equation :eq:`RLeqn2` as follows:
 .. math::
    :label: BDF2
 
-   \frac{1}{\Delta t^n} \Big(\frac{1 + 2r}{1 + r} \mathbf{L}^{n+1} - (1 + r) \mathbf{L}^n + \frac{r^2}{1 + r} \mathbf{L}^{n-1} \Big) = \mathbf{R}^{n+1})
+   \frac{1}{\Delta t^n} \Big(\frac{1 + 2r}{1 + r} \mathbf{L}^{n+1} - (1 + r) \mathbf{L}^n + \frac{r^2}{1 + r} \mathbf{L}^{n-1} \Big) = \mathbf{R}^{n+1}
 
 where :math:`r = \Delta t^n / \Delta t^{n-1}` is the stepsize ratio.
 

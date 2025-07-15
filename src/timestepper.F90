@@ -657,20 +657,82 @@ contains
     type(timestepper_solver_context_type), intent(in out) :: context
     ! Locals:
     PetscErrorCode :: err, ierr
-    SNES :: solver
 
     call context%ode%post_linesearch(y_old, search, y, changed_search, &
          changed_y, err)
-
     if (err > 0) then
-       call SNESLineSearchGetSNES(linesearch, solver, ierr); CHKERRQ(ierr)
-       call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
        call SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_FAILED_DOMAIN, &
             ierr); CHKERRQ(ierr)
     end if
     SNES_linesearch_post_check = 0
 
   end function SNES_linesearch_post_check
+
+!------------------------------------------------------------------------
+
+  subroutine SNES_linesearch(linesearch, context, ierr)
+
+    !! Custom SNES basic linesearch which checks linesearch reason set
+    !! in post-check routine - if the post-check did not succeed, set
+    !! SNES function domain error so that the SNES will abort and the
+    !! time step will be repeated.
+
+    SNESLineSearch, intent(in out) :: linesearch
+    type(timestepper_solver_context_type), intent(in out) :: context
+    PetscErrorCode, intent(out) :: ierr
+    ! Locals:
+    SNES :: solver
+    PetscReal :: lambda
+    Vec :: x, f, y, w, g
+    PetscBool :: changed_y, changed_w
+    SNESLineSearchReason :: reason
+    PetscInt :: iter, max_iter
+    PetscBool :: domain_err
+
+    call SNESLineSearchGetSNES(linesearch, solver, ierr); CHKERRQ(ierr)
+    call SNESLineSearchGetVecs(linesearch, x, f, y, w, g, ierr); CHKERRQ(ierr)
+    call SNESLineSearchGetLambda(linesearch, lambda, ierr); CHKERRQ(ierr)
+    call SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_SUCCEEDED, &
+         ierr); CHKERRQ(ierr)
+
+    call SNESLineSearchPreCheck(linesearch, x, y, changed_y, ierr); CHKERRQ(ierr)
+    call VecWAXPY(w, -lambda, y, x, ierr); CHKERRQ(ierr)
+
+    call SNESLineSearchPostCheck(linesearch, x, y, w, changed_y, changed_w, &
+         ierr); CHKERRQ(ierr)
+
+    call SNESLineSearchGetReason(linesearch, reason, ierr); CHKERRQ(ierr)
+
+    if (reason == SNES_LINESEARCH_SUCCEEDED) then
+
+       if (changed_y .and. .not. changed_w) then
+          call VecWAXPY(w, -lambda, y, x, ierr); CHKERRQ(ierr)
+       end if
+       call VecCopy(w, x, ierr); CHKERRQ(ierr)
+       call SNESGetIterationNumber(solver, iter, ierr); CHKERRQ(ierr)
+       call SNESGetTolerances(solver, PETSC_NULL_REAL, PETSC_NULL_REAL, &
+            PETSC_NULL_REAL, max_iter, PETSC_NULL_INTEGER, ierr); CHKERRQ(ierr)
+
+       if (iter < max_iter - 1) then
+
+          call SNESComputeFunction(solver, x, f, ierr); CHKERRQ(ierr)
+          call SNESGetFunctionDomainError(solver, domain_err, ierr); CHKERRQ(ierr)
+          if (domain_err) then
+             call SNESLineSearchSetReason(linesearch, SNES_LINESEARCH_FAILED_DOMAIN, &
+                  ierr); CHKERRQ(ierr)
+          else
+             call SNESLineSearchComputeNorms(linesearch, ierr); CHKERRQ(ierr)
+          end if
+
+       else
+          call SNESLineSearchComputeNorms(linesearch, ierr); CHKERRQ(ierr)
+       end if
+
+    else
+       call SNESSetFunctionDomainError(solver, ierr); CHKERRQ(ierr)
+    end if
+
+  end subroutine SNES_linesearch
 
 !------------------------------------------------------------------------
 ! Timestepper_step procedures
@@ -1569,8 +1631,10 @@ end subroutine timestepper_steps_set_next_stepsize
 
     ! Nonlinear solver line search:
     call SNESGetLineSearch(self%solver, linesearch, ierr); CHKERRQ(ierr)
-    call SNESLineSearchSetType(linesearch, SNESLINESEARCHBASIC, ierr)
-    CHKERRQ(ierr)
+    call SNESLineSearchSetType(linesearch, SNESLINESEARCHSHELL, &
+         ierr); CHKERRQ(ierr)
+    call SNESLineSearchShellSetApply(linesearch, SNES_linesearch, self%context, &
+         ierr); CHKERRQ(ierr)
     call SNESLineSearchSetPostCheck(linesearch, SNES_linesearch_post_check, &
          self%context, ierr); CHKERRQ(ierr)
 

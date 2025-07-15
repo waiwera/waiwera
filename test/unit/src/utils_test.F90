@@ -754,6 +754,7 @@ contains
     ! Locals:
     PetscMPIInt :: rank
     PetscInt :: ierr
+    PetscReal :: xi
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -781,6 +782,15 @@ contains
        call test%assert(-0.125_dp, hermite_spline_11(0.5_dp), '11 0.5')
        call test%assert(-0.032_dp, hermite_spline_11(0.2_dp), '11 0.2')
        call test%assert(-0.147_dp, hermite_spline_11(0.7_dp), '11 0.7')
+
+       xi = 0._dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 0')
+       xi = 0.5_dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 0.5')
+       xi = 0.7_dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 0.7')
+       xi = 1._dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 1')
 
     end if
 
