@@ -159,11 +159,13 @@ contains
              call setup_item_index_dict(groups_json, &
                   source_network%num_groups, group_index_dict)
              call setup_group_dag(groups_json, source_network%num_groups, &
-                  group_index_dict, group_dag, group_specs_array)
-             call group_dag%sort(group_order, err)
+                  group_index_dict, group_dag, group_specs_array, logfile, err)
              if (err == 0) then
-                call init_source_network_groups(source_network, &
-                     num_local_root_groups, logfile, err)
+                call group_dag%sort(group_order, err)
+                if (err == 0) then
+                   call init_source_network_groups(source_network, &
+                        num_local_root_groups, logfile, err)
+                end if
              end if
           end if
           
@@ -791,24 +793,29 @@ contains
 !........................................................................
 
     subroutine setup_group_dag(groups_json, num_groups, &
-         group_index_dict, group_dag, group_specs_array)
+         group_index_dict, group_dag, group_specs_array, logfile, err)
       !! Forms directed acyclic graph (DAG) representing group
       !! dependencies. (Also populates group_specs_array, for random
-      !! access into group JSON specifications.)
+      !! access into group JSON specifications.) Raises an error if
+      !! any group has no inputs.
 
       type(fson_value), pointer, intent(in out) :: groups_json
       PetscInt, intent(in) :: num_groups
       type(dictionary_type), intent(in out) :: group_index_dict
       type(dag_type), intent(in out) :: group_dag
       type(pfson_value_type), allocatable, intent(in out) :: group_specs_array(:)
+      type(logfile_type), intent(in out), optional :: logfile
+      PetscErrorCode, intent(out) :: err
       ! Locals:
       type(fson_value), pointer :: group_json
+      character(max_source_network_node_name_length) :: name
       character(max_source_network_node_name_length), allocatable :: node_names(:)
       type(list_node_type), pointer :: dict_node
       PetscInt :: group_index, i
       PetscMPIInt :: rank
       PetscErrorCode :: ierr
 
+      err = 0
       call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
       call group_dag%init(num_groups)
       allocate(group_specs_array(num_groups))
@@ -819,22 +826,42 @@ contains
             call fson_get_mpi(group_json, "in", &
                  string_length = max_source_network_node_name_length, &
                  val = node_names)
-            associate(num_nodes => size(node_names))
-              allocate(dependency_indices(num_nodes))
-              do i = 1, num_nodes
-                 dict_node => group_index_dict%get(node_names(i))
-                 if (associated(dict_node)) then
-                    select type (idx => dict_node%data)
-                    type is (PetscInt)
-                       dependency_indices(i) = idx
-                    end select
-                 else
-                    dependency_indices(i) = -1
-                 end if
-              end do
-            end associate
-            dependency_indices = pack(dependency_indices, &
-                 dependency_indices > 0)
+            if (allocated(node_names)) then
+               associate(num_nodes => size(node_names))
+                 allocate(dependency_indices(num_nodes))
+                 do i = 1, num_nodes
+                    dict_node => group_index_dict%get(node_names(i))
+                    if (associated(dict_node)) then
+                       select type (idx => dict_node%data)
+                       type is (PetscInt)
+                          dependency_indices(i) = idx
+                       end select
+                    else
+                       dependency_indices(i) = -1
+                    end if
+                 end do
+               end associate
+               dependency_indices = pack(dependency_indices, &
+                    dependency_indices > 0)
+            else
+               err = 1
+               if (present(logfile)) then
+                  call fson_get_mpi(group_json, "name", "", name)
+                  call logfile%write(LOG_LEVEL_ERR, "input", &
+                       "no_inputs", str_key = "group", &
+                       str_value = trim(name))
+               end if
+               exit
+            end if
+         else
+            err = 1
+            if (present(logfile)) then
+               call fson_get_mpi(group_json, "name", "", name)
+               call logfile%write(LOG_LEVEL_ERR, "input", &
+                    "no_inputs", str_key = "group", &
+                    str_value = trim(name))
+            end if
+            exit
          end if
          call group_dag%set_edges(group_index, dependency_indices)
          if (rank == 0) then
@@ -898,7 +925,8 @@ contains
          num_local_root_groups, logfile, err)
       !! Initialise source network groups and controls and return
       !! number of local root groups. An error is returned if any
-      !! unrecognised group input nodes are specified.
+      !! unrecognised group input nodes are specified or any group
+      !! scaling options are invalid.
 
       use utils_module, only: str_to_lower, array_unique
 
@@ -1948,26 +1976,36 @@ contains
                  source_dict, source_dict_all, reinjector_output_dict, &
                  source_network, output_index, reinjector, err)
             if (err == 0) then
-               call init_reinjector_overflow(reinjector_json, rstr, &
-                 source_dict, source_dict_all, reinjector_output_dict, &
-                 reinjector, err)
-               if (err == 0) then
-                  call reinjector%init_comm()
-                  call reinjector%overflow%allocate_variables()
-                  if (reinjector%rank == 0) then
-                     r = num_local_root_reinjectors
-                     num_local_root_reinjectors = num_local_root_reinjectors + 1
+               if (reinjector%out%count > 0) then
+                  call init_reinjector_overflow(reinjector_json, rstr, &
+                       source_dict, source_dict_all, reinjector_output_dict, &
+                       reinjector, err)
+                  if (err == 0) then
+                     call reinjector%init_comm()
+                     call reinjector%overflow%allocate_variables()
+                     if (reinjector%rank == 0) then
+                        r = num_local_root_reinjectors
+                        num_local_root_reinjectors = num_local_root_reinjectors + 1
+                     else
+                        r = -1
+                     end if
+                     reinjector%local_reinjector_index = r
+                     call reinjector%gather_cell_indices()
+                     call source_network%reinjectors%append(reinjector)
+                     if (name /= "") then
+                        call reinjector_dict%add(name, reinjector)
+                     end if
                   else
-                     r = -1
-                  end if
-                  reinjector%local_reinjector_index = r
-                  call reinjector%gather_cell_indices()
-                  call source_network%reinjectors%append(reinjector)
-                  if (name /= "") then
-                     call reinjector_dict%add(name, reinjector)
+                     deallocate(reinjector)
+                     exit
                   end if
                else
-                  deallocate(reinjector)
+                  if (present(logfile)) then
+                     call logfile%write(LOG_LEVEL_ERR, "input", &
+                          "no_outputs", str_key = "reinjector", &
+                          str_value = trim(name))
+                  end if
+                  err = 1
                   exit
                end if
             else
@@ -1981,10 +2019,12 @@ contains
 
       end do
 
-      call source_network%reinjectors%traverse(init_reinjector_in_comms_iterator)
-      call source_network%reinjectors%traverse(reinjector_send_cell_indices_iterator)
-      call reinjector_input_dict%destroy()
-      call reinjector_output_dict%destroy()
+      if (err == 0) then
+         call source_network%reinjectors%traverse(init_reinjector_in_comms_iterator)
+         call source_network%reinjectors%traverse(reinjector_send_cell_indices_iterator)
+         call reinjector_input_dict%destroy()
+         call reinjector_output_dict%destroy()
+      end if
 
     end subroutine init_source_network_reinjectors
 
