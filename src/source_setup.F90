@@ -799,6 +799,8 @@ contains
       !! access into group JSON specifications.) Raises an error if
       !! any group has no inputs.
 
+      use mpi_utils_module, only: mpi_broadcast_error_flag
+
       type(fson_value), pointer, intent(in out) :: groups_json
       PetscInt, intent(in) :: num_groups
       type(dictionary_type), intent(in out) :: group_index_dict
@@ -845,6 +847,7 @@ contains
                     dependency_indices > 0)
             else
                err = 1
+               call mpi_broadcast_error_flag(err)
                if (present(logfile)) then
                   call fson_get_mpi(group_json, "name", "", name)
                   call logfile%write(LOG_LEVEL_ERR, "input", &
@@ -855,6 +858,7 @@ contains
             end if
          else
             err = 1
+            call mpi_broadcast_error_flag(err)
             if (present(logfile)) then
                call fson_get_mpi(group_json, "name", "", name)
                call logfile%write(LOG_LEVEL_ERR, "input", &
@@ -1907,6 +1911,7 @@ contains
       !! reinjector input is used by more than one reinjector.
 
       use utils_module, only: str_to_lower, array_unique
+      use mpi_utils_module, only: mpi_broadcast_logical
 
       type(source_network_type), intent(in out) :: source_network
       PetscInt, intent(in out) :: num_local_root_reinjectors
@@ -1921,6 +1926,7 @@ contains
       type(dictionary_type) :: reinjector_input_dict, reinjector_output_dict
       type(source_network_reinjector_type), pointer :: reinjector
       type(list_node_type), pointer :: group_dict_node
+      PetscBool :: has_outputs
 
       err = 0
       call reinjector_input_dict%init(PETSC_FALSE)
@@ -1976,7 +1982,9 @@ contains
                  source_dict, source_dict_all, reinjector_output_dict, &
                  source_network, output_index, reinjector, err)
             if (err == 0) then
-               if (reinjector%out%count > 0) then
+               has_outputs = (reinjector%out%count > 0)
+               call mpi_broadcast_logical(has_outputs)
+               if (has_outputs) then
                   call init_reinjector_overflow(reinjector_json, rstr, &
                        source_dict, source_dict_all, reinjector_output_dict, &
                        reinjector, err)
