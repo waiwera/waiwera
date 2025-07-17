@@ -84,7 +84,7 @@ Sources are set up in the Waiwera JSON input file via the **"source"** value. Th
 Source names
 ============
 
-A source can be given a name using its **"name"** value, which can be an arbitrary string.
+A source can be given a name using its **"name"** value, which can be an arbitrary string (up to 32 characters in length).
 
 It is not required to give a source a name, unless a source network (see :ref:`source_networks`) is defined and the source is referenced by other objects (e.g. groups or reinjectors) in the source network. This referencing is done on the basis of names.
 

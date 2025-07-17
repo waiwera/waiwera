@@ -170,7 +170,7 @@ The following command builds Waiwera (and dependencies), but does not install it
 Linking to your own PETSc library
 ---------------------------------
 
-The build system will download and build its own version of the PETSc library, if it does not detect one already present on your computer. Note that Waiwera currently requires PETSc version 3.15.2 or newer.
+The build system will download and build its own version of the PETSc library, if it does not detect one already present on your computer. Waiwera usually requires an up-to-date version of PETSc. You can check which version is currently required on the Waiwera `website <https://waiwera.github.io/releases/>`_.
 
 If you do have a suitably up-to-date version of PETSc on your machine, and want to link to it rather than having Waiwera build its own, you need to make sure your PETSc is discoverable by the ``pkg-config`` tool, before you start the build.
 

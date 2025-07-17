@@ -80,7 +80,7 @@ Source groups are set up in the Waiwera JSON input file via the **"network.group
 Group name
 ----------
 
-A group can be given a name using its **"name"** value, which can be an arbitrary string.
+A group can be given a name using its **"name"** value, which can be an arbitrary string (up to 32 characters in length).
 
 Although the name is optional, references between objects (groups or reinjectors) in the source network are done by name. So if a group is to be referenced by another object, for example to include a group in another group, or feed its output to a reinjector, it must have a name.
 
@@ -92,7 +92,7 @@ The name must also be unique, that is, no other sources, groups or reinjectors m
 Group inputs
 ------------
 
-The **"in"** value defines the inputs for the group. This is an array of strings, listing the names of all the inputs. The inputs may be production sources, other groups, or a mix of both.
+The **"in"** value defines the inputs for the group. This is an array of strings, listing the names of all the inputs. The inputs may be production sources, other groups, or a mix of both. An error is raised if a group is defined with no inputs.
 
 Note that groups can be defined in arbitrary order, so a group can include other groups in its inputs even if they are defined later in the group array.
 
@@ -322,7 +322,7 @@ Reinjectors are set up in the Waiwera JSON input file via the **"network.reinjec
 Reinjector name
 ---------------
 
-Like a group, a reinjector can be given a name using its **"name"** value, which can be an arbitrary string. This is optional, unless the reinjector is to be referenced by another reinjector (for example, if it serves as an output or overflow from another reinjector), in which case a name will be needed.
+Like a group, a reinjector can be given a name using its **"name"** value, which can be an arbitrary string (up to 32 characters in length). This is optional, unless the reinjector is to be referenced by another reinjector (for example, if it serves as an output or overflow from another reinjector), in which case a name will be needed.
 
 The name must also be unique, that is, no other sources, groups or reinjectors may have the same name.
 
@@ -346,7 +346,7 @@ The order of reinjectors in the Waiwera JSON input file is not significant, and 
 Reinjector outputs
 ------------------
 
-Reinjector outputs are divided into two categories: separated water and separated steam (or steam condensate). For each category, a list of outputs is specified (see below).
+Reinjector outputs are divided into two categories: separated water and separated steam (or steam condensate). For each category, a list of outputs is specified (see below). An error is raised if a reinjector is defined with no outputs.
 
 Within each category, the corresponding input fluid is distributed **progressively** amongst the list of outputs - that is, the first output is assigned a flow rate, then the second output, and so on until either all the input flow has been distributed, or all the outputs have been assigned. If all the input flow is distributed to the outputs, then any remaining outputs in the list will have zero flow (and the overflow for that category will be zero). Otherwise, there will be a non-zero overflow (see :ref:`reinjector_overflow`).
 
