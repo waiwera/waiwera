@@ -1700,39 +1700,29 @@ contains
 
   contains
 
-    subroutine properties(param, props, err)
+    subroutine properties(param, props)
 
       PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
       PetscReal, intent(out):: props(:) !! (density, internal energy)
-      PetscInt, intent(out) :: err !! error code
 
       ! Locals:
       PetscReal:: tk, rt, pi, tau, gampi, gamt
 
       associate (p => param(1), t => param(2))
 
-        ! Check input:
-        if ((0._dp < t) .and. (t <= self%max_temperature) .and. &
-             (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
+        tk = t + tc_k
+        rt = specific_gas_constant * tk
+        pi = p / self%pstar
+        tau = self%tstar / tk
 
-           tk = t + tc_k
-           rt = specific_gas_constant * tk
-           pi = p / self%pstar
-           tau = self%tstar / tk
+        call self%pi%compute(7.1_dp - pi)
+        call self%pj%compute(tau - 1.222_dp)
 
-           call self%pi%compute(7.1_dp - pi)
-           call self%pj%compute(tau - 1.222_dp)
+        gampi = -sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
+        gamt = sum(self%nJ * self%pi%power(self%I) * self%pj%power(self%J_1))
 
-           gampi = -sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
-           gamt = sum(self%nJ * self%pi%power(self%I) * self%pj%power(self%J_1))
-
-           props(1) = self%pstar / (rt * gampi)      ! density
-           props(2) = rt * (tau * gamt - pi * gampi) ! internal energy
-           err = 0
-
-        else
-           err = 1
-        end if
+        props(1) = self%pstar / (rt * gampi)      ! density
+        props(2) = rt * (tau * gamt - pi * gampi) ! internal energy
 
       end associate
 
