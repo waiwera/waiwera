@@ -1646,37 +1646,54 @@ contains
     PetscInt, intent(out) :: err !! error code
     ! Locals:
     PetscReal :: T_a, xi
-    PetscReal :: props_a(2), props_b(2), rho_b, u_b
-    PetscReal, parameter :: dT = 0.05 !! size of interpolation zone
+    PetscReal :: props_a(2), props_b(2), rho_b
+    PetscReal, parameter :: dT = 0.05_dp !! size of interpolation zone
 
     select type (thermo => self%thermo)
     type is (IAPWS_type)
-       associate (T_b => thermo%temperature_bdy_1_3, &
-            p => param(1), t => param(2), u_b => props_b(2))
+       associate (T_b => self%max_temperature, p => param(1), &
+            t => param(2))
 
-         T_a = T_b - dT
+         if ((0._dp < t) .and. (t <= self%max_temperature) .and. &
+              (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
 
-         if (t < T_a) then
-            call properties(param, props, err)
-         else
+            if (thermo%extrapolate) then
+               call properties(param, props, err)
+            else
 
-            xi = (t - T_a) / dT
-            call properties([p, T_a], props_a, err)
-            if (err == 0) then
-               select type (region3 => thermo%region(3)%ptr)
-               type is (IAPWS_region3_type)
-                  call region3%density(param, rho_b, err, polish = PETSC_TRUE)
+               T_a = T_b - dT
+
+               if (t < T_a) then
+                  call properties(param, props, err)
+               else
+
+                  xi = (t - T_a) / dT
+                  call properties([p, T_a], props_a, err)
                   if (err == 0) then
-                     call region3%properties([rho_b, T_b], props_b, err)
-                     if (err == 0) then
-                        call properties(param, props, err)
-                        props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
-                     end if
+                     select type (region3 => thermo%region(3)%ptr)
+                     type is (IAPWS_region3_type)
+                        call region3%density([p, T_b], rho_b, err, polish = PETSC_TRUE)
+                        if (err == 0) then
+                           call region3%properties([rho_b, T_b], props_b, err)
+                           if (err == 0) then
+                              associate (u_b => props_b(2))
+                                props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
+                              end associate
+                           end if
+                        end if
+                     end select
                   end if
-               end select
+                  if (err > 0) then ! fallback
+                     call properties(param, props, err)
+                  end if
+
+               end if
             end if
 
+         else
+            err = 1
          end if
+
        end associate
     end select
 
