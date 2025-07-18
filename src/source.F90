@@ -35,7 +35,7 @@ module source_module
   PetscInt, parameter, public :: default_source_injection_component = 1
   PetscInt, parameter, public :: default_source_production_component = 0
   PetscReal, parameter, public :: default_source_rate = 0._dp
-  PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3
+  PetscReal, parameter, public :: default_source_injection_enthalpy = 83.9e3_dp
 
   PetscInt, parameter, public :: num_source_scalar_variables = &
        num_source_network_node_variables + num_separator_variables + 3
