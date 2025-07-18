@@ -107,7 +107,6 @@ module IAPWS_test
        do i = 1, nerr
           param = err_params(i,:)
           call IAPWS%water%properties(param, props, err)
-          write (*,*) param, props, err
           call test%assert(1, err, 'error')
        end do
 
@@ -147,6 +146,7 @@ module IAPWS_test
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
        do i = 1, n
           param = params(i,:)
@@ -155,11 +155,20 @@ module IAPWS_test
           call test%assert(u(i), props(2), 'energy')
           call test%assert(0, err, 'error')
        end do
+
        do i = 1, nerr
           param = err_params(i,:)
           call IAPWS%steam%properties(param, props, err)
           call test%assert(1, err, 'error')
        end do
+
+       ! Near 2/3 boundary:
+       param = [40.e6_dp, 459.37521897358727_dp]
+       call IAPWS%steam%properties(param, props, err)
+       call test%assert(242.61561357440996_dp, props(1), 'near 2/3 boundary density')
+       call test%assert(2442.5842178085037e3_dp, props(2), 'near 2/3 boundary energy')
+       call test%assert(0, err, 'near boundary 2/3 no error')
+
     end if
 
   end subroutine test_IAPWS_region2
