@@ -97,18 +97,24 @@ contains
     case ("se")
        select type (thermo)
        type is (IAPWS_type)
-          allocate(eos_se_type :: eos)
+          if (thermo%extrapolate) then
+             call thermo_extrapolation_error()
+          else
+             allocate(eos_se_type :: eos)
+          end if
        class default
-          call raise_thermo_error()
-          stop
+          call invalid_thermo_error()
        end select
     case ("sae")
        select type (thermo)
        type is (IAPWS_type)
-          allocate(eos_sae_type :: eos)
+          if (thermo%extrapolate) then
+             call thermo_extrapolation_error()
+          else
+             allocate(eos_sae_type :: eos)
+          end if
        class default
-          call raise_thermo_error()
-          stop
+          call invalid_thermo_error()
        end select
     case default
        allocate(eos_we_type :: eos)
@@ -120,8 +126,8 @@ contains
 
   contains
 
-    subroutine raise_thermo_error()
-      !! Raises and error if thermodynamics is not compatible with the
+    subroutine invalid_thermo_error()
+      !! Raises an error if thermodynamics is not compatible with the
       !! EOS.
 
       err = 1
@@ -133,7 +139,22 @@ contains
               trim(eos_name) // ': ' // trim(thermo%name), rank = 0)
       end if
 
-    end subroutine raise_thermo_error
+    end subroutine invalid_thermo_error
+
+    subroutine thermo_extrapolation_error()
+      !! Raises an error if thermodynamics extrapolation has been
+      !! specified for an EOS that does not support it.
+
+      err = 1
+      call mpi_broadcast_error_flag(err)
+      if (present(logfile)) then
+         call logfile%write(LOG_LEVEL_ERR, 'simulation', &
+              'init', str_key = 'stop', &
+              str_value = 'Thermodynamics extrapolation not supported for EOS ' // &
+              trim(eos_name), rank = 0)
+      end if
+
+    end subroutine thermo_extrapolation_error
 
   end subroutine setup_eos
 

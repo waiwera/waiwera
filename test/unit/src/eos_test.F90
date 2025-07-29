@@ -15,7 +15,7 @@ module eos_test
   private
 
   public :: setup, teardown
-  public :: test_eos_component_index, test_scaling
+  public :: test_eos_component_index, test_scaling, test_eos_thermo
 
 contains
 
@@ -206,5 +206,72 @@ contains
   end subroutine test_scaling
 
 !------------------------------------------------------------------------
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_thermo(test)
+    ! eos thermodynamics tests
+
+    use IAPWS_module
+    use IFC67_module
+    use eos_module, only: eos_type
+    use eos_setup_module
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(IAPWS_type) :: iapws
+    type(IFC67_type) :: ifc67
+    class(eos_type), allocatable :: eos
+    type(fson_value), pointer :: json
+    PetscErrorCode :: err
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    call iapws%init()
+    call ifc67%init()
+
+    json => fson_parse_mpi(str = '{"eos": {"name": "se"}}')
+    call setup_eos(json, iapws, eos, err = err)
+    if (rank == 0) then
+       call test%assert(0, err, "EOS se, IAPWS")
+    end if
+    if (allocated(eos)) then
+       call eos%destroy()
+       deallocate(eos)
+    end if
+    call fson_destroy(json)
+
+    json => fson_parse_mpi(str = '{"eos": {"name": "se"}}')
+    call setup_eos(json, ifc67, eos, err = err)
+    if (rank == 0) then
+       call test%assert(1, err, "EOS se, IFC-67")
+    end if
+    if (allocated(eos)) then
+       call eos%destroy()
+       deallocate(eos)
+    end if
+    call fson_destroy(json)
+
+    call iapws%destroy()
+
+    json => fson_parse_mpi(str = '{"eos": {"name": "sae"}, ' // &
+         '"thermodynamics": {"name": "IAPWS", "extrapolate": true}}')
+    call iapws%init(json)
+    call setup_eos(json, iapws, eos, err = err)
+    if (rank == 0) then
+       call test%assert(1, err, "EOS sae, IAPWS extrapolated")
+    end if
+    if (allocated(eos)) then
+       call eos%destroy()
+       deallocate(eos)
+    end if
+    call fson_destroy(json)
+
+    call iapws%destroy()
+    call ifc67%destroy()
+
+  end subroutine test_eos_thermo
 
 end module eos_test
