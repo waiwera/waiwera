@@ -86,9 +86,6 @@
       "rate": -15.7
     }
   ],
-  "thermodynamics": {
-    "extrapolate": true
-  },
   "time": {
     "step": {
       "adapt": {
