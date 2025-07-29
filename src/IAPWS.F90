@@ -1647,6 +1647,7 @@ contains
     ! Locals:
     PetscReal :: T_a, xi
     PetscReal :: props_a(2), props_b(2), rho_b
+    PetscReal, parameter :: eps = 1.e-5_dp !! tolerance for differencing near max temperature
     PetscReal, parameter :: dT = 0.05_dp !! size of interpolation zone
 
     err = 0
@@ -1655,7 +1656,7 @@ contains
        associate (T_b => self%max_temperature, p => param(1), &
             t => param(2))
 
-         if ((0._dp < t) .and. (t <= self%max_temperature) .and. &
+         if ((0._dp < t) .and. (t <= (1._dp + eps) * self%max_temperature) .and. &
               (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
 
             if (thermo%extrapolate) then
