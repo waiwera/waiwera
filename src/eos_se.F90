@@ -888,7 +888,7 @@ contains
                                    Sv = 0.5_dp
                                 end if
                                 fluid%region = dble(4)
-                                primary(1) = saturation_pressure
+                                call self%set_water_pressure(saturation_pressure, primary)
                                 primary(2) = Sv
                                 transition = PETSC_TRUE
                              end if
