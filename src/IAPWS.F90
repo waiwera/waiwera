@@ -2577,6 +2577,8 @@ contains
                end if
             end if
          end if
+      else if (pressure > self%thermo%critical%pressure) then
+         err = 1
       else
          density = near_critical_density(param, liquid)
       end if
