@@ -1016,6 +1016,7 @@ module IAPWS_module
      PetscReal, public :: temperature_bdy_1_3 !! Temperature of boundary between regions 1 & 3
      PetscReal, public :: saturation_pressure_bdy_1_3 !! Saturation pressure at boundary between regions 1 & 3
      PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
+     PetscReal, public :: min_pressure_bdy_1_3
      PetscReal, public :: widom_slope = 6.479 !! Slope A_s of Widom line for water (Banuti et al., 2017)
      PetscReal, public :: widom_delta_growth !! Widom delta width growth factor
      PetscReal, public :: widom_delta_offset !! Temperature offset (from critical temperature) of Widom delta
@@ -1056,7 +1057,7 @@ contains
     ! Locals:
     PetscInt :: i, thermo_type
     PetscBool :: defaults
-    PetscReal :: Psat, props(2)
+    PetscReal :: props(2)
     PetscErrorCode :: err
     PetscBool, parameter :: default_extrapolate = PETSC_FALSE
     PetscReal, parameter :: default_widom_delta_growth = 25._dp
@@ -1125,10 +1126,13 @@ contains
     end do
 
     ! Reference densities at region 1/3 boundary:
-    call self%saturation%pressure(self%temperature_bdy_1_3, Psat, err)
-    call self%water%properties([Psat, self%temperature_bdy_1_3], props, err)
+    call self%saturation%pressure(self%temperature_bdy_1_3, &
+         self%min_pressure_bdy_1_3, err)
+    call self%water%properties([self%min_pressure_bdy_1_3, &
+         self%temperature_bdy_1_3], props, err)
     self%min_liquid_density_bdy_1_3 = props(1)
-    call self%steam%properties([Psat, self%temperature_bdy_1_3], props, err)
+    call self%steam%properties([self%min_pressure_bdy_1_3, &
+         self%temperature_bdy_1_3], props, err)
     self%max_vapour_density_bdy_1_3 = props(1)
 
     ! Auxiliary Widom delta parameters:
@@ -1662,36 +1666,41 @@ contains
             if (thermo%extrapolate) then
                call properties(param, props)
             else
-
-               T_a = T_b - dT
-
-               if (t < T_a) then
+               if (p <= thermo%min_pressure_bdy_1_3) then
                   call properties(param, props)
                else
 
-                  call properties([p, T_a], props_a)
-                  select type (region3 => thermo%region(3)%ptr)
-                  type is (IAPWS_region3_type)
-                     call region3%density([p, T_b], rho_b, err, polish = PETSC_TRUE)
-                     if (err == 0) then
-                        call region3%properties([rho_b, T_b], props_b, err)
-                        if (err == 0) then
-                           associate (u_b => props_b(2))
-                             xi = (t - T_a) / dT
-                             props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
-                           end associate
-                        end if
-                     end if
-                  end select
+                  T_a = T_b - dT
 
-                  if (err > 0) then ! fallback
+                  if (t < T_a) then
                      call properties(param, props)
-                     err = 0
+                  else
+
+                     call properties([p, T_a], props_a)
+                     select type (region3 => thermo%region(3)%ptr)
+                     type is (IAPWS_region3_type)
+                        call region3%density([p, T_b], rho_b, err, &
+                             polish = PETSC_TRUE)
+                        if (err == 0) then
+                           call region3%properties([rho_b, T_b], props_b, err)
+                           if (err == 0) then
+                              associate (u_b => props_b(2))
+                                xi = (t - T_a) / dT
+                                props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
+                              end associate
+                           end if
+                        end if
+                     end select
+
+                     if (err > 0) then ! fallback
+                        call properties(param, props)
+                        err = 0
+                     end if
+
                   end if
 
                end if
             end if
-
          else
             err = 1
          end if
@@ -1859,36 +1868,44 @@ contains
     type is (IAPWS_type)
        associate (p => param(1), t => param(2))
 
-         if ((0._dp < t) .and. (t <= self%thermo%max_temperature) .and. &
-              (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
+         if ((0._dp < t) .and. (t <= thermo%max_temperature) .and. &
+              (0._dp < p) .and. (p <= thermo%max_pressure)) then
 
-            call thermo%boundary23%temperature(p, T_b)
-            T_a = T_b + dT
-
-            if (t > T_a) then
+            if (t <= thermo%temperature_bdy_1_3) then
                call properties(param, props)
             else
-
-               call properties([p, T_a], props_a)
-               select type (region3 => thermo%region(3)%ptr)
-               type is (IAPWS_region3_type)
-                  call region3%density([p, T_b], rho_b, err, polish = PETSC_TRUE)
-                  if (err == 0) then
-                     call region3%properties([rho_b, T_b], props_b, err)
-                     if (err == 0) then
-                        associate (u_b => props_b(2))
-                          xi = (T_a - t) / dT
-                          props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
-                        end associate
-                     end if
-                  end if
-               end select
-
-               if (err > 0) then ! fallback
+               if (p <= thermo%min_pressure_bdy_1_3) then
                   call properties(param, props)
-                  err = 0
-               end if
+               else
+                  call thermo%boundary23%temperature(p, T_b)
+                  T_a = T_b + dT
+                  if (t > T_a) then
+                     call properties(param, props)
+                  else
 
+                     call properties([p, T_a], props_a)
+                     select type (region3 => thermo%region(3)%ptr)
+                     type is (IAPWS_region3_type)
+                        call region3%density([p, T_b], rho_b, err, &
+                             polish = PETSC_TRUE)
+                        if (err == 0) then
+                           call region3%properties([rho_b, T_b], props_b, err)
+                           if (err == 0) then
+                              associate (u_b => props_b(2))
+                                xi = (T_a - t) / dT
+                                props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
+                              end associate
+                           end if
+                        end if
+                     end select
+
+                     if (err > 0) then ! fallback
+                        call properties(param, props)
+                        err = 0
+                     end if
+
+                  end if
+               end if
             end if
 
          else
@@ -2483,7 +2500,7 @@ contains
     PetscReal, parameter :: ftol = 1.e-6_dp, xtol = 1.e-7_dp
 
     err = 0
-    sr =  self%subregion_index(param)
+    sr = self%subregion_index(param)
 
     if (sr > 0) then
        nu = self%subregion(sr)%specific_volume(param)
