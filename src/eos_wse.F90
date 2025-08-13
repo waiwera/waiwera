@@ -232,6 +232,7 @@ contains
     PetscBool :: halite
     PetscReal :: salt_mass_fraction
 
+    err = 0
     water_region = self%water_region(region)
     halite = self%halite(region)
 
