@@ -10,7 +10,7 @@ module unit_test_utils_module
   implicit none
   private
 
-  public :: transition_compare
+  public :: transition_compare, fluid_compare
   public :: vec_write, vec_diff_test
 
 contains
@@ -31,7 +31,7 @@ contains
     type(fluid_type), intent(in) :: fluid
     PetscBool, intent(in) :: expected_transition, transition
     PetscErrorCode, intent(in) :: err
-    character(60), intent(in) :: message
+    character(*), intent(in) :: message
     ! Locals:
     PetscReal, parameter :: tol = 1.e-6_dp
 
@@ -46,6 +46,51 @@ contains
     end if
 
   end subroutine transition_compare
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_compare(test, fluid1, fluid2, message, tol)
+
+    use fluid_module
+
+    ! Runs assertions to see if two fluids have the same properties
+
+    class(unit_test_type), intent(in out) :: test
+    type(fluid_type), intent(in) :: fluid1, fluid2
+    character(*), intent(in) :: message
+    PetscReal, intent(in), optional :: tol
+    ! Locals:
+    PetscInt :: p
+    character(1) :: phase_str
+    PetscReal :: effective_tol
+    PetscReal, parameter :: default_tol = 1.e-10_dp
+
+    if (present(tol)) then
+       effective_tol = tol
+    else
+       effective_tol = default_tol
+    end if
+
+    call test%assert(fluid1%pressure, fluid2%pressure, &
+         trim(message) // " pressure", tol = effective_tol)
+    call test%assert(fluid1%temperature, fluid2%temperature, &
+         trim(message) // " temperature", tol = effective_tol)
+    call test%assert(fluid1%liquidlike_fraction, fluid2%liquidlike_fraction, &
+         trim(message) // " liquid-like fraction", tol = effective_tol)
+    call test%assert(fluid1%partial_pressure, fluid2%partial_pressure, &
+         trim(message) // " partial pressure", tol = effective_tol)
+
+    do p = 1, fluid1%num_phases
+       associate (phase1 => fluid1%phase(p), phase2 => fluid2%phase(p))
+         if ((phase1%saturation > 0._dp) .or. (phase2%saturation > 0._dp)) then
+            write(phase_str, '(i1)') p
+            call test%assert(phase1%data, phase2%data, &
+                 trim(message) // " phase " // phase_str, tol = effective_tol)
+         end if
+       end associate
+    end do
+
+  end subroutine fluid_compare
 
 !------------------------------------------------------------------------
 
