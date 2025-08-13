@@ -16,12 +16,13 @@ module eos_wae_test_module
   use fson
   use fson_mpi_module
   use eos_wae_module
+  use unit_test_utils_module, only: fluid_compare
 
   implicit none
   private
 
   public :: setup, teardown, setup_test
-  public :: test_eos_wae_fluid_properties
+  public :: test_eos_wae_fluid_properties, test_eos_wae_bdy_consistency
 
 contains
 
@@ -212,6 +213,106 @@ contains
     end subroutine properties_test
 
   end subroutine test_eos_wae_fluid_properties
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_wae_bdy_consistency(test)
+
+    ! Test eos_wae boundary consistency
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_wae_type) :: eos
+    PetscReal, pointer, contiguous :: fluid_data(:), rock_data(:)
+    type(fluid_type) :: fluid1, fluid2
+    type(rock_type) :: rock
+    class(relative_permeability_type), allocatable :: rp
+    class(capillary_pressure_type), allocatable :: cp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, allocatable :: primary1(:), primary2(:)
+    PetscReal :: Pw
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{}')
+    call thermo%init()
+    call eos%init(json, thermo)
+    allocate(primary1(eos%num_primary_variables))
+    allocate(primary2(eos%num_primary_variables))
+    call fluid1%init(eos%num_components, eos%num_phases)
+    call fluid2%init(eos%num_components, eos%num_phases)
+    call rock%init()
+    allocate(fluid_data(fluid1%dof + fluid2%dof))
+    allocate(rock_data(rock%dof))
+    call setup_relative_permeabilities(json, rp)
+    call setup_capillary_pressures(json, cp)
+
+    fluid_data = 0._dp
+    rock_data = 0._dp
+
+    call fluid1%assign(fluid_data, 1)
+    call fluid2%assign(fluid_data, fluid1%dof + 1)
+    call rock%assign(rock_data, 1)
+    call rock%assign_relative_permeability(rp)
+    call rock%assign_capillary_pressure(cp)
+
+    if (rank == 0) then
+
+       ! region 1 / 4
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), P2 => primary2(1), &
+            Sv2 => primary2(2), Pa2 => primary2(3))
+         T1 = 200._dp
+         Pa1 = 0.1e5_dp
+         call thermo%saturation%pressure(T1, Pw, err)
+         P1 = Pw + Pa1
+         P2 = P1
+         Sv2 = 0._dp
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(1)
+       fluid2%region = dble(4)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 1/4")
+
+       ! region 2 / 4
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), P2 => primary2(1), &
+            Sv2 => primary2(2), Pa2 => primary2(3))
+         T1 = 300._dp
+         Pa1 = 0.2e5_dp
+         call thermo%saturation%pressure(T1, Pw, err)
+         P1 = Pw + Pa1
+         P2 = P1
+         Sv2 = 1._dp
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(2)
+       fluid2%region = dble(4)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 2/4")
+
+    end if
+
+    call fluid1%destroy()
+    call fluid2%destroy()
+    call rock%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(fluid_data, primary1, primary2)
+    call rp%destroy()
+    deallocate(rp)
+    call cp%destroy()
+    deallocate(cp)
+
+  end subroutine test_eos_wae_bdy_consistency
 
 !------------------------------------------------------------------------
 
