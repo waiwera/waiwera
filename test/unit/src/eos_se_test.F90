@@ -16,7 +16,7 @@ module eos_se_test_module
   use fson
   use fson_mpi_module
   use eos_se_module
-  use unit_test_utils_module, only: transition_compare
+  use unit_test_utils_module, only: transition_compare, fluid_compare
 
   implicit none
   private
@@ -25,7 +25,7 @@ module eos_se_test_module
   public :: test_eos_se_fluid_properties, test_eos_se_transition, &
        test_eos_se_errors, test_eos_se_conductivity, &
        test_eos_se_phase_saturations, test_eos_se_check_primary_variables, &
-       test_eos_se_convert_fluid
+       test_eos_se_convert_fluid, test_eos_se_bdy_consistency
 
 contains
 
@@ -1066,6 +1066,157 @@ contains
     end subroutine convert_fluid_test
 
   end subroutine test_eos_se_convert_fluid
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_se_bdy_consistency(test)
+
+    ! Test eos_se boundary consistency
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_se_type) :: eos
+    PetscReal, pointer, contiguous :: fluid_data(:), rock_data(:)
+    type(fluid_type) :: fluid1, fluid2
+    type(rock_type) :: rock
+    class(relative_permeability_type), allocatable :: rp
+    class(capillary_pressure_type), allocatable :: cp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, allocatable :: primary1(:), primary2(:)
+    PetscReal :: props(2), t, d
+
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{}')
+    call thermo%init()
+    call eos%init(json, thermo)
+    allocate(primary1(eos%num_primary_variables))
+    allocate(primary2(eos%num_primary_variables))
+    call fluid1%init(eos%num_components, eos%num_phases)
+    call fluid2%init(eos%num_components, eos%num_phases)
+    call rock%init()
+    allocate(fluid_data(fluid1%dof + fluid2%dof))
+    allocate(rock_data(rock%dof))
+    call setup_relative_permeabilities(json, rp)
+    call setup_capillary_pressures(json, cp)
+
+    fluid_data = 0._dp
+    rock_data = 0._dp
+
+    call fluid1%assign(fluid_data, 1)
+    call fluid2%assign(fluid_data, fluid1%dof + 1)
+    call rock%assign(rock_data, 1)
+    call rock%assign_relative_permeability(rp)
+    call rock%assign_capillary_pressure(cp)
+
+    if (rank == 0) then
+
+       ! region 1 / 3
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            d2 => primary2(1), T2 => primary2(2), &
+            density => props(1))
+         P1 = 40.e6_dp
+         T1 = thermo%temperature_bdy_1_3
+         call thermo%water%properties(primary1, props, err)
+         d2 = density
+         T2 = T1
+       end associate
+       fluid1%region = dble(1)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 1/3")
+
+       ! region 2 / 3
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            d2 => primary2(1), T2 => primary2(2), &
+            density => props(1))
+         T1 = 400._dp
+         call thermo%boundary23%pressure(T1, P1)
+         call thermo%steam%properties(primary1, props, err)
+         d2 = density
+         T2 = T1
+       end associate
+       fluid1%region = dble(2)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 2/3")
+
+       ! ! region 4 at 350 deg C
+       ! associate (P1 => primary1(1), Sv1 => primary1(2), &
+       !      P2 => primary2(1), Sv2 => primary2(2))
+       !   P1 = thermo%saturation_pressure_bdy_1_3
+       !   Sv1 = 0.5_dp
+       !   P2 = P1 + 1.e-9_dp
+       !   Sv2 = Sv1
+       ! end associate
+       ! fluid1%region = dble(4)
+       ! fluid2%region = dble(4)
+       ! call eos%fluid_properties(primary1, rock, fluid1, err)
+       ! call eos%fluid_properties(primary2, rock, fluid2, err)
+       ! call fluid_compare(test, fluid1, fluid2, "region 4 350 C")
+
+       ! region 4 / 3 liquid
+       associate (P1 => primary1(1), Sv1 => primary1(2), &
+            d2 => primary2(1), T2 => primary2(2))
+         P1 = 20.e6_dp
+         Sv1 = 0._dp
+         call thermo%saturation%temperature(P1, t, err)
+         select type (region => thermo%supercritical)
+         type is (IAPWS_region3_type)
+            call region%saturation_density([P1, t], &
+                 PETSC_TRUE, d, err, PETSC_TRUE)
+         end select
+         d2 = d + 1.e-9_dp
+         T2 = t
+       end associate
+       fluid1%region = dble(4)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 4/3 L")
+
+       ! region 4 / 3 vapour
+       associate (P1 => primary1(1), Sv1 => primary1(2), &
+            d2 => primary2(1), T2 => primary2(2))
+         P1 = 21.e6_dp
+         Sv1 = 1._dp
+         call thermo%saturation%temperature(P1, t, err)
+         select type (region => thermo%supercritical)
+         type is (IAPWS_region3_type)
+            call region%saturation_density([P1, t], &
+                 PETSC_FALSE, d, err, PETSC_TRUE)
+         end select
+         d2 = d - 1.e-9_dp
+         T2 = t
+       end associate
+       fluid1%region = dble(4)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 4/3 V")
+
+    end if
+
+    call fluid1%destroy()
+    call fluid2%destroy()
+    call rock%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(fluid_data, primary1, primary2)
+    call rp%destroy()
+    deallocate(rp)
+    call cp%destroy()
+    deallocate(cp)
+
+  end subroutine test_eos_se_bdy_consistency
 
 !------------------------------------------------------------------------
 
