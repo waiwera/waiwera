@@ -235,7 +235,7 @@ contains
     water_region = self%water_region(region)
     halite = self%halite(region)
 
-    associate (pressure => primary(1), temperature => primary(2))
+    associate (temperature => primary(2))
 
       if (water_region == 1) then
          if (halite) then
