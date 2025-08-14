@@ -22,7 +22,8 @@ module IAPWS_test
        test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
        test_IAPWS_region3_saturation_density, &
        test_IAPWS_widom, test_IAPWS_pi_liquidlike, &
-       test_IAPWS_region1_pressure, test_IAPWS_region2_pressure
+       test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
+       test_IAPWS_region3_subregion_index
 
   contains
 
@@ -983,6 +984,76 @@ module IAPWS_test
     end subroutine pressure_case
 
   end subroutine test_IAPWS_region2_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_subregion_index(test)
+    ! Region 3 subregion index tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call subregion_case([41.e6_dp, 390._dp], SUBREGION_PHASES_EITHER, 1, 'case 1')
+       call subregion_case([44.e6_dp, 450._dp], SUBREGION_PHASES_EITHER, 2, 'case 2')
+       call subregion_case([30.e6_dp, 370._dp], SUBREGION_PHASES_EITHER, 3, 'case 3')
+       call subregion_case([30.e6_dp, 370._dp], SUBREGION_PHASES_LIQUID, 3, 'case 4')
+       call subregion_case([30.e6_dp, 407._dp], SUBREGION_PHASES_LIQUID, 6, 'case 5')
+       call subregion_case([23.e6_dp, 375._dp], SUBREGION_PHASES_LIQUID, 12, 'case 6')
+       call subregion_case([18.e6_dp, 360._dp], SUBREGION_PHASES_VAPOUR, 20, 'case 8')
+
+       call saturation_subregion_case(352._dp, SUBREGION_PHASES_LIQUID, 3, 'case 9')
+       call saturation_subregion_case(352._dp, SUBREGION_PHASES_VAPOUR, 20, 'case 10')
+       call saturation_subregion_case(365._dp, SUBREGION_PHASES_LIQUID, 19, 'case 11')
+       call saturation_subregion_case(365._dp, SUBREGION_PHASES_VAPOUR, 20, 'case 12')
+       call saturation_subregion_case(373._dp, SUBREGION_PHASES_LIQUID, 21, 'case 13')
+       call saturation_subregion_case(373._dp, SUBREGION_PHASES_VAPOUR, 24, 'case 14')
+       call saturation_subregion_case(373.9_dp, SUBREGION_PHASES_LIQUID, 25, 'case 15')
+       call saturation_subregion_case(373.9_dp, SUBREGION_PHASES_VAPOUR, 26, 'case 16')
+
+    end if
+
+  contains
+
+    subroutine subregion_case(param, phases, expected_subregion, name)
+
+      PetscReal, intent(in) :: param(2)
+      PetscInt, intent(in) :: phases
+      PetscInt, intent(in) :: expected_subregion
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscInt :: sr
+
+      select type (region3 => IAPWS%region(3)%ptr)
+      type is (IAPWS_region3_type)
+         sr = region3%subregion_index(param, phases)
+         call test%assert(expected_subregion, sr, name)
+      end select
+
+    end subroutine subregion_case
+
+!........................................................................
+
+    subroutine saturation_subregion_case(t, phases, expected_subregion, name)
+
+      PetscReal, intent(in) :: t
+      PetscInt, intent(in) :: phases
+      PetscInt, intent(in) :: expected_subregion
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: p
+      PetscInt :: err
+
+      call IAPWS%saturation%pressure(t, p, err)
+      call subregion_case([p, t], phases, expected_subregion, name)
+
+    end subroutine saturation_subregion_case
+
+  end subroutine test_IAPWS_region3_subregion_index
 
 !------------------------------------------------------------------------
 
