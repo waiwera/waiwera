@@ -2410,7 +2410,6 @@ contains
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscInt, intent(in), optional :: phases
     ! Locals:
-    PetscReal :: tsat, tsatk
     PetscBool :: liq
     PetscErrorCode :: err
     PetscInt :: ph
