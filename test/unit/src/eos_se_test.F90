@@ -1165,7 +1165,7 @@ contains
        ! region 4 / 3 liquid
        associate (P1 => primary1(1), Sv1 => primary1(2), &
             d2 => primary2(1), T2 => primary2(2))
-         P1 = 20.e6_dp
+         P1 = 18.e6_dp
          Sv1 = 0._dp
          call thermo%saturation%temperature(P1, t, err)
          select type (region => thermo%supercritical)
@@ -1182,10 +1182,30 @@ contains
        call eos%fluid_properties(primary2, rock, fluid2, err)
        call fluid_compare(test, fluid1, fluid2, "region 4/3 L")
 
+       ! region 4 / 3 liquid, near-critical
+       associate (P1 => primary1(1), Sv1 => primary1(2), &
+            d2 => primary2(1), T2 => primary2(2))
+         P1 = 21.99e6_dp
+         Sv1 = 0._dp
+         call thermo%saturation%temperature(P1, t, err)
+         select type (region => thermo%supercritical)
+         type is (IAPWS_region3_type)
+            call region%saturation_density([P1, t], &
+                 PETSC_TRUE, d, err, PETSC_TRUE)
+         end select
+         d2 = d
+         T2 = t + 1e-9_dp
+       end associate
+       fluid1%region = dble(4)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 4/3 near-critical L")
+
        ! region 4 / 3 vapour
        associate (P1 => primary1(1), Sv1 => primary1(2), &
             d2 => primary2(1), T2 => primary2(2))
-         P1 = 21.e6_dp
+         P1 = 18.e6_dp
          Sv1 = 1._dp
          call thermo%saturation%temperature(P1, t, err)
          select type (region => thermo%supercritical)
@@ -1201,6 +1221,26 @@ contains
        call eos%fluid_properties(primary1, rock, fluid1, err)
        call eos%fluid_properties(primary2, rock, fluid2, err)
        call fluid_compare(test, fluid1, fluid2, "region 4/3 V")
+
+       ! region 4 / 3 vapour, near-critical
+       associate (P1 => primary1(1), Sv1 => primary1(2), &
+            d2 => primary2(1), T2 => primary2(2))
+         P1 = 21.99e6_dp
+         Sv1 = 1._dp
+         call thermo%saturation%temperature(P1, t, err)
+         select type (region => thermo%supercritical)
+         type is (IAPWS_region3_type)
+            call region%saturation_density([P1, t], &
+                 PETSC_FALSE, d, err, PETSC_TRUE)
+         end select
+         d2 = d
+         T2 = t + 1.e-9_dp
+       end associate
+       fluid1%region = dble(4)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 4/3 near-critical V")
 
     end if
 
