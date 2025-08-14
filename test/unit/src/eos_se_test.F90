@@ -1148,19 +1148,19 @@ contains
        call eos%fluid_properties(primary2, rock, fluid2, err)
        call fluid_compare(test, fluid1, fluid2, "region 2/3")
 
-       ! ! region 4 at 350 deg C
-       ! associate (P1 => primary1(1), Sv1 => primary1(2), &
-       !      P2 => primary2(1), Sv2 => primary2(2))
-       !   P1 = thermo%saturation_pressure_bdy_1_3
-       !   Sv1 = 0.5_dp
-       !   P2 = P1 + 1.e-9_dp
-       !   Sv2 = Sv1
-       ! end associate
-       ! fluid1%region = dble(4)
-       ! fluid2%region = dble(4)
-       ! call eos%fluid_properties(primary1, rock, fluid1, err)
-       ! call eos%fluid_properties(primary2, rock, fluid2, err)
-       ! call fluid_compare(test, fluid1, fluid2, "region 4 350 C")
+       ! region 4 at 350 deg C
+       associate (P1 => primary1(1), Sv1 => primary1(2), &
+            P2 => primary2(1), Sv2 => primary2(2))
+         P1 = thermo%saturation_pressure_bdy_1_3
+         Sv1 = 0.5_dp
+         P2 = P1 + 1.e-9_dp
+         Sv2 = Sv1
+       end associate
+       fluid1%region = dble(4)
+       fluid2%region = dble(4)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 4 350 C")
 
        ! region 4 / 3 liquid
        associate (P1 => primary1(1), Sv1 => primary1(2), &
