@@ -48,6 +48,8 @@ module IAPWS_module
 
   PetscInt, parameter, public :: WIDOM_DELTA_BDY_LIQUID = 1, &
        WIDOM_DELTA_BDY_VAPOUR = 2
+  PetscInt, parameter, public :: SUBREGION_PHASES_LIQUID = 1, &
+       SUBREGION_PHASES_VAPOUR = 2, SUBREGION_PHASES_EITHER = 3
 
 !------------------------------------------------------------------------
 ! Saturation curve type
@@ -986,6 +988,7 @@ module IAPWS_module
      procedure, public :: subregion_boundary_poly => region3_subregion_boundary_poly
      procedure, public :: subregion_boundary_logpoly => region3_subregion_boundary_logpoly
      procedure, public :: subregion_boundary_3ef => region3_subregion_boundary_3ef
+     procedure, public :: subregion_liquid => region3_subregion_liquid
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
@@ -1677,7 +1680,7 @@ contains
                      select type (region3 => thermo%region(3)%ptr)
                      type is (IAPWS_region3_type)
                         call region3%density([p, T_b], rho_b, err, &
-                             polish = PETSC_TRUE)
+                             polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
                         if (err == 0) then
                            call region3%properties([rho_b, T_b], props_b, err)
                            if (err == 0) then
@@ -1884,7 +1887,7 @@ contains
                      select type (region3 => thermo%region(3)%ptr)
                      type is (IAPWS_region3_type)
                         call region3%density([p, T_b], rho_b, err, &
-                             polish = PETSC_TRUE)
+                             polish = PETSC_TRUE, phases = SUBREGION_PHASES_VAPOUR)
                         if (err == 0) then
                            call region3%properties([rho_b, T_b], props_b, err)
                            if (err == 0) then
@@ -2219,17 +2222,58 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function region3_subregion_index(self, param) result(sr)
+  subroutine region3_subregion_liquid(self, p, tk, phases, liq, err)
+
+    !! Determines whether liquid or vapour phase subregion is to be
+    !! returned for sub-critical pressures.
+
+    class(IAPWS_region3_type), intent(in) :: self
+    PetscReal, intent(in) :: p, tk
+    PetscInt, intent(in) :: phases
+    PetscBool, intent(out) :: liq
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: tsat, tsatk
+
+    err = 0
+    select case (phases)
+    case (SUBREGION_PHASES_LIQUID)
+       liq = PETSC_TRUE
+    case (SUBREGION_PHASES_VAPOUR)
+       liq = PETSC_FALSE
+    case default
+       call self%thermo%saturation%temperature(p, tsat, err)
+       if (err == 0) then
+          tsatk = tsat + tc_k
+          liq = (tk <= tsatk)
+       end if
+    end select
+
+  end subroutine region3_subregion_liquid
+
+!------------------------------------------------------------------------
+
+  PetscInt function region3_subregion_index(self, param, phases) result(sr)
     !! Returns region 3 subregion index for given pressure and
-    !! temperature (or -1 if the subregion could not be found).
+    !! temperature (or -1 if the subregion could not be found). For
+    !! temperatures below the critical point, the phases considered
+    !! are specified using the phases parameter.
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+    PetscInt, intent(in), optional :: phases !! Phases considered
     ! Locals:
-    PetscReal :: tsat, tsatk
+    PetscInt :: ph
+    PetscBool :: liq
     PetscErrorCode :: err
+    PetscInt, parameter :: default_phases = SUBREGION_PHASES_EITHER
 
     sr = -1
+    if (present(phases)) then
+       ph = phases
+    else
+       ph = default_phases
+    end if
 
     associate(p => param(1), tk => param(2) + tc_k)
 
@@ -2311,16 +2355,15 @@ contains
          else if (tk > self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
             sr = 11 ! k
          else
-            sr = self%auxiliary_subregion_index(param)
+            sr = self%auxiliary_subregion_index(param, phases)
          end if
       else if (p > 20.5e6_dp) then
          if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
          else
-            call self%thermo%saturation%temperature(p, tsat, err)
-            tsatk = tsat + tc_k
+            call self%subregion_liquid(p, tk, ph, liq, err)
             if (err == 0) then
-               if (tk <= tsatk) then
+               if (liq) then
                   sr = 19 ! s
                else if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_jk, p)) then
                   sr = 18 ! r
@@ -2333,10 +2376,9 @@ contains
          if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_cd, p)) then
             sr = 3 ! c
          else
-            call self%thermo%saturation%temperature(p, tsat, err)
-            tsatk = tsat + tc_k
+            call self%subregion_liquid(p, tk, ph, liq, err)
             if (err == 0) then
-               if (tk <= tsatk) then
+               if (liq) then
                   sr = 19 ! s
                else
                   sr = 20 ! t
@@ -2344,10 +2386,9 @@ contains
             end if
          end if
       else if (p >= self%psat_623) then
-         call self%thermo%saturation%temperature(p, tsat, err)
-         tsatk = tsat + tc_k
+         call self%subregion_liquid(p, tk, ph, liq, err)
          if (err == 0) then
-            if (tk <= tsatk) then
+            if (liq) then
                sr = 3 ! c
             else
                sr = 20 ! t
@@ -2361,17 +2402,26 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscInt function region3_auxiliary_subregion_index(self, param) result(sr)
+  PetscInt function region3_auxiliary_subregion_index(self, param, phases) result(sr)
     !! Returns region 3 auxiliary subregion index for given pressure and
     !! temperature (or -1 if the subregion could not be found).
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+    PetscInt, intent(in), optional :: phases
     ! Locals:
     PetscReal :: tsat, tsatk
+    PetscBool :: liq
     PetscErrorCode :: err
+    PetscInt :: ph
+    PetscInt, parameter :: default_phases = SUBREGION_PHASES_EITHER
 
     sr = -1
+    if (present(phases)) then
+       ph = phases
+    else
+       ph = default_phases
+    end if
 
     associate(p => param(1), tk => param(2) + tc_k)
 
@@ -2398,10 +2448,9 @@ contains
             sr = 24 ! x
          end if
       else ! sub-critical:
-         call self%thermo%saturation%temperature(p, tsat, err)
-         tsatk = tsat + tc_k
+         call self%subregion_liquid(p, tk, ph, liq, err)
          if (err == 0) then
-            if (tk <= tsatk) then
+            if (liq) then
                if (p > 2.193161551e7_dp) then
                   if (tk <= self%subregion_boundary_poly(self%subregion_bdy_n_uv, p)) then
                      sr = 21 ! u
@@ -2479,25 +2528,34 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine region3_density(self, param, density, err, polish)
+  subroutine region3_density(self, param, density, err, polish, phases)
     !! Calculates density in region 3 as a function of pressure and
     !! temperature (deg C). The IAPWS backward and auxiliary equations
     !! for region 3 are used.  Returns err = 1 if the density cannot
-    !! be found.
+    !! be found. For temperatures below the critical point, the phases
+    !! considered are specified using the phases parameter.
 
     class(IAPWS_region3_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscReal, intent(out):: density  !! Fluid density
     PetscInt, intent(out) :: err   !! Error code
     PetscBool, intent(in) :: polish   !! Whether to polish result with Newton iteration
+    PetscInt, intent(in), optional :: phases !! Subcritical phases considered
     ! Locals:
     PetscInt :: sr
     PetscReal :: nu
+    PetscInt :: effective_phases
     PetscInt, parameter :: maxit = 50
     PetscReal, parameter :: ftol = 1.e-6_dp, xtol = 1.e-7_dp
+    PetscInt, parameter :: default_phases = SUBREGION_PHASES_EITHER
 
     err = 0
-    sr = self%subregion_index(param)
+    if (present(phases)) then
+       effective_phases = phases
+    else
+       effective_phases = default_phases
+    end if
+    sr = self%subregion_index(param, phases)
 
     if (sr > 0) then
        nu = self%subregion(sr)%specific_volume(param)
