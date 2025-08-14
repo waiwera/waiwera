@@ -1016,7 +1016,6 @@ module IAPWS_module
      PetscReal, public :: temperature_bdy_1_3 !! Temperature of boundary between regions 1 & 3
      PetscReal, public :: saturation_pressure_bdy_1_3 !! Saturation pressure at boundary between regions 1 & 3
      PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
-     PetscReal, public :: min_pressure_bdy_1_3
      PetscReal, public :: widom_slope = 6.479 !! Slope A_s of Widom line for water (Banuti et al., 2017)
      PetscReal, public :: widom_delta_growth !! Widom delta width growth factor
      PetscReal, public :: widom_delta_offset !! Temperature offset (from critical temperature) of Widom delta
@@ -1126,12 +1125,10 @@ contains
     end do
 
     ! Reference densities at region 1/3 boundary:
-    call self%saturation%pressure(self%temperature_bdy_1_3, &
-         self%min_pressure_bdy_1_3, err)
-    call self%water%properties([self%min_pressure_bdy_1_3, &
+    call self%water%properties([self%saturation_pressure_bdy_1_3, &
          self%temperature_bdy_1_3], props, err)
     self%min_liquid_density_bdy_1_3 = props(1)
-    call self%steam%properties([self%min_pressure_bdy_1_3, &
+    call self%steam%properties([self%saturation_pressure_bdy_1_3, &
          self%temperature_bdy_1_3], props, err)
     self%max_vapour_density_bdy_1_3 = props(1)
 
@@ -1666,7 +1663,7 @@ contains
             if (thermo%extrapolate) then
                call properties(param, props)
             else
-               if (p <= thermo%min_pressure_bdy_1_3) then
+               if (p < thermo%saturation_pressure_bdy_1_3) then
                   call properties(param, props)
                else
 
@@ -1874,7 +1871,7 @@ contains
             if (t <= thermo%temperature_bdy_1_3) then
                call properties(param, props)
             else
-               if (p <= thermo%min_pressure_bdy_1_3) then
+               if (p < thermo%saturation_pressure_bdy_1_3) then
                   call properties(param, props)
                else
                   call thermo%boundary23%temperature(p, T_b)
