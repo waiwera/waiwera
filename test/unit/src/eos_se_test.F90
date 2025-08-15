@@ -1242,6 +1242,26 @@ contains
        call eos%fluid_properties(primary2, rock, fluid2, err)
        call fluid_compare(test, fluid1, fluid2, "region 4/3 near-critical V")
 
+       ! region 4 liquid / vapour at critical point
+       associate (P1 => primary1(1), Sv1 => primary1(2), &
+            P2 => primary2(1), Sv2 => primary2(2))
+         P1 = thermo%critical%pressure - 1.e-9_dp
+         Sv1 = 0._dp
+         P2 = P1
+         Sv2 = 1._dp
+       end associate
+       fluid1%region = dble(4)
+       fluid2%region = dble(4)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call test%assert(fluid1%phase(1)%density, fluid2%phase(2)%density, &
+            "region 4 L/V CP density", tol = 1.e-10_dp)
+       call test%assert(fluid1%phase(1)%viscosity, fluid2%phase(2)%viscosity, &
+            "region 4 L/V CP viscosity", tol = 1.e-10_dp)
+       call test%assert(fluid1%phase(1)%specific_enthalpy, &
+            fluid2%phase(2)%specific_enthalpy, &
+            "region 4 L/V CP enthalpy", tol = 1.e-10_dp)
+
     end if
 
     call fluid1%destroy()
