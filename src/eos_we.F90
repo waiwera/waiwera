@@ -331,19 +331,15 @@ contains
 
     old_region = nint(old_fluid%region)
 
-    associate (temperature => primary(2))
+    water_pressure = self%water_pressure(primary)
+    call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
-      water_pressure = self%water_pressure(primary)
-      call self%saturation_pressure(primary, old_region, saturation_pressure, err)
-
-      if (err == 0) then
-         if (water_pressure < saturation_pressure) then
-            call self%transition_to_two_phase(saturation_pressure, &
-                 old_primary, old_fluid, primary, fluid, transition, err)
-         end if
-      end if
-
-    end associate
+    if (err == 0) then
+       if (water_pressure < saturation_pressure) then
+          call self%transition_to_two_phase(saturation_pressure, &
+               old_primary, old_fluid, primary, fluid, transition, err)
+       end if
+    end if
 
   end subroutine eos_we_region_1_transitions
 
@@ -368,19 +364,15 @@ contains
 
     old_region = nint(old_fluid%region)
 
-    associate (temperature => primary(2))
+    water_pressure = self%water_pressure(primary)
+    call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
-      water_pressure = self%water_pressure(primary)
-      call self%saturation_pressure(primary, old_region, saturation_pressure, err)
-
-      if (err == 0) then
-         if (water_pressure > saturation_pressure) then
-            call self%transition_to_two_phase(saturation_pressure, &
-                 old_primary, old_fluid, primary, fluid, transition, err)
-         end if
-      end if
-
-    end associate
+    if (err == 0) then
+       if (water_pressure > saturation_pressure) then
+          call self%transition_to_two_phase(saturation_pressure, &
+               old_primary, old_fluid, primary, fluid, transition, err)
+       end if
+    end if
 
   end subroutine eos_we_region_2_transitions
 
