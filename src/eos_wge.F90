@@ -143,14 +143,21 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_wge_water_pressure(self, primary) result(water_pressure)
-    !! For eos_wge, return water pressure from primary variables.
+  PetscReal function eos_wge_water_pressure(self, primary, liquid) &
+       result(water_pressure)
+    !! For eos_wge, return water pressure from primary variables, for
+    !! liquid or vapour phase.
 
     class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscBool, intent(in) :: liquid
 
     associate (pressure => primary(1), partial_pressure => primary(3))
-      water_pressure = pressure - partial_pressure
+      if (liquid) then
+         water_pressure = pressure
+      else
+         water_pressure = pressure - partial_pressure
+      end if
     end associate
 
   end function eos_wge_water_pressure
@@ -195,8 +202,10 @@ contains
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     PetscReal :: partial_pressures(self%num_components)
 
-    partial_pressures(1) = self%water_pressure(primary)
-    partial_pressures(2) = primary(3)
+    associate (partial_pressure => primary(3)
+      partial_pressures(1) = self%water_pressure(primary, PETSC_TRUE)
+      partial_pressures(2) = partial_pressure
+    end associate
 
   end function eos_wge_partial_pressures
 
@@ -235,12 +244,13 @@ contains
     if (err == 0) then
 
        do p = 1, self%num_phases
-          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
+          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr, &
+               liquid => (p == 1))
 
             if (btest(phases, p - 1)) then
 
-               if (p == 1) then
-                  water_pressure = fluid%pressure
+               water_pressure = fluid%water_pressure(primary, liquid)
+               if (liquid) then
                   capillary_pressure = rock%capillary_pressure%value(sl, &
                        fluid%temperature)
                   call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
@@ -250,7 +260,6 @@ contains
                           constituent_henrys_constant, energy_solution, err)
                   end if
                else
-                  water_pressure = fluid%partial_pressure(1)
                   capillary_pressure = 0._dp
                   henrys_constant = 0._dp
                   energy_solution = 0._dp
@@ -374,7 +383,7 @@ contains
            end if
          end associate
 
-         p = total_pressure - partial_pressure
+         p = self%water_pressure(primary, PETSC_TRUE)
          if (p > 100.e6_dp) then
             err = 1
          else

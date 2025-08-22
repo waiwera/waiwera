@@ -366,17 +366,22 @@ contains
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
     PetscReal :: partial_pressures(self%num_components)
 
-    partial_pressures(1) = primary(1)
+    associate (pressure => primary(1))
+      partial_pressures(1) = pressure
+    end associate
 
   end function eos_partial_pressures
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_water_pressure(self, primary) result(water_pressure)
-    !! Return water pressure from primary variables.
+  PetscReal function eos_water_pressure(self, primary, liquid) &
+       result(water_pressure)
+    !! Return water pressure from primary variables, for liquid or
+    !! vapour phase.
 
     class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscBool, intent(in) :: liquid
 
     associate (pressure => primary(1))
       water_pressure = pressure
@@ -387,7 +392,8 @@ contains
 !------------------------------------------------------------------------
 
   subroutine eos_set_water_pressure(self, water_pressure, primary)
-    !! Update primary variables for specified water pressure.
+    !! Update primary variables for specified water pressure - regions
+    !! 1, 2 and 4 only.
 
     class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: water_pressure

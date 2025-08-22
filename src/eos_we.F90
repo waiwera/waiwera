@@ -206,6 +206,7 @@ contains
     PetscReal :: old_saturation_pressure, pressure_factor
     PetscReal :: saturation_bound, xi, new_water_pressure
     PetscReal :: old_fluid_primary(self%num_primary_variables)
+    PetscBool :: liquid
     PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
@@ -216,9 +217,11 @@ contains
     if (new_region == 1) then
        saturation_bound = 0._dp
        pressure_factor = 1._dp + small
+       liquid = PETSC_TRUE
     else
        saturation_bound = 1._dp
        pressure_factor = 1._dp - small
+       liquid = PETSC_FALSE
     end if
 
     self%primary_variable_interpolator%val(:, 1) = old_primary
@@ -230,7 +233,7 @@ contains
     if (err == 0) then
 
        primary = self%primary_variable_interpolator%interpolate(xi)
-       new_water_pressure = self%water_pressure(primary)
+       new_water_pressure = self%water_pressure(primary, liquid)
        associate (temperature => primary(2))
          call self%thermo%saturation%temperature(new_water_pressure, &
               temperature, err)
@@ -331,7 +334,7 @@ contains
 
     old_region = nint(old_fluid%region)
 
-    water_pressure = self%water_pressure(primary)
+    water_pressure = self%water_pressure(primary, PETSC_TRUE)
     call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
     if (err == 0) then
@@ -364,7 +367,7 @@ contains
 
     old_region = nint(old_fluid%region)
 
-    water_pressure = self%water_pressure(primary)
+    water_pressure = self%water_pressure(primary, PETSC_FALSE)
     call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
     if (err == 0) then

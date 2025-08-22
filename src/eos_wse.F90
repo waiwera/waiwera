@@ -55,6 +55,7 @@ module eos_wse_module
      procedure, public :: primary_variables => eos_wse_primary_variables
      procedure, public :: phase_saturations => eos_wse_phase_saturations
      procedure, public :: check_primary_variables => eos_wse_check_primary_variables
+     procedure, public :: partial_pressures => eos_wse_partial_pressures
   end type eos_wse_type
 
   type, public, extends(primary_variable_interpolator_type) :: &
@@ -766,8 +767,7 @@ contains
           call self%permeability_modifier%modify(fluid)
           fluid%liquidlike_fraction = fluid%phase(1)%saturation
           fluid%supercritical_phases = 0._dp
-          fluid%partial_pressure(1) = fluid%pressure
-          fluid%partial_pressure(2) = 0._dp
+          fluid%partial_pressure = self%partial_pressures(primary)
        end if
     end if
 
@@ -1016,6 +1016,22 @@ contains
     end associate
 
   end subroutine eos_wse_check_primary_variables
+
+!------------------------------------------------------------------------
+
+  function eos_wse_partial_pressures(self, primary) result (partial_pressures)
+    !! Set partial pressures from primary variables.
+
+    class(eos_wse_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscReal :: partial_pressures(self%num_components)
+
+    associate (pressure => primary(1))
+      partial_pressures(1) = pressure
+      partial_pressures(2) = 0._dp
+    end associate
+
+  end function eos_wse_partial_pressures
 
 !------------------------------------------------------------------------
 

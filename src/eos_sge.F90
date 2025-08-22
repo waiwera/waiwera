@@ -245,14 +245,22 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_sge_water_pressure(self, primary) result(water_pressure)
+  PetscReal function eos_sge_water_pressure(self, primary, liquid) &
+       result(water_pressure)
     !! For eos_sge, return water pressure from primary variables
     !! (regions 1, 2, 4).
 
     class(eos_sge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscBool, intent(in) :: liquid
+    ! Locals:
+    PetscReal :: xi
 
-    water_pressure = self%eos_wge%water_pressure(primary)
+    associate (pressure => primary(1), temperature => primary(2), &
+         partial_pressure => primary(3))
+      xi = self%partial_pressure_coefficient(temperature, liquid)
+      water_pressure = pressure - xi * partial_pressure
+    end associate
 
   end function eos_sge_water_pressure
 
@@ -406,7 +414,7 @@ contains
       associate (water_pressure => water_primary(1), water_temperature => water_primary(2), &
            region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
 
-        water_pressure = fluid%partial_pressure(1)
+        water_pressure = self%water_pressure(primary, PETSC_FALSE)
         water_temperature = fluid%temperature
 
         call self%gas%properties(fluid%partial_pressure(2), fluid%temperature, &
@@ -485,10 +493,11 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p, pp, phases, pseudo_phases, effective_phases
-    PetscReal :: water_properties(2), pi_pseudo_phase(2), xg
+    PetscReal :: water_properties(2), pi_pseudo_phase(2), xg, xi
     PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
-    PetscReal :: gas_properties(2), effective_gas_properties(2)
+    PetscReal :: gas_properties(2), effective_gas_properties(2), saturation_pressure
     PetscReal :: viscosity, energy_solution, water_enthalpy, water_viscosity
+    PetscBool :: liquid
 
     err = 0
 
@@ -498,6 +507,8 @@ contains
       type is (IAPWS_region3_type)
 
          fluid%temperature = temperature
+         fluid%permeability_factor = 1._dp
+
          call region%properties(primary, water_properties, err)
 
          if (err == 0) then
@@ -508,11 +519,19 @@ contains
                  gas_density => effective_gas_properties(1), &
                  gas_enthalpy => effective_gas_properties(2))
 
-              fluid%pressure = water_pressure + partial_pressure
-              fluid%partial_pressure = [water_pressure, partial_pressure]
-              fluid%permeability_factor = 1._dp
+              if (temperature < self%thermo%critical%temperature) then
+                 call self%thermo%saturation%pressure(temperature, &
+                      saturation_pressure, err)
+                 liquid = (water_pressure >= saturation_pressure)
+              else
+                 liquid = PETSC_FALSE
+              end if
 
+              xi = self%partial_pressure_coefficient(temperature, liquid)
+              fluid%pressure = water_pressure + xi * partial_pressure
+              fluid%partial_pressure = [water_pressure, partial_pressure]
               call self%phase_composition(fluid, err)
+
               if (err == 0) then
 
                  do p = 1, self%num_phases
@@ -536,8 +555,8 @@ contains
 
                       select type (thermo => self%thermo)
                       type is (IAPWS_type)
-                         call thermo%pi_liquidlike(water_pressure, temperature, water_density, &
-                              pi_pseudo_phase(1), pseudo_phases, err)
+                         call thermo%pi_liquidlike(water_pressure, temperature, &
+                              water_density, pi_pseudo_phase(1), pseudo_phases, err)
                       end select
 
                       if (err == 0) then
@@ -555,7 +574,6 @@ contains
                          do pp = 1, 2
                             if (btest(effective_phases, pp - 1)) then
                                if (pp == 1) then
-                                  water_pressure = fluid%pressure
                                   call self%gas%henrys_constant(fluid%temperature, &
                                        henrys_constant, constituent_henrys_constant, err)
                                   if (err == 0) then
@@ -563,7 +581,6 @@ contains
                                           constituent_henrys_constant, energy_solution, err)
                                   end if
                                else
-                                  water_pressure = fluid%partial_pressure(1)
                                   henrys_constant = 0._dp
                                   energy_solution = 0._dp
                                end if
@@ -574,11 +591,11 @@ contains
                                        fluid%temperature, pp, gas_density, water_density, &
                                        henrys_constant, xg, err)
                                   if (err == 0) then
-                                     call region%viscosity(fluid%temperature, fluid%pressure, &
-                                          water_density, water_viscosity)
+                                     call region%viscosity(fluid%temperature, &
+                                          water_pressure, water_density, water_viscosity)
                                      call self%gas%mixture_viscosity(water_viscosity, &
-                                          fluid%temperature, fluid%partial_pressure(2), xg, pp, &
-                                          viscosity, err)
+                                          fluid%temperature, fluid%partial_pressure(2), &
+                                          xg, pp, viscosity, err)
                                      if (err == 0) then
                                         phase%density = phase%density + pi_pseudo_phase(pp) * &
                                              (water_density + gas_density)
@@ -605,6 +622,7 @@ contains
                          if (err == 0) then
                             phase%internal_energy = phase%specific_enthalpy &
                                  - fluid%pressure / phase%density
+                            fluid%partial_pressure(1) = fluid%pressure - partial_pressure
                          end if
                       end if
                     end associate
@@ -658,7 +676,7 @@ contains
       ! Locals:
       PetscInt :: p, phases
       PetscReal :: water_density, water_properties(2), water_pressure, water_enthalpy
-      PetscReal :: water_viscosity, energy_solution, sl, xg
+      PetscReal :: water_viscosity, energy_solution, sl, xg, temperature
       PetscReal :: relative_permeability(2), capillary_pressure
       PetscBool :: liquid
       PetscReal :: gas_properties(2), effective_gas_properties(2)
@@ -685,8 +703,10 @@ contains
 
                     liquid = (p == 1)
 
+                    call self%thermo%saturation%temperature(fluid%pressure, &
+                         temperature, err)
+                    water_pressure = self%water_pressure(temperature, liquid)
                     if (liquid) then
-                       water_pressure = fluid%pressure
                        capillary_pressure = rock%capillary_pressure%value(sl, &
                             fluid%temperature)
                        call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
@@ -696,7 +716,6 @@ contains
                                constituent_henrys_constant, energy_solution, err)
                        end if
                     else
-                       water_pressure = fluid%partial_pressure(1)
                        capillary_pressure = 0._dp
                        henrys_constant = 0._dp
                        energy_solution = 0._dp
