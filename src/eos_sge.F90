@@ -47,6 +47,7 @@ module eos_sge_module
      procedure, public :: destroy => eos_sge_destroy
      procedure, public :: water_pressure => eos_sge_water_pressure
      procedure, public :: set_water_pressure => eos_sge_set_water_pressure
+     procedure, public :: partial_pressure_coefficient => eos_sge_partial_pressure_coefficient
      procedure, public :: partial_pressures => eos_sge_partial_pressures
      procedure, public :: enforce_consistency => eos_sge_enforce_consistency
      procedure, public :: region_1_fluid_properties => eos_sge_region_1_fluid_properties
@@ -268,6 +269,43 @@ contains
     call self%eos_wge%set_water_pressure(water_pressure, primary)
 
   end subroutine eos_sge_set_water_pressure
+
+!------------------------------------------------------------------------
+
+  PetscReal function eos_sge_partial_pressure_coefficient(self, temperature, &
+       liquid) result(coef)
+    !! For eos_sge, return coefficient determining how much of the gas
+    !! partial pressure is subtracted from the total pressure to
+    !! calculate the effective liquid water pressure (used to
+    !! calculate water properties). Specify liquid = true for
+    !! sub-critical liquid phase.
+
+    use utils_module, only: hermite_spline_01
+
+    class(eos_sge_type), intent(in) :: self
+    PetscReal, intent(in) :: temperature
+    PetscBool, intent(in) :: liquid
+    ! Locals:
+    PetscReal :: xi
+
+    if (liquid) then
+       select type (thermo => self%thermo)
+       type is (IAPWS_type)
+          if (temperature < thermo%temperature_bdy_1_3) then
+             coef = 0._dp
+          else if (temperature < thermo%critical%temperature) then
+             xi = (temperature - thermo%temperature_bdy_1_3) / &
+                  (thermo%critical%temperature - thermo%temperature_bdy_1_3)
+             coef = hermite_spline_01(xi)
+          else
+             coef = 1._dp
+          end if
+       end select
+    else
+       coef = 1._dp
+    end if
+
+  end function eos_sge_partial_pressure_coefficient
 
 !------------------------------------------------------------------------
 
