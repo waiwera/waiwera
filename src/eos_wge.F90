@@ -143,15 +143,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_wge_water_pressure(self, primary, liquid) &
-       result(water_pressure)
+  subroutine eos_wge_water_pressure(self, primary, region, liquid, &
+       water_pressure, err)
+
     !! For eos_wge, return water pressure from primary variables, for
     !! liquid or vapour phase.
 
     class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
     PetscBool, intent(in) :: liquid
+    PetscReal, intent(out) :: water_pressure
+    PetscErrorCode, intent(out) :: err
 
+    err = 0
     associate (pressure => primary(1), partial_pressure => primary(3))
       if (liquid) then
          water_pressure = pressure
@@ -160,7 +165,7 @@ contains
       end if
     end associate
 
-  end function eos_wge_water_pressure
+  end subroutine eos_wge_water_pressure
 
 !------------------------------------------------------------------------
 
@@ -194,20 +199,25 @@ contains
 
 !------------------------------------------------------------------------
 
-  function eos_wge_partial_pressures(self, primary) result (partial_pressures)
+  subroutine eos_wge_partial_pressures(self, primary, region, &
+       partial_pressures, err)
     !! Set partial pressures from primary variables for non-isothermal
     !! water and non-condensible gas.
 
     class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    PetscReal :: partial_pressures(self%num_components)
+    PetscInt, intent(in) :: region !! Fluid region
+    PetscReal, intent(out) :: partial_pressures(self%num_components) !! Partial pressures
+    PetscErrorCode, intent(out) :: err !! Error code
 
-    associate (partial_pressure => primary(3)
-      partial_pressures(1) = self%water_pressure(primary, PETSC_TRUE)
+    err = 0
+    associate (partial_pressure => primary(3))
+      call self%water_pressure(primary, region, PETSC_FALSE, &
+           partial_pressures(1), err)
       partial_pressures(2) = partial_pressure
     end associate
 
-  end function eos_wge_partial_pressures
+  end subroutine eos_wge_partial_pressures
 
 !------------------------------------------------------------------------
 
@@ -224,7 +234,7 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: p, phases
+    PetscInt :: region, p, phases
     PetscReal :: sl, xg
     PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
     PetscReal :: water_properties(2), water_viscosity, water_enthalpy
@@ -233,6 +243,7 @@ contains
     PetscReal :: gas_properties(2), effective_gas_properties(2)
 
     err = 0
+    region = nint(fluid%region)
     phases = nint(fluid%phase_composition)
 
     sl = fluid%phase(1)%saturation
@@ -244,13 +255,13 @@ contains
     if (err == 0) then
 
        do p = 1, self%num_phases
-          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr, &
+          associate(phase => fluid%phase(p), regionp => self%thermo%region(p)%ptr, &
                liquid => (p == 1))
 
             if (btest(phases, p - 1)) then
 
-               water_pressure = fluid%water_pressure(primary, liquid)
                if (liquid) then
+                  call self%water_pressure(primary, region, liquid, water_pressure, err)
                   capillary_pressure = rock%capillary_pressure%value(sl, &
                        fluid%temperature)
                   call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
@@ -260,6 +271,7 @@ contains
                           constituent_henrys_constant, energy_solution, err)
                   end if
                else
+                  water_pressure = fluid%partial_pressure(1)
                   capillary_pressure = 0._dp
                   henrys_constant = 0._dp
                   energy_solution = 0._dp
@@ -267,7 +279,7 @@ contains
 
                if (err == 0) then
 
-                  call region%properties([water_pressure, fluid%temperature], &
+                  call regionp%properties([water_pressure, fluid%temperature], &
                        water_properties, err)
 
                   if (err == 0) then
@@ -286,7 +298,7 @@ contains
 
                        if (err == 0) then
 
-                          call region%viscosity(fluid%temperature, fluid%pressure, &
+                          call regionp%viscosity(fluid%temperature, fluid%pressure, &
                                water_density, water_viscosity)
                           call self%gas%mixture_viscosity(water_viscosity, &
                                fluid%temperature, fluid%partial_pressure(2), xg, p, &
@@ -368,6 +380,7 @@ contains
 
     changed = PETSC_FALSE
     err = 0
+    region = nint(fluid%region)
 
     associate (total_pressure => primary(1), partial_pressure => primary(3))
 
@@ -383,27 +396,27 @@ contains
            end if
          end associate
 
-         p = self%water_pressure(primary, PETSC_TRUE)
-         if (p > 100.e6_dp) then
-            err = 1
-         else
-            region = nint(fluid%region)
-            if (region == 4) then
-               associate (vapour_saturation => primary(2))
-                 if ((vapour_saturation < -1._dp) .or. &
-                      (vapour_saturation > 2._dp)) then
-                    err = 1
-                 end if
-               end associate
+         call self%water_pressure(primary, region, PETSC_FALSE, p, err)
+         if (err == 0) then
+            if (p > 100.e6_dp) then
+               err = 1
             else
-               associate (t => primary(2))
-                 if ((t < 0._dp) .or. (t > 800._dp)) then
-                    err = 1
-                 end if
-               end associate
+               if (region == 4) then
+                  associate (vapour_saturation => primary(2))
+                    if ((vapour_saturation < -1._dp) .or. &
+                         (vapour_saturation > 2._dp)) then
+                       err = 1
+                    end if
+                  end associate
+               else
+                  associate (t => primary(2))
+                    if ((t < 0._dp) .or. (t > 800._dp)) then
+                       err = 1
+                    end if
+                  end associate
+               end if
             end if
          end if
-
       else
          err = 1
       end if

@@ -359,35 +359,43 @@ contains
 
 !------------------------------------------------------------------------
 
-  function eos_partial_pressures(self, primary) result (partial_pressures)
+  subroutine eos_partial_pressures(self, primary, region, &
+       partial_pressures, err)
     !! Set partial pressures from primary variables.
 
     class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    PetscReal :: partial_pressures(self%num_components)
+    PetscInt, intent(in) :: region
+    PetscReal, intent(out) :: partial_pressures(self%num_components)
+    PetscErrorCode, intent(out) :: err
 
+    err = 0
     associate (pressure => primary(1))
       partial_pressures(1) = pressure
     end associate
 
-  end function eos_partial_pressures
+  end subroutine eos_partial_pressures
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_water_pressure(self, primary, liquid) &
-       result(water_pressure)
+  subroutine eos_water_pressure(self, primary, region, liquid, &
+       water_pressure, err)
     !! Return water pressure from primary variables, for liquid or
     !! vapour phase.
 
     class(eos_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
     PetscBool, intent(in) :: liquid
+    PetscReal, intent(out) :: water_pressure
+    PetscErrorCode, intent(out) :: err
 
+    err = 0
     associate (pressure => primary(1))
       water_pressure = pressure
     end associate
 
-  end function eos_water_pressure
+  end subroutine eos_water_pressure
 
 !------------------------------------------------------------------------
 

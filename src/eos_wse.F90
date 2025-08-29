@@ -767,7 +767,8 @@ contains
           call self%permeability_modifier%modify(fluid)
           fluid%liquidlike_fraction = fluid%phase(1)%saturation
           fluid%supercritical_phases = 0._dp
-          fluid%partial_pressure = self%partial_pressures(primary)
+          call self%partial_pressures(primary, region, &
+               fluid%partial_pressure, err)
        end if
     end if
 
@@ -1019,19 +1020,23 @@ contains
 
 !------------------------------------------------------------------------
 
-  function eos_wse_partial_pressures(self, primary) result (partial_pressures)
+  subroutine eos_wse_partial_pressures(self, primary, region, &
+       partial_pressures, err)
     !! Set partial pressures from primary variables.
 
     class(eos_wse_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    PetscReal :: partial_pressures(self%num_components)
+    PetscInt, intent(in) :: region
+    PetscReal, intent(out) :: partial_pressures(self%num_components)
+    PetscErrorCode, intent(out) :: err
 
+    err = 0
     associate (pressure => primary(1))
       partial_pressures(1) = pressure
       partial_pressures(2) = 0._dp
     end associate
 
-  end function eos_wse_partial_pressures
+  end subroutine eos_wse_partial_pressures
 
 !------------------------------------------------------------------------
 

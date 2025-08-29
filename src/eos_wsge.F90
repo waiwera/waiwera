@@ -192,33 +192,47 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_wsge_water_pressure(self, primary) result(water_pressure)
+  subroutine eos_wsge_water_pressure(self, primary, region, liquid, &
+       water_pressure, err)
     !! For eos_wsge, return water pressure from primary variables.
 
     class(eos_wsge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscBool, intent(in) :: liquid
+    PetscReal, intent(out) :: water_pressure
+    PetscErrorCode, intent(out) :: err
 
+    err = 0
     associate (pressure => primary(1), partial_pressure => primary(4))
-      water_pressure = pressure - partial_pressure
+      if (liquid) then
+         water_pressure = pressure
+      else
+         water_pressure = pressure - partial_pressure
+      end if
     end associate
 
-  end function eos_wsge_water_pressure
+  end subroutine eos_wsge_water_pressure
 
 !------------------------------------------------------------------------
 
-  function eos_wsge_partial_pressures(self, primary) result (partial_pressures)
+  subroutine eos_wsge_partial_pressures(self, primary, region, &
+       partial_pressures, err)
     !! Set partial pressures from primary variables for non-isothermal
     !! water, salt and non-condensible gas.
 
     class(eos_wsge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    PetscReal :: partial_pressures(self%num_components)
+    PetscInt, intent(in) :: region !! Fluid region
+    PetscReal, intent(out) :: partial_pressures(self%num_components) !! Partial pressures
+    PetscErrorCode, intent(out) :: err !! Error code
 
-    partial_pressures(1) = self%water_pressure(primary)
+    call self%water_pressure(primary, region, PETSC_FALSE, &
+         partial_pressures(1), err)
     partial_pressures(2) = 0._dp
     partial_pressures(3) = primary(4)
 
-  end function eos_wsge_partial_pressures
+  end subroutine eos_wsge_partial_pressures
 
 !------------------------------------------------------------------------
 
@@ -674,23 +688,26 @@ contains
 
     err = 0
     fluid%pressure = primary(1)
-    fluid%partial_pressure = self%partial_pressures(primary)
-    region = nint(fluid%region)
-    water_region = self%water_region(region)
+    call self%partial_pressures(primary, region, fluid%partial_pressure, err)
+    if (err == 0) then
 
-    if (water_region == 4) then ! two-phase
-       if (region == 4) then ! without halite
-          salt_mass_fraction = primary(3)
-       else ! with halite
-          call halite_solubility_two_phase(fluid%partial_pressure(1), self%thermo, &
-               salt_mass_fraction, err)
+       region = nint(fluid%region)
+       water_region = self%water_region(region)
+
+       if (water_region == 4) then ! two-phase
+          if (region == 4) then ! without halite
+             salt_mass_fraction = primary(3)
+          else ! with halite
+             call halite_solubility_two_phase(fluid%partial_pressure(1), self%thermo, &
+                  salt_mass_fraction, err)
+          end if
+          if (err == 0) then
+             call brine_saturation_temperature(fluid%partial_pressure(1), &
+                  salt_mass_fraction, self%thermo, fluid%temperature, err)
+          end if
+       else ! single-phase
+          fluid%temperature = primary(2)
        end if
-       if (err == 0) then
-          call brine_saturation_temperature(fluid%partial_pressure(1), &
-               salt_mass_fraction, self%thermo, fluid%temperature, err)
-       end if
-    else ! single-phase
-       fluid%temperature = primary(2)
     end if
 
     if (err == 0) then

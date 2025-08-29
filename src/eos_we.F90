@@ -233,7 +233,7 @@ contains
     if (err == 0) then
 
        primary = self%primary_variable_interpolator%interpolate(xi)
-       new_water_pressure = self%water_pressure(primary, liquid)
+       call self%water_pressure(primary, 4, PETSC_FALSE, new_water_pressure, err)
        associate (temperature => primary(2))
          call self%thermo%saturation%temperature(new_water_pressure, &
               temperature, err)
@@ -334,7 +334,7 @@ contains
 
     old_region = nint(old_fluid%region)
 
-    water_pressure = self%water_pressure(primary, PETSC_TRUE)
+    call self%water_pressure(primary, 1, PETSC_FALSE, water_pressure, err)
     call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
     if (err == 0) then
@@ -367,7 +367,7 @@ contains
 
     old_region = nint(old_fluid%region)
 
-    water_pressure = self%water_pressure(primary, PETSC_FALSE)
+    call self%water_pressure(primary, 2, PETSC_FALSE, water_pressure, err)
     call self%saturation_pressure(primary, old_region, saturation_pressure, err)
 
     if (err == 0) then
@@ -484,20 +484,24 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: region
+    PetscReal :: water_pressure
 
     err = 0
     region = nint(fluid%region)
 
     fluid%pressure = primary(1)
-    fluid%partial_pressure = self%partial_pressures(primary)
+    call self%partial_pressures(primary, region, fluid%partial_pressure, err)
+    if (err == 0) then
 
-    if (region == 4) then
-       ! Two-phase
-       call self%thermo%saturation%temperature(fluid%partial_pressure(1), &
-            fluid%temperature, err)
-    else
-       ! Single-phase
-       fluid%temperature = primary(2)
+       if (region == 4) then
+          ! Two-phase
+          call self%thermo%saturation%temperature(fluid%partial_pressure(1), &
+               fluid%temperature, err)
+       else
+          ! Single-phase
+          fluid%temperature = primary(2)
+       end if
+
     end if
 
     if (err == 0) then
