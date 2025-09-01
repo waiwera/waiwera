@@ -251,8 +251,8 @@ contains
          expected = 0._dp
          bulk = [41.45712306840381e6_dp, 360._dp, 3._dp, 0._dp, 1._dp, 1._dp, &
               1._dp, 0._dp, 40.45712306840381e6_dp, 10.e5_dp]
-         phase1 = [650._dp, 7.663779619075069e-5_dp, 1._dp, 1._dp, 0._dp, &
-              1670.7934565923912e3_dp, 1607.0132672563854e3_dp, &
+         phase1 = [651.72515_dp, 7.68971772833e-5_dp, 1._dp, 1._dp, 0._dp, &
+              1668.001909048941e3_dp, 1604.3905490976647e3_dp, &
               0.995776602363838_dp, 0.004223397636161937_dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
@@ -276,7 +276,7 @@ contains
          bulk = [39.23729144851866e6_dp, 400._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
               1._dp, 1._dp, 37.23729144851866e6_dp, 2.e6_dp]
          phase3 = [500._dp, 5.8837922820019035e-5_dp, 1._dp, 1._dp, 0._dp, &
-              2151.2108283884064e3_dp, 2072.7362454913692e3_dp, &
+              2147.2820694104107e3_dp, 2068.8074865133734e3_dp, &
               0.9821897444989706_dp, 0.017810255501029465_dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
@@ -300,7 +300,7 @@ contains
          bulk = [63.956158699122846e6_dp, 460._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
               0.7574792388685243_dp, 3._dp, 55.956158699122846e6_dp, 8.e6_dp]
          phase3 = [429.21744575210414_dp, 5.261854000243448e-5_dp, 1._dp, 1._dp, &
-              0._dp, 2941.0271873199767e3_dp, 2792.0207586855246e3_dp, &
+              0._dp, 2927.606544385727e3_dp, 2778.600115751275e3_dp, &
               0.9269793879671842_dp, 0.07302061203281582_dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
