@@ -23,6 +23,7 @@ module eos_sge_test_module
 
   public :: setup, teardown, setup_test
   public :: test_eos_sge_transition, test_eos_sge_scale
+  public :: test_eos_sge_partial_pressure_coefficient
 
 contains
 
@@ -959,5 +960,66 @@ contains
     end subroutine scale_test
 
   end subroutine test_eos_sge_scale
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_sge_partial_pressure_coefficient(test)
+
+    ! eos_sge partial_pressure_coefficient() test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt,  parameter :: num_primary_variables = 3
+    type(eos_sge_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
+    character(2) :: json_str = '{}'
+    PetscReal :: xi
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
+
+    if (rank == 0) then
+
+       xi = eos%partial_pressure_coefficient(350._dp, PETSC_FALSE)
+       call test%assert(1._dp, xi, '350 V')
+
+       xi = eos%partial_pressure_coefficient(350._dp, PETSC_TRUE)
+       call test%assert(0._dp, xi, '350 L')
+
+       xi = eos%partial_pressure_coefficient(360._dp, PETSC_FALSE)
+       call test%assert(1._dp, xi, '360 V')
+
+       xi = eos%partial_pressure_coefficient(360._dp, PETSC_TRUE)
+       call test%assert(0.37752811779451184_dp, xi, '360 L')
+
+       xi = eos%partial_pressure_coefficient(370._dp, PETSC_FALSE)
+       call test%assert(1._dp, xi, '370 V')
+
+       xi = eos%partial_pressure_coefficient(370._dp, PETSC_TRUE)
+       call test%assert(0.927484873208201_dp, xi, '370 L')
+
+       xi = eos%partial_pressure_coefficient(thermo%critical%temperature, &
+            PETSC_FALSE)
+       call test%assert(1._dp, xi, 'Tc V')
+
+       xi = eos%partial_pressure_coefficient(thermo%critical%temperature, &
+            PETSC_TRUE)
+       call test%assert(1._dp, xi, 'Tc L')
+
+    end if
+
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+
+  end subroutine test_eos_sge_partial_pressure_coefficient
+
+!------------------------------------------------------------------------
 
 end module eos_sge_test_module
