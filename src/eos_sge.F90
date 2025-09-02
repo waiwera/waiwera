@@ -257,11 +257,8 @@ contains
     PetscReal, intent(out) :: water_pressure
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    type(root_finder_type) :: finder
-    procedure(root_finder_routine), pointer :: fp
-    PetscReal :: xi, props(2)
+    PetscReal :: Pw, t, xi
     PetscReal :: pressure, partial_pressure
-    PetscReal, parameter :: rtol = 1.e-8_dp, ftol = 1.e-8_dp
 
     err = 0
     pressure = primary(1)
@@ -280,44 +277,18 @@ contains
              if (pressure < thermo%saturation_pressure_bdy_1_3) then
                 water_pressure = pressure
              else
-                ! Solve for water pressure as temperature is not a
-                ! primary variable:
-                fp => fn
-                call finder%init(fp, [pressure - partial_pressure, pressure], &
-                     root_tolerance = rtol * pressure, &
-                     function_tolerance = ftol * pressure)
-                call finder%find()
-                err = finder%err
-                if (err == 0) water_pressure = finder%root
+                Pw = pressure - partial_pressure
+                call self%thermo%saturation%temperature(Pw, t, err)
+                if (err == 0) then
+                   xi = self%partial_pressure_coefficient(t, liquid)
+                   water_pressure = pressure - xi * partial_pressure
+                end if
              end if
           end select
        end select
     else
        water_pressure = pressure - partial_pressure
     end if
-
-contains
-
-    subroutine fn(x, context, f, err)
-      !! Root-finder function to find water pressure for two-phase,
-      !! where the temperature is not a primary variable.
-
-      PetscReal, intent(in) :: x
-      class(*), pointer, intent(in out) :: context
-      PetscReal, intent(out) :: f
-      PetscErrorCode, intent(out) :: err
-      ! Locals:
-      PetscReal :: t, xi
-
-      associate (Pw => x)
-        call self%thermo%saturation%temperature(Pw, t, err)
-        if (err == 0) then
-           xi = self%partial_pressure_coefficient(t, liquid)
-           f = pressure - Pw - xi * partial_pressure
-        end if
-      end associate
-
-    end subroutine fn
 
   end subroutine eos_sge_water_pressure
 
