@@ -24,6 +24,7 @@ module eos_sge_test_module
   public :: setup, teardown, setup_test
   public :: test_eos_sge_transition, test_eos_sge_scale
   public :: test_eos_sge_partial_pressure_coefficient
+  public :: test_eos_sge_water_pressure
 
 contains
 
@@ -1019,6 +1020,86 @@ contains
     call fson_destroy_mpi(json)
 
   end subroutine test_eos_sge_partial_pressure_coefficient
+
+!------------------------------------------------------------------------
+
+  subroutine test_eos_sge_water_pressure(test)
+
+    ! eos_sge water_pressure() test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt,  parameter :: num_primary_variables = 3
+    type(eos_sge_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
+    character(2) :: json_str = '{}'
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = json_str)
+    call thermo%init()
+    call eos%init(json, thermo)
+
+    if (rank == 0) then
+
+       call wp_test('case 1', [1.1e5_dp, 20._dp, 0.1e5_dp], 1, &
+            PETSC_TRUE, 1.1e5_dp)
+
+       call wp_test('case 2', [50.e6_dp, 340._dp, 0.1e6_dp], 1, &
+            PETSC_TRUE, 50.e6_dp)
+
+       call wp_test('case 3', [2.e6_dp, 240._dp, 0.1e6_dp], 2, &
+            PETSC_FALSE, 1.9e6_dp)
+
+       call wp_test('case 4', [5.e6_dp, 1._dp, 0.1e6_dp], 4, &
+            PETSC_FALSE, 4.9e6_dp)
+
+       call wp_test('case 5', [5.e6_dp, 0._dp, 0.1e6_dp], 4, &
+            PETSC_TRUE, 5.e6_dp)
+
+       call wp_test('case 6', [18.e6_dp, 1._dp, 0.1e6_dp], 4, &
+            PETSC_FALSE, 17.9e6_dp)
+
+       call wp_test('case 7', [18.e6_dp, 0._dp, 0.1e6_dp], 4, &
+            PETSC_TRUE, 17.981736059003048e6_dp)
+
+       call wp_test('case 8', [22.e6_dp, 1._dp, 0.1e6_dp], 4, &
+            PETSC_FALSE, 21.9e6_dp)
+
+       call wp_test('case 9', [22.e6_dp, 0._dp, 0.1e6_dp], 4, &
+            PETSC_TRUE, 21.90019531519445e6_dp)
+
+    end if
+
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+
+  contains
+
+    subroutine wp_test(title, primary, region, liquid, expected)
+
+      character(*), intent(in) :: title
+      PetscReal, intent(in) :: primary(num_primary_variables)
+      PetscInt, intent(in) :: region
+      PetscBool, intent(in) :: liquid
+      PetscReal, intent(in) :: expected
+      ! Locals:
+      PetscReal :: pw
+      PetscErrorCode :: err
+
+      call eos%water_pressure(primary, region, liquid, Pw, err)
+      call test%assert(0, err, trim(title) // ' err')
+      if (err == 0) then
+         call test%assert(expected, pw, trim(title) // ' value')
+      end if
+
+    end subroutine wp_test
+
+  end subroutine test_eos_sge_water_pressure
 
 !------------------------------------------------------------------------
 
