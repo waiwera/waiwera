@@ -49,6 +49,7 @@ module eos_sge_module
      procedure, public :: set_water_pressure => eos_sge_set_water_pressure
      procedure, public :: partial_pressure_coefficient => eos_sge_partial_pressure_coefficient
      procedure, public :: partial_pressures => eos_sge_partial_pressures
+     procedure, public :: effective_gas_properties => eos_sge_effective_gas_properties
      procedure, public :: enforce_consistency => eos_sge_enforce_consistency
      procedure, public :: region_1_fluid_properties => eos_sge_region_1_fluid_properties
      procedure, public :: region_2_fluid_properties => eos_sge_region_2_fluid_properties
@@ -515,6 +516,88 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_sge_effective_gas_properties(self, p, fluid, &
+       water_pressure, water_density, gas_density, &
+       energy_solution, effective_gas_density, gas_mass_fraction, &
+       mixture_viscosity, err)
+    !! Calculate effective gas and mixture properties for phase p. For
+    !! sub-critical liquid these are interpolated between liquid and
+    !! vapour values so that liquid and vapour phase properties are
+    !! equal at the critical point.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_sge_type), intent(in out) :: self
+    PetscInt, intent(in) :: p !! phase index
+    type(fluid_type), intent(in) :: fluid !! Fluid object
+    PetscReal, intent(in) :: water_pressure, water_density, gas_density
+    PetscReal, intent(out) :: energy_solution, effective_gas_density, &
+         gas_mass_fraction, mixture_viscosity
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: xi, xg(2), visc(2), water_viscosity
+    PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
+    PetscInt :: pp
+
+    err = 0
+
+    call self%thermo%region(3)%ptr%viscosity(fluid%temperature, &
+         water_pressure, water_density, water_viscosity)
+
+    if ((p == 1) .and. (fluid%temperature < self%thermo%critical%temperature)) then
+
+       xi = self%partial_pressure_coefficient(fluid%temperature, &
+            liquid = PETSC_TRUE)
+
+       call self%gas%henrys_constant(fluid%temperature, &
+            henrys_constant, constituent_henrys_constant, err)
+       if (err == 0) then
+
+          effective_gas_density = xi * gas_density
+
+          call self%gas%energy_solution(fluid%temperature, &
+               constituent_henrys_constant, energy_solution, err)
+          energy_solution = (1._dp - xi) * energy_solution
+
+          do pp = 1, 2
+             call self%gas%mass_fraction(fluid%partial_pressure(2), &
+                  fluid%temperature, pp, effective_gas_density, &
+                  water_density, henrys_constant, xg(pp), err)
+             if (err > 0) exit
+          end do
+          if (err == 0) then
+
+             gas_mass_fraction = (1._dp - xi) * xg(1) + xi * xg(2)
+
+             do pp = 1, 2
+                call self%gas%mixture_viscosity(water_viscosity, &
+                     fluid%temperature, fluid%partial_pressure(2), &
+                     gas_mass_fraction, pp, visc(pp), err)
+                if (err > 0) exit
+             end do
+             if (err == 0) then
+                mixture_viscosity = (1._dp - xi) * visc(1) + xi * visc(2)
+             end if
+
+          end if
+       end if
+
+    else
+       effective_gas_density = gas_density
+       henrys_constant = 0._dp
+       energy_solution = 0._dp
+       call self%gas%mass_fraction(fluid%partial_pressure(2), &
+            fluid%temperature, 2, effective_gas_density, water_density, &
+            henrys_constant, gas_mass_fraction, err)
+       call self%gas%mixture_viscosity(water_viscosity, &
+            fluid%temperature, fluid%partial_pressure(2), &
+            gas_mass_fraction, 2, mixture_viscosity, err)
+    end if
+
+  end subroutine eos_sge_effective_gas_properties
+
+!------------------------------------------------------------------------
+
   subroutine eos_sge_region_3_fluid_properties(self, primary, rock, fluid, err)
     !! Calculate region 3 fluid properties from region and primary
     !! variables for supercritical water, NCG and energy EOS.
@@ -530,12 +613,10 @@ contains
     ! Locals:
     PetscInt :: p, pp, phases, pseudo_phases, effective_phases
     PetscReal :: water_properties(2), pi_pseudo_phase(2), xg, xi
-    PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
-    PetscReal :: gas_properties(2), effective_gas_properties(2), saturation_pressure
-    PetscReal :: viscosity, energy_solution, water_enthalpy, water_viscosity
+    PetscReal :: gas_properties(2), saturation_pressure
+    PetscReal :: viscosity, energy_solution, water_enthalpy
     PetscReal :: effective_water_pressure, effective_water_density
-    PetscReal :: effective_water_internal_energy
-    PetscBool :: liquid
+    PetscReal :: effective_water_internal_energy, effective_gas_density
 
     err = 0
 
@@ -547,23 +628,15 @@ contains
          fluid%temperature = temperature
          fluid%permeability_factor = 1._dp
 
-         call region%properties(primary, water_properties, err)
+         call region%properties(primary(1:2), water_properties, err)
 
          if (err == 0) then
 
             associate (water_pressure => water_properties(1), &
                  water_internal_energy => water_properties(2), &
                  partial_pressure => primary(3), &
-                 gas_density => effective_gas_properties(1), &
-                 gas_enthalpy => effective_gas_properties(2))
-
-              if (temperature < self%thermo%critical%temperature) then
-                 call self%thermo%saturation%pressure(temperature, &
-                      saturation_pressure, err)
-                 liquid = (water_pressure >= saturation_pressure)
-              else
-                 liquid = PETSC_FALSE
-              end if
+                 gas_density => gas_properties(1), &
+                 gas_enthalpy => gas_properties(2))
 
               fluid%pressure = water_pressure + partial_pressure
               fluid%partial_pressure = [water_pressure, partial_pressure]
@@ -610,53 +683,32 @@ contains
                          ! Loop over pseudo-phases:
                          do pp = 1, 2
                             if (btest(effective_phases, pp - 1)) then
-                               if (pp == 1) then
-                                  call interpolate_liquid(fluid%pressure, temperature, &
-                                       partial_pressure, water_pressure, water_density, &
-                                       water_internal_energy, effective_water_pressure, &
-                                       effective_water_density, &
-                                       effective_water_internal_energy, err)
-                                  call self%gas%henrys_constant(fluid%temperature, &
-                                       henrys_constant, constituent_henrys_constant, err)
-                                  if (err == 0) then
-                                     call self%gas%energy_solution(fluid%temperature, &
-                                          constituent_henrys_constant, energy_solution, err)
-                                  end if
-                               else
-                                  effective_water_pressure = water_pressure
-                                  effective_water_density = water_density
-                                  effective_water_internal_energy = water_internal_energy
-                                  henrys_constant = 0._dp
-                                  energy_solution = 0._dp
-                               end if
+
+                               call effective_liquid_properties(pp, fluid%pressure, &
+                                    temperature, partial_pressure, water_pressure, &
+                                    water_density, water_internal_energy, &
+                                    effective_water_pressure, effective_water_density, &
+                                    effective_water_internal_energy, err)
+
                                if (err == 0) then
-                                  call self%gas%effective_properties(gas_properties, pp, &
-                                       effective_gas_properties)
-                                  call self%gas%mass_fraction(fluid%partial_pressure(2), &
-                                       fluid%temperature, pp, gas_density, &
-                                       effective_water_density, henrys_constant, xg, err)
+
+                                  call self%effective_gas_properties(pp, fluid, &
+                                       effective_water_pressure, effective_water_density, &
+                                       gas_density, energy_solution, effective_gas_density, &
+                                       xg, viscosity, err)
+
                                   if (err == 0) then
-                                     call region%viscosity(fluid%temperature, &
-                                          effective_water_pressure, effective_water_density, &
-                                          water_viscosity)
-                                     call self%gas%mixture_viscosity(water_viscosity, &
-                                          fluid%temperature, fluid%partial_pressure(2), &
-                                          xg, pp, viscosity, err)
-                                     if (err == 0) then
-                                        phase%density = phase%density + pi_pseudo_phase(pp) * &
-                                             (effective_water_density + gas_density)
-                                        phase%mass_fraction = phase%mass_fraction + &
-                                             pi_pseudo_phase(pp) * [1._dp - xg, xg]
-                                        water_enthalpy = effective_water_internal_energy &
-                                             + effective_water_pressure / effective_water_density
-                                        phase%specific_enthalpy = phase%specific_enthalpy + &
-                                             pi_pseudo_phase(pp) * (water_enthalpy * (1._dp - xg) &
-                                             + (gas_enthalpy + energy_solution) * xg)
-                                        phase%viscosity = phase%viscosity + &
-                                             pi_pseudo_phase(pp) * viscosity
-                                     else
-                                        exit
-                                     end if
+                                     phase%density = phase%density + pi_pseudo_phase(pp) * &
+                                          (effective_water_density + effective_gas_density)
+                                     phase%mass_fraction = phase%mass_fraction + &
+                                          pi_pseudo_phase(pp) * [1._dp - xg, xg]
+                                     water_enthalpy = effective_water_internal_energy &
+                                          + effective_water_pressure / effective_water_density
+                                     phase%specific_enthalpy = phase%specific_enthalpy + &
+                                          pi_pseudo_phase(pp) * (water_enthalpy * (1._dp - xg) &
+                                          + (gas_enthalpy + energy_solution) * xg)
+                                     phase%viscosity = phase%viscosity + &
+                                          pi_pseudo_phase(pp) * viscosity
                                   else
                                      exit
                                   end if
@@ -680,16 +732,17 @@ contains
 
   contains
 
-    subroutine interpolate_liquid(pressure, temperature, &
+    subroutine effective_liquid_properties(p, pressure, temperature, &
          partial_pressure, water_pressure, water_density, &
          water_internal_energy, effective_water_pressure, &
          effective_water_density, effective_water_internal_energy, err)
 
-      !! Return effective liquid water properties, interpolated
-      !! between region 1/3 boundary and critical point, for
-      !! consistency with region 4 properties and vapour properties at
-      !! critical point.
+      !! Return effective water properties for phase p. For
+      !! sub-critical liquid these are interpolated between liquid and
+      !! vapour values so that liquid and vapour phase properties are
+      !! equal at the critical point.
 
+      PetscInt, intent(in) :: p !! phase index
       PetscReal, intent(in) :: pressure, temperature, partial_pressure
       PetscReal, intent(in) :: water_pressure, water_density, &
            water_internal_energy
@@ -701,7 +754,7 @@ contains
 
       err = 0
 
-      if (temperature < self%thermo%critical%temperature) then
+      if ((p == 1) .and. (temperature < self%thermo%critical%temperature)) then
 
          xi = self%partial_pressure_coefficient(temperature, liquid = PETSC_TRUE)
          effective_water_pressure = pressure - xi * partial_pressure
@@ -726,7 +779,7 @@ contains
          effective_water_internal_energy = water_internal_energy
       end if
 
-    end subroutine interpolate_liquid
+    end subroutine effective_liquid_properties
 
   end subroutine eos_sge_region_3_fluid_properties
 
@@ -770,12 +823,11 @@ contains
 
       ! Locals:
       PetscInt :: p, phases
-      PetscReal :: water_density, water_properties(2), water_pressure, water_enthalpy
-      PetscReal :: water_viscosity, energy_solution, sl, xg
-      PetscReal :: relative_permeability(2), capillary_pressure
-      PetscBool :: liquid
-      PetscReal :: gas_properties(2), effective_gas_properties(2)
-      PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
+      PetscReal :: water_properties(2), water_density, water_enthalpy
+      PetscReal :: effective_water_pressure, effective_gas_density
+      PetscReal :: energy_solution, sl, xg
+      PetscReal :: relative_permeability(2), effective_capillary_pressure
+      PetscReal :: gas_properties(2)
 
       err = 0
 
@@ -792,78 +844,51 @@ contains
          if (err == 0) then
 
             do p = 1, 2
-               associate(phase => fluid%phase(p))
+               associate(phase => fluid%phase(p), &
+                    water_pressure => fluid%partial_pressure(1), &
+                    water_internal_energy => water_properties(2), &
+                    gas_density => gas_properties(1), gas_enthalpy => gas_properties(2))
 
                  if (btest(phases, p - 1)) then
 
-                    liquid = (p == 1)
-
-                    if (liquid) then
-                       call self%water_pressure(primary, 4, liquid, &
-                            water_pressure, err)
-                       capillary_pressure = rock%capillary_pressure%value(sl, &
-                            fluid%temperature)
-                       call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
-                            constituent_henrys_constant, err)
-                       if (err == 0) then
-                          call self%gas%energy_solution(fluid%temperature, &
-                               constituent_henrys_constant, energy_solution, err)
-                       end if
-                    else
-                       water_pressure = fluid%partial_pressure(1)
-                       capillary_pressure = 0._dp
-                       henrys_constant = 0._dp
-                       energy_solution = 0._dp
-                    end if
-
-                    call region3%saturation_density([water_pressure, &
-                         fluid%temperature], liquid, water_density, err, &
-                         polish = PETSC_TRUE)
+                    call effective_liquid_properties(p, fluid, rock, &
+                         effective_water_pressure, effective_capillary_pressure, err)
 
                     if (err == 0) then
 
-                       call region3%properties([water_density, fluid%temperature], &
-                            water_properties, err)
+                       call region3%saturation_density([effective_water_pressure, &
+                            fluid%temperature], p == 1, water_density, err, &
+                            polish = PETSC_TRUE)
 
                        if (err == 0) then
 
-                          call self%gas%effective_properties(gas_properties, p, &
-                               effective_gas_properties)
+                          call region3%properties([water_density, fluid%temperature], &
+                               water_properties, err)
 
-                          associate(water_internal_energy => water_properties(2), &
-                               gas_density => effective_gas_properties(1), &
-                               gas_enthalpy => effective_gas_properties(2))
+                          if (err == 0) then
 
-                            call self%gas%mass_fraction(fluid%partial_pressure(2), &
-                                 fluid%temperature, p, gas_density, water_density, &
-                                 henrys_constant, xg, err)
+                             call self%effective_gas_properties(p, fluid, &
+                                  effective_water_pressure, water_density, &
+                                  gas_density, energy_solution, effective_gas_density, &
+                                  xg, phase%viscosity, err)
 
-                            if (err == 0) then
-
-                               call region3%viscosity(fluid%temperature, water_pressure, &
-                                    water_density, water_viscosity)
-                               call self%gas%mixture_viscosity(water_viscosity, &
-                                    fluid%temperature, fluid%partial_pressure(2), xg, p, &
-                                    phase%viscosity, err)
-
-                               if (err == 0) then
-                                  phase%density = water_density + gas_density
-                                  phase%mass_fraction = [1._dp - xg, xg]
-                                  phase%relative_permeability = relative_permeability(p)
-                                  phase%capillary_pressure = capillary_pressure
-                                  water_enthalpy = water_internal_energy &
-                                       + water_pressure / water_density
-                                  phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
-                                       + (gas_enthalpy + energy_solution) * xg
-                                  phase%internal_energy = phase%specific_enthalpy &
-                                       - fluid%pressure / phase%density
-                               else
-                                  exit
-                               end if
-                            else
-                               exit
-                            end if
-                          end associate
+                             if (err == 0) then
+                                phase%density = water_density + effective_gas_density
+                                phase%mass_fraction = [1._dp - xg, xg]
+                                phase%relative_permeability = relative_permeability(p)
+                                phase%capillary_pressure = effective_capillary_pressure
+                                water_enthalpy = water_internal_energy &
+                                     + effective_water_pressure / water_density
+                                phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
+                                     + (gas_enthalpy + energy_solution) * xg
+                                phase%internal_energy = phase%specific_enthalpy &
+                                     - fluid%pressure / phase%density
+                             else
+                                exit
+                             end if
+                          else
+                             exit
+                          end if
 
                        else
                           exit
@@ -884,6 +909,42 @@ contains
       end select
 
     end subroutine region4_above_bdy_1_3_phase_properties
+
+    subroutine effective_liquid_properties(p, fluid, rock, &
+         effective_water_pressure, effective_capillary_pressure, err)
+
+      !! Return effective two-phase water component properties for
+      !! phase p. For sub-critical liquid these are interpolated
+      !! between liquid and vapour values so that liquid and vapour
+      !! phase properties are equal at the critical point.
+
+      PetscInt, intent(in) :: p !! phase index
+      type(fluid_type), intent(in) :: fluid !! Fluid object
+      type(rock_type), intent(in out) :: rock !! Rock object
+      PetscReal, intent(out) :: effective_water_pressure, &
+           effective_capillary_pressure
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: sl, cp, xi
+
+      err = 0
+
+      if (p == 1) then
+         sl = fluid%phase(1)%saturation
+         call self%water_pressure(primary, 4, PETSC_TRUE, &
+              effective_water_pressure, err)
+         if (err == 0) then
+            cp = rock%capillary_pressure%value(sl, fluid%temperature)
+            xi = self%partial_pressure_coefficient(fluid%temperature, &
+                 liquid = PETSC_TRUE)
+            effective_capillary_pressure = (1._dp - xi) * cp
+         end if
+      else
+         effective_water_pressure = fluid%partial_pressure(1)
+         effective_capillary_pressure = 0._dp
+      end if
+
+    end subroutine effective_liquid_properties
 
   end subroutine eos_sge_region_4_fluid_properties
 
