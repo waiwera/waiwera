@@ -867,8 +867,8 @@
                                         {"type": "array",
                                          "items": {"type": "array",
                                                    "items": {"type": "number",
-                                                             "minItems": 2, "maxItems": 2}},
-                                         "minItems": 2, "maxItems": 2}]},
+                                                             "minItems": 2, "maxItems": 2}}
+                                        }]},
                                     "interpolation": {"type": "string",
                                                       "enum": ["linear", "Linear",
                                                                "step", "Step",
@@ -884,22 +884,22 @@
                                         {"type": "array",
                                          "items": {"type": "array",
                                                    "items": {"type": "number",
-                                                             "minItems": 2, "maxItems": 2}},
-                                         "minItems": 2, "maxItems": 2}]},
+                                                             "minItems": 2, "maxItems": 2}}
+                                        }]},
                                     "water": {"oneOf": [
                                         {"type": "number"},
                                         {"type": "array",
                                          "items": {"type": "array",
                                                    "items": {"type": "number",
-                                                             "minItems": 2, "maxItems": 2}},
-                                         "minItems": 2, "maxItems": 2}]},
+                                                             "minItems": 2, "maxItems": 2}}
+                                        }]},
                                     "steam": {"oneOf": [
                                         {"type": "number"},
                                         {"type": "array",
                                          "items": {"type": "array",
                                                    "items": {"type": "number",
-                                                             "minItems": 2, "maxItems": 2}},
-                                         "minItems": 2, "maxItems": 2}]},
+                                                             "minItems": 2, "maxItems": 2}}
+                                        }]},
                                     "interpolation": {"type": "string",
                                                       "enum": ["linear", "Linear",
                                                                "step", "Step",
@@ -970,8 +970,8 @@
                                                 {"type": "array",
                                                  "items": {"type": "array",
                                                            "items": {"type": "number",
-                                                                     "minItems": 2, "maxItems": 2}},
-                                                 "minItems": 2, "maxItems": 2}]},
+                                                                     "minItems": 2, "maxItems": 2}}
+                                                }]},
                                             "interpolation": {"type": "string",
                                                               "enum": ["linear", "Linear",
                                                                        "step", "Step",
@@ -988,22 +988,22 @@
                                          {"type": "array",
                                           "items": {"type": "array",
                                                     "items": {"type": "number",
-                                                              "minItems": 2, "maxItems": 2}},
-                                          "minItems": 2, "maxItems": 2}]},
+                                                              "minItems": 2, "maxItems": 2}}
+                                         }]},
                                      "water": {"oneOf": [
                                          {"type": "number"},
                                          {"type": "array",
                                           "items": {"type": "array",
                                                     "items": {"type": "number",
-                                                              "minItems": 2, "maxItems": 2}},
-                                          "minItems": 2, "maxItems": 2}]},
+                                                              "minItems": 2, "maxItems": 2}}
+                                         }]},
                                      "steam": {"oneOf": [
                                          {"type": "number"},
                                          {"type": "array",
                                           "items": {"type": "array",
                                                     "items": {"type": "number",
-                                                              "minItems": 2, "maxItems": 2}},
-                                          "minItems": 2, "maxItems": 2}]},
+                                                              "minItems": 2, "maxItems": 2}}
+                                         }]},
                                      "interpolation": {"type": "string",
                                                        "enum": ["linear", "Linear",
                                                                 "step", "Step",
