@@ -484,7 +484,6 @@ contains
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
     PetscInt :: region
-    PetscReal :: water_pressure
 
     err = 0
     region = nint(fluid%region)

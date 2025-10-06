@@ -612,8 +612,8 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p, pp, phases, pseudo_phases, effective_phases
-    PetscReal :: water_properties(2), pi_pseudo_phase(2), xg, xi
-    PetscReal :: gas_properties(2), saturation_pressure
+    PetscReal :: water_properties(2), pi_pseudo_phase(2), xg
+    PetscReal :: gas_properties(2)
     PetscReal :: viscosity, energy_solution, water_enthalpy
     PetscReal :: effective_water_pressure, effective_water_density
     PetscReal :: effective_water_internal_energy, effective_gas_density
