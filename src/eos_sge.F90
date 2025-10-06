@@ -81,9 +81,7 @@ contains
     ! Locals:
     procedure(root_finder_routine), pointer :: fs, fw, ft
     PetscReal :: pressure_scale, temperature_scale, density_scale, partial_pressure_scale
-    PetscInt :: scale_type, modifier_type
-    character(max_fluid_modifier_name_length) :: relative_permeability_modifier_type_name
-    type(fson_value), pointer :: rperm_json
+    PetscInt :: scale_type
     character(10) :: conditions
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
@@ -153,73 +151,18 @@ contains
 
     fs => eos_wge_saturation_difference
     allocate(primary_variable_interpolator_type :: self%primary_variable_interpolator)
-    call init_line_finder(self%saturation_line_finder, &
+    call self%init_line_finder(self%saturation_line_finder, &
          self%primary_variable_interpolator, fs, init_interpolator = PETSC_TRUE)
     fw => eos_sge_widom_delta_difference
     allocate(widom_delta_interpolator_type :: self%widom_delta_interpolator)
-    call init_line_finder(self%widom_delta_finder, &
+    call self%init_line_finder(self%widom_delta_finder, &
          self%widom_delta_interpolator, fw, init_interpolator = PETSC_TRUE)
 
     call fson_get_mpi(json, "eos.conditions", default_conditions, &
          conditions, logfile)
     self%pressure_conditions = (str_to_lower(conditions) == "pressure")
 
-    ! Set up relative permeability modifier:
-    modifier_type = fson_type_mpi(json, "eos.relative_permeability_modifier")
-    select case (modifier_type)
-    case (TYPE_OBJECT)
-       call fson_get_mpi(json, "eos.relative_permeability_modifier.type", &
-            default_relative_permeability_modifier_type_name, &
-            relative_permeability_modifier_type_name, logfile)
-       select case (str_to_lower(relative_permeability_modifier_type_name))
-       case ("linear")
-          allocate(fluid_relative_permeability_linear_temperature_type :: &
-               self%relative_permeability_modifier)
-          select type (modifier => self%relative_permeability_modifier)
-          type is (fluid_relative_permeability_linear_temperature_type)
-             modifier%critical_temperature = self%thermo%critical%temperature
-          end select
-       case default ! null modifier
-          allocate(fluid_modifier_type :: self%relative_permeability_modifier)
-       end select
-    case (TYPE_NULL)
-       allocate(fluid_modifier_type :: self%relative_permeability_modifier)
-    end select
-    if (fson_has_mpi(json, "eos.relative_permeability_modifier")) then
-       call fson_get_mpi(json, "eos.relative_permeability_modifier", rperm_json)
-    else
-       rperm_json => null()
-    end if
-    call self%relative_permeability_modifier%init(rperm_json, logfile)
-
-  contains
-
-    subroutine init_line_finder(finder, interpolator, f, init_interpolator)
-      !! Initialises line finder (and optionally interpolator) for
-      !! interpolating onto saturation line or Widom delta boundaries.
-
-      type(root_finder_type), intent(in out) :: finder
-      class(primary_variable_interpolator_type), pointer, &
-           intent(in out) :: interpolator
-      procedure(root_finder_routine), pointer, intent(in out) :: f
-      PetscBool, intent(in) :: init_interpolator
-      ! Locals:
-      PetscReal, allocatable :: data(:, :)
-      class(*), pointer :: pinterp
-
-      if (init_interpolator) then
-         allocate(data(2, 1 + self%num_primary_variables))
-         data = 0._dp
-         data(:, 1) = [0._dp, 1._dp]
-         call interpolator%init(data)
-         deallocate(data)
-      end if
-
-      interpolator%thermo => self%thermo
-      pinterp => interpolator
-      call finder%init(f, context = pinterp)
-
-    end subroutine init_line_finder
+    call self%eos_se_type%init_relative_permeability_modifier(json, logfile)
 
   end subroutine eos_sge_init
 

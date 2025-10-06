@@ -38,6 +38,7 @@ module eos_we_module
    contains
      private
      procedure, public :: init => eos_we_init
+     procedure, public :: init_line_finder => eos_we_init_line_finder
      procedure, public :: destroy => eos_we_destroy
      procedure, public :: enforce_consistency => eos_we_enforce_consistency
      procedure, public :: saturation_pressure => eos_we_saturation_pressure
@@ -75,8 +76,6 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     procedure(root_finder_routine), pointer :: f
-    class(*), pointer :: pinterp
-    PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
@@ -118,20 +117,44 @@ contains
 
     self%thermo => thermo
 
-    ! Set up saturation line finder:
+    f => eos_we_saturation_difference
     allocate(primary_variable_interpolator_type :: &
          self%primary_variable_interpolator)
-    allocate(data(2, 1 + self%num_primary_variables))
-    data = 0._dp
-    data(:, 1) = [0._dp, 1._dp]
-    call self%primary_variable_interpolator%init(data)
-    deallocate(data)
-    self%primary_variable_interpolator%thermo => self%thermo
-    f => eos_we_saturation_difference
-    pinterp => self%primary_variable_interpolator
-    call self%saturation_line_finder%init(f, context = pinterp)
+    call self%init_line_finder(self%saturation_line_finder, &
+         self%primary_variable_interpolator, f, init_interpolator = PETSC_TRUE)
 
   end subroutine eos_we_init
+
+!------------------------------------------------------------------------
+
+  subroutine eos_we_init_line_finder(self, finder, interpolator, f, &
+       init_interpolator)
+    !! Initialises line finder (and optionally interpolator) for
+    !! interpolating onto saturation line or Widom delta boundaries.
+
+    class(eos_we_type), intent(in) :: self
+    type(root_finder_type), intent(in out) :: finder
+    class(primary_variable_interpolator_type), pointer, &
+         intent(in out) :: interpolator
+    procedure(root_finder_routine), pointer, intent(in out) :: f
+    PetscBool, intent(in) :: init_interpolator
+    ! Locals:
+    PetscReal, allocatable :: data(:, :)
+    class(*), pointer :: pinterp
+
+    if (init_interpolator) then
+       allocate(data(2, 1 + self%num_primary_variables))
+       data = 0._dp
+       data(:, 1) = [0._dp, 1._dp]
+       call interpolator%init(data)
+       deallocate(data)
+    end if
+
+    interpolator%thermo => self%thermo
+    pinterp => interpolator
+    call finder%init(f, context = pinterp)
+
+  end subroutine eos_we_init_line_finder
 
 !------------------------------------------------------------------------
 
