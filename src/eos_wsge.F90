@@ -72,12 +72,8 @@ contains
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     procedure(root_finder_routine), pointer :: f
-    class(*), pointer :: pinterp
-    PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale, partial_pressure_scale
-    PetscInt :: scale_type, modifier_type
-    character(max_fluid_modifier_name_length) :: permeability_modifier_type_name
-    type(fson_value), pointer :: perm_json
+    PetscInt :: scale_type
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_salt_mass_fraction = 0._dp
@@ -85,8 +81,6 @@ contains
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
     PetscReal, parameter :: default_partial_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising partial pressure
-    character(max_fluid_modifier_name_length), parameter :: &
-         default_permeability_modifier_type_name = "none"
 
     self%name = "wsge"
     self%description = "Water, salt, non-condensible gas and energy"
@@ -150,43 +144,13 @@ contains
 
     self%thermo => thermo
 
-    ! Set up saturation line finder:
+    f => eos_wsge_saturation_difference
     allocate(eos_wse_primary_variable_interpolator_type :: &
          self%primary_variable_interpolator)
-    allocate(data(2, 1 + self%num_primary_variables))
-    data = 0._dp
-    data(:, 1) = [0._dp, 1._dp]
-    call self%primary_variable_interpolator%init(data)
-    deallocate(data)
-    self%primary_variable_interpolator%thermo => self%thermo
-    f => eos_wsge_saturation_difference
-    pinterp => self%primary_variable_interpolator
-    call self%saturation_line_finder%init(f, context = pinterp)
+    call self%init_line_finder(self%saturation_line_finder, &
+         self%primary_variable_interpolator, f, init_interpolator = PETSC_TRUE)
 
-    ! Set up permeability modifier:
-    modifier_type = fson_type_mpi(json, "eos.permeability_modifier")
-    select case (modifier_type)
-    case (TYPE_OBJECT)
-       call fson_get_mpi(json, "eos.permeability_modifier.type", &
-            default_permeability_modifier_type_name, &
-            permeability_modifier_type_name, logfile)
-       select case (str_to_lower(permeability_modifier_type_name))
-       case ("power")
-          allocate(fluid_permeability_factor_power_type :: self%permeability_modifier)
-       case ("verma-pruess")
-          allocate(fluid_permeability_factor_verma_pruess_type :: self%permeability_modifier)
-       case default
-          allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
-       end select
-    case (TYPE_NULL)
-       allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
-    end select
-    if (fson_has_mpi(json, "eos.permeability_modifier")) then
-       call fson_get_mpi(json, "eos.permeability_modifier", perm_json)
-    else
-       perm_json => null()
-    end if
-    call self%permeability_modifier%init(perm_json, logfile)
+    call self%init_relative_permeability_modifier(json, logfile)
 
   end subroutine eos_wsge_init
 

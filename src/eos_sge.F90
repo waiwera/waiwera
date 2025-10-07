@@ -162,7 +162,7 @@ contains
          conditions, logfile)
     self%pressure_conditions = (str_to_lower(conditions) == "pressure")
 
-    call self%eos_se_type%init_relative_permeability_modifier(json, logfile)
+    call self%init_relative_permeability_modifier(json, logfile)
 
   end subroutine eos_sge_init
 
