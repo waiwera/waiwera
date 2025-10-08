@@ -170,20 +170,28 @@ This effect can be represented using the **"eos.relative_permeability_modifier"*
 
    **JSON path**: eos.relative_permeability_modifier
 
-   +-------------+----------+-------------------+-----------------------+
-   |**name**     |**type**  |**default**        |**value**              |
-   +-------------+----------+-------------------+-----------------------+
-   |"type"       |string    |"none"             |relative permeability  |
-   |             |          |                   |modifier type          |
-   +-------------+----------+-------------------+-----------------------+
+   +---------------------+----------+-------------------+-----------------------+
+   |**name**             |**type**  |**default**        |**value**              |
+   +---------------------+----------+-------------------+-----------------------+
+   |"type"               |string    |"none"             |relative permeability  |
+   |                     |          |                   |modifier type          |
+   +---------------------+----------+-------------------+-----------------------+
+   |"minimum_temperature"|number    |350                |minimum temperature    |
+   |                     |          |                   |:math:`T_0` for        |
+   |                     |          |                   |relative permeability  |
+   |                     |          |                   |modification           |
+   +---------------------+----------+-------------------+-----------------------+
 
 If the type is "linear" (the default for the :ref:`supercritical_water_energy_eos` EOS), the effective relative permeability :math:`K^r_p` is given by:
 
 .. math::
 
-   K^r_p = \frac{T}{T_c} S_p + (1 - \frac{T}{T_c}) k^r_p
+   f = \begin{cases}
+   k^r_p & T \le T_0 \\
+   K^r_p = (1 - \xi) k^r_p + \xi S_p & T > T_0
+   \end{cases}
 
-where :math:`k^r_p` is the original unmodified relative permeability, :math:`S_p` is the saturation of phase :math:`p`, :math:`T` is temperature (:math:`^{\circ}`\ C) and :math:`T_c` is critical temperature of water (:math:`^{\circ}`\ C). As the critical point is approached, the properties of the liquid and vapour phases converge, so that the relative permeability functions approach simple saturation functions (:math:`K^r_p = S_p`) and do not include any other interactions between phases.
+where :math:`k^r_p` is the original unmodified relative permeability, :math:`T` is temperature (:math:`^{\circ}`\ C), :math:`T_0` is a specified minimum temperature (:math:`^{\circ}`\ C), :math:`\xi = (T - T_0) / (T_c - T_0)`, :math:`T_c` is critical temperature of water (:math:`^{\circ}`\ C) and :math:`S_p` is the saturation of phase :math:`p`. As the critical point is approached, the properties of the liquid and vapour phases converge, so that the relative permeability functions approach simple saturation functions (:math:`K^r_p = S_p`) and do not include any other interactions between phases.
 
 .. index:: simulation; initial conditions, initial conditions
 .. index:: simulation; boundary conditions, boundary conditions

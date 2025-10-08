@@ -168,7 +168,9 @@
                                                                              "properties": {
                                                                                  "type": {"type": "string",
                                                                                           "enum": ["none", "None",
-                                                                                                   "linear", "Linear"]}}},
+                                                                                                   "linear", "Linear"]},
+                                                                                 "minimum_temperature":
+                                                                                 {"type": "number"}}},
                                                                             {"type": "null"}]},
                                "temperature": {"type": "number"},
                                "conditions": {"type": "string",

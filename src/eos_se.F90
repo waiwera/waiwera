@@ -174,13 +174,13 @@ contains
     class(eos_se_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json !! JSON input object
     type(logfile_type), intent(in out), optional :: logfile
-
     ! Locals:
     character(max_fluid_modifier_name_length), parameter :: &
          default_relative_permeability_modifier_type_name = "linear"
     PetscInt :: modifier_type
     character(max_fluid_modifier_name_length) :: relative_permeability_modifier_type_name
     type(fson_value), pointer :: rperm_json
+    PetscReal :: default_min_temperature
 
     modifier_type = fson_type_mpi(json, "eos.relative_permeability_modifier")
     select case (modifier_type)
@@ -190,17 +190,17 @@ contains
             relative_permeability_modifier_type_name, logfile)
        select case (str_to_lower(relative_permeability_modifier_type_name))
        case ("linear")
-          allocate(fluid_relative_permeability_linear_temperature_type :: &
-               self%relative_permeability_modifier)
-          select type (modifier => self%relative_permeability_modifier)
-          type is (fluid_relative_permeability_linear_temperature_type)
-             modifier%critical_temperature = self%thermo%critical%temperature
-          end select
+          call init_linear_modifier()
        case default ! null modifier
           allocate(fluid_modifier_type :: self%relative_permeability_modifier)
        end select
     case (TYPE_NULL)
-       allocate(fluid_modifier_type :: self%relative_permeability_modifier)
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               str_key = "eos.relative_permeability_modifier.type", &
+               str_value = default_relative_permeability_modifier_type_name)
+       end if
+       call init_linear_modifier()
     end select
     if (fson_has_mpi(json, "eos.relative_permeability_modifier")) then
        call fson_get_mpi(json, "eos.relative_permeability_modifier", rperm_json)
@@ -208,6 +208,26 @@ contains
        rperm_json => null()
     end if
     call self%relative_permeability_modifier%init(rperm_json, logfile)
+
+  contains
+
+    subroutine init_linear_modifier()
+
+      allocate(fluid_relative_permeability_linear_temperature_type :: &
+           self%relative_permeability_modifier)
+      select type (modifier => self%relative_permeability_modifier)
+      type is (fluid_relative_permeability_linear_temperature_type)
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+            default_min_temperature = thermo%temperature_bdy_1_3
+         end select
+         call fson_get_mpi(json, &
+              "eos.relative_permeability_modifier.minimum_temperature", &
+              default_min_temperature, modifier%min_temperature, logfile)
+         modifier%max_temperature = self%thermo%critical%temperature
+      end select
+
+    end subroutine init_linear_modifier
 
   end subroutine eos_se_init_relative_permeability_modifier
 

@@ -161,7 +161,8 @@ module fluid_module
   type, public, extends(fluid_modifier_type) :: &
        fluid_relative_permeability_linear_temperature_type
      !! Type for linear variation in relative permeability with temperature
-     PetscReal, public :: critical_temperature !! Critical temperature
+     PetscReal, public :: min_temperature !! Minimum temperature for modification
+     PetscReal, public :: max_temperature !! Maximum temperature for modification
    contains
      private
      procedure, public :: modify => fluid_relative_permeability_linear_temperature_modify
@@ -759,10 +760,10 @@ contains
 !........................................................................
 
   subroutine fluid_relative_permeability_linear_temperature_modify(self, fluid)
-    !! Modifies relative permeability linearly with temperature,
-    !! according to the equation given by Feng et al. (2021). As the
-    !! critical temperature is approached, relative permeabilities are
-    !! adjusted to approach simple linear curves from 0 to 1.
+    !! Modifies relative permeability linearly with temperature. Above
+    !! the minimum temperature, relative permeabilities are adjusted
+    !! to approach simple linear curves from 0 to 1 at the maximum
+    !! temperature (the critical point).
 
     use thermodynamics_module, only: thermodynamics_type
 
@@ -772,13 +773,16 @@ contains
     PetscReal :: xi
     PetscInt :: p
 
-    xi = fluid%temperature / self%critical_temperature
-    do p = 1, 2
-       associate(phase => fluid%phase(p))
-         phase%relative_permeability = xi * phase%saturation + &
-              (1._dp - xi) * phase%relative_permeability
-       end associate
-    end do
+    if (self%min_temperature < fluid%temperature) then
+       xi = (fluid%temperature - self%min_temperature) / &
+            (self%max_temperature - self%min_temperature)
+       do p = 1, 2
+          associate(phase => fluid%phase(p))
+            phase%relative_permeability = (1._dp - xi) * &
+                 phase%relative_permeability + xi * phase%saturation
+          end associate
+       end do
+    end if
 
   end subroutine fluid_relative_permeability_linear_temperature_modify
 
