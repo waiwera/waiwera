@@ -196,23 +196,24 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine node_limit_rate(node_rate, rate)
-    !! Limits specified rate according to node_rate.
+  subroutine limit_rate(capacity, rate)
+    !! Limits specified rate to capacity, with -1 values of rate
+    !! and/or capacity taken to mean no limit imposed.
 
-    PetscReal, intent(in) :: node_rate
+    PetscReal, intent(in) :: capacity
     PetscReal, intent(in out) :: rate
 
-    if (node_rate > -1._dp) then
+    if (capacity > -1._dp) then
        if (rate > -1._dp) then
           ! rates specified in both reinjector output and node:
-          rate = min(rate, node_rate)
+          rate = min(rate, capacity)
        else
           ! rate specified in node only:
-          rate = node_rate
+          rate = capacity
        end if
     end if
 
-  end subroutine node_limit_rate
+  end subroutine limit_rate
 
 !------------------------------------------------------------------------
 
