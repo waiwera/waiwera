@@ -786,6 +786,8 @@ contains
             [1._dp, 2._dp, 2._dp], 'case 12')
        call limiter_test(5._dp, [1._dp, 2._dp, 3._dp], [0.1_dp, 0.2_dp, 0.2_dp], &
             [1._dp, 2._dp, 2._dp], 'case 13')
+       call limiter_test(10._dp, [6._dp, -1._dp, 5._dp], [4._dp, -1._dp, 8._dp], &
+            [4._dp, 6._dp, 0._dp], 'case 14')
 
     end if
 
