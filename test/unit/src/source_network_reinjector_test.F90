@@ -23,6 +23,7 @@ module source_network_reinjector_test
 
   public :: setup, teardown
   public :: test_source_network_reinjector, test_source_network_deps
+  public :: test_reinjector_limiter_overflow
 
 contains
 
@@ -738,6 +739,75 @@ contains
     end subroutine dependency_iterator
 
   end subroutine source_network_dependency_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_reinjector_limiter_overflow(test)
+    ! Overflow limiter
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(source_network_reinjector_type) :: reinjector
+    PetscMPIInt :: rank
+    PetscErrorCode :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+
+       call limiter_test(0._dp, [2._dp, 2._dp], [1._dp, 1._dp], &
+            [0._dp, 0._dp], 'case 1')
+       call limiter_test(2._dp, [1.7_dp, 0.7_dp], [1.4_dp, 0.6_dp], &
+            [1.4_dp, 0.6_dp], 'case 2')
+       call limiter_test(2.2_dp, [1.7_dp, 0.5_dp], [1.54_dp, 0.66_dp], &
+            [1.7_dp, 0.5_dp], 'case 3')
+       call limiter_test(2._dp, [0.7_dp, 0.3_dp, 0.7_dp, 0.6_dp], &
+            [0.5_dp, 0.6_dp, 0.4_dp, 0.5_dp], &
+            [0.605_dp, 0.3_dp, 0.505_dp, 0.59_dp], 'case 4')
+       call limiter_test(2._dp, [0.2_dp, 0.1_dp, 0.2_dp, 0.3_dp, &
+            0.4_dp, 0.3_dp, 0.0_dp, 0.1_dp, 0.3_dp, 0.3_dp], &
+            [0.1_dp, 0.1_dp, 0.1_dp, 0.1_dp, 0.2_dp, 0.4_dp, 0.4_dp, &
+            0.2_dp, 0.2_dp, 0.2_dp], &
+            [0.1717578125_dp, 0.1_dp, 0.1717578125_dp, 0.2131796875_dp, &
+            0.3433046875_dp, 0.3_dp, 0._dp, 0.1_dp, 0.3_dp, 0.3_dp], 'case 5')
+       call limiter_test(10._dp, [3._dp, -1._dp], [4._dp, 6._dp], &
+            [3._dp, 7._dp], 'case 6')
+       call limiter_test(10._dp, [-1._dp, -1._dp], [4._dp, 6._dp], &
+            [4._dp, 6._dp], 'case 7')
+       call limiter_test(10._dp, [6._dp, 7._dp], [-1._dp, 4._dp], &
+            [6._dp, 4._dp], 'case 8')
+       call limiter_test(10._dp, [10._dp, 30._dp], [-1._dp, -1._dp], &
+            [2.5_dp, 7.5_dp], 'case 9')
+       call limiter_test(10._dp, [6._dp, -1._dp], [5._dp, -1._dp], &
+            [5._dp, 5._dp], 'case 10')
+       call limiter_test(10._dp, [1._dp, 2._dp, 3._dp], [4._dp, 3._dp, 3._dp], &
+            [1._dp, 2._dp, 3._dp], 'case 11')
+       call limiter_test(5._dp, [1._dp, 2._dp, 3._dp], [4._dp, 8._dp, 8._dp], &
+            [1._dp, 2._dp, 2._dp], 'case 12')
+       call limiter_test(5._dp, [1._dp, 2._dp, 3._dp], [0.1_dp, 0.2_dp, 0.2_dp], &
+            [1._dp, 2._dp, 2._dp], 'case 13')
+
+    end if
+
+  contains
+
+    subroutine limiter_test(total, cap, q, expected, title)
+
+      PetscReal, intent(in) :: total
+      PetscReal, intent(in) :: cap(:), q(:)
+      PetscReal, intent(in) :: expected(:)
+      character(*), intent(in) :: title
+      ! Locals:
+      PetscReal :: capi(size(cap)), qi(size(q))
+
+      capi = cap
+      qi = q
+      call reinjector_limiter_overflow(reinjector, total, capi, qi)
+      call test%assert(expected, qi, title)
+
+    end subroutine limiter_test
+
+  end subroutine test_reinjector_limiter_overflow
 
 !------------------------------------------------------------------------
 

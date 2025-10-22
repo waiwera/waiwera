@@ -60,6 +60,9 @@ module source_network_reinjector_module
   PetscReal, parameter, public :: default_reinjector_output_proportion = 0._dp
   PetscReal, parameter, public :: default_reinjector_output_enthalpy = -1._dp
 
+  PetscInt, parameter, public :: REINJECTOR_POLICY_DEFAULT = 1, &
+       REINJECTOR_POLICY_OVERFLOW = 2
+
   type, extends(source_network_node_type) :: reinjector_output_type
      !! Type for reinjector outputs, distributing part of the
      !! reinjector flow to another network node.
@@ -160,6 +163,7 @@ module source_network_reinjector_module
      PetscInt, allocatable, public :: water_source_cell_indices(:), steam_source_cell_indices(:) !! Natural cell indices of output sources (including those from outputs that are also reinjectors), unsorted
      PetscInt, allocatable, public :: water_fluid_dep_source_cell_indices(:), &
           steam_fluid_dep_source_cell_indices(:) !! Natural cell indices of fluid-dependent (e.g. with injectivity controls) output sources
+     procedure(reinjector_limiter), pointer, public :: limiter
    contains
      private
      procedure, public :: init => source_network_reinjector_init
@@ -175,6 +179,20 @@ module source_network_reinjector_module
      procedure, public :: gather_cell_indices => source_network_reinjector_gather_cell_indices
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
+
+  interface
+
+     subroutine reinjector_limiter(self, total, cap, q)
+       import :: source_network_reinjector_type
+       class(source_network_reinjector_type), intent(in) :: self
+       PetscReal, intent(in) :: total
+       PetscReal, intent(in out) :: cap(:)
+       PetscReal, intent(in out) :: q(:)
+     end subroutine reinjector_limiter
+
+  end interface
+
+  public :: reinjector_limiter_overflow
 
 contains
 
@@ -648,7 +666,12 @@ contains
     PetscInt, intent(in) :: policy !! Reinjection policy
 
     self%name = name
-    self%policy = policy
+    select case (policy)
+    case (REINJECTOR_POLICY_OVERFLOW)
+       self%limiter => reinjector_limiter_overflow
+    case default
+       self%limiter => reinjector_limiter_default
+    end select
 
     self%in => null()
     call self%out%init(owner = PETSC_TRUE)
@@ -1113,6 +1136,123 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine reinjector_limiter_default(self, total, cap, q)
+    !! Applies output node limits to default reinjector outputs. Any
+    !! fluid left over will be assigned to the overflow.
+
+    class(source_network_reinjector_type), intent(in) :: self
+    PetscReal, intent(in) :: total
+    PetscReal, intent(in out) :: cap(:)
+    PetscReal, intent(in out) :: q(:)
+    ! Locals:
+    PetscInt :: i
+
+    associate(n => size(q))
+      do i = 1, n
+         call limit_rate(cap(i), q(i))
+      end do
+    end associate
+
+  end subroutine reinjector_limiter_default
+
+!------------------------------------------------------------------------
+
+  subroutine reinjector_limiter_overflow(self, total, cap, q)
+    !! Applies output node limits to default reinjector outputs,
+    !! giving priority to minimising overflow rather than adhering
+    !! strictly to specified output flows.
+
+    class(source_network_reinjector_type), intent(in) :: self
+    PetscReal, intent(in) :: total
+    PetscReal, intent(in out) :: cap(:)
+    PetscReal, intent(in out) :: q(:)
+    ! Locals:
+    PetscInt :: i, k
+    PetscReal :: qsum, d, excess, excess_prop
+    PetscReal :: prop(size(q)), spare(size(q))
+    PetscReal :: spare_prop(size(q))
+    PetscBool :: unlimited
+    PetscReal, parameter :: tol = 1.e-12_dp
+
+    if (total > tol) then
+       associate(n => size(q))
+
+         qsum = 0._dp
+         unlimited = PETSC_FALSE
+
+         ! Pre-process unlimited flows and caps (-1 values):
+         do i = 1, n
+            if (unlimited) then
+               q(i) = 0._dp
+               cap(i) = 0._dp
+            else
+               if (q(i) < -0.5_dp) then
+                  if (cap(i) < -0.5_dp) then
+                     unlimited = PETSC_TRUE
+                     q(i) = total - qsum
+                     cap(i) = q(i)
+                  else
+                     q(i) = cap(i)
+                  end if
+               else if (cap(i) < -0.5_dp) then
+                  cap(i) = total
+               end if
+            end if
+            qsum = qsum + q(i)
+         end do
+
+         ! Scale output flows to add to total:
+         if (qsum > tol) then
+            q = q * total / qsum
+         end if
+
+         if (sum(cap) < total) then
+            ! Not enough capacity to reinject total - set all flows to
+            ! their capacities:
+            q = cap
+         else
+
+            prop = q / total
+            spare = 0._dp
+
+            do k = 1, n
+
+               excess = 0._dp
+               do i = 1, n
+                  d = q(i) - cap(i)
+                  if (d > 0._dp) then
+                     excess = excess + d
+                     q(i) = cap(i)
+                     prop(i) = 0._dp
+                     spare(i) = 0._dp
+                  else
+                     spare(i) = -d
+                  end if
+               end do
+
+               if (excess > tol) then
+                  excess_prop = 1._dp - sum(prop)
+                  spare = min(spare, excess)
+                  spare_prop = spare / sum(spare)
+                  prop = prop + spare_prop * excess_prop
+                  q = q + prop * excess
+               else
+                  exit
+               end if
+
+            end do
+
+         end if
+       end associate
+
+    else
+       q = 0._dp
+    end if
+
+  end subroutine reinjector_limiter_overflow
+
+!------------------------------------------------------------------------
+
   subroutine source_network_reinjector_distribute(self)
     !! Distributes reinjector input flow to outputs (and overflow if
     !! needed).
@@ -1124,6 +1264,8 @@ contains
     PetscReal :: local_qw(self%local_gather_count), qw(self%gather_count)
     PetscReal :: local_qs(self%local_gather_count), qs(self%gather_count)
     PetscReal :: local_cap(self%local_gather_count), cap(self%gather_count)
+    PetscReal :: qw_ordered(self%gather_count), qs_ordered(self%gather_count)
+    PetscReal :: cap_ordered(self%gather_count)
     PetscInt :: i, j
     PetscErrorCode :: ierr
 
@@ -1184,14 +1326,29 @@ contains
           water_balance = self%in_water_rate
           steam_balance = self%in_steam_rate
 
-          call set_output_flows(cap, qw, qs)
+          do i = 1, self%gather_count
+             j = self%gather_index(i)
+             qw_ordered(i) = qw(j)
+             qs_ordered(i) = qs(j)
+             cap_ordered(i) = cap(j)
+          end do
+
+          call self%limiter(self%water_rate, cap_ordered, qw_ordered)
+          call self%limiter(self%steam_rate, cap_ordered, qs_ordered)
+
+          do i = 1, self%gather_count
+             call update_balance(qw_ordered(i), water_balance, &
+                  self%output_water_rate)
+             call update_balance(qs_ordered(i), steam_balance, &
+                  self%output_steam_rate)
+          end do
+          self%output_rate = self%output_water_rate + self%output_steam_rate
 
           do i = 1, self%gather_count
              j = self%gather_index(i)
-             call update_balance(qw(j), water_balance, self%output_water_rate)
-             call update_balance(qs(j), steam_balance, self%output_steam_rate)
+             qw(j) = qw_ordered(i)
+             qs(j) = qs_ordered(i)
           end do
-          self%output_rate = self%output_water_rate + self%output_steam_rate
 
        end if
 
@@ -1238,24 +1395,6 @@ contains
       end select
 
     end subroutine local_rates_iterator
-
-!........................................................................
-
-    subroutine set_output_flows(cap, qw, qs)
-      !! Applies output node limits to reinjector outputs.
-
-      PetscReal, intent(in) :: cap(:)
-      PetscReal, intent(in out) :: qw(:), qs(:)
-      ! Locals:
-      PetscInt :: i, j
-
-      do i = 1, self%gather_count
-         j = self%gather_index(i)
-         call limit_rate(cap(j), qw(j))
-         call limit_rate(cap(j), qs(j))
-      end do
-
-    end subroutine set_output_flows
 
 !........................................................................
 

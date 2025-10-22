@@ -1927,6 +1927,9 @@ contains
       type(source_network_reinjector_type), pointer :: reinjector
       type(list_node_type), pointer :: group_dict_node
       PetscBool :: has_outputs
+      character(len=12), parameter :: default_policy_str = "output"
+      character(len=12) :: policy_str
+      PetscInt :: policy
 
       err = 0
       call reinjector_input_dict%init(PETSC_FALSE)
@@ -1941,8 +1944,17 @@ contains
 
          call fson_get_mpi(reinjector_json, "name", "", name)
 
+         call fson_get_mpi(reinjector_json, "policy", default_policy_str, &
+              policy_str, logfile, log_key = trim(rstr) // ".policy")
+         select case (trim(str_to_lower(policy_str)))
+         case ("overflow")
+            policy = REINJECTOR_POLICY_OVERFLOW
+         case default
+            policy = REINJECTOR_POLICY_DEFAULT
+         end select
+
          allocate(reinjector)
-         call reinjector%init(name)
+         call reinjector%init(name, policy)
 
          if (fson_has_mpi(reinjector_json, "in")) then
 

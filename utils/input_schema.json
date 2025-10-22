@@ -1145,7 +1145,10 @@
                                      "out": {"type": "string"}
                                  }, "additionalProperties": false}
                             ]
-                                        }
+                                        },
+                            "policy": {"type": "string",
+                                       "enum": ["output", "Output",
+                                                "overflow", "Overflow"]}
                         }, "additionalProperties": false
                     }
                 }
