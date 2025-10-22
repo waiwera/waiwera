@@ -214,24 +214,45 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine limit_rate(capacity, rate)
-    !! Limits specified rate to capacity, with -1 values of rate
-    !! and/or capacity taken to mean no limit imposed.
+  subroutine preprocess_rates(total, cap, q)
+    !! Pre-processes specified capacities and rates q, setting
+    !! appropriate values for unrated items (-1 values).
 
-    PetscReal, intent(in) :: capacity
-    PetscReal, intent(in out) :: rate
+    PetscReal, intent(in) :: total
+    PetscReal, intent(in out) :: cap(:), q(:)
+    ! Locals:
+    PetscBool :: unlimited
+    PetscInt :: i
+    PetscReal :: qsum
 
-    if (capacity > -1._dp) then
-       if (rate > -1._dp) then
-          ! rates specified in both reinjector output and node:
-          rate = min(rate, capacity)
-       else
-          ! rate specified in node only:
-          rate = capacity
-       end if
-    end if
+    qsum = 0._dp
+    unlimited = PETSC_FALSE
 
-  end subroutine limit_rate
+    associate (n => size(q))
+      do i = 1, n
+
+         if (unlimited) then
+            q(i) = 0._dp
+            cap(i) = 0._dp
+         else
+            if (q(i) < -0.5_dp) then
+               if (cap(i) < -0.5_dp) then
+                  unlimited = PETSC_TRUE
+                  q(i) = total - qsum
+                  cap(i) = q(i)
+               else
+                  q(i) = cap(i)
+               end if
+            else if (cap(i) < -0.5_dp) then
+               cap(i) = total
+            end if
+         end if
+         qsum = qsum + q(i)
+
+      end do
+    end associate
+
+  end subroutine preprocess_rates
 
 !------------------------------------------------------------------------
 
@@ -1144,14 +1165,9 @@ contains
     PetscReal, intent(in) :: total
     PetscReal, intent(in out) :: cap(:)
     PetscReal, intent(in out) :: q(:)
-    ! Locals:
-    PetscInt :: i
 
-    associate(n => size(q))
-      do i = 1, n
-         call limit_rate(cap(i), q(i))
-      end do
-    end associate
+    call preprocess_rates(total, cap, q)
+    q = min(q, cap)
 
   end subroutine reinjector_limiter_default
 
@@ -1171,50 +1187,28 @@ contains
     PetscReal :: qsum, d, excess, excess_prop
     PetscReal :: prop(size(q)), spare(size(q))
     PetscReal :: spare_prop(size(q))
-    PetscBool :: unlimited
     PetscReal, parameter :: tol = 1.e-12_dp
 
     if (total > tol) then
-       associate(n => size(q))
 
-         qsum = 0._dp
-         unlimited = PETSC_FALSE
+       call preprocess_rates(total, cap, q)
+       qsum = sum(q)
 
-         ! Pre-process unlimited flows and caps (-1 values):
-         do i = 1, n
-            if (unlimited) then
-               q(i) = 0._dp
-               cap(i) = 0._dp
-            else
-               if (q(i) < -0.5_dp) then
-                  if (cap(i) < -0.5_dp) then
-                     unlimited = PETSC_TRUE
-                     q(i) = total - qsum
-                     cap(i) = q(i)
-                  else
-                     q(i) = cap(i)
-                  end if
-               else if (cap(i) < -0.5_dp) then
-                  cap(i) = total
-               end if
-            end if
-            qsum = qsum + q(i)
-         end do
+       ! Scale output flows to add to total:
+       if (qsum > tol) then
+          q = q * total / qsum
+       end if
 
-         ! Scale output flows to add to total:
-         if (qsum > tol) then
-            q = q * total / qsum
-         end if
+       if (sum(cap) < total) then
+          ! Not enough capacity to reinject total - set all flows to
+          ! their capacities:
+          q = cap
+       else
 
-         if (sum(cap) < total) then
-            ! Not enough capacity to reinject total - set all flows to
-            ! their capacities:
-            q = cap
-         else
+          prop = q / total
+          spare = 0._dp
 
-            prop = q / total
-            spare = 0._dp
-
+          associate(n => size(q))
             do k = 1, n
 
                excess = 0._dp
@@ -1241,9 +1235,9 @@ contains
                end if
 
             end do
+          end associate
 
-         end if
-       end associate
+       end if
 
     else
        q = 0._dp
