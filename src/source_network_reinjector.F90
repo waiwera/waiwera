@@ -1066,7 +1066,7 @@ contains
       ! Locals:
       PetscBool :: unrated
 
-      call MPI_allreduce(local_capacity < 0._dp, unrated, 1, &
+      call MPI_allreduce(local_capacity < -0.5_dp, unrated, 1, &
            MPI_LOGICAL, MPI_LOR, self%comm, ierr)
       if (unrated) then
          total_capacity = -1._dp
@@ -1086,8 +1086,8 @@ contains
       PetscReal, intent(in) :: rate
       PetscReal, intent(in out) :: capacity
 
-      if (rate > -1._dp) then
-         if (capacity > -1._dp) capacity = capacity + rate
+      if (rate > -0.5_dp) then
+         if (capacity > -0.5_dp) capacity = capacity + rate
       else
          capacity = -1._dp
       end if
@@ -1404,7 +1404,7 @@ contains
 
       PetscReal, intent(in out) :: rate, balance, total
 
-      if (rate < 0._dp) then
+      if (rate < -0.5_dp) then
          ! No limit on flow rate - set to remaining balance:
          rate = balance
       end if
