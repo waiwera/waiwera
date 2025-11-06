@@ -1231,6 +1231,14 @@ contains
                   prop = prop + spare_prop * excess_prop
                   q = q + prop * excess
                else
+                  if (excess > 0._dp) then
+                     do i = 1, n
+                        if (spare(i) > excess) then
+                           q(i) = q(i) + excess
+                           exit
+                        end if
+                     end do
+                  end if
                   exit
                end if
 
