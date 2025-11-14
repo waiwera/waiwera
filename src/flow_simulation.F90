@@ -3028,26 +3028,41 @@ contains
 
     class(flow_simulation_type), intent(in out) :: self
     ! Locals:
+
     PetscErrorCode :: ierr
     PetscReal, allocatable :: values(:)
+    PetscInt, allocatable :: rows(:), cols(:)
+    PetscInt :: num_deps, np, i
 
-    associate (np => self%eos%num_primary_variables)
-      allocate(values(np * np))
-    end associate
+    num_deps = self%source_network%dependencies%count
+    np = self%eos%num_primary_variables
+    allocate(rows(num_deps), cols(num_deps))
+    allocate(values(np * np))
     values = 0._dp
 
     call MatSetOption(self%jacobian, MAT_NEW_NONZERO_LOCATION_ERR, &
          PETSC_FALSE, ierr); CHKERRQ(ierr)
 
+    i = 1
     call self%source_network%dependencies%traverse( &
          source_dependencies_iterator)
+
+    call AOApplicationToPetsc(self%mesh%interior_cell_natural_global, &
+         num_deps, rows, ierr); CHKERRQ(ierr)
+    call AOApplicationToPetsc(self%mesh%interior_cell_natural_global, &
+         num_deps, cols, ierr); CHKERRQ(ierr)
+
+    do i = 1, num_deps
+       call MatSetValuesBlocked(self%jacobian, 1, rows(i), 1, &
+            cols(i), values, INSERT_VALUES, ierr); CHKERRQ(ierr)
+    end do
 
     call MatAssemblyBegin(self%jacobian, MAT_FINAL_ASSEMBLY, &
          ierr); CHKERRQ(ierr)
     call MatAssemblyEnd(self%jacobian, MAT_FINAL_ASSEMBLY, &
          ierr); CHKERRQ(ierr)
 
-    deallocate(values)
+    deallocate(rows, cols, values)
 
   contains
 
@@ -3057,21 +3072,13 @@ contains
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
-      ! Locals:
-      PetscInt :: row(1), col(1)
 
       stopped = PETSC_FALSE
       select type(dependency => node%data)
       type is (source_dependency_type)
-         row = dependency%equation
-         ! Convert natural -> global indices:
-         call AOApplicationToPetsc(self%mesh%cell_natural_global, 1, &
-              row, ierr); CHKERRQ(ierr)
-         col = dependency%cell
-         call AOApplicationToPetsc(self%mesh%cell_natural_global, 1, &
-              col, ierr); CHKERRQ(ierr)
-         call MatSetValuesBlocked(self%jacobian, 1, row, 1, col, values, &
-              INSERT_VALUES, ierr); CHKERRQ(ierr)
+         rows(i) = dependency%equation
+         cols(i) = dependency%cell
+         i = i + 1
       end select
 
     end subroutine source_dependencies_iterator
