@@ -1945,7 +1945,7 @@ contains
          call fson_get_mpi(reinjector_json, "name", "", name)
 
          call fson_get_mpi(reinjector_json, "policy", default_policy_str, &
-              policy_str, logfile, log_key = trim(rstr) // ".policy")
+              policy_str, logfile, log_key = trim(rstr) // "policy")
          select case (trim(str_to_lower(policy_str)))
          case ("overflow")
             policy = REINJECTOR_POLICY_OVERFLOW
