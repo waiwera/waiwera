@@ -3032,7 +3032,7 @@ contains
     PetscErrorCode :: ierr
     PetscReal, allocatable :: values(:)
     PetscInt, allocatable :: rows(:), cols(:)
-    PetscInt :: num_deps, np, valsize, i
+    PetscInt :: num_deps, np, i
 
     num_deps = self%source_network%dependencies%count
     np = self%eos%num_primary_variables
