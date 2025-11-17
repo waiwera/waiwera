@@ -150,7 +150,7 @@ contains
     call self%init_line_finder(self%saturation_line_finder, &
          self%primary_variable_interpolator, f, init_interpolator = PETSC_TRUE)
 
-    call self%init_relative_permeability_modifier(json, logfile)
+    call self%init_permeability_modifier(json, logfile)
 
   end subroutine eos_wsge_init
 

@@ -41,8 +41,7 @@ module eos_wse_module
    contains
      private
      procedure, public :: init => eos_wse_init
-     procedure, public :: init_relative_permeability_modifier => &
-          eos_wse_init_relative_permeability_modifier
+     procedure, public :: init_permeability_modifier => eos_wse_init_permeability_modifier
      procedure, public :: destroy => eos_wse_destroy
      procedure, public :: saturation_pressure => eos_wse_saturation_pressure
      procedure, public :: region_4_transitions => eos_wse_region_4_transitions
@@ -172,14 +171,14 @@ contains
     call self%init_line_finder(self%saturation_line_finder, &
          self%primary_variable_interpolator, f, init_interpolator = PETSC_TRUE)
 
-    call self%init_relative_permeability_modifier(json, logfile)
+    call self%init_permeability_modifier(json, logfile)
 
   end subroutine eos_wse_init
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wse_init_relative_permeability_modifier(self, json, logfile)
-    !! Initialise relative permeability modifier from JSON.
+  subroutine eos_wse_init_permeability_modifier(self, json, logfile)
+    !! Initialise permeability modifier from JSON.
 
     use fson
     use fson_mpi_module, only: fson_get_mpi, fson_has_mpi, fson_type_mpi
@@ -221,7 +220,7 @@ contains
     end if
     call self%permeability_modifier%init(perm_json, logfile)
 
-  end subroutine eos_wse_init_relative_permeability_modifier
+  end subroutine eos_wse_init_permeability_modifier
 
 !------------------------------------------------------------------------
 
