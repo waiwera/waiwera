@@ -1026,6 +1026,7 @@ module IAPWS_module
      PetscReal, public :: widom_delta_zero_pressure !! Pressure at which Widom delta has zero width
      PetscReal :: widom_delta_delp = 0.02e6 ! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
      PetscReal :: widom_delta_P1, widom_delta_T1, widom_delta_dtdp0, widom_delta_dtdp1 !! Parameters for interpolating centre of delta
+     PetscReal :: critical_saturation_slope !! Slope of saturation line at critical point
 
    contains
      private
@@ -1146,6 +1147,7 @@ contains
     self%widom_delta_dtdp0 = 3.729403602924551e-6_dp ! from symbolic differentiation of saturation line
     self%widom_delta_dtdp1 = self%critical%temperature_k / &
          (self%widom_delta_growth * self%widom_delta_P1)
+    self%critical_saturation_slope = 7.8640285295767445_dp ! from symbolic differentiation of saturation line
 
   end subroutine IAPWS_init
 
@@ -1222,20 +1224,38 @@ contains
 !------------------------------------------------------------------------
 
   subroutine IAPWS_widom(self, pressure, temperature, err)
-    !! Returns Widom line temperature as a function of pressure. This
-    !! is the inverse of the exponential Widom function of Banuti et
-    !! al. (2017) - not actually part of the IAPWS formulation.
+    !! Returns Widom line temperature as a function of pressure,
+    !! according to Banuti et al. (2017). The slope is interpolated
+    !! over a small pressure range above the critical point to remain
+    !! differentiable where it meets the saturation line. For
+    !! pressures just below the critical pressure, the saturation
+    !! temperature is returned.
 
     class(IAPWS_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure
     PetscReal, intent(out) :: temperature
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: slope, xi, h
 
     if (pressure >= self%widom_delta_zero_pressure) then
-       temperature = self%critical%temperature_k * (1._dp + &
-            log(pressure / self%critical%pressure) / self%widom_slope) &
-            - tc_k
-       err = 0
+
+       if (pressure < self%critical%pressure) then
+          call self%saturation%temperature(pressure, temperature, err)
+       else
+          if (pressure < self%widom_interpolation_pressure) then
+             xi = (pressure - self%critical%pressure) / self%widom_delta_delP
+             h = hermite_spline_01(xi)
+             slope = (1._dp - h) * self%critical_saturation_slope + &
+                  h * self%widom_slope
+          else
+             slope = self%widom_slope
+          end if
+
+          temperature = self%banuti(pressure, self%critical%pressure, slope)
+          err = 0
+       end if
+
     else
        err = 1
     end if
