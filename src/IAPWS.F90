@@ -1283,10 +1283,11 @@ contains
     !! Returns Widom delta minimum and maximum temperatures as a
     !! function of pressure. These are the temperatures at which the
     !! number fractions of liquid-like particles are 1 and 0
-    !! respectively. The boundaries of the Widom delta are assumed to
-    !! grow exponentially with pressure difference from the critical
+    !! respectively. The Widom delta boundaries are assumed to grow
+    !! logarithmically with pressure difference from the critical
     !! point, starting from a small finite width (for numerical
-    !! purposes).
+    !! purposes). This is an approximation to the Widom delta
+    !! boundaries given by Wang et al. (2021).
 
     class(IAPWS_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure
