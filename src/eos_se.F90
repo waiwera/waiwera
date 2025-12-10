@@ -420,9 +420,16 @@ contains
                interpolated_water_pressure, err)
           if (err == 0) then
              associate (interpolated_pressure => interpolated_primary(1))
+
                if (interpolated_water_pressure > thermo%critical%pressure) then
+
                   call self%transition_region4_to_supercritical(primary, fluid, &
                        transition, err)
+
+               else if (interpolated_water_pressure > thermo%saturation_pressure_bdy_1_3) then
+
+                  call region4_above_bdy_1_3_transitions()
+
                else
                   primary = interpolated_primary
                   associate (temperature => primary(2))
@@ -430,20 +437,13 @@ contains
                          temperature, err)
                   end associate
                   if (err == 0) then
-                     if (interpolated_water_pressure <= &
-                          thermo%saturation_pressure_bdy_1_3) then
-                        water_pressure = pressure_factor * interpolated_water_pressure
-                        call self%set_water_pressure(water_pressure, primary)
-                        fluid%region = dble(new_region)
-                        transition = PETSC_TRUE
-                     else
-                        call region4_above_bdy_1_3_transitions()
-                     end if
-
+                     water_pressure = pressure_factor * interpolated_water_pressure
+                     call self%set_water_pressure(water_pressure, primary)
+                     fluid%region = dble(new_region)
+                     transition = PETSC_TRUE
                   end if
                end if
              end associate
-
           end if
        end if
 
