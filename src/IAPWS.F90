@@ -1027,7 +1027,6 @@ module IAPWS_module
      PetscReal :: widom_delta_delp = 0.02e6 !! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
      PetscReal :: widom_interpolation_pressure !! Pressure below which to interpolate Widom slope
      PetscReal :: critical_saturation_slope !! Slope of saturation line at critical point
-
    contains
      private
      procedure, public :: init => IAPWS_init
@@ -1326,7 +1325,7 @@ contains
     PetscInt, intent(out) :: pseudo_phases
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: widom_temperature, delta(2), xi_w, xi, xit, xim
+    PetscReal :: widom_temperature, delta(2), xi, xit, xim
     PetscReal, parameter :: eps = epsilon(pi_liq)
 
     err = 0
