@@ -481,61 +481,38 @@ contains
       !! temperatures.
 
       ! Locals:
+      PetscReal :: old_density, interpolated_temperature, water_param(2)
+      PetscReal :: interpolated_density, old_temperature
       PetscBool :: liquid
-      PetscReal :: density_increment, bdy_34_density, bdy_23_pressure, props(2)
-      PetscReal :: water_primary(2)
-      PetscReal, parameter :: small_density = 0.1_dp
-      PetscReal, parameter :: factor = 1._dp - 1.e-6_dp
+      PetscReal, parameter :: small = 1.e-6_dp
 
-      select type (thermo => self%thermo)
-      type is (IAPWS_type)
-
-         liquid = (new_region == 1)
-         if (liquid) then
-            density_increment = small_density
-         else
-            density_increment = -small_density
-         end if
-
-         select type (region3 => thermo%region(3)%ptr)
+      liquid = (new_region == 1)
+      old_density = old_fluid%density()
+      old_temperature = old_fluid%temperature
+      call self%thermo%saturation%temperature(interpolated_water_pressure, &
+           interpolated_temperature, err)
+      if (err == 0) then
+         water_param = [interpolated_water_pressure, interpolated_temperature]
+         select type (region3 => self%thermo%region(3)%ptr)
          type is (IAPWS_region3_type)
-            associate (water_pressure => water_primary(1), &
-                 water_temperature => water_primary(2), temperature => primary(2))
-              call self%water_pressure(primary, 4, PETSC_FALSE, water_pressure, err)
-              water_temperature = temperature
-            end associate
-            if (err == 0) then
-               call region3%saturation_density(water_primary, liquid, &
-                    bdy_34_density, err, polish = PETSC_TRUE)
-            end if
+            call region3%saturation_density(water_param, liquid, &
+                 interpolated_density, err, polish = PETSC_TRUE)
          end select
-
          if (err == 0) then
             associate (density => primary(1), temperature => primary(2))
-
-              density = bdy_34_density + density_increment
-              fluid%region = dble(3)
-              transition = PETSC_TRUE
-
-              if (new_region == 2) then
-                 call thermo%boundary23%pressure(temperature, bdy_23_pressure)
-                 call thermo%region(2)%ptr%properties([bdy_23_pressure, &
-                      temperature], props, err)
-                 if (err == 0) then
-                    associate(bdy_23_density => props(1))
-                      if (density < bdy_23_density) then
-                         call self%set_water_pressure(factor * bdy_23_pressure, &
-                              primary)
-                         fluid%region = dble(2)
-                      end if
-                    end associate
-                 end if
+              if (xi > small) then
+                 density = (interpolated_density - (1._dp - xi) * &
+                      old_density) / xi
+                 temperature = (interpolated_temperature - (1._dp - xi) * &
+                      old_temperature) / xi
+                 fluid%region = dble(3)
+                 transition = PETSC_TRUE
+              else
+                 err = 1
               end if
-
             end associate
          end if
-
-      end select
+      end if
 
     end subroutine region4_above_bdy_1_3_transitions
 
