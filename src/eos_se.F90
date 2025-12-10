@@ -32,18 +32,11 @@ module eos_se_module
   implicit none
   private
 
-  type, public, extends(primary_variable_interpolator_type) :: widom_delta_interpolator_type
-     private
-     PetscInt, public :: bdy_index !! 1 for liquid-like boundary, 2 for vapour-like
-  end type widom_delta_interpolator_type
-
   type, public, extends(eos_we_type) :: eos_se_type
      !! Pure supercritical water and energy equation of state type.
      private
      PetscInt, public :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
      PetscBool, public :: pressure_conditions !! Option to allow region 3 initial and boundary conditions specified with pressure instead of density
-     type(root_finder_type), public :: widom_delta_finder
-     class(primary_variable_interpolator_type), pointer, public :: widom_delta_interpolator
      class(fluid_modifier_type), allocatable, public :: relative_permeability_modifier !! Modifies effective relative permeability for temperature effects
    contains
      private
@@ -51,7 +44,6 @@ module eos_se_module
      procedure, public :: init_relative_permeability_modifier => &
           eos_se_init_relative_permeability_modifier
      procedure, public :: destroy => eos_se_destroy
-     procedure :: set_delta_interpolator_bdy => eos_se_set_delta_interpolator_bdy
      procedure, public :: region_1_transitions => eos_se_region_1_transitions
      procedure, public :: region_2_transitions => eos_se_region_2_transitions
      procedure, public :: region_3_transitions => eos_se_region_3_transitions
@@ -91,7 +83,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_routine), pointer :: fs, fw, ft
+    procedure(root_finder_routine), pointer :: fs
     PetscReal :: pressure_scale, temperature_scale, density_scale
     character(10) :: conditions
     PetscReal, parameter :: default_pressure = 1.0e5_dp
@@ -147,10 +139,6 @@ contains
     allocate(primary_variable_interpolator_type :: self%primary_variable_interpolator)
     call self%init_line_finder(self%saturation_line_finder, &
          self%primary_variable_interpolator, fs, init_interpolator = PETSC_TRUE)
-    fw => eos_se_widom_delta_difference
-    allocate(widom_delta_interpolator_type :: self%widom_delta_interpolator)
-    call self%init_line_finder(self%widom_delta_finder, &
-         self%widom_delta_interpolator, fw, init_interpolator = PETSC_TRUE)
 
     call fson_get_mpi(json, "eos.conditions", default_conditions, &
          conditions, logfile)
@@ -248,28 +236,9 @@ contains
     call self%primary_variable_interpolator%destroy()
     deallocate(self%primary_variable_interpolator)
 
-    call self%widom_delta_finder%destroy()
-    call self%widom_delta_interpolator%destroy()
-    deallocate(self%widom_delta_interpolator)
-
     call self%relative_permeability_modifier%destroy()
 
   end subroutine eos_se_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine eos_se_set_delta_interpolator_bdy(self, bdy_index)
-    !! Sets Widom delta interpolator boundary type.
-
-    class(eos_se_type), intent(in out) :: self
-    PetscInt, intent(in) :: bdy_index
-
-    select type (interpolator => self%widom_delta_interpolator)
-    type is (widom_delta_interpolator_type)
-       interpolator%bdy_index = bdy_index
-    end select
-
-  end subroutine eos_se_set_delta_interpolator_bdy
 
 !------------------------------------------------------------------------
 
@@ -565,7 +534,8 @@ contains
             else
 
                if (water_pressure > thermo%critical%pressure) then
-                  call region_1_to_supercritical_transitions(water_pressure)
+                  call self%transition_single_phase_to_region3(primary, &
+                      fluid, transition, err)
                else
 
                   self%primary_variable_interpolator%val(:, 1) = old_primary
@@ -595,55 +565,6 @@ contains
          end select
        end associate
     end if
-
-  contains
-
-!........................................................................
-
-    subroutine region_1_to_supercritical_transitions(water_pressure)
-      !! Transitions from region 1 to supercritical region 3
-
-      PetscReal, intent(in) :: water_pressure
-      ! Locals:
-      PetscReal :: delta(2), xi
-
-      associate (temperature => primary(2))
-        select type (region3 => self%thermo%region(3)%ptr)
-        type is (IAPWS_region3_type)
-
-           select type (thermo => self%thermo)
-           type is (IAPWS_type)
-              call thermo%widom_delta(water_pressure, delta, err)
-           end select
-
-           if (err == 0) then
-
-              if (temperature > delta(1)) then
-
-                 call self%set_delta_interpolator_bdy(WIDOM_DELTA_BDY_LIQUID)
-                 self%widom_delta_interpolator%val(:, 1) = old_primary
-                 self%widom_delta_interpolator%val(:, 2) = primary
-                 call self%widom_delta_finder%find()
-
-                 if (self%widom_delta_finder%err == 0) then
-                    xi = self%widom_delta_finder%root
-                    primary = self%widom_delta_interpolator%interpolate(xi)
-                    call self%transition_single_phase_to_region3(primary, &
-                         fluid, transition, err)
-                 else
-                    err = 1
-                 end if
-
-              else
-                 call self%transition_single_phase_to_region3(primary, &
-                      fluid, transition, err)
-              end if
-
-           end if
-        end select
-      end associate
-
-    end subroutine region_1_to_supercritical_transitions
 
   end subroutine eos_se_region_1_transitions
 
@@ -706,7 +627,8 @@ contains
                   if (water_pressure > pressure_bdy_2_3) then
 
                      if (water_pressure > thermo%critical%pressure) then
-                        call region2_to_supercritical_transitions(water_pressure)
+                        call self%transition_single_phase_to_region3(primary, &
+                             fluid, transition, err)
                      else
                         call self%transition_single_phase_to_region3(primary, &
                              fluid, transition, err)
@@ -721,54 +643,6 @@ contains
        end associate
 
     end if
-
-  contains
-
-!........................................................................
-
-    subroutine region2_to_supercritical_transitions(water_pressure)
-      !! Transitions from region 2 to supercritical region 3
-
-      PetscReal, intent(in) :: water_pressure
-      ! Locals:
-      PetscReal :: delta(2), xi
-
-      associate (temperature => primary(2))
-        select type (region3 => self%thermo%region(3)%ptr)
-        type is (IAPWS_region3_type)
-
-           select type (thermo => self%thermo)
-           type is (IAPWS_type)
-              call thermo%widom_delta(water_pressure, delta, err)
-           end select
-
-           if (err == 0) then
-
-              if (temperature < delta(2)) then
-
-                 call self%set_delta_interpolator_bdy(WIDOM_DELTA_BDY_VAPOUR)
-                 self%widom_delta_interpolator%val(:, 1) = old_primary
-                 self%widom_delta_interpolator%val(:, 2) = primary
-                 call self%widom_delta_finder%find()
-
-                 if (self%widom_delta_finder%err == 0) then
-                    xi = self%widom_delta_finder%root
-                    primary = self%widom_delta_interpolator%interpolate(xi)
-                    call self%transition_single_phase_to_region3(primary, &
-                         fluid, transition, err)
-                 else
-                    err = 1
-                 end if
-              else
-                 call self%transition_single_phase_to_region3(primary, &
-                      fluid, transition, err)
-              end if
-           end if
-
-        end select
-      end associate
-
-    end subroutine region2_to_supercritical_transitions
 
   end subroutine eos_se_region_2_transitions
 
@@ -1637,42 +1511,6 @@ contains
     end if
 
   end subroutine eos_se_process_conditions
-
-!------------------------------------------------------------------------
-
-  subroutine eos_se_widom_delta_difference(x, context, f, err)
-    !! Returns difference between Widom delta boundary temperature and
-    !! temperature at normalised point 0 <= x <= 1 along line between
-    !! start and end primary variables. Either the liquid-like or
-    !! vapour-like boundary is used, based on the context%bdy_index
-    !! variable.
-
-    PetscReal, intent(in) :: x
-    class(*), pointer, intent(in out) :: context
-    PetscReal, intent(out) :: f
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal, allocatable :: var(:)
-    PetscReal :: delta(2)
-
-    err = 0
-    select type (context)
-    type is (widom_delta_interpolator_type)
-       allocate(var(context%dim))
-       var = context%interpolate_at_index(x)
-       associate(P => var(1), T => var(2))
-         select type (thermo => context%thermo)
-         type is (IAPWS_type)
-            call thermo%widom_delta(P, delta, err)
-            if (err == 0) then
-               f = T - delta(context%bdy_index)
-            end if
-         end select
-       end associate
-       deallocate(var)
-    end select
-
-  end subroutine eos_se_widom_delta_difference
 
 !------------------------------------------------------------------------
 

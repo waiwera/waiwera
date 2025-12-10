@@ -79,7 +79,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_routine), pointer :: fs, fw, ft
+    procedure(root_finder_routine), pointer :: fs
     PetscReal :: pressure_scale, temperature_scale, density_scale, partial_pressure_scale
     PetscInt :: scale_type
     character(10) :: conditions
@@ -153,10 +153,6 @@ contains
     allocate(primary_variable_interpolator_type :: self%primary_variable_interpolator)
     call self%init_line_finder(self%saturation_line_finder, &
          self%primary_variable_interpolator, fs, init_interpolator = PETSC_TRUE)
-    fw => eos_sge_widom_delta_difference
-    allocate(widom_delta_interpolator_type :: self%widom_delta_interpolator)
-    call self%init_line_finder(self%widom_delta_finder, &
-         self%widom_delta_interpolator, fw, init_interpolator = PETSC_TRUE)
 
     call fson_get_mpi(json, "eos.conditions", default_conditions, &
          conditions, logfile)
@@ -1036,43 +1032,6 @@ contains
     end if
 
   end function eos_sge_unscale_adaptive
-
-!------------------------------------------------------------------------
-
-  subroutine eos_sge_widom_delta_difference(x, context, f, err)
-    !! Returns difference between Widom delta boundary temperature and
-    !! temperature at normalised point 0 <= x <= 1 along line between
-    !! start and end primary variables. Either the liquid-like or
-    !! vapour-like boundary is used, based on the context%bdy_index
-    !! variable.
-
-    PetscReal, intent(in) :: x
-    class(*), pointer, intent(in out) :: context
-    PetscReal, intent(out) :: f
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal, allocatable :: var(:), Pw
-    PetscReal :: delta(2)
-
-    err = 0
-    select type (context)
-    type is (widom_delta_interpolator_type)
-       allocate(var(context%dim))
-       var = context%interpolate_at_index(x)
-       associate(P => var(1), T => var(2), Pg => var(3))
-         select type (thermo => context%thermo)
-         type is (IAPWS_type)
-            Pw = P - Pg
-            call thermo%widom_delta(Pw, delta, err)
-            if (err == 0) then
-               f = T - delta(context%bdy_index)
-            end if
-         end select
-       end associate
-       deallocate(var)
-    end select
-
-  end subroutine eos_sge_widom_delta_difference
 
 !------------------------------------------------------------------------
 
