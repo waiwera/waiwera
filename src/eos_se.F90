@@ -483,11 +483,13 @@ contains
       ! Locals:
       PetscReal :: old_density, interpolated_temperature, water_param(2)
       PetscReal :: interpolated_density, old_temperature
+      PetscReal :: old_component_density(old_fluid%num_components)
       PetscBool :: liquid
       PetscReal, parameter :: small = 1.e-6_dp
 
       liquid = (new_region == 1)
-      old_density = old_fluid%density()
+      old_component_density = old_fluid%component_density()
+      old_density = old_component_density(1)
       old_temperature = old_fluid%temperature
       call self%thermo%saturation%temperature(interpolated_water_pressure, &
            interpolated_temperature, err)
