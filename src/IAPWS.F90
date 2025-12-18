@@ -1143,6 +1143,8 @@ contains
          self%widom_delta_offset
     call self%saturation%pressure(self%widom_delta_zero_temperature, &
          self%widom_delta_zero_pressure, err)
+    self%widom_delta_zero_pressure = min(self%widom_delta_zero_pressure, &
+         self%critical%pressure)
     self%widom_interpolation_pressure = self%critical%pressure + self%widom_delta_delp
     self%critical_saturation_slope = 7.8640285295767445_dp ! from symbolic differentiation of saturation line
 
