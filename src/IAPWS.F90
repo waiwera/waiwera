@@ -1341,8 +1341,12 @@ contains
              call self%widom_delta(pressure, delta, err)
              if (err == 0) then
 
-                xi = (temperature - delta(1)) / (delta(2) - delta(1))
-                xit = transform_xi(xi, widom_temperature, delta)
+                if (delta(2) > delta(1)) then
+                   xi = (temperature - delta(1)) / (delta(2) - delta(1))
+                   xit = transform_xi(xi, widom_temperature, delta)
+                else
+                   xit = 0.5_dp
+                end if
 
                 if (temperature >= self%critical%temperature) then
                    pi_liq = sigmoid(xit)
