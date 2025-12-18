@@ -164,7 +164,7 @@ The Waiwera JSON input file has a **"thermodynamics.widom"** value for specifyin
    |             |          |                   |factor :math:`\alpha`  |
    |             |          |                   |(:math:`^{\circ}`\ C)  |
    +-------------+----------+-------------------+-----------------------+
-   |"offset"     |number    |0.1                |Widom delta temperature|
+   |"offset"     |number    |0                  |Widom delta temperature|
    |             |          |                   |offset :math:`T_c -    |
    |             |          |                   |T_0` (:math:`^{\circ}`\|
    |             |          |                   |C)                     |
