@@ -764,13 +764,13 @@ module IAPWS_test
     if (rank == 0) then
 
        call widom_case(IAPWS%critical%pressure, &
-            [373.8709783897284_dp, 374.1795399579173_dp], 0, 'case 1')
+            [IAPWS%critical%temperature, IAPWS%critical%temperature], 0, 'case 1')
        call widom_case(40.e6_dp, &
-            [386.10804779775526_dp, 537.5828521720637_dp], 0, 'case 2')
+            [386.1830694080271_dp, 537.3493122141463_dp], 0, 'case 2')
        call widom_case(75.e6_dp, &
-            [399.03780460250994_dp, 710.2357168060113_dp], 0, 'case 3')
+            [399.11282621278156_dp, 710.002176848094_dp], 0, 'case 3')
        call widom_case(100.e6_dp, &
-            [404.95509380642784_dp, 789.2501133914348_dp], 0, 'case 4')
+            [405.0301154166996_dp, 789.0165734335175_dp], 0, 'case 4')
 
     end if
 
