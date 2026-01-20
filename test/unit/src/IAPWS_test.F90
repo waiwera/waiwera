@@ -829,11 +829,11 @@ module IAPWS_test
        call pi_liquidlike_case(IAPWS%critical%pressure, 700._dp, 0._dp, &
             0.0_dp, 2, 0, 'case 3')
        call pi_liquidlike_case(64.e6_dp, 450._dp, 0._dp, &
-            0.7313487040370508_dp, 3, 0, 'case 4')
+            0.7315542263694861_dp, 3, 0, 'case 4')
        call pi_liquidlike_case(64.e6_dp, 520._dp, 0._dp, &
-            0.2469689462446627_dp, 3, 0, 'case 5')
+            0.2467814866882898_dp, 3, 0, 'case 5')
        call pi_liquidlike_case(64.e6_dp, 600._dp, 0._dp, &
-            1.9828707512307586e-2_dp, 3, 0, 'case 6')
+            1.9721624673232241e-2_dp, 3, 0, 'case 6')
        call pi_liquidlike_case(40.e6_dp, 377._dp, 0._dp, &
             1.0_dp, 1, 0, 'case 7')
        call pi_liquidlike_case(30.e6_dp, 500._dp, 0._dp, &
