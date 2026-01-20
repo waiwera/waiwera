@@ -1344,15 +1344,20 @@ contains
                 if (delta(2) > delta(1)) then
                    xi = (temperature - delta(1)) / (delta(2) - delta(1))
                    xit = transform_xi(xi, widom_temperature, delta)
+                   if (temperature >= self%critical%temperature) then
+                      pi_liq = sigmoid(xit)
+                   else
+                      xim = near_critical_xi(temperature, xit)
+                      pi_liq = sigmoid(xim)
+                   end if
                 else
-                   xit = 0.5_dp
-                end if
-
-                if (temperature >= self%critical%temperature) then
-                   pi_liq = sigmoid(xit)
-                else
-                   xim = near_critical_xi(temperature, xit)
-                   pi_liq = sigmoid(xim)
+                   if (temperature > delta(2)) then
+                      pi_liq = 0._dp
+                   else if (temperature < delta(1)) then
+                      pi_liq = 1._dp
+                   else
+                      pi_liq = 0.5_dp
+                   end if
                 end if
 
                 if (pi_liq < eps) then
