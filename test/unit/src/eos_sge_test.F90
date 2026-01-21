@@ -382,7 +382,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [305.59127267242570_dp, 452.60284095132027_dp, 0._dp]
+       expected_primary = [343.02415514272616_dp, 450._dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [30.e6_dp, 470._dp, 0._dp]
@@ -395,8 +395,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [305.59127267242570_dp, 452.60284095132027_dp, &
-            3.739715904867971e5_dp]
+       expected_primary = [343.02415514272616_dp, 450._dp, 4.e5_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [30.2e6_dp, 470._dp, 2.e5_dp]
@@ -409,7 +408,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [278.40601191048711_dp, 373.99895032601586_dp, 0._dp]
+       expected_primary = [387.0953658924684_dp, 373.956_dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [18.e6_dp, 380._dp, 0._dp]
@@ -422,7 +421,7 @@ contains
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [278.40601191048711_dp, 373.99895032601586_dp, 4.e5_dp]
+       expected_primary = [387.0953658924684_dp, 373.956_dp, 4.e5_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [18.4e6_dp, 380._dp, 4.e5_dp]
@@ -436,7 +435,7 @@ contains
        old_fluid%temperature = 370._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [263.32515822729528_dp, 374.59899361383282_dp, 0._dp]
+       expected_primary = [224.52674930983707_dp, 375.18542_dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [21.043367318975246e6_dp, 0.6_dp, 0._dp]
@@ -450,7 +449,7 @@ contains
        old_fluid%temperature = 370._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [263.32515822729528_dp, 374.59899361383282_dp, 3.e5_dp]
+       expected_primary = [224.52674930983707_dp, 375.18542_dp, 3.e5_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [21.243367318975246e6_dp, 0.6_dp, 2.e5_dp]
@@ -462,9 +461,15 @@ contains
        title = "Region 4 to region 3 liquid, T > 350, Pg = 0"
        old_fluid%region = dble(4)
        old_fluid%temperature = 356.99181334434775_dp
+       old_fluid%phase(1)%density = 540._dp
+       old_fluid%phase(1)%saturation = 0.8_dp
+       old_fluid%phase(1)%mass_fraction = 1._dp
+       old_fluid%phase(2)%density = 130._dp
+       old_fluid%phase(2)%saturation = 0.2_dp
+       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [510.49352557031114_dp, 362.91787808947413_dp, 0._dp]
+       expected_primary = [536.59028835546667_dp, 365.88091046203732_dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [18.e6_dp, 0.2_dp, 0._dp]
@@ -476,9 +481,15 @@ contains
        title = "Region 4 to region 3 liquid, T > 350, Pg > 0"
        old_fluid%region = dble(4)
        old_fluid%temperature = 356.99181334434775_dp
+       old_fluid%phase(1)%density = 540._dp
+       old_fluid%phase(1)%saturation = 0.8_dp
+       old_fluid%phase(1)%mass_fraction = 1._dp
+       old_fluid%phase(2)%density = 130._dp
+       old_fluid%phase(2)%saturation = 0.2_dp
+       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [510.49352557031114_dp, 362.91787808947413_dp, 5.e5_dp]
+       expected_primary = [536.59028835546667_dp, 365.88091046203732_dp, 5.e5_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [18.5e6_dp, 0.2_dp, 5.e5_dp]
@@ -490,9 +501,15 @@ contains
        title = "Region 4 to region 3 vapour, T > 350, Pg = 0"
        old_fluid%region = dble(4)
        old_fluid%temperature = 373.93854042827775_dp
+       old_fluid%phase(1)%density = 329.9_dp
+       old_fluid%phase(1)%saturation = 0.01_dp
+       old_fluid%phase(1)%mass_fraction = 1._dp
+       old_fluid%phase(2)%density = 313.4_dp
+       old_fluid%phase(2)%saturation = 0.99_dp
+       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [314.99804745225049_dp, 373.94040546390397_dp, 0._dp]
+       expected_primary = [316.63109490450108_dp, 373.9422704995302_dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [22.062e6_dp, 0.99_dp, 0._dp]
@@ -504,9 +521,15 @@ contains
        title = "Region 4 to region 3 vapour, T > 350, Pg > 0"
        old_fluid%region = dble(4)
        old_fluid%temperature = 373.93854042827775_dp
+       old_fluid%phase(1)%density = 329.9_dp
+       old_fluid%phase(1)%saturation = 0.01_dp
+       old_fluid%phase(1)%mass_fraction = 1._dp
+       old_fluid%phase(2)%density = 313.4_dp
+       old_fluid%phase(2)%saturation = 0.99_dp
+       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [314.99804745225049_dp, 373.94040546390397_dp, 3.e5_dp]
+       expected_primary = [316.63109490450108_dp, 373.9422704995302_dp, 3.e5_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [22.362e6_dp, 0.99_dp, 3.e5_dp]
@@ -518,9 +541,15 @@ contains
        title = "Region 4 to region 2, T > 350, Pg = 0"
        old_fluid%region = dble(4)
        old_fluid%temperature = 350.00000000000387_dp
+       old_fluid%phase(1)%density = 575._dp
+       old_fluid%phase(1)%saturation = 0.01_dp
+       old_fluid%phase(1)%mass_fraction = 1._dp
+       old_fluid%phase(2)%density = 120._dp
+       old_fluid%phase(2)%saturation = 0.99_dp
+       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 2
-       expected_primary = [16.529147723441228e6_dp, 350.00000000000387_dp, 0._dp]
+       expected_primary = [16.014931287341278e6_dp, 350.00000000000387_dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [16.529164252605481e6_dp, 0.99_dp, 0._dp]
@@ -532,9 +561,15 @@ contains
        title = "Region 4 to region 2, T > 350, Pg > 0"
        old_fluid%region = dble(4)
        old_fluid%temperature = 350.00000000000387_dp
+       old_fluid%phase(1)%density = 575._dp
+       old_fluid%phase(1)%saturation = 0.01_dp
+       old_fluid%phase(1)%mass_fraction = 1._dp
+       old_fluid%phase(2)%density = 120._dp
+       old_fluid%phase(2)%saturation = 0.99_dp
+       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 2
-       expected_primary = [17.129147723441228e6_dp, 350.00000000000387_dp, 6.e5_dp]
+       expected_primary = [16.614931287341278e6_dp, 350.00000000000387_dp, 6.e5_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [17.129164252605481e6_dp, 0.99_dp, 6.e5_dp]
@@ -811,7 +846,7 @@ contains
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [475.23690666454377_dp, 453.36460370531074_dp, 0._dp]
+       expected_primary = [434.4842520915164_dp, 465._dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [70.e6_dp, 340._dp, 0._dp]
@@ -824,8 +859,7 @@ contains
        old_fluid%region = dble(1)
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [475.23690666454377_dp, 453.36460370531074_dp, &
-            4.7207504889274575e5_dp]
+       expected_primary = [434.4842520915164_dp, 465._dp, 5.e5_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [70.2e6_dp, 340._dp, 2.e5_dp]
@@ -867,7 +901,7 @@ contains
        d = [thermo%critical%pressure, thermo%critical%temperature, 0._dp] - old_primary
        primary = old_primary + 1.2 * d
        expected_region = 3
-       expected_primary = [358.87867533602133_dp, 373.92641126518146_dp, 0._dp]
+       expected_primary = [182.22481495020713_dp, 379.7352_dp, 0._dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
@@ -885,7 +919,7 @@ contains
        primary(1) = primary(1) + Pg
        primary(3) = Pg
        expected_region = 3
-       expected_primary = [358.87867533602133_dp, 373.92641126518146_dp, Pg]
+       expected_primary = [182.22481495020713_dp, 379.7352_dp, Pg]
        expected_transition = PETSC_TRUE
        expected_err = 0
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
