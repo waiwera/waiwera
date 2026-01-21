@@ -453,6 +453,7 @@ contains
       PetscReal :: old_density, interpolated_temperature, water_param(2)
       PetscReal :: interpolated_density, old_temperature
       PetscReal :: old_component_density(old_fluid%num_components)
+      PetscReal :: boundary_pressure, vapour_props(2), water_pressure
       PetscBool :: liquid
       PetscReal, parameter :: small = 1.e-6_dp
 
@@ -476,8 +477,32 @@ contains
                       old_density) / xi
                  temperature = (interpolated_temperature - (1._dp - xi) * &
                       old_temperature) / xi
-                 fluid%region = dble(3)
-                 transition = PETSC_TRUE
+
+                 select type (thermo => self%thermo)
+                 type is (IAPWS_type)
+                    call thermo%boundary23%pressure(temperature, boundary_pressure)
+                    call thermo%region(2)%ptr%properties([boundary_pressure, &
+                         temperature], vapour_props, err)
+                 end select
+                 if (err == 0) then
+                    associate (boundary_23_density => vapour_props(1))
+                      if (density < boundary_23_density) then
+                         select type (region2 => self%thermo%region(2)%ptr)
+                         type is (IAPWS_region2_type)
+                            water_pressure = boundary_pressure
+                            call region2%pressure(primary, water_pressure, err)
+                         end select
+                         if (err == 0) then
+                            call self%set_water_pressure(water_pressure, primary)
+                            fluid%region = dble(2)
+                            transition = PETSC_TRUE
+                         end if
+                      else
+                         fluid%region = dble(3)
+                         transition = PETSC_TRUE
+                      end if
+                    end associate
+                 end if
               else
                  err = 1
               end if
