@@ -331,6 +331,19 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 2 WD to 3 WD"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [205.65308064353988_dp, 425._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [29.e6_dp, 425._dp]
+       primary = [31.e6_dp, 425._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 2 to 3 near critical point"
        old_fluid%region = dble(2)
        fluid%region = old_fluid%region
