@@ -164,24 +164,26 @@ contains
          call properties_test(title, primary, region, expected, expected_err)
 
          title = 'region 3 liquidlike supercritical, Pg = 0'
-         primary = [500._dp, 400._dp, 0._dp]
+         primary = [600._dp, 380._dp, 0._dp]
          region = 3
          expected = 0._dp
-         bulk = [37.23729144851866e6_dp, 400._dp, 3._dp, 0._dp, 4._dp, &
-              1._dp, 1._dp, 1._dp, 37.23729144851866e6_dp, 0._dp]
-         phase3 = [500._dp, 5.8837922820019035e-5_dp, 1._dp, &
-              1._dp, 0._dp, 1958.054759408955e3_dp, 1883.5801765119177e3_dp, 1._dp, 0._dp]
+         bulk = [41.33359858461759e6_dp, 380._dp, 3._dp, 0._dp, 4._dp, &
+              1._dp, 1._dp, 1._dp, 41.33359858461759e6_dp, 0._dp]
+         phase3 = [600.0_dp, 7.022672074273551e-5_dp, 1._dp, &
+              1._dp, 0._dp, 1771.6587774736753e3_dp, 1702.7694464993128e3_dp, 1._dp, 0._dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
          title = 'region 3 vapourlike supercritical, Pg = 0'
-         primary = [320._dp, 500._dp, 0._dp]
+         primary = [163._dp, 385._dp, 0._dp]
          region = 3
          expected = 0._dp
-         bulk = [57.58529377353408e6_dp, 500._dp, 3._dp, 0._dp, 4._dp, &
-              1._dp, 0._dp, 2._dp, 57.58529377353408e6_dp, 0._dp]
+         bulk = [22.709787652531207e6_dp, 385._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
+              0._dp, 2._dp, 22.709787652531207e6_dp, 0._dp]
          phase3 = [320._dp, 4.5929888420621406e-5_dp, 1._dp, &
               1._dp, 0._dp, 2602.6723916362077e3_dp, 2422.7183485939135e3_dp, 1._dp, 0._dp]
+         phase3 = [163._dp, 2.8179538497480696e-5_dp, 1._dp, 1._dp, 0._dp, &
+              2527.3594472680516e3_dp, 2388.035596639026e3_dp, 1._dp, 0._dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
@@ -197,13 +199,13 @@ contains
          call properties_test(title, primary, region, expected, expected_err)
 
          title = 'region 3 Widom delta, Pg = 0'
-         primary = [420._dp, 460._dp, 0._dp]
+         primary = [358._dp, 400._dp, 0._dp]
          region = 3
          expected = 0._dp
-         bulk = [55.956158699122846e6_dp, 460._dp, 3._dp, 0._dp, 4._dp, &
-              1._dp, 0.75747923886852431_dp, 3._dp, 55.956158699122846e6_dp, 0._dp]
-         phase3 = [420._dp, 5.314389040730653e-05_dp, 1._dp, &
-              1._dp, 0._dp, 2296.8587930659675e3_dp, 2163.6298437823416e3_dp, 1._dp, 0._dp]
+         bulk = [30.009270056135245e6_dp, 400._dp, 3._dp, 0._dp, 4._dp, &
+              1._dp, 0.62250732885828319_dp, 3._dp, 30.009270056135245e6_dp, 0._dp]
+         phase3 = [358._dp, 4.424088379451797e-5_dp, 1._dp, 1._dp, 0._dp, &
+              2151.7359900996117e3_dp, 2067.9112134064964e3_dp, 1._dp, 0._dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
@@ -271,26 +273,26 @@ contains
          call properties_test(title, primary, region, expected, expected_err)
 
          title = 'region 3 liquidlike supercritical, Pg > 0'
-         primary = [500._dp, 400._dp, 2.e6_dp]
+         primary = [600._dp, 380._dp, 2.e6_dp]
          region = 3
          expected = 0._dp
-         bulk = [39.23729144851866e6_dp, 400._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
-              1._dp, 1._dp, 37.23729144851866e6_dp, 2.e6_dp]
-         phase3 = [510.3486253661622_dp, 5.784079879654913e-5_dp, 1._dp, 1._dp, 0._dp, &
-              1926.7063450531405e3_dp, 1849.8230352952923e3_dp, &
-              0.9797224390312851_dp, 0.020277560968714865_dp]
+         bulk = [43.33359858461759e6_dp, 380._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
+              1._dp, 1._dp, 41.33359858461759e6_dp, 2.e6_dp]
+         phase3 = [610.6655089416398_dp, 6.866324196062908e-05_dp, 1._dp, 1._dp, &
+              0._dp, 1747.5392945849537e3_dp, 1676.5780270004782e3_dp, &
+              0.9825346138180876_dp, 0.017465386181912453_dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
          title = 'region 3 vapourlike supercritical, Pg > 0'
-         primary = [320._dp, 500._dp, 2.e6_dp]
+         primary = [163._dp, 385._dp, 2.e6_dp]
          region = 3
          expected = 0._dp
-         bulk = [59.58529377353408e6_dp, 500._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
-              0._dp, 2._dp, 57.58529377353408e6_dp, 2.e6_dp]
-         phase3 = [329.01012373437504_dp, 4.5686238006410807e-5_dp, 1._dp, 1._dp, &
-              0._dp, 2545.648992343294e3_dp, 2364.544249737744e3_dp, &
-              0.9726144483576763_dp, 0.027385551642323733_dp]
+         bulk = [24.709787652531207e6_dp, 385.0_dp, 3._dp, 0._dp, 4._dp, 1._dp, &
+              0._dp, 2._dp, 22.709787652531207e6_dp, 2.0e6_dp]
+         phase3 = [173.58448251193812_dp, 2.861437094977116e-5_dp, 1._dp, 1._dp, &
+              0._dp, 2397.3988148796614e3_dp, 2255.0486042216793e3_dp, &
+              0.9390240281920927_dp, 0.06097597180790729_dp]
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
@@ -299,7 +301,7 @@ contains
          region = 3
          expected = 0._dp
          bulk = [63.956158699122846e6_dp, 460._dp, 3._dp, 0._dp, 4._dp, 1._dp, &
-              0.7574792388685243_dp, 3._dp, 55.956158699122846e6_dp, 8.e6_dp]
+              0.55909263569998324_dp, 3._dp, 55.956158699122846e6_dp, 8.e6_dp]
          phase3 = [458.00683170009995_dp, 5.0977682440528604e-5_dp, 1._dp, 1._dp, &
               0._dp, 2145.828286414576e3_dp, 2006.1881014380322e3_dp, &
               0.9170168891170895_dp, 0.08298311088291055_dp]
