@@ -105,8 +105,7 @@
                                    "properties": {
                                        "slope": {"type": "array",
                                                  "items": {"type": "number", "minimum": 0},
-                                                 "minItems": 2, "maxItems": 2},
-                                       "offset": {"type": "number", "minimum": 0}
+                                                 "minItems": 2, "maxItems": 2}
                                    },
                                    "additionalProperties": false}},
                            "additionalProperties": false}
