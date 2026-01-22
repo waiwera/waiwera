@@ -1303,7 +1303,7 @@ contains
     PetscInt, intent(out) :: pseudo_phases
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: widom_temperature, delta(2), xi, xit, xim
+    PetscReal :: widom_temperature, delta(2), xi, xit
     PetscReal, parameter :: eps = epsilon(pi_liq)
 
     err = 0
