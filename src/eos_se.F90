@@ -478,31 +478,37 @@ contains
                  temperature = (interpolated_temperature - (1._dp - xi) * &
                       old_temperature) / xi
 
-                 select type (thermo => self%thermo)
-                 type is (IAPWS_type)
-                    call thermo%boundary23%pressure(temperature, boundary_pressure)
-                    call thermo%region(2)%ptr%properties([boundary_pressure, &
-                         temperature], vapour_props, err)
-                 end select
-                 if (err == 0) then
-                    associate (boundary_23_density => vapour_props(1))
-                      if (density < boundary_23_density) then
-                         select type (region2 => self%thermo%region(2)%ptr)
-                         type is (IAPWS_region2_type)
-                            water_pressure = boundary_pressure
-                            call region2%pressure(primary, water_pressure, err)
-                         end select
-                         if (err == 0) then
-                            call self%set_water_pressure(water_pressure, primary)
-                            fluid%region = dble(2)
+                 if (liquid) then
+                    fluid%region = dble(3)
+                    transition = PETSC_TRUE
+                 else
+                    select type (thermo => self%thermo)
+                    type is (IAPWS_type)
+                       call thermo%boundary23%pressure(temperature, boundary_pressure)
+                       call thermo%region(2)%ptr%properties([boundary_pressure, &
+                            temperature], vapour_props, err)
+                    end select
+                    if (err == 0) then
+                       associate (boundary_23_density => vapour_props(1))
+                         if (density < boundary_23_density) then
+                            select type (region2 => self%thermo%region(2)%ptr)
+                            type is (IAPWS_region2_type)
+                               water_pressure = boundary_pressure
+                               call region2%pressure(primary, water_pressure, err)
+                            end select
+                            if (err == 0) then
+                               call self%set_water_pressure(water_pressure, primary)
+                               fluid%region = dble(2)
+                               transition = PETSC_TRUE
+                            end if
+                         else
+                            fluid%region = dble(3)
                             transition = PETSC_TRUE
                          end if
-                      else
-                         fluid%region = dble(3)
-                         transition = PETSC_TRUE
-                      end if
-                    end associate
+                       end associate
+                    end if
                  end if
+
               else
                  err = 1
               end if
