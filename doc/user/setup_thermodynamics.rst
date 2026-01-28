@@ -102,14 +102,14 @@ The Widom line
 
 The properties of supercritical fluid can be liquid-like or vapour-like, or something in between, depending on its pressure and temperature. Several lines on the pressure-temperature diagram, based on various physical properties, and extending from the critical point, have been proposed to distinguish liquid-like and vapour-like supercritical fluid.
 
-One of these lines is known as the **Widom line**. An expression for the location of the Widom line, based on experimental data, has been given by [Banuti_et_al_2017]_:
+One of these lines is known as the **Widom line**. An expression for the location of the Widom line, based on thermodynamic considerations and experimental data, has been given by [Banuti_et_al_2017]_:
 
 .. math::
    :label: widom_eqn
 
    P = P_c e^{A_s (T^k/T^k_c - 1)}
 
-where :math:`P_c` is the critical pressure (Pa), :math:`T^k_c` is the critical temperature (K), :math:`T^k` is the temperature (K) and :math:`A_s` is a dimensionless constant, which for water has the value 6.479.
+where :math:`P_c` is the critical pressure (Pa), :math:`T^k_c` is the critical temperature (K), :math:`T^k` is the temperature (K) and :math:`A_s` is a species-specific dimensionless slope parameter, which for water has the value 6.479.
 
 .. _widom_delta:
 
@@ -118,18 +118,9 @@ The Widom delta
 
 The behaviour of supercritical fluid does not change suddenly from liquid-like to vapour-like as the Widom line is crossed. A transition zone around the line has been identified, known as the **Widom delta**, within which the fluid's behaviour is in between liquid-like and vapour-like [Ha_et_al_2018]_.
 
-As yet, there do not appear to be any published expressions for the locations of the Widom delta boundaries.  In Waiwera the temperature difference between the vapour-like and liquid-like Widom delta boundaries is assumed to vary linearly with pressure, so that the boundaries :math:`T^v_{\delta}` and :math:`T^l_{\delta}` are given by:
+The locations of the boundaries of the Widom delta were identified for various supercritical fluids, including water, by [Wang_et_al_2021]_. Waiwera represents these boundaries using the same exponential form as the Widom line :eq:`widom_eqn` but with different slope parameters :math:`A_s`.
 
-.. math::
-   :label: widom_delta_eqn
-
-           T^v_{\delta} = T_w(P) + \frac{\alpha}{2} (P - P_0) / P_c
-
-           T^l_{\delta} = T_w(P) - \frac{\alpha}{2} (P - P_0) / P_c
-
-where :math:`T_w` is the Widom line temperature (:math:`^{\circ}`\ C) for the pressure :math:`P`, found by inverting equation :eq:`widom_eqn`, and :math:`\alpha` is a growth factor with default value 25 :math:`^{\circ}`\ C. :math:`P_0` is a reference pressure corresponding to a reference temperature :math:`T_0` on the saturation line, chosen slightly lower than the critical temperature :math:`T_c` (by default 0.1 :math:`^{\circ}`\ C lower), so that the Widom delta has a very small but finite width at the critical point. This avoids numerical issues with infinitely sharp transitions between liquid-like and vapour-like supercritical fluid at the critical point.
-
-:numref:`supercritical_plot` shows the supercritical zone shaded grey on a pressure-temperature plot, with the dashed lines representing the boundaries between IAPWS-97 region 3 and regions 1 and 2. It also shows the Widom line (red) given by equation :eq:`widom_eqn` and the Widom delta boundaries (blue) given by equation :eq:`widom_delta_eqn`, with the default value of the growth parameter :math:`\alpha`. It can be seen that, for this value of :math:`\alpha`, the Widom delta lies within region 3. Most, but not all, of region 3 is supercritical. A significant proportion of region 2 is vapour-like supercritical fluid.
+:numref:`supercritical_plot` shows the supercritical zone shaded grey on a pressure-temperature plot, with the dashed lines representing the boundaries between IAPWS-97 region 3 and regions 1 and 2. It also shows the Widom line (red) given by equation :eq:`widom_eqn` and the Widom delta boundaries (blue). It can be seen that the supercritical zone covers not only most of region 3 but also a significant part of region 2. The Widom line and the liquid-like boundary of the Widom delta are within region 3, but the vapour-like boundary of the Widom delta is mostly in region 2 (except near the critical point).
 
 .. _supercritical_plot:
 .. figure:: supercritical.*
@@ -138,7 +129,7 @@ where :math:`T_w` is the Widom line temperature (:math:`^{\circ}`\ C) for the pr
 
            Supercritical zone (shaded grey), Widom line (red) and Widom delta boundaries (blue)
 
-The Waiwera JSON input file has a **"thermodynamics.widom"** value for specifying Widom parameters. This contains a value **"thermodynamics.widom.delta"**, an object in which the Widom delta growth and offset parameters may be specified.
+The Waiwera JSON input file has a **"thermodynamics.widom"** value for specifying Widom parameters. This contains a value **"thermodynamics.widom.delta"**, an object in which the Widom delta boundary slope parameters may be specified.
 
 .. admonition:: JSON input
 
@@ -160,14 +151,8 @@ The Waiwera JSON input file has a **"thermodynamics.widom"** value for specifyin
    +-------------+----------+-------------------+-----------------------+
    |**name**     |**type**  |**default**        |**value**              |
    +-------------+----------+-------------------+-----------------------+
-   |"growth"     |number    |25                 |Widom delta growth     |
-   |             |          |                   |factor :math:`\alpha`  |
-   |             |          |                   |(:math:`^{\circ}`\ C)  |
-   +-------------+----------+-------------------+-----------------------+
-   |"offset"     |number    |0                  |Widom delta temperature|
-   |             |          |                   |offset :math:`T_c -    |
-   |             |          |                   |T_0` (:math:`^{\circ}`\|
-   |             |          |                   |C)                     |
+   |"slope"      |array     |[31.46, 2.356]     |Widom delta boundary   |
+   |             |          |                   |slopes                 |
    +-------------+----------+-------------------+-----------------------+
 
 .. _liquidlike_fraction:
@@ -184,7 +169,7 @@ In Waiwera the liquid-like fraction is estimated (in the absence of experimental
 
    \xi = \frac{T - T^l_{\delta}}{T^v_{\delta} - T^l_{\delta}}
 
-Then the liquid-like fraction is calculated as:
+where the Widom delta boundaries :math:`T^l_{\delta}` and :math:`T^v_{\delta}` are found from the pressure by inverting the exponential equation :eq:`widom_eqn`, for each of the Widom delta boundary slopes. Then the liquid-like fraction is calculated as:
 
 .. math::
    :label: widom_pi_liq
@@ -199,3 +184,4 @@ where :math:`h_{00} = (1 + 2 \xi) (1 - \xi)^2` is the cubic Hermite spline basis
 
 .. [Banuti_et_al_2017] Banuti, D.T., Raju, M. and Ihme, M. (2017). "Similarity law for Widom lines and coexistence lines", Phys. Rev. E 95, 052120.
 .. [Ha_et_al_2018] Ha, M.Y., Yoon, T.J., Tlusty, T., Jho, Y. and Lee, W.B. (2018). "Widom Delta of Supercritical Gas-Liquid Coexistence", J. Phys. Chem. Lett. 2018 (9), 1734 - 1738.
+.. [Wang_et_al_2021] Wang, Q., Ma, X., Xu, J., Li, M. and Wang, Y. (2021). "The three-regime model for pseudo-boiling in supercritical pressure", Int. J. Heat and Mass Transfer 2021 (181), 1 - 16.
