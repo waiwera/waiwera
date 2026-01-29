@@ -37,8 +37,7 @@ module IAPWS_test
 
     ! Locals:
     type(fson_value), pointer :: json
-    character(120) :: json_str = &
-         '{"thermodynamics": {"widom": {"delta": {"growth": 25, "min": 0.1}}}}'
+    character(120) :: json_str = '{}'
     PetscErrorCode :: ierr
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
