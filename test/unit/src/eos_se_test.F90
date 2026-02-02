@@ -425,7 +425,7 @@ contains
        old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [510.39357796383666_dp, 362.91788401553890_dp]
+       expected_primary = [511.38718972184108_dp, 363.03026827571910_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [18.e6_dp, 0.2_dp]
@@ -445,7 +445,7 @@ contains
        old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
-       expected_primary = [315.09804898529796_dp, 373.94040546576900_dp]
+       expected_primary = [316.09804671224902_dp, 373.94162201740551_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [22.062e6_dp, 0.99_dp]
@@ -465,7 +465,7 @@ contains
        old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 2
-       expected_primary = [16.528694506565429e6_dp, 350.00000000000387_dp]
+       expected_primary = [16.487749121064497e6_dp, 350.00000000000387_dp]
        expected_transition = PETSC_TRUE
        expected_err = 0
        old_primary = [16.529164252605481e6_dp, 0.99_dp]
