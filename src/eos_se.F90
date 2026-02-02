@@ -452,17 +452,16 @@ contains
       !! temperatures.
 
       ! Locals:
-      PetscReal :: old_density, interpolated_temperature, water_param(2)
-      PetscReal :: interpolated_density, old_temperature
       PetscReal :: old_component_density(old_fluid%num_components)
+      PetscReal :: interpolated_temperature, interpolated_density
+      PetscReal :: pold(2), pb(2), pdiff(2), direction(2), water_param(2)
       PetscReal :: boundary_pressure, vapour_props(2), water_pressure
       PetscBool :: liquid
-      PetscReal, parameter :: small = 1.e-6_dp
+      PetscReal, parameter :: primary_increment = 1._dp
 
       liquid = (new_region == 1)
       old_component_density = old_fluid%component_density()
-      old_density = old_component_density(1)
-      old_temperature = old_fluid%temperature
+      pold = [old_component_density(1), old_fluid%temperature]
       call self%thermo%saturation%temperature(interpolated_water_pressure, &
            interpolated_temperature, err)
       if (err == 0) then
@@ -473,17 +472,17 @@ contains
                  interpolated_density, err, polish = PETSC_TRUE)
          end select
          if (err == 0) then
-            associate (density => primary(1), temperature => primary(2))
 
-              density = interpolated_density + small * &
-                   (interpolated_density - old_density)
-              temperature = interpolated_temperature + small * &
-                   (interpolated_temperature - old_temperature)
+            pb = [interpolated_density, interpolated_temperature]
+            pdiff = pb - pold
+            direction = pdiff / norm2(pdiff)
+            primary(1:2) = pb + primary_increment * direction
 
-              if (liquid) then
-                 fluid%region = dble(3)
-                 transition = PETSC_TRUE
-              else
+            if (liquid) then
+               fluid%region = dble(3)
+               transition = PETSC_TRUE
+            else
+               associate (density => primary(1), temperature => primary(2))
                  select type (thermo => self%thermo)
                  type is (IAPWS_type)
                     call thermo%boundary23%pressure(temperature, boundary_pressure)
@@ -509,9 +508,8 @@ contains
                       end if
                     end associate
                  end if
-
-              end if
-            end associate
+               end associate
+            end if
          end if
       end if
 
