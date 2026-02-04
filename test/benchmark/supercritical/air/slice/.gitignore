@@ -1,0 +1,6 @@
+run/*
+!run/gslice.*
+!run/*.json
+!run/*.listing
+output/
+*.pyc
