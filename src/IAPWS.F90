@@ -2104,7 +2104,7 @@ contains
     ! Approximate density and temperature domain:
     PetscReal, parameter :: min_density = 110._dp, max_density = 765._dp
     PetscReal, parameter :: min_temperature = 348._dp, max_temperature = 590._dp
-    PetscReal, parameter :: eps = 1.e-6_dp
+    PetscReal, parameter :: eps = 1.e-3_dp
 
     associate (d => param(1), t => param(2))
 
