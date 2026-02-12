@@ -356,7 +356,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal :: old_saturation_pressure, pressure_factor
-    PetscReal :: saturation_bound, xi
+    PetscReal :: saturation_bound, saturation_difference, xi
     PetscReal :: interpolated_primary(self%num_primary_variables)
     PetscReal :: old_fluid_primary(self%num_primary_variables)
     PetscReal :: interpolated_water_pressure, water_pressure
@@ -372,6 +372,10 @@ contains
        saturation_bound = 1._dp
        pressure_factor = 1._dp - small
     end if
+
+    associate (old_sat => old_primary(2), new_sat => primary(2))
+      saturation_difference = new_sat - old_sat
+    end associate
 
     select type (thermo => self%thermo)
     type is (IAPWS_type)
@@ -454,29 +458,37 @@ contains
       ! Locals:
       PetscReal :: old_component_density(old_fluid%num_components)
       PetscReal :: interpolated_temperature, interpolated_density
-      PetscReal :: pold(2), pb(2), pdiff(2), direction(2), water_param(2)
+      PetscReal :: vold(2), vb(2), vdiff(2), direction(2), water_param(2)
       PetscReal :: boundary_pressure, vapour_props(2), water_pressure
       PetscBool :: liquid
-      PetscReal, parameter :: primary_increment = 1._dp
+      PetscReal, parameter :: primary_increment = 1._dp, &
+           min_sat_diff = 1.e-3_dp
 
       liquid = (new_region == 1)
+
       old_component_density = old_fluid%component_density()
-      pold = [old_component_density(1), old_fluid%temperature]
+      vold = [old_component_density(1), old_fluid%temperature]
       call self%thermo%saturation%temperature(interpolated_water_pressure, &
            interpolated_temperature, err)
       if (err == 0) then
+
          water_param = [interpolated_water_pressure, interpolated_temperature]
          select type (region3 => self%thermo%region(3)%ptr)
          type is (IAPWS_region3_type)
             call region3%saturation_density(water_param, liquid, &
                  interpolated_density, err, polish = PETSC_TRUE)
          end select
+
          if (err == 0) then
 
-            pb = [interpolated_density, interpolated_temperature]
-            pdiff = pb - pold
-            direction = pdiff / norm2(pdiff)
-            primary(1:2) = pb + primary_increment * direction
+            vb = [interpolated_density, interpolated_temperature]
+            if (abs(saturation_difference) > min_sat_diff) then
+               vdiff = vb - vold
+               direction = vdiff / norm2(vdiff)
+            else
+               direction = fallback_direction(primary, liquid)
+            end if
+            primary(1:2) = vb + primary_increment * direction
 
             if (liquid) then
                fluid%region = dble(3)
@@ -510,10 +522,41 @@ contains
                  end if
                end associate
             end if
+
          end if
       end if
 
     end subroutine region4_above_bdy_1_3_transitions
+
+!........................................................................
+
+    function fallback_direction(primary, liquid) result(direction)
+
+      ! Returns direction vector for incrementing primary variable in
+      ! region 4 -> 3 transition when saturation difference is small -
+      ! in density direction at 350 deg C and temperature direction at
+      ! critical point.
+
+      use utils_module, only: pi
+
+      PetscReal, intent(in) :: primary(self%num_primary_variables)
+      PetscBool, intent(in) :: liquid
+      PetscReal :: direction(2)
+      ! Locals:
+      PetscReal :: xit, angle
+
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+         associate (temperature => primary(2))
+           xit = (temperature - thermo%temperature_bdy_1_3) / &
+                (thermo%critical%temperature - thermo%temperature_bdy_1_3)
+         end associate
+      end select
+      angle = (1._dp - xit) * 0.5_dp * pi
+      if (.not. liquid) angle = -angle
+      direction = [sin(angle), cos(angle)]
+
+    end function fallback_direction
 
   end subroutine eos_se_transition_to_single_phase
 
