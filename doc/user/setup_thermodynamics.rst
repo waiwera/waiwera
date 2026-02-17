@@ -162,25 +162,7 @@ Liquid-like fraction
 
 It is currently thought that supercritical fluid, despite being single-phase, contains at the microscopic level a mixture of molecules with liquid-like and vapour-like behaviour. The relative proportions of these two types of particles determines whether the supercritical fluid has more liquid-like or vapour-like behaviour. This can be described quantitatively by the "liquid-like fraction" :math:`\pi_{liq}` of the supercritical fluid, which is the number fraction of liquid-like particles, taking values between 0 and 1 [Ha_et_al_2018]_.
 
-In Waiwera the liquid-like fraction is estimated (in the absence of experimental data) for a given supercritical pressure and temperature based on the Widom delta boundaries. First the non-dimensional location of the temperature within the Widom delta boundaries is calculated from:
-
-.. math::
-   :label: widom_xi
-
-   \xi = \frac{T - T^l_{\delta}}{T^v_{\delta} - T^l_{\delta}}
-
-where the Widom delta boundaries :math:`T^l_{\delta}` and :math:`T^v_{\delta}` are found from the pressure by inverting the exponential equation :eq:`widom_eqn`, for each of the Widom delta boundary slopes. Then the liquid-like fraction is calculated as:
-
-.. math::
-   :label: widom_pi_liq
-
-   \pi_{liq} = \begin{cases}
-   1 & \xi < 0 \\
-   h_{00}(\xi) & 0 \le \xi \le 1 \\
-   0 & \xi > 1
-   \end{cases}
-
-where :math:`h_{00} = (1 + 2 \xi) (1 - \xi)^2` is the cubic Hermite spline basis function between 1 and 0 on the unit interval, with zero gradient at each end. Using a cubic spline interpolant within the Widom delta results in a smooth and differentiable :math:`\pi_{liq}` surface over the entire supercritical zone.
+There are no published equations for the liquid-like fraction as a function of pressure and temperature. In Waiwera, outside the Widom delta the liquid-like fraction is taken to be :math:`\pi_{liq} = 1` for purely liquid-like supercritical fluid and :math:`\pi_{liq} = 0` when it is purely vapour-like. Along the Widom line, :math:`\pi_{liq} = 1/2`. Within the Widom delta, :math:`\pi_{liq}` is interpolated between these values using cubic Hermite spline interpolation. This results in a smooth and differentiable :math:`\pi_{liq}` surface over the entire supercritical zone.
 
 .. [Banuti_et_al_2017] Banuti, D.T., Raju, M. and Ihme, M. (2017). "Similarity law for Widom lines and coexistence lines", Phys. Rev. E 95, 052120.
 .. [Ha_et_al_2018] Ha, M.Y., Yoon, T.J., Tlusty, T., Jho, Y. and Lee, W.B. (2018). "Widom Delta of Supercritical Gas-Liquid Coexistence", J. Phys. Chem. Lett. 2018 (9), 1734 - 1738.
