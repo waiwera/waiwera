@@ -993,6 +993,34 @@ module IAPWS_module
   end type IAPWS_region3_type
 
 !------------------------------------------------------------------------
+  ! Region 5 (high-temperature steam) type
+!------------------------------------------------------------------------
+
+  type, public, extends(IAPWS_region_type) :: IAPWS_region5_type
+     !! IAPWS-97 region 5 (high-temperature steam) type.
+     private
+     PetscReal :: pstar = 1.0e6_dp, tstar = 1000.0_dp
+     PetscReal :: n0(6) = [ &
+          -0.13179983674201e2_dp, 0.68540841634434e1_dp, -0.24805148933466e-1_dp, &
+           0.36901534980333_dp,  -0.31161318213925e1_dp, -0.32961626538917_dp]
+     PetscReal :: n(6) = [ &
+          0.15736404855259e-2_dp, 0.90153761673944e-3_dp, -0.50270077677648e-2_dp, &
+          0.22440037409485e-5_dp, -0.41163275453471e-5_dp, 0.37919454822955e-7_dp]
+     PetscInt :: J0(6) = [0, 1, -3, -2, -1, 2]
+     PetscInt :: I(6) = [1, 1, 1, 2, 2, 3]
+     PetscInt :: J(6) = [1, 2, 3, 3, 9, 7]
+     PetscReal :: n0J0(6), nI(6), nJ(6)
+     PetscInt :: J0_1(6), I_1(6), J_1(6)
+     type(powertable_type) :: pj0, pi, pj
+     PetscReal :: min_temperature, max_temperature, max_pressure
+   contains
+     private
+     procedure, public :: init => region5_init
+     procedure, public :: destroy => region5_destroy
+     procedure, public :: properties => region5_properties
+  end type IAPWS_region5_type
+
+!------------------------------------------------------------------------
 ! Region 2/3 boundary type
 !------------------------------------------------------------------------
 
@@ -1016,6 +1044,7 @@ module IAPWS_module
   type, extends(thermodynamics_type), public :: IAPWS_type
      !! IAPWS thermodynamics type.
      private
+     class(region_type), allocatable, public :: htsteam !! High-temperature steam region
      type(IAPWS_boundary23_type), public :: boundary23
      PetscReal, public :: temperature_bdy_1_3 !! Temperature of boundary between regions 1 & 3
      PetscReal, public :: saturation_pressure_bdy_1_3 !! Saturation pressure at boundary between regions 1 & 3
@@ -1073,15 +1102,18 @@ contains
     call self%saturation%pressure(self%temperature_bdy_1_3, &
          self%saturation_pressure_bdy_1_3, err)
 
-    self%num_regions = 3
+    self%num_regions = 5
     allocate(IAPWS_region1_type :: self%water)
     allocate(IAPWS_region2_type :: self%steam)
     allocate(IAPWS_region3_type :: self%supercritical)
+    allocate(IAPWS_region5_type :: self%htsteam)
     allocate(self%region(self%num_regions))
 
     call self%region(1)%set(self%water)
     call self%region(2)%set(self%steam)
     call self%region(3)%set(self%supercritical)
+    self%region(4)%ptr => null()
+    call self%region(5)%set(self%htsteam)
 
     defaults = PETSC_TRUE
     if (present(json)) then
@@ -1115,7 +1147,9 @@ contains
     end if
 
     do i = 1, self%num_regions
-       call self%region(i)%ptr%init(self)
+       if (associated(self%region(i)%ptr)) then
+          call self%region(i)%ptr%init(self)
+       end if
     end do
 
     ! Reference densities at region 1/3 boundary:
@@ -1142,10 +1176,12 @@ contains
     PetscInt :: i
     
     do i = 1, self%num_regions
-       call self%region(i)%ptr%destroy()
+       if (associated(self%region(i)%ptr)) then
+          call self%region(i)%ptr%destroy()
+       end if
     end do
     deallocate(self%region)
-    deallocate(self%water, self%steam, self%supercritical)
+    deallocate(self%water, self%steam, self%supercritical, self%htsteam)
     deallocate(self%saturation)
 
   end subroutine IAPWS_destroy
@@ -2730,6 +2766,139 @@ contains
      end function near_critical_density
 
   end subroutine region3_saturation_density
+
+!------------------------------------------------------------------------
+! Region 5 (high-temperature steam)
+!------------------------------------------------------------------------
+
+  subroutine region5_init(self, thermo)
+    !! Initializes IAPWS region 5 object.
+
+    class(IAPWS_region5_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
+
+    call self%IAPWS_region_type%init(thermo)
+
+    self%name = 'high-temperature steam'
+
+    self%n0J0 = self%n0 * self%J0
+    self%nI = self%n * self%I
+    self%nJ = self%n * self%J
+    self%J0_1 = self%J0 - 1
+    self%I_1 = self%I - 1
+    self%J_1 = self%J - 1
+
+    ! Configure power tables:
+    call self%pj0%configure(self%J0)
+    call self%pj0%configure(self%J0_1)
+
+    call self%pi%configure(self%I)
+    call self%pi%configure(self%I_1)
+    call self%pi%configure([-1]) ! also need pi%power(-1) to calculate gampi
+
+    call self%pj%configure(self%J)
+    call self%pj%configure(self%J_1)
+
+    self%min_temperature = 800._dp
+    self%max_temperature = 2000._dp
+    self%max_pressure = 50.e6_dp
+
+  end subroutine region5_init
+
+!------------------------------------------------------------------------
+
+  subroutine region5_destroy(self)
+    !! Destroys IAPWS region 5 object.
+
+    class(IAPWS_region5_type), intent(in out) :: self
+
+    call self%pj0%destroy()
+    call self%pi%destroy()
+    call self%pj%destroy()
+
+    call self%IAPWS_region_type%destroy()
+
+  end subroutine region5_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine region5_properties(self, param, props, err)
+    !! Calculates density and internal energy of dry steam as a function of
+    !! pressure (Pa) and temperature (deg C).
+    !!
+    !! Returns err = 1 if called outside its operating range (800 < t <= 2000 deg C,
+    !! 0 < p <= 50 MPa).
+    !!
+    !! For temperatures close to the region 2/5 boundary, properties
+    !! are interpolated between the region 2/5 properties, to avoid
+    !! continuity problems at the boundary.
+
+    class(IAPWS_region5_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(out):: props(:)  !! (density, internal energy)
+    PetscInt, intent(out) :: err  !! error code
+    ! Locals:
+    PetscReal :: T_a, T_b, xi
+    PetscReal :: props_a(2), props_b(2)
+    PetscReal, parameter :: dT = 0.05_dp !! size of interpolation zone
+
+    err = 0
+    select type (thermo => self%thermo)
+    type is (IAPWS_type)
+       associate (T_b => self%min_temperature, p => param(1), t => param(2))
+         if ((self%min_temperature < t) .and. (t <= self%max_temperature) .and. &
+              (0._dp < p) .and. (p <= self%max_pressure)) then
+            T_a = T_b + dT
+            if (t > T_a) then
+               call properties(param, props)
+            else
+               call properties([p, T_a], props_a)
+               call thermo%region(2)%ptr%properties([p, T_b], props_b, err)
+               if (err == 0) then
+                  xi = (t - T_b) / dT
+                  props = (1._dp - xi) * props_b + xi * props_a
+               end if
+            end if
+         else
+            err = 1
+         end if
+       end associate
+    end select
+
+  contains
+
+    subroutine properties(param, props)
+
+      PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+      PetscReal, intent(out):: props(:) !! (density, internal energy)
+      ! Locals:
+      PetscReal:: tk, rt, pi, tau, gampir, gamt0, gamtr, gampi
+
+      associate (p => param(1), t => param(2))
+
+        tk = t + tc_k
+        rt = specific_gas_constant * tk
+        pi = p / self%pstar
+        tau = self%tstar / tk
+
+        call self%pj0%compute(tau)
+        call self%pi%compute(pi)
+        call self%pj%compute(tau)
+
+        gamt0  = sum(self%n0J0 * self%pj0%power(self%J0_1))
+        gampir = sum(self%nI * self%pi%power(self%I_1) * self%pj%power(self%J))
+        gamtr  = sum(self%nJ * self%pi%power(self%I)   * self%pj%power(self%J_1))
+
+        gampi = self%pi%power(-1) + gampir
+
+        props(1) = self%pstar / (rt * gampi)                 ! density
+        props(2) = rt * (tau * (gamt0 + gamtr) - pi * gampi) ! internal energy
+
+      end associate
+
+    end subroutine properties
+
+  end subroutine region5_properties
 
 !------------------------------------------------------------------------
 ! Viscosity
