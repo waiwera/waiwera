@@ -166,7 +166,7 @@ module IAPWS_module
      PetscReal :: nI(34), nJ(34)
      PetscInt :: I_1(34), J_1(34)
      type(powertable_type) :: pi, pj
-     PetscReal :: max_temperature
+     PetscReal :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region1_init
@@ -216,6 +216,7 @@ module IAPWS_module
      PetscReal :: n0J0(9), nI(43), nJ(43)
      PetscInt :: J0_1(9), I_1(43), J_1(43)
      type(powertable_type) :: pj0, pi, pj
+     PetscReal :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region2_init
@@ -973,7 +974,7 @@ module IAPWS_module
           0.00000000000000e+00_dp, 0.00000000000000e+00_dp, 0.00000000000000e+00_dp, &
           0.00000000000000e+00_dp, 0.00000000000000e+00_dp], &
           [43,26])
-
+     PetscReal, public :: max_pressure
    contains
      private
      procedure, public :: init => region3_init
@@ -1064,8 +1065,6 @@ contains
 
     self%name = "IAPWS-97"
 
-    self%max_temperature = 800._dp
-    self%max_pressure = 100.e6_dp
     self%temperature_bdy_1_3 = 350._dp
     self%critical = critical
 
@@ -1607,6 +1606,7 @@ contains
     call self%pj%configure(self%J)
     call self%pj%configure(self%J_1)
 
+    self%max_pressure = 100.e6_dp
     if (thermo%extrapolate) then
        self%max_temperature = extrapolated_max_temperature
     else
@@ -1662,7 +1662,7 @@ contains
             t => param(2))
 
          if ((0._dp < t) .and. (t <= (1._dp + eps) * self%max_temperature) .and. &
-              (0._dp < p) .and. (p <= self%thermo%max_pressure)) then
+              (0._dp < p) .and. (p <= self%max_pressure)) then
 
             if (thermo%extrapolate) then
                call properties(param, props)
@@ -1825,6 +1825,9 @@ contains
     call self%pj%configure(self%J)
     call self%pj%configure(self%J_1)
 
+    self%max_pressure = 100.e6_dp
+    self%max_temperature = 800._dp
+
   end subroutine region2_init
 
 !------------------------------------------------------------------------
@@ -1869,8 +1872,8 @@ contains
     type is (IAPWS_type)
        associate (p => param(1), t => param(2))
 
-         if ((0._dp < t) .and. (t <= thermo%max_temperature) .and. &
-              (0._dp < p) .and. (p <= thermo%max_pressure)) then
+         if ((0._dp < t) .and. (t <= self%max_temperature) .and. &
+              (0._dp < p) .and. (p <= self%max_pressure)) then
 
             if (t <= thermo%temperature_bdy_1_3) then
                call properties(param, props)
@@ -2062,6 +2065,8 @@ contains
        end associate
     end do
 
+    self%max_pressure = 100.e6_dp
+
   end subroutine region3_init
 
 !------------------------------------------------------------------------
@@ -2132,7 +2137,7 @@ contains
          end select
          min_pressure = (1._dp - eps) * b23_pressure
          if ((props(1) >= min_pressure) .and. &
-              (props(1) <= self%thermo%max_pressure) .and. &
+              (props(1) <= self%max_pressure) .and. &
               (props(2) > 0._dp)) then
             err = 0
          else
@@ -2278,7 +2283,7 @@ contains
 
     associate(p => param(1), tk => param(2) + tc_k)
 
-      if (p > self%thermo%max_pressure) then
+      if (p > self%max_pressure) then
          continue
       else if (p > 40.e6_dp) then
          if (tk <= self%subregion_boundary_logpoly(self%subregion_bdy_n_ab, &

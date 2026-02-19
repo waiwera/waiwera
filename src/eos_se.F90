@@ -874,7 +874,10 @@ contains
         type is (IAPWS_type)
 
            call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
-           pressure_bdy_2_3 = min(pressure_bdy_2_3, thermo%max_pressure)
+           select type (region3 => thermo%region(3)%ptr)
+           type is (IAPWS_region3_type)
+              pressure_bdy_2_3 = min(pressure_bdy_2_3, region3%max_pressure)
+           end select
            call thermo%region(2)%ptr%properties([pressure_bdy_2_3, temperature], &
                 props, err)
            if (err == 0) then

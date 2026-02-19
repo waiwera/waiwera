@@ -84,7 +84,7 @@ module IFC67_module
           SA7 = 1.150e-6_dp,        SA8 = 1.51080e-5_dp, &
           SA9 = 1.41880e-1_dp,      SA10 = 7.002753165_dp, &
           SA11 = 2.995284926e-4_dp, SA12 = 2.040e-1_dp
-     PetscReal :: max_temperature
+     PetscReal :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region1_init
@@ -121,6 +121,7 @@ module IFC67_module
           SB = 7.633333333e-1_dp, SB61 = 4.006073948e-1_dp, &
           SB71 = 8.636081627e-2_dp, SB81 = -8.532322921e-1_dp, &
           SB82 = 3.460208861e-1_dp
+     PetscReal :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region2_init
@@ -169,8 +170,6 @@ contains
 
     self%name = 'IFC-67'
 
-    self%max_temperature = 800._dp
-    self%max_pressure = 100.e6_dp
     self%critical = critical
 
     allocate(IFC67_saturation_type :: self%saturation)
@@ -277,6 +276,7 @@ contains
     else
        self%max_temperature = default_max_temperature
     end if
+    self%max_pressure = 100.e6_dp
 
   end subroutine region1_init
 
@@ -313,7 +313,7 @@ contains
     
     associate (p => param(1), t => param(2))
 
-      if ((t <= self%max_temperature).and.(p <= self%thermo%max_pressure)) then
+      if ((t <= self%max_temperature).and.(p <= self%max_pressure)) then
 
          TKR = (t + tc_k) / self%thermo%critical%temperature_k
          TKR2 = TKR * TKR
@@ -438,6 +438,9 @@ contains
     self%name = 'steam'
     self%thermo => thermo
 
+    self%max_temperature = 800._dp
+    self%max_pressure = 100.e6_dp
+
   end subroutine region2_init
 
 !------------------------------------------------------------------------
@@ -471,7 +474,7 @@ contains
     associate (p => param(1), t => param(2))
 
       ! Check input:
-      if ((t <= self%thermo%max_temperature).and.(p <= self%thermo%max_pressure)) then
+      if ((t <= self%max_temperature).and.(p <= self%max_pressure)) then
 
          THETA = (T + tc_k) / self%thermo%critical%temperature_k
          BETA = P / self%thermo%critical%pressure
