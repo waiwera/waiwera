@@ -17,10 +17,10 @@ module IAPWS_test
 
   public :: setup, teardown, setup_test
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
-       test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
-       test_IAPWS_phase_composition, test_IAPWS_region3_subbdy, &
-       test_IAPWS_region3_dpdd, test_IAPWS_region3_density, &
-       test_IAPWS_region3_saturation_density, &
+       test_IAPWS_region5, test_IAPWS_saturation, test_IAPWS_viscosity, &
+       test_IAPWS_boundary23, test_IAPWS_phase_composition, &
+       test_IAPWS_region3_subbdy, test_IAPWS_region3_dpdd, &
+       test_IAPWS_region3_density, test_IAPWS_region3_saturation_density, &
        test_IAPWS_widom, test_IAPWS_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
        test_IAPWS_region3_subregion_index
@@ -220,6 +220,58 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_region3
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region5(test)
+
+    ! IAPWS-97 region 5 tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 3, nerr = 3
+    PetscReal :: params(n,2) = reshape([ &
+         0.5e6_dp, 30.e6_dp, 30.e6_dp, &
+         1500._dp, 1500._dp, 2000._dp], [n,2])
+    PetscReal, parameter :: nu(n) = [0.138455090e1_dp, 0.230761299e-1_dp, 0.311385219e-1_dp]
+    PetscReal, parameter ::  u(n) = [0.452749310e7_dp, 0.447495124e7_dp, 0.563707038e7_dp]
+    PetscReal, parameter :: rho(n) = 1._dp / nu
+    PetscInt :: i, err
+    PetscReal :: param(2), props(2)
+    PetscReal :: err_params(nerr, 2) = reshape([ &
+         60.e6_dp, 40.e6_dp, 30.e6_dp, &
+         900._dp,  750._dp, 2100._dp], [nerr, 2])
+    PetscInt :: ierr
+    PetscMPIInt :: rank
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
+       do i = 1, n
+          param = params(i,:)
+          call IAPWS%htsteam%properties(param, props, err)
+          call test%assert(rho(i), props(1), 'density')
+          call test%assert(u(i), props(2), 'energy')
+          call test%assert(0, err, 'error')
+       end do
+
+       do i = 1, nerr
+          param = err_params(i,:)
+          call IAPWS%htsteam%properties(param, props, err)
+          call test%assert(1, err, 'error')
+       end do
+
+       ! Near 2/5 boundary:
+       param = [30.e6_dp, 800.02_dp]
+       call IAPWS%htsteam%properties(param, props, err)
+       call test%assert(63.9823842967715_dp, props(1), 'near 2/5 boundary density')
+       call test%assert(3551.42198472783e3_dp, props(2), 'near 2/5 boundary energy')
+       call test%assert(0, err, 'near boundary 2/3 no error')
+
+    end if
+
+  end subroutine test_IAPWS_region5
 
 !------------------------------------------------------------------------
 
