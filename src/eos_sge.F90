@@ -52,7 +52,7 @@ module eos_sge_module
      procedure, public :: effective_gas_properties => eos_sge_effective_gas_properties
      procedure, public :: enforce_consistency => eos_sge_enforce_consistency
      procedure, public :: region_1_fluid_properties => eos_sge_region_1_fluid_properties
-     procedure, public :: region_2_fluid_properties => eos_sge_region_2_fluid_properties
+     procedure, public :: region_2_5_fluid_properties => eos_sge_region_2_5_fluid_properties
      procedure, public :: region_3_fluid_properties => eos_sge_region_3_fluid_properties
      procedure, public :: region_4_fluid_properties => eos_sge_region_4_fluid_properties
      procedure, public :: primary_variables => eos_sge_primary_variables
@@ -140,12 +140,13 @@ contains
        call fson_get_mpi(json, "eos.primary.scale.partial_pressure", &
             default_partial_pressure_scale, partial_pressure_scale, logfile)
     end select
-    allocate(self%primary_scale(3, 4))
+    allocate(self%primary_scale(3, 5))
     self%primary_scale = reshape([ &
           pressure_scale, temperature_scale, partial_pressure_scale, &
           pressure_scale, temperature_scale, partial_pressure_scale, &
           density_scale, temperature_scale, partial_pressure_scale, &
-          pressure_scale, 1._dp, partial_pressure_scale], [3, 4])
+          pressure_scale, 1._dp, partial_pressure_scale, &
+          pressure_scale, temperature_scale, partial_pressure_scale], [3, 5])
 
     self%thermo => thermo
 
@@ -206,7 +207,7 @@ contains
 
     if (liquid) then
        select case (region)
-       case (1, 2)
+       case (1, 2, 5)
           associate (temperature => primary(2))
             xi = self%partial_pressure_coefficient(temperature, liquid)
           end associate
@@ -335,8 +336,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_sge_region_2_fluid_properties(self, primary, rock, fluid, err)
-    !! Calculate region 2 fluid properties from region and primary
+  subroutine eos_sge_region_2_5_fluid_properties(self, primary, rock, fluid, err)
+    !! Calculate region 2 or 5 fluid properties from region and primary
     !! variables for supercritical water, NCG and energy EOS.
 
     use fluid_module, only: fluid_type
@@ -353,7 +354,7 @@ contains
 
     if (err == 0) then
        if (fluid%is_supercritical()) then
-          call region_2_supercritical_phase_properties()
+          call region_2_5_supercritical_phase_properties()
        else
           call self%eos_wge%phase_properties(primary, rock, fluid, err)
           call fluid%phase(3)%zero()
@@ -365,27 +366,28 @@ contains
 
 !........................................................................
 
-    subroutine region_2_supercritical_phase_properties()
-      !! Calculate region 2 supercritical phase properties from region
+    subroutine region_2_5_supercritical_phase_properties()
+      !! Calculate region 2 or 5 supercritical phase properties from region
       !! and primary variables for supercritical water, NCG and energy
-      !! EOS. Region 2 supercritical fluid is assumed to be
-      !! vapour-like.
+      !! EOS.
 
       ! Locals:
-      PetscInt :: p, pseudo_phases
+      PetscInt :: p, pseudo_phases, r, rindex
       PetscReal :: water_primary(2), water_properties(2)
       PetscReal :: water_viscosity, water_enthalpy
       PetscReal :: gas_properties(2), xg, pi_liq
       PetscReal, parameter :: density = 0._dp ! not used
 
       err = 0
+      r = nint(fluid%region)
+      rindex = self%region_index(2, r)
       do p = 1, 2
          call fluid%phase(p)%zero()
       end do
 
       associate (water_pressure => water_primary(1), &
            water_temperature => water_primary(2), &
-           region => self%thermo%region(2)%ptr, phase => fluid%phase(3))
+           region => self%thermo%region(rindex)%ptr, phase => fluid%phase(3))
 
         call self%water_pressure(primary, 2, PETSC_FALSE, water_pressure, err)
         if (err == 0) then
@@ -449,9 +451,9 @@ contains
         end if
       end associate
 
-    end subroutine region_2_supercritical_phase_properties
+    end subroutine region_2_5_supercritical_phase_properties
 
-  end subroutine eos_sge_region_2_fluid_properties
+  end subroutine eos_sge_region_2_5_fluid_properties
 
 !------------------------------------------------------------------------
 
@@ -922,7 +924,7 @@ contains
     ! Locals:
     PetscInt :: region
     PetscReal :: total_pressure, water_pressure, max_partial_pressure
-    PetscReal :: props(2), temperature
+    PetscReal :: props(2), temperature, tmin, tmax, pmin, pmax
     PetscReal, parameter :: small = 1.e-6_dp
 
     changed = PETSC_FALSE
@@ -947,7 +949,15 @@ contains
     end if
 
     if (err == 0) then
-      if ((water_pressure < 0._dp) .or. (water_pressure > 100.e6_dp)) then
+
+       pmin = 0._dp
+       if (region == 5) then
+          pmax = 50.e6_dp
+       else
+          pmax = 100.e6_dp
+       end if
+
+      if ((water_pressure < pmin) .or. (water_pressure > pmax)) then
          err = 1
       else
 
@@ -973,9 +983,19 @@ contains
                  end if
                end associate
             else
-               if ((temperature < 0._dp) .or. (temperature > 800._dp)) then
+
+               if (region == 5) then
+                  tmin = 800._dp
+                  tmax = 2000._dp
+               else
+                  tmin = 0._dp
+                  tmax = 800._dp
+               end if
+
+               if ((temperature < tmin) .or. (temperature > tmax)) then
                   err = 1
                end if
+
             end if
 
          end if
