@@ -133,6 +133,20 @@ contains
          2779.57079988821e3_dp, 2582.945387791982e3_dp, 1._dp], &
          'case 4')
 
+    call properties_case([15.e6_dp, 1500._dp], 5, 0, &
+         15.e6_dp, 1500._dp, int(b'010'), &
+         zero_phase, &
+         [18.251615135369136_dp, 6.5196304149259642e-5_dp, 1._dp, 1._dp, 0._dp, &
+         5938.9644418365005e3_dp, 5117.1193673733613e3_dp, 1._dp], &
+         zero_phase, 'case 5')
+
+    call properties_case([40.e6_dp, 1800._dp], 5, 0, &
+         40.e6_dp, 1800._dp, int(b'100'), &
+         zero_phase, zero_phase, &
+         [41.1059667898_dp, 7.47361303430445e-5_dp, 1._dp, 1._dp, 0._dp, &
+         6778.692374e3_dp, 5805.597635e3_dp, 1._dp], &
+         'case 6')
+
     call fluid%destroy()
     call rock%destroy()
     deallocate(primary, primary2, fluid_data)
@@ -353,6 +367,19 @@ contains
        expected_err = 0
        old_primary = [18.e6_dp, 380._dp]
        primary = [22.1e6_dp, thermo%critical%temperature + 1.e-2_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 5"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 5
+       expected_primary = [10.e6_dp, 820._dp]
+       old_primary = [9.e6_dp, 790._dp]
+       primary = expected_primary
+       expected_transition = PETSC_TRUE
+       expected_err = 0
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
@@ -646,6 +673,19 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 5 to 2"
+       old_fluid%region = dble(5)
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [9.e6_dp, 790._dp]
+       old_primary = [10.e6_dp, 820._dp]
+       primary = expected_primary
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
     end if
 
     call old_fluid%destroy()
@@ -665,16 +705,16 @@ contains
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 2
+    PetscInt, parameter :: n = 3
     type(fluid_type) :: fluid
     type(rock_type) :: rock
     PetscInt, parameter :: num_components = 1
     PetscInt,  parameter :: offset = 1
     PetscReal, pointer, contiguous :: fluid_data(:)
     PetscReal, parameter :: data(n, num_components + 1) = reshape([ &
-           20.e6_dp, 101.e6_dp, &
-           360._dp, 20._dp], [n, num_components + 1])
-    PetscInt, parameter :: region(n) = [1, 2]
+           20.e6_dp, 101.e6_dp, 55.e6_dp, &
+           360._dp, 20._dp, 1400._dp], [n, num_components + 1])
+    PetscInt, parameter :: region(n) = [1, 2, 5]
     PetscReal :: primary(num_components + 1)
     type(eos_se_type) :: eos
     type(IAPWS_type) :: thermo
@@ -816,7 +856,6 @@ contains
     PetscReal, pointer, contiguous :: fluid_data(:)
     type(fluid_type) :: fluid
     PetscInt :: offset = 1
-    PetscInt, parameter :: region = 3
     PetscMPIInt :: rank
     PetscInt :: ierr
 
@@ -829,16 +868,18 @@ contains
     allocate(fluid_data(fluid%dof))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
-    fluid%region = dble(region)
 
     if (rank == 0) then
 
-       call saturations_test([700._dp, 360._dp], [1._dp, 0._dp, 0._dp], "case 1")
-       call saturations_test([550._dp, 370._dp], [1._dp, 0._dp, 0._dp], "case 2")
-       call saturations_test([150._dp, 370._dp], [0._dp, 1._dp, 0._dp], "case 3")
-       call saturations_test([150._dp, 380._dp], [0._dp, 1._dp, 0._dp], "case 4")
-       call saturations_test([400._dp, 500._dp], [0._dp, 0._dp, 1._dp], "case 5")
-       call saturations_test([600._dp, 450._dp], [0._dp, 0._dp, 1._dp], "case 6")
+       call saturations_test([700._dp, 360._dp], 3, [1._dp, 0._dp, 0._dp], "case 1")
+       call saturations_test([550._dp, 370._dp], 3, [1._dp, 0._dp, 0._dp], "case 2")
+       call saturations_test([150._dp, 370._dp], 3, [0._dp, 1._dp, 0._dp], "case 3")
+       call saturations_test([150._dp, 380._dp], 3, [0._dp, 1._dp, 0._dp], "case 4")
+       call saturations_test([400._dp, 500._dp], 3, [0._dp, 0._dp, 1._dp], "case 5")
+       call saturations_test([600._dp, 450._dp], 3, [0._dp, 0._dp, 1._dp], "case 6")
+
+       call saturations_test([20.e6_dp, 1200._dp], 5, [0._dp, 1._dp, 0._dp], "case 7")
+       call saturations_test([30.e6_dp, 1200._dp], 5, [0._dp, 0._dp, 1._dp], "case 8")
 
     end if
 
@@ -850,9 +891,10 @@ contains
 
   contains
 
-    subroutine saturations_test(primary, expected_saturations, name)
+    subroutine saturations_test(primary, region, expected_saturations, name)
 
       PetscReal, intent(in) :: primary(eos%num_primary_variables)
+      PetscInt, intent(in) :: region
       PetscReal, intent(in) :: expected_saturations(eos%num_phases)
       character(*), intent(in) :: name
       ! Locals:
@@ -860,9 +902,14 @@ contains
       PetscInt :: i
       PetscErrorCode :: err
 
-      call thermo%region(3)%ptr%properties(primary, props, err)
-      fluid%pressure = props(1)
+      if (region == 3) then
+         call thermo%region(region)%ptr%properties(primary, props, err)
+         fluid%pressure = props(1)
+      else
+         fluid%pressure = primary(1)
+      end if
       fluid%temperature = primary(2)
+      fluid%region = region
       call fluid%update_phase_composition(thermo)
       call eos%phase_saturations(primary, fluid)
 
@@ -878,7 +925,7 @@ contains
 ! ------------------------------------------------------------------------
 
   subroutine test_eos_se_check_primary_variables(test)
-    ! Test eos_se check_primary_variables in region 3.
+    ! Test eos_se check_primary_variables in regions 3 and 5
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -888,7 +935,6 @@ contains
     PetscReal, pointer, contiguous :: fluid_data(:)
     type(fluid_type) :: fluid
     PetscInt :: offset = 1
-    PetscInt, parameter :: region = 3
     PetscMPIInt :: rank
     PetscReal, allocatable :: primary(:)
     PetscInt :: ierr
@@ -902,19 +948,25 @@ contains
     allocate(fluid_data(fluid%dof))
     fluid_data = 0._dp
     call fluid%assign(fluid_data, offset)
-    fluid%region = dble(region)
     allocate(primary(eos%num_primary_variables))
 
     if (rank == 0) then
 
        primary = [550._dp, 360._dp]
-       call check_primary_test(primary, 0, "case 1")
+       call check_primary_test(primary, 3, 0, "case 1")
        primary = [400._dp, 500._dp]
-       call check_primary_test(primary, 0, "case 2")
+       call check_primary_test(primary, 3, 0, "case 2")
        primary = [1000._dp, 360._dp]
-       call check_primary_test(primary, 1, "case 3")
+       call check_primary_test(primary, 3, 1, "case 3")
        primary = [200._dp, 810._dp]
-       call check_primary_test(primary, 1, "case 4")
+       call check_primary_test(primary, 3, 1, "case 4")
+
+       primary = [20.e6_dp, 1000._dp]
+       call check_primary_test(primary, 5, 0, "case 5")
+       primary = [51.e6_dp, 1200._dp]
+       call check_primary_test(primary, 5, 1, "case 6")
+       primary = [40.e6_dp, 2001._dp]
+       call check_primary_test(primary, 5, 1, "case 7")
 
     end if
 
@@ -926,15 +978,17 @@ contains
 
   contains
 
-    subroutine check_primary_test(primary, expected_err, name)
+    subroutine check_primary_test(primary, region, expected_err, name)
 
       PetscReal, intent(in out) :: primary(eos%num_primary_variables)
+      PetscInt, intent(in) :: region
       PetscErrorCode, intent(in) :: expected_err
       character(*), intent(in) :: name
       ! Locals:
       PetscErrorCode :: err
       PetscBool :: changed
 
+      fluid%region = dble(region)
       call eos%check_primary_variables(fluid, primary, changed, err)
       call test%assert(expected_err, err, name)
 
@@ -1051,6 +1105,14 @@ contains
             [18.e6_dp, 0.3_dp], 4, [40.e6_dp, 500._dp], 2, &
             [3, 3], [0.7_dp, 0.3_dp, 0._dp], &
             [0.020115469018802346_dp, 0.9798845309811977_dp, 0._dp], "2P-2S2P")
+
+       call convert_fluid_test( &
+            [3.e5_dp, 120._dp], 1, [10.e6_dp, 1200._dp], 5, &
+            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-HV")
+
+       call convert_fluid_test( &
+            [3.e5_dp, 120._dp], 1, [30.e6_dp, 1200._dp], 5, &
+            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-HVS")
 
     end if
 
@@ -1297,6 +1359,34 @@ contains
        call test%assert(fluid1%phase(1)%specific_enthalpy, &
             fluid2%phase(2)%specific_enthalpy, &
             "region 4 L/V CP enthalpy", tol = 1.e-10_dp)
+
+       ! region 2 / 5 subcritical
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            P2 => primary2(1), T2 => primary2(2))
+         P1 = 20.e6_dp
+         T1 = 800._dp
+         P2 = P1
+         T2 = T1
+       end associate
+       fluid1%region = dble(2)
+       fluid2%region = dble(5)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 2/5")
+
+       ! region 2 / 5 supercritical
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            P2 => primary2(1), T2 => primary2(2))
+         P1 = 30.e6_dp
+         T1 = 800._dp
+         P2 = P1
+         T2 = T1
+       end associate
+       fluid1%region = dble(2)
+       fluid2%region = dble(5)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 2/5 SC")
 
     end if
 
