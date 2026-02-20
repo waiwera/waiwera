@@ -216,7 +216,7 @@ module IAPWS_module
      PetscReal :: n0J0(9), nI(43), nJ(43)
      PetscInt :: J0_1(9), I_1(43), J_1(43)
      type(powertable_type) :: pj0, pi, pj
-     PetscReal :: max_temperature, max_pressure
+     PetscReal, public :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region2_init
@@ -1012,7 +1012,7 @@ module IAPWS_module
      PetscReal :: n0J0(6), nI(6), nJ(6)
      PetscInt :: J0_1(6), I_1(6), J_1(6)
      type(powertable_type) :: pj0, pi, pj
-     PetscReal :: min_temperature, max_temperature, max_pressure
+     PetscReal, public :: min_temperature, max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region5_init
