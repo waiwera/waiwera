@@ -35,6 +35,8 @@ module eos_we_module
      type(root_finder_type), public :: saturation_line_finder
      class(primary_variable_interpolator_type), pointer, public :: &
           primary_variable_interpolator
+     PetscInt, public :: region_index(2, 5) = transpose(reshape([ &
+          1, 0, 0, 1, 0, 0, 2, 0, 2, 5], [5, 2])) !! Region index for phase and region
    contains
      private
      procedure, public :: init => eos_we_init
@@ -581,11 +583,12 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: p, phases
+    PetscInt :: p, phases, rindex, r
     PetscReal :: properties(2), sl, relative_permeability(2), capillary_pressure(2)
 
     err = 0
     phases = nint(fluid%phase_composition)
+    r = nint(fluid%region)
 
     sl = fluid%phase(1)%saturation
     relative_permeability = rock%relative_permeability%values(sl)
@@ -593,32 +596,37 @@ contains
          0._dp]
 
     do p = 1, 2
-       associate(phase => fluid%phase(p), &
-            region => self%thermo%region(p)%ptr)
+
+       associate(phase => fluid%phase(p))
 
          if (btest(phases, p - 1)) then
 
-            call region%properties([fluid%pressure, fluid%temperature], &
-                 properties, err)
+            rindex = self%region_index(p, r)
 
-            if (err == 0) then
+            associate(region => self%thermo%region(rindex)%ptr)
 
-               phase%density = properties(1)
-               phase%internal_energy = properties(2)
-               phase%specific_enthalpy = phase%internal_energy + &
-                    fluid%pressure / phase%density
+              call region%properties([fluid%pressure, fluid%temperature], &
+                   properties, err)
 
-               phase%mass_fraction(1) = 1._dp
-               phase%relative_permeability = relative_permeability(p)
-               phase%capillary_pressure = capillary_pressure(p)
+              if (err == 0) then
 
-               call region%viscosity(fluid%temperature, fluid%pressure, &
-                    phase%density, phase%viscosity)
+                 phase%density = properties(1)
+                 phase%internal_energy = properties(2)
+                 phase%specific_enthalpy = phase%internal_energy + &
+                      fluid%pressure / phase%density
 
-            else
-               exit
-            end if
+                 phase%mass_fraction(1) = 1._dp
+                 phase%relative_permeability = relative_permeability(p)
+                 phase%capillary_pressure = capillary_pressure(p)
 
+                 call region%viscosity(fluid%temperature, fluid%pressure, &
+                      phase%density, phase%viscosity)
+
+              else
+                 exit
+              end if
+
+            end associate
          else
             call phase%zero()
          end if
