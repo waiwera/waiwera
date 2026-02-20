@@ -2846,7 +2846,7 @@ contains
     select type (thermo => self%thermo)
     type is (IAPWS_type)
        associate (T_b => self%min_temperature, p => param(1), t => param(2))
-         if ((self%min_temperature < t) .and. (t <= self%max_temperature) .and. &
+         if ((self%min_temperature <= t) .and. (t <= self%max_temperature) .and. &
               (0._dp < p) .and. (p <= self%max_pressure)) then
             T_a = T_b + dT
             if (t > T_a) then
