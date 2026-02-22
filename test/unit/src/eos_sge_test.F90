@@ -212,6 +212,19 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 2 to 5"
+       old_fluid%region = dble(2)
+       fluid%region = old_fluid%region
+       expected_region = 5
+       expected_primary = [10.e6_dp, 820._dp, 0.9e5_dp]
+       old_primary = [9.e6_dp, 790._dp, 1.e5_dp]
+       primary = expected_primary
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 4 null transition, Pg = 0"
        old_fluid%region = dble(4)
        fluid%region = old_fluid%region
@@ -926,6 +939,19 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 5 to 2"
+       old_fluid%region = dble(5)
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [9.e6_dp, 790._dp, 1.e5_dp]
+       old_primary = [10.e6_dp, 820._dp, 1.1e5_dp]
+       primary = expected_primary
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
     end if
 
     call old_fluid%destroy()
@@ -969,6 +995,8 @@ contains
             [1.55279503106_dp, 4.8_dp, 0.2_dp])
        call scale_test('region 4', [100.e5_dp, 0.4_dp, 10.e5_dp], 4, &
             [10._dp, 0.4_dp, 0.1_dp])
+       call scale_test('region 5', [20.e6_dp, 1200._dp, 0.4e5_dp], 2, &
+            [20._dp, 12._dp, 2.e-3_dp])
 
     end if
 
@@ -1047,6 +1075,9 @@ contains
             PETSC_TRUE)
        call test%assert(1._dp, xi, 'Tc L')
 
+       xi = eos%partial_pressure_coefficient(1000._dp, PETSC_TRUE)
+       call test%assert(1._dp, xi, 'Tc 1000 V')
+
     end if
 
     call eos%destroy()
@@ -1105,6 +1136,9 @@ contains
 
        call wp_test('case 9', [22.e6_dp, 0._dp, 0.1e6_dp], 4, &
             PETSC_TRUE, 21.90019531519445e6_dp)
+
+       call wp_test('case 10', [10.e6_dp, 1000._dp, 0.1e6_dp], 5, &
+            PETSC_FALSE, 9.9e6_dp)
 
     end if
 
