@@ -234,7 +234,7 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: region, p, phases
+    PetscInt :: region, p, phases, rindex
     PetscReal :: sl, xg
     PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
     PetscReal :: water_properties(2), water_viscosity, water_enthalpy
@@ -255,80 +255,83 @@ contains
     if (err == 0) then
 
        do p = 1, self%num_phases
-          associate(phase => fluid%phase(p), regionp => self%thermo%region(p)%ptr, &
-               liquid => (p == 1))
+          associate(phase => fluid%phase(p))
 
             if (btest(phases, p - 1)) then
 
-               if (liquid) then
-                  call self%water_pressure(primary, region, liquid, water_pressure, err)
-                  capillary_pressure = rock%capillary_pressure%value(sl, &
-                       fluid%temperature)
-                  call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
-                       constituent_henrys_constant, err)
-                  if (err == 0) then
-                     call self%gas%energy_solution(fluid%temperature, &
-                          constituent_henrys_constant, energy_solution, err)
-                  end if
-               else
-                  water_pressure = fluid%partial_pressure(1)
-                  capillary_pressure = 0._dp
-                  henrys_constant = 0._dp
-                  energy_solution = 0._dp
-               end if
+               rindex = self%region_index(p, region)
+               associate (regionp => self%thermo%region(rindex)%ptr, liquid => (p == 1))
 
-               if (err == 0) then
+                 if (liquid) then
+                    call self%water_pressure(primary, region, liquid, water_pressure, err)
+                    capillary_pressure = rock%capillary_pressure%value(sl, &
+                         fluid%temperature)
+                    call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
+                         constituent_henrys_constant, err)
+                    if (err == 0) then
+                       call self%gas%energy_solution(fluid%temperature, &
+                            constituent_henrys_constant, energy_solution, err)
+                    end if
+                 else
+                    water_pressure = fluid%partial_pressure(1)
+                    capillary_pressure = 0._dp
+                    henrys_constant = 0._dp
+                    energy_solution = 0._dp
+                 end if
 
-                  call regionp%properties([water_pressure, fluid%temperature], &
-                       water_properties, err)
+                 if (err == 0) then
 
-                  if (err == 0) then
+                    call regionp%properties([water_pressure, fluid%temperature], &
+                         water_properties, err)
 
-                     call self%gas%effective_properties(gas_properties, p, &
-                          effective_gas_properties)
+                    if (err == 0) then
 
-                     associate(water_density => water_properties(1), &
-                          water_internal_energy => water_properties(2), &
-                          gas_density => effective_gas_properties(1), &
-                          gas_enthalpy => effective_gas_properties(2))
+                       call self%gas%effective_properties(gas_properties, p, &
+                            effective_gas_properties)
 
-                       call self%gas%mass_fraction(fluid%partial_pressure(2), &
-                            fluid%temperature, p, gas_density, water_density, &
-                            henrys_constant, xg, err)
+                       associate(water_density => water_properties(1), &
+                            water_internal_energy => water_properties(2), &
+                            gas_density => effective_gas_properties(1), &
+                            gas_enthalpy => effective_gas_properties(2))
 
-                       if (err == 0) then
+                         call self%gas%mass_fraction(fluid%partial_pressure(2), &
+                              fluid%temperature, p, gas_density, water_density, &
+                              henrys_constant, xg, err)
 
-                          call regionp%viscosity(fluid%temperature, fluid%pressure, &
-                               water_density, water_viscosity)
-                          call self%gas%mixture_viscosity(water_viscosity, &
-                               fluid%temperature, fluid%partial_pressure(2), xg, p, &
-                               phase%viscosity, err)
+                         if (err == 0) then
 
-                          if (err == 0) then
-                             phase%density = water_density + gas_density
-                             phase%mass_fraction = [1._dp - xg, xg]
-                             phase%relative_permeability = relative_permeability(p)
-                             phase%capillary_pressure =  capillary_pressure
-                             water_enthalpy = water_internal_energy &
-                                  + water_pressure / water_density
-                             phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
-                                  + (gas_enthalpy + energy_solution) * xg
-                             phase%internal_energy = phase%specific_enthalpy &
-                                  - fluid%pressure / phase%density
-                          else
-                             exit
-                          end if
-                       else
-                          exit
-                       end if
+                            call regionp%viscosity(fluid%temperature, fluid%pressure, &
+                                 water_density, water_viscosity)
+                            call self%gas%mixture_viscosity(water_viscosity, &
+                                 fluid%temperature, fluid%partial_pressure(2), xg, p, &
+                                 phase%viscosity, err)
 
-                     end associate
-                  else
-                     exit
-                  end if
-               else
-                  exit
-               end if
+                            if (err == 0) then
+                               phase%density = water_density + gas_density
+                               phase%mass_fraction = [1._dp - xg, xg]
+                               phase%relative_permeability = relative_permeability(p)
+                               phase%capillary_pressure =  capillary_pressure
+                               water_enthalpy = water_internal_energy &
+                                    + water_pressure / water_density
+                               phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
+                                    + (gas_enthalpy + energy_solution) * xg
+                               phase%internal_energy = phase%specific_enthalpy &
+                                    - fluid%pressure / phase%density
+                            else
+                               exit
+                            end if
+                         else
+                            exit
+                         end if
+
+                       end associate
+                    else
+                       exit
+                    end if
+                 else
+                    exit
+                 end if
+               end associate
 
             else
                call phase%zero()
