@@ -320,6 +320,52 @@ contains
          expected_err = 0
          call properties_test(title, primary, region, expected, expected_err)
 
+         title = 'high temperature subcritical steam, Pg = 0'
+         primary = [10.e6_dp, 1500._dp, 0._dp]
+         region = 5
+         expected = 0._dp
+         bulk = [10.e6_dp, 1500._dp, 5._dp, 0._dp, 2._dp, 1._dp, 0._dp, 0._dp, &
+              10.e6_dp, 0._dp]
+         phase2 = [12.1854842616_dp, 6.505678501581487e-5_dp, 1._dp, &
+              1._dp, 0._dp, 5943.94441059e3_dp, 5123.29585980e3_dp, 1._dp, 0._dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
+         title = 'high temperature supercritical steam, Pg = 0'
+         primary = [30.e6_dp, 1500._dp, 0._dp]
+         region = 5
+         expected = 0._dp
+         bulk = [30.e6_dp, 1500._dp, 5._dp, 0._dp, 4._dp, 1._dp, 0._dp, 2._dp, &
+              30.e6_dp, 0._dp]
+         phase3 = [36.335074967082925_dp, 6.562364127643875e-05_dp, 1._dp, &
+              1._dp, 0._dp, 5924.33354359e3_dp, 5098.68504755e3_dp, 1._dp, 0._dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
+         title = 'high temperature subcritical steam, Pg > 0'
+         primary = [10.e6_dp, 1500._dp, 1.e5_dp]
+         region = 5
+         expected = 0._dp
+         bulk = [10.e6_dp, 1500._dp, 5._dp, 0._dp, 2._dp, 1._dp, 0._dp, 0._dp, &
+              9.9e6_dp, 1.e5_dp]
+         phase2 = [12.260411197888061_dp, 6.551998451440971e-5_dp, 1._dp, &
+              1._dp, 0._dp, 5876.230238921639e3_dp, 5060.596909941403e3_dp, &
+              0.983978100353765_dp, 0.016021899646235047_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
+         title = 'high temperature supercritical steam, Pg > 0'
+         primary = [30.e6_dp, 1500._dp, 1.e5_dp]
+         region = 5
+         expected = 0._dp
+         bulk = [30.e6_dp, 1500._dp, 5._dp, 0._dp, 4._dp, 1._dp, 0._dp, 2._dp, &
+              29.9e6_dp, 1.e5_dp]
+         phase3 = [36.41155410027929_dp, 6.577488933483166e-5_dp, 1._dp, 1._dp, &
+              0._dp, 5901.700998061697e3_dp, 5077.7867010399755e3_dp, &
+              0.9946051443645293_dp, 0.005394855635470726_dp]
+         expected_err = 0
+         call properties_test(title, primary, region, expected, expected_err)
+
        end associate
     end if
 
@@ -580,6 +626,40 @@ contains
        call test%assert(fluid1%phase(1)%specific_enthalpy, &
             fluid2%phase(2)%specific_enthalpy, &
             "region 4 L/V CP enthalpy", tol = 1.e-10_dp)
+
+       ! region 2 / 5 subcritical
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), P2 => primary2(1), T2 => primary2(2), &
+            Pa2 => primary2(3))
+         P1 = 20.e6_dp
+         T1 = 800._dp
+         Pa1 = 1.e5_dp
+         P2 = P1
+         T2 = T1
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(2)
+       fluid2%region = dble(5)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 2/5")
+
+       ! region 2 / 5 supercritical
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), P2 => primary2(1), T2 => primary2(2), &
+            Pa2 => primary2(3))
+         P1 = 40.e6_dp
+         T1 = 800._dp
+         Pa1 = 1.e5_dp
+         P2 = P1
+         T2 = T1
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(2)
+       fluid2%region = dble(5)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 2/5 SC")
 
     end if
 
