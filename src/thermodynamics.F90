@@ -28,8 +28,8 @@ module thermodynamics_module
   implicit none
   private
 
-  PetscInt, parameter, public :: max_thermodynamics_name_length = 24
-  PetscInt, parameter, public :: max_thermodynamic_region_name_length = 16
+  PetscInt, parameter, public :: max_thermodynamics_name_length = 16
+  PetscInt, parameter, public :: max_thermodynamic_region_name_length = 24
 
 !------------------------------------------------------------------------
 ! Physical constants
