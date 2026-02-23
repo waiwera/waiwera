@@ -222,6 +222,8 @@ Water ("w")
 |**default primary variables**: |[10\ :sup:`5` Pa]         |
 |                               |                          |
 +-------------------------------+--------------------------+
+|**regions supported**:         |1                         |
++-------------------------------+--------------------------+
 |**default region**:            |1 (liquid)                |
 +-------------------------------+--------------------------+
 |**default eos.primary.scale**: |{"pressure": 1e6}         |
@@ -262,6 +264,8 @@ Water and energy ("we")
 +-------------------------------+--------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C]         |
 |                               |                                                  |
++-------------------------------+--------------------------------------------------+
+|**regions supported**:         |1, 2, 4                                           |
 +-------------------------------+--------------------------------------------------+
 |**default region**:            |1 (liquid)                                        |
 +-------------------------------+--------------------------------------------------+
@@ -328,6 +332,8 @@ Water, air and energy ("wae")
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]                          |
 +-------------------------------+-------------------------------------------------------------------------+
+|**regions supported**:         |1, 2, 4                                                                  |
++-------------------------------+-------------------------------------------------------------------------+
 |**default region**:            |1 (liquid)                                                               |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100, "partial_pressure": "pressure"}    |
@@ -355,6 +361,8 @@ Water, carbon dioxide and energy ("wce")
 |                               |**two-phase**: ["pressure", "vapour_saturation", "CO2_partial_pressure"] |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]                          |
++-------------------------------+-------------------------------------------------------------------------+
+|**regions supported**:         |1, 2, 4                                                                  |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default region**:            |1 (liquid)                                                               |
 +-------------------------------+-------------------------------------------------------------------------+
@@ -402,7 +410,7 @@ For the water/salt EOS module, the thermodynamic "region" has an expanded meanin
 |      |halite    |
 +------+----------+
 
-(Note that, as for the :ref:`water_energy_eos` EOS, supercritical fluid (region 3) is not supported.)
+(Note that, as for the :ref:`water_energy_eos` EOS, water thermodynamic regions 3 and 5 are not supported.)
 
 .. [Driesner] Driesner, T. (2007). "The system H2O - NaCl. Part II: Correlations for molar volume, enthalpy, and isobaric heat capacity from 0 1000 C, 1 to 5000 bar, and 0 to 1 XNaCl. Geochimica et Cosmochimica Acta, 71, 4902 -- 4919.
 
@@ -432,6 +440,8 @@ Water, salt and energy ("wse")
 |                               |"solid_saturation"]                                                      |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0]                             |
++-------------------------------+-------------------------------------------------------------------------+
+|**regions supported**:         |1, 2, 4 (regions 5, 6, 8 indicate halite)                                |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default region**:            |1 (liquid, no halite)                                                    |
 +-------------------------------+-------------------------------------------------------------------------+
@@ -478,6 +488,8 @@ Water, salt, air and energy ("wsae")
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0, 0 Pa]                       |
 +-------------------------------+-------------------------------------------------------------------------+
+|**regions supported**:         |1, 2, 4 (regions 5, 6, 8 indicate halite)                                |
++-------------------------------+-------------------------------------------------------------------------+
 |**default region**:            |1 (liquid, no halite)                                                    |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100,                                    |
@@ -514,6 +526,8 @@ Water, salt, carbon dioxide and energy ("wsce")
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0, 0 Pa]                       |
 +-------------------------------+-------------------------------------------------------------------------+
+|**regions supported**:         |1, 2, 4 (regions 5, 6, 8 indicate halite)                                |
++-------------------------------+-------------------------------------------------------------------------+
 |**default region**:            |1 (liquid, no halite)                                                    |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default eos.primary.scale**: |{"pressure": 1e6, "temperature": 100,                                    |
@@ -541,7 +555,7 @@ Supercritical water and energy ("se")
 +-------------------------------+--------------------------------------------------+
 |**phase names**:               |["liquid", "vapour", "supercritical"]             |
 +-------------------------------+--------------------------------------------------+
-|**primary variable names**:    |**regions 1, 2**: ["pressure", "temperature"]     |
+|**primary variable names**:    |**regions 1, 2, 5**: ["pressure", "temperature"]  |
 |                               +--------------------------------------------------+
 |                               |**region 3**: ["density", "temperature"]          |
 |                               +--------------------------------------------------+
@@ -549,6 +563,8 @@ Supercritical water and energy ("se")
 +-------------------------------+--------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C]         |
 |                               |                                                  |
++-------------------------------+--------------------------------------------------+
+|**regions supported**:         |1, 2, 3, 4, 5                                     |
 +-------------------------------+--------------------------------------------------+
 |**default region**:            |1 (liquid)                                        |
 +-------------------------------+--------------------------------------------------+
@@ -561,9 +577,9 @@ Supercritical water and energy ("se")
 |                               |"liquidlike_fraction", "supercritical_phases"]    |
 +-------------------------------+--------------------------------------------------+
 
-This is based on the :ref:`water_energy_eos` EOS, but extends its capabilities to supercritical water. It can only be used in conjunction with the IAPWS-97 thermodynamics module (see :ref:`water_thermodynamics`). Whereas the "we" EOS is limited to liquid water, dry steam and two-phase conditions, with liquid water and two-phase only simulated below temperatures of 350 :math:`^{\circ}`\ C, the "se" EOS module can also simulate IAPWS-97 region 3 (see :ref:`thermodynamic_regions`), which covers near-critical and supercritical fluids. Hence all pressures and temperatures up to 100 MPa and 800 :math:`^{\circ}`\ C can be simulated.
+This is based on the :ref:`water_energy_eos` EOS, but extends its capabilities to supercritical water and high-temperature steam. It can only be used in conjunction with the IAPWS-97 thermodynamics module (see :ref:`water_thermodynamics`). Whereas the "we" EOS is limited to liquid water, dry steam and two-phase conditions, with liquid water and two-phase only simulated below temperatures of 350 :math:`^{\circ}`\ C, the "se" EOS module can also simulate IAPWS-97 region 3 (see :ref:`thermodynamic_regions`), which covers near-critical and supercritical fluids, and region 5. Hence all pressures and temperatures up to 100 MPa and 800 :math:`^{\circ}`\ C can be simulated, as well as temperatures up to 2000 :math:`^{\circ}`\ C for pressures below 50 MPa.
 
-The primary variables for this EOS are the same as those for the "we" EOS in regions 1, 2 and 4. For region 3, it is not possible to use pressure and temperature as primary variables, as the thermodynamic equations are poorly behaved near the critical point when expressed as functions of these variables. Instead, Waiwera follows the IAPWS-97 formulation and uses density and temperature as primary variables in region 3.
+The primary variables for this EOS are the same as those for the "we" EOS in regions 1, 2 and 4 (and region 5 primary variables are the same as for region 2). For region 3, it is not possible to use pressure and temperature as primary variables, as the thermodynamic equations are poorly behaved near the critical point when expressed as functions of these variables. Instead, Waiwera follows the IAPWS-97 formulation and uses density and temperature as primary variables in region 3.
 
 However, for convenience it is possible to specify region 3 initial and boundary conditions using the more familiar pressure and temperature variables, if desired. This can be done via the **"eos.conditions"** value in the Waiwera input JSON file. This is a string value, and setting its value to "pressure" means that all initial and boundary conditions are interpreted as pressures and temperatures (and are converted internally to densities and temperatures).
 
@@ -582,7 +598,7 @@ Supercritical water, air and energy ("sae")
 +-------------------------------+-------------------------------------------------------------------------+
 |**phase names**:               |["liquid", "vapour", "supercritical"]                                    |
 +-------------------------------+-------------------------------------------------------------------------+
-|**primary variable names**:    |**regions 1, 2**: ["pressure", "temperature", "air_partial_pressure"]    |
+|**primary variable names**:    |**regions 1, 2, 5**: ["pressure", "temperature", "air_partial_pressure"] |
 |                               +-------------------------------------------------------------------------+
 |                               |**region 3**: ["density", "temperature", "air_partial_pressure"]         |
 |                               |                                                                         |
@@ -590,6 +606,8 @@ Supercritical water, air and energy ("sae")
 |                               |**region 4**: ["pressure", "vapour_saturation", "air_partial_pressure"]  |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default primary variables**: |[10\ :sup:`5` Pa, 20 :math:`^{\circ}`\ C, 0 Pa]                          |
++-------------------------------+-------------------------------------------------------------------------+
+|**regions supported**:         |1, 2, 3, 4, 5                                                            |
 +-------------------------------+-------------------------------------------------------------------------+
 |**default region**:            |1 (liquid)                                                               |
 +-------------------------------+-------------------------------------------------------------------------+
@@ -603,7 +621,7 @@ Supercritical water, air and energy ("sae")
 
 This combines the :ref:`supercritical_water_energy_eos` and :ref:`water_air_energy_eos` EOS modules, so that mixtures of sub- or super-critical water and air can be simulated.
 
-The primary variables are the same as those for the :ref:`supercritical_water_energy_eos` EOS, with a third variable added for the partial pressure of air. Note that for regions 1, 2 and 4 the pressure variable represents the total pressure (not partial pressure of water), but for region 3 the density variable represents the water density (not total density). However, as for the :ref:`supercritical_water_energy_eos` EOS, it is possible to specify region 3 initial and boundary conditions using pressures instead of densities, by setting the **"eos.conditions"** value in the Waiwera input JSON file to "pressure". (In this case, the pressures for region 3 also represent total pressure.)
+The primary variables are the same as those for the :ref:`supercritical_water_energy_eos` EOS, with a third variable added for the partial pressure of air. Note that for regions 1, 2, 4 and 5 the pressure variable represents the total pressure (not partial pressure of water), but for region 3 the density variable represents the water density (not total density). However, as for the :ref:`supercritical_water_energy_eos` EOS, it is possible to specify region 3 initial and boundary conditions using pressures instead of densities, by setting the **"eos.conditions"** value in the Waiwera input JSON file to "pressure". (In this case, the pressures for region 3 also represent total pressure.)
 
 Note also that for this EOS, the computed :ref:`liquidlike_fraction` values represent the liquid-like fraction of the water component only, independently of the air component.
 

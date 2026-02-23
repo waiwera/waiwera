@@ -55,16 +55,7 @@ Thermodynamic regions
 
 Both IFC-67 and IAPWS-97 thermodynamic formulations divide the primary variable space into distinct **regions**, most of which represent different phase conditions.
 
-The four thermodynamic regions used by the IAPWS-97 formulation are:
-
-1) Liquid water
-2) Vapour
-3) Supercritical
-4) Two-phase
-
-This thermodynamic region numbering is used by Waiwera when reporting phase conditions (regardless of which thermodynamic formulation is used), for example when phase changes occur.
-
-The IAPWS-97 regions are shown on a pressure-temperature diagram in :numref:`iapws_regions_plot`. The diagram extends over the range of validity of the IAPWS-97 formulation (pressure :math:`\leq` 100 MPa, 0 :math:`^{\circ}`\ C :math:`\leq` temperature :math:`\leq` 800 :math:`^{\circ}`\ C).
+The five thermodynamic regions used by the IAPWS-97 formulation are shown on a pressure-temperature diagram in :numref:`iapws_regions_plot`. The diagram extends over the range of validity of the IAPWS-97 formulation. The main part of the formulation (pressure :math:`\leq` 100 MPa, 0 :math:`^{\circ}`\ C :math:`\leq` temperature :math:`\leq` 800 :math:`^{\circ}`\ C) is covered by regions 1 -- 4. Region 5 covers high temperatures (up to 2000 :math:`^{\circ}`\ C) at pressures up to 50 MPa.
 
 .. _iapws_regions_plot:
 .. figure:: iapws_regions.*
@@ -73,14 +64,21 @@ The IAPWS-97 regions are shown on a pressure-temperature diagram in :numref:`iap
 
            IAPWS-97 thermodynamic regions
 
+This thermodynamic region numbering is used by Waiwera when reporting phase conditions, for example when phase changes occur.
+
+Note that Waiwera's :ref:`eos` (EOS) modules without supercritical capability support only regions 1, 2 and 4. If the IFC-67 formulation is used, the region 1, 2 and 4 boundaries are the same as for IAPWS-97.
+
+The :ref:`supercritical_eoses` add support for regions 3 and 5. These can only be used in conjunction with the IAPWS-97 formulation.
+
+
 Extrapolating liquid water thermodynamics
 =========================================
 
-The thermodynamics for liquid water (region 1) are valid up to a maximum temperature of 350 :math:`^{\circ}`\ C (for both IAPWS-97 and IFC-67 formulations). Most of Waiwera's equations of state (apart from the :ref:`supercritical_eoses`) do not have support for region 3, so liquid temperatures over 350 :math:`^{\circ}`\ C cannot be simulated.
+The thermodynamics for liquid water in region 1 are valid up to a maximum temperature of 350 :math:`^{\circ}`\ C (for both IAPWS-97 and IFC-67 formulations). Waiwera's equation of state modules without supercritical capability do not have support for region 3, so liquid temperatures over 350 :math:`^{\circ}`\ C cannot be simulated.
 
 However, for some models temperatures may need to exceed this limit temporarily, for example, while running to steady state. In such cases it can be valid to relax this hard limit on liquid temperatures slightly in order to obtain a solution. The **"thermodynamics.extrapolate"** JSON input value can be used to activate this option. This is a Boolean value which defaults to ``false``.
 
-Setting it to ``true`` allows the region 1 liquid water thermodynamics to be extrapolated up to a revised maximum of 360 :math:`^{\circ}`\ C. The liquid water thermodynamics are still approximately correct up to this temperature. However, it is not recommended to rely on this option for models that genuinely require output temperatures over 350 :math:`^{\circ}`\ C. In such cases one of the :ref:`supercritical_eoses` should be used if possible.
+Setting it to ``true`` allows the region 1 liquid water thermodynamics to be extrapolated up to a revised maximum of 360 :math:`^{\circ}`\ C. The liquid water thermodynamics are still approximately correct up to this temperature. However, it is not recommended to rely on this option for models that genuinely require output temperatures over 350 :math:`^{\circ}`\ C. In such cases one of the :ref:`supercritical_eoses` should be used if possible. (Note that this extrapolation is not meaningful and cannot be used for the supercritical EOS modules.)
 
 Example:
 
@@ -120,7 +118,7 @@ The behaviour of supercritical fluid does not change suddenly from liquid-like t
 
 The locations of the boundaries of the Widom delta were identified for various supercritical fluids, including water, by [Wang_et_al_2021]_. Waiwera represents these boundaries using the same exponential form as the Widom line :eq:`widom_eqn` but with different slope parameters :math:`A_s`.
 
-:numref:`supercritical_plot` shows the supercritical zone shaded grey on a pressure-temperature plot, with the dashed lines representing the boundaries between IAPWS-97 region 3 and regions 1 and 2. It also shows the Widom line (red) given by equation :eq:`widom_eqn` and the Widom delta boundaries (blue). It can be seen that the supercritical zone covers not only most of region 3 but also a significant part of region 2. The Widom line and the liquid-like boundary of the Widom delta are within region 3, but the vapour-like boundary of the Widom delta is mostly in region 2 (except near the critical point).
+:numref:`supercritical_plot` shows the supercritical zone shaded grey on a pressure-temperature plot, with the dashed lines representing the boundaries between IAPWS-97 region 3 and regions 1 and 2. It also shows the Widom line (red) given by equation :eq:`widom_eqn` and the Widom delta boundaries (blue). It can be seen that the supercritical zone covers not only most of region 3 but also a significant part of region 2 (and approximately half of region 5). The Widom line and the liquid-like boundary of the Widom delta are within region 3, but the vapour-like boundary of the Widom delta is mostly in region 2 (except near the critical point).
 
 .. _supercritical_plot:
 .. figure:: supercritical.*
