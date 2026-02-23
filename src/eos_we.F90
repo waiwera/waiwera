@@ -558,7 +558,7 @@ contains
     case (1)
        fluid%phase(1)%saturation = 1._dp
        fluid%phase(2)%saturation = 0._dp
-    case (2)
+    case (2, 5)
        fluid%phase(1)%saturation = 0._dp
        fluid%phase(2)%saturation = 1._dp
     case (4)
