@@ -300,7 +300,8 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: delta(2), xi, t_delta, density_delta, water_pressure
+    PetscReal :: delta(2), xi, t_delta, density_delta
+    PetscReal :: water_pressure, pressure_bdy_2_3
     PetscReal, parameter :: small = 1.e-3_dp
 
     err = 0
@@ -312,28 +313,39 @@ contains
          select type (thermo => self%thermo)
          type is (IAPWS_type)
             call thermo%widom_delta(water_pressure, delta, err)
+            if (err == 0) then
+               xi = hermite_spline_inv_00(Sl)
+               t_delta = (1._dp - xi) * delta(1) + xi * delta(2)
+
+               call thermo%boundary23%pressure(t_delta, pressure_bdy_2_3)
+               if (water_pressure > pressure_bdy_2_3) then
+
+                  call region3%density([water_pressure, t_delta], density_delta, &
+                       err, polish = PETSC_TRUE)
+                  associate (density => primary(1), temperature => primary(2))
+                    if (err == 0) then
+                       density = density_delta
+                       temperature = t_delta
+                    else ! fallback
+                       density = self%thermo%critical%density
+                       temperature = (1._dp + small) * self%thermo%critical%temperature
+                       err = 0
+                    end if
+                    fluid%region = dble(3)
+                    transition = PETSC_TRUE
+                  end associate
+
+               else
+                  associate (temperature => primary(2))
+                    temperature = t_delta
+                  end associate
+                  fluid%region = dble(2)
+                  transition = PETSC_TRUE
+               end if
+
+            end if
          end select
-         if (err == 0) then
-            xi = hermite_spline_inv_00(Sl)
-            t_delta = (1._dp - xi) * delta(1) + xi * delta(2)
-            call region3%density([water_pressure, t_delta], density_delta, &
-                 err, polish = PETSC_TRUE)
-         end if
        end associate
-
-       associate (density => primary(1), temperature => primary(2))
-         if (err == 0) then
-            density = density_delta
-            temperature = t_delta
-         else ! fallback
-            density = self%thermo%critical%density
-            temperature = (1._dp + small) * self%thermo%critical%temperature
-            err = 0
-         end if
-         fluid%region = dble(3)
-         transition = PETSC_TRUE
-       end associate
-
     end select
 
   end subroutine eos_se_transition_region4_to_supercritical

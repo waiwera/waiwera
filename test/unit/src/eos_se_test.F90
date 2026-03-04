@@ -441,6 +441,20 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 4 to supercritical region 2"
+       old_fluid%region = dble(4)
+       old_fluid%temperature = 370._dp
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [24.5e6_dp, 402.70985569261154_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [21.043367318975246e6_dp, 0.6_dp]
+       primary = [24.5e6_dp, 1.0_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 4 to region 3 liquid, T > 350"
        old_fluid%region = dble(4)
        old_fluid%temperature = 356.99181334434775_dp
