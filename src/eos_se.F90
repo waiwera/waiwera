@@ -38,11 +38,14 @@ module eos_se_module
      PetscInt, public :: region3_phase(4) = [1, 2, -1, 3] !! Map phase composition to phase index in region 3
      PetscBool, public :: pressure_conditions !! Option to allow region 3 initial and boundary conditions specified with pressure instead of density
      class(fluid_modifier_type), allocatable, public :: relative_permeability_modifier !! Modifies effective relative permeability for temperature effects
+     class(fluid_modifier_type), allocatable, public :: capillary_pressure_modifier !! Modifies effective capillary pressure for temperature effects
    contains
      private
      procedure, public :: init => eos_se_init
      procedure, public :: init_relative_permeability_modifier => &
           eos_se_init_relative_permeability_modifier
+     procedure, public :: init_capillary_pressure_modifier => &
+          eos_se_init_capillary_pressure_modifier
      procedure, public :: destroy => eos_se_destroy
      procedure, public :: region_1_transitions => eos_se_region_1_transitions
      procedure, public :: region_2_transitions => eos_se_region_2_transitions
@@ -147,6 +150,7 @@ contains
     self%pressure_conditions = (str_to_lower(conditions) == "pressure")
 
     call self%init_relative_permeability_modifier(json, logfile)
+    call self%init_capillary_pressure_modifier(json, logfile)
 
   end subroutine eos_se_init
 
@@ -223,6 +227,77 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine eos_se_init_capillary_pressure_modifier(self, json, logfile)
+    !! Initialise capillary pressure modifier from JSON.
+
+    use fson
+    use fson_mpi_module, only: fson_get_mpi, fson_has_mpi, fson_type_mpi
+    use fson_value_m, only: TYPE_OBJECT, TYPE_NULL
+    use utils_module, only: str_to_lower
+    use logfile_module
+
+    class(eos_se_type), intent(in out) :: self
+    type(fson_value), pointer, intent(in) :: json !! JSON input object
+    type(logfile_type), intent(in out), optional :: logfile
+    ! Locals:
+    character(max_fluid_modifier_name_length), parameter :: &
+         default_capillary_pressure_modifier_type_name = "linear"
+    PetscInt :: modifier_type
+    character(max_fluid_modifier_name_length) :: capillary_pressure_modifier_type_name
+    type(fson_value), pointer :: cap_json
+    PetscReal :: default_min_temperature
+
+    modifier_type = fson_type_mpi(json, "eos.capillary_pressure_modifier")
+    select case (modifier_type)
+    case (TYPE_OBJECT)
+       call fson_get_mpi(json, "eos.capillary_pressure_modifier.type", &
+            default_capillary_pressure_modifier_type_name, &
+            capillary_pressure_modifier_type_name, logfile)
+       select case (str_to_lower(capillary_pressure_modifier_type_name))
+       case ("linear")
+          call init_linear_modifier()
+       case default ! null modifier
+          allocate(fluid_modifier_type :: self%capillary_pressure_modifier)
+       end select
+    case (TYPE_NULL)
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               str_key = "eos.capillary_pressure_modifier.type", &
+               str_value = default_capillary_pressure_modifier_type_name)
+       end if
+       call init_linear_modifier()
+    end select
+    if (fson_has_mpi(json, "eos.capillary_pressure_modifier")) then
+       call fson_get_mpi(json, "eos.capillary_pressure_modifier", cap_json)
+    else
+       cap_json => null()
+    end if
+    call self%capillary_pressure_modifier%init(cap_json, logfile)
+
+  contains
+
+    subroutine init_linear_modifier()
+
+      allocate(fluid_capillary_pressure_linear_temperature_type :: &
+           self%capillary_pressure_modifier)
+      select type (modifier => self%capillary_pressure_modifier)
+      type is (fluid_capillary_pressure_linear_temperature_type)
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+            default_min_temperature = thermo%temperature_bdy_1_3
+         end select
+         call fson_get_mpi(json, &
+              "eos.capillary_pressure_modifier.minimum_temperature", &
+              default_min_temperature, modifier%min_temperature, logfile)
+         modifier%max_temperature = self%thermo%critical%temperature
+      end select
+
+    end subroutine init_linear_modifier
+
+  end subroutine eos_se_init_capillary_pressure_modifier
+
+!------------------------------------------------------------------------
+
   subroutine eos_se_destroy(self)
     !! Destroys pure supercritical water and energy EOS.
 
@@ -239,6 +314,7 @@ contains
     deallocate(self%primary_variable_interpolator)
 
     call self%relative_permeability_modifier%destroy()
+    call self%capillary_pressure_modifier%destroy()
 
   end subroutine eos_se_destroy
 
@@ -1319,6 +1395,7 @@ contains
     end associate
     call fluid%phase(3)%zero()
     call self%relative_permeability_modifier%modify(fluid)
+    call self%capillary_pressure_modifier%modify(fluid)
 
   contains
 

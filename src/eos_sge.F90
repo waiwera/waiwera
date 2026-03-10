@@ -91,8 +91,6 @@ contains
     PetscReal, parameter :: default_density_scale = critical%density !! Default scale factor for non-dimensionalising density
     PetscReal, parameter :: default_partial_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising partial pressure
     character(10), parameter :: default_conditions = "density"
-    character(max_fluid_modifier_name_length), parameter :: &
-         default_relative_permeability_modifier_type_name = "linear"
 
     self%name = "sge"
     self%description = "Supercritical water, non-condensible gas and energy"
@@ -160,6 +158,7 @@ contains
     self%pressure_conditions = (str_to_lower(conditions) == "pressure")
 
     call self%init_relative_permeability_modifier(json, logfile)
+    call self%init_capillary_pressure_modifier(json, logfile)
 
   end subroutine eos_sge_init
 
@@ -753,6 +752,7 @@ contains
     end associate
     call fluid%phase(3)%zero()
     call self%relative_permeability_modifier%modify(fluid)
+    call self%capillary_pressure_modifier%modify(fluid)
 
   contains
 
@@ -855,9 +855,7 @@ contains
          effective_water_pressure, effective_capillary_pressure, err)
 
       !! Return effective two-phase water component properties for
-      !! phase p. For sub-critical liquid these are interpolated
-      !! between liquid and vapour values so that liquid and vapour
-      !! phase properties are equal at the critical point.
+      !! phase p.
 
       PetscInt, intent(in) :: p !! phase index
       type(fluid_type), intent(in) :: fluid !! Fluid object
@@ -865,20 +863,17 @@ contains
       PetscReal, intent(out) :: effective_water_pressure, &
            effective_capillary_pressure
       PetscErrorCode, intent(out) :: err
-      ! Locals:
-      PetscReal :: sl, cp, xi
 
       err = 0
 
       if (p == 1) then
-         sl = fluid%phase(1)%saturation
          call self%water_pressure(primary, 4, PETSC_TRUE, &
               effective_water_pressure, err)
          if (err == 0) then
-            cp = rock%capillary_pressure%value(sl, fluid%temperature)
-            xi = self%partial_pressure_coefficient(fluid%temperature, &
-                 liquid = PETSC_TRUE)
-            effective_capillary_pressure = (1._dp - xi) * cp
+            associate (sl => fluid%phase(1)%saturation)
+              effective_capillary_pressure = &
+                   rock%capillary_pressure%value(sl, fluid%temperature)
+            end associate
          end if
       else
          effective_water_pressure = fluid%partial_pressure(1)
