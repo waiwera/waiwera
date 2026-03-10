@@ -168,6 +168,16 @@ module fluid_module
      procedure, public :: modify => fluid_relative_permeability_linear_temperature_modify
   end type fluid_relative_permeability_linear_temperature_type
 
+  type, public, extends(fluid_modifier_type) :: &
+       fluid_capillary_pressure_linear_temperature_type
+     !! Type for linear variation in capillary pressure with temperature
+     PetscReal, public :: min_temperature !! Minimum temperature for modification
+     PetscReal, public :: max_temperature !! Maximum temperature for modification
+   contains
+     private
+     procedure, public :: modify => fluid_capillary_pressure_linear_temperature_modify
+  end type fluid_capillary_pressure_linear_temperature_type
+
   public :: fluid_type, phase_type
   public :: create_fluid_vector
 
@@ -785,6 +795,31 @@ contains
     end if
 
   end subroutine fluid_relative_permeability_linear_temperature_modify
+
+!........................................................................
+
+  subroutine fluid_capillary_pressure_linear_temperature_modify(self, fluid)
+    !! Modifies capillary pressure linearly with temperature. Above
+    !! the minimum temperature, capillary pressures (for the liquid
+    !! phase) are adjusted to approach zero at the maximum temperature
+    !! (the critical point).
+
+    use thermodynamics_module, only: thermodynamics_type
+
+    class(fluid_capillary_pressure_linear_temperature_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+    ! Locals:
+    PetscReal :: xi
+
+    if (self%min_temperature < fluid%temperature) then
+       xi = (fluid%temperature - self%min_temperature) / &
+            (self%max_temperature - self%min_temperature)
+       associate(phase => fluid%phase(1))
+         phase%capillary_pressure = (1._dp - xi) * phase%capillary_pressure
+       end associate
+    end if
+
+  end subroutine fluid_capillary_pressure_linear_temperature_modify
 
 !------------------------------------------------------------------------
 
