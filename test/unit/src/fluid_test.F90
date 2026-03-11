@@ -372,8 +372,8 @@ contains
             [0.4_dp, 0.6_dp], [0.337359057881_dp, 0.662640942119_dp], "360 deg C")
        call modifier_case(fluid, linear, critical%temperature, [0.25_dp, 0.75_dp], &
             [0.4_dp, 0.6_dp], [0.25_dp, 0.75_dp], "Tc")
-       call modifier_case(fluid, linear, 40._dp, [0.25_dp, 0.75_dp], &
-            [0.4_dp, 0.6_dp], [0.4_dp, 0.6_dp], "> Tc")
+       call modifier_case(fluid, linear, 400._dp, [0.25_dp, 0.75_dp], &
+            [0.4_dp, 0.6_dp], [0.25_dp, 0.75_dp], "> Tc")
 
        call linear%destroy()
        call fluid%destroy()
