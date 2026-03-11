@@ -783,16 +783,21 @@ contains
     PetscReal :: xi
     PetscInt :: p
 
-    if (self%min_temperature < fluid%temperature) then
+    if (fluid%temperature < self%min_temperature) then
+       xi = 0._dp
+    else if (fluid%temperature < self%max_temperature) then
        xi = (fluid%temperature - self%min_temperature) / &
             (self%max_temperature - self%min_temperature)
-       do p = 1, 2
-          associate(phase => fluid%phase(p))
-            phase%relative_permeability = (1._dp - xi) * &
-                 phase%relative_permeability + xi * phase%saturation
-          end associate
-       end do
+    else
+       xi = 1._dp
     end if
+
+    do p = 1, 2
+       associate(phase => fluid%phase(p))
+         phase%relative_permeability = (1._dp - xi) * &
+              phase%relative_permeability + xi * phase%saturation
+       end associate
+    end do
 
   end subroutine fluid_relative_permeability_linear_temperature_modify
 
@@ -811,13 +816,18 @@ contains
     ! Locals:
     PetscReal :: xi
 
-    if (self%min_temperature < fluid%temperature) then
+    if (fluid%temperature < self%min_temperature) then
+       xi = 0._dp
+    else if (fluid%temperature < self%max_temperature) then
        xi = (fluid%temperature - self%min_temperature) / &
             (self%max_temperature - self%min_temperature)
-       associate(phase => fluid%phase(1))
-         phase%capillary_pressure = (1._dp - xi) * phase%capillary_pressure
-       end associate
+    else
+       xi = 1._dp
     end if
+
+    associate(phase => fluid%phase(1))
+      phase%capillary_pressure = (1._dp - xi) * phase%capillary_pressure
+    end associate
 
   end subroutine fluid_capillary_pressure_linear_temperature_modify
 
