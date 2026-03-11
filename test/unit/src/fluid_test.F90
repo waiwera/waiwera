@@ -14,7 +14,8 @@ module fluid_test
 
   public :: setup, teardown
   public :: test_fluid_assign, test_fluid_component_density, &
-     test_fluid_energy, test_fluid_enthalpy, test_fluid_permeability_modifier
+       test_fluid_energy, test_fluid_enthalpy, test_fluid_permeability_modifier, &
+       test_fluid_relative_permeability_modifier
 
 contains
   
@@ -331,6 +332,82 @@ contains
     end if
 
   end subroutine test_fluid_permeability_modifier
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_relative_permeability_modifier(test)
+    ! Fluid relative permeability modifier
+
+    use fson
+    use IAPWS_module, only: critical
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fluid_type) :: fluid
+    type(fson_value), pointer :: json
+    type(fluid_relative_permeability_linear_temperature_type) :: linear
+    PetscInt, parameter :: num_components = 2, num_phases = 3
+    PetscInt,  parameter :: offset = 1
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+       call fluid%init(num_components, num_phases)
+       allocate(fluid_data(offset - 1 + fluid%dof))
+       fluid_data = 0._dp
+       call fluid%assign(fluid_data, offset)
+
+       call linear%init(json)
+       linear%min_temperature = 350._dp
+       linear%max_temperature = critical%temperature
+
+       call modifier_case(fluid, linear, 100._dp, [0.4_dp, 0.6_dp], &
+            [0.25_dp, 0.75_dp], [0.25_dp, 0.75_dp], "100 deg C")
+       call modifier_case(fluid, linear, 350._dp, [0.4_dp, 0.6_dp], &
+            [0.25_dp, 0.75_dp], [0.25_dp, 0.75_dp], "350 deg C")
+       call modifier_case(fluid, linear, 360._dp, [0.25_dp, 0.75_dp], &
+            [0.4_dp, 0.6_dp], [0.337359057881_dp, 0.662640942119_dp], "360 deg C")
+       call modifier_case(fluid, linear, critical%temperature, [0.25_dp, 0.75_dp], &
+            [0.4_dp, 0.6_dp], [0.25_dp, 0.75_dp], "Tc")
+       call modifier_case(fluid, linear, 40._dp, [0.25_dp, 0.75_dp], &
+            [0.4_dp, 0.6_dp], [0.4_dp, 0.6_dp], "> Tc")
+
+       call linear%destroy()
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  contains
+
+    subroutine modifier_case(fluid, modifier, temperature, saturation, &
+         initial, expected, title)
+
+      type(fluid_type), intent(in out) :: fluid
+      type(fluid_relative_permeability_linear_temperature_type), &
+           intent(in out) :: modifier
+      PetscReal, intent(in) :: temperature, saturation(2), &
+           initial(2), expected(2)
+      character(*), intent(in) :: title
+
+      fluid%temperature = temperature
+      fluid%phase(1)%saturation = saturation(1)
+      fluid%phase(2)%saturation = saturation(2)
+      fluid%phase(1)%relative_permeability = initial(1)
+      fluid%phase(2)%relative_permeability = initial(2)
+
+      call modifier%modify(fluid)
+      call test%assert(expected(1), fluid%phase(1)%relative_permeability, &
+           title // " kr 1")
+      call test%assert(expected(2), fluid%phase(2)%relative_permeability, &
+           title // " kr 2")
+
+    end subroutine modifier_case
+
+  end subroutine test_fluid_relative_permeability_modifier
 
 !------------------------------------------------------------------------
 
