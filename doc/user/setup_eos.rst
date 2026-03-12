@@ -43,6 +43,11 @@ In the Waiwera JSON input file, the **"eos"** value specifies the equation of st
    |                                |          |                   |permeability           |
    |                                |          |                   |                       |
    +--------------------------------+----------+-------------------+-----------------------+
+   |"capillary_pressure_modifier"   |object |  |depends on EOS     |parameters for effect  |
+   |                                |``null``  |                   |of fluid on capillary  |
+   |                                |          |                   |pressure               |
+   |                                |          |                   |                       |
+   +--------------------------------+----------+-------------------+-----------------------+
    |"conditions"                    |string    |depends on EOS     |alternative methods of |
    |                                |          |                   |specifying initial and |
    |                                |          |                   |boundary conditions    |
@@ -157,12 +162,12 @@ When the parameter :math:`n` takes the value 2, the pores are represented by a s
 
 .. [Verma-Pruess] Verma, A. and Pruess, K. (1988). "Thermohydrologic conditions and silica redistribution near high-level nuclear wastes emplaced in saturated geological formations", J. Geophysical Research, 93, B2, 1159 - 1173.
 
-Relative permeability modification
-==================================
+Relative permeability and capillary pressure modification
+=========================================================
 
-For some equations of state, the fluid state can change the effective local relative permeability. For example, when the :ref:`supercritical_water_energy_eos` EOS is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached.
+For some equations of state, the fluid state can change the effective local relative permeability and/or capillary pressure. For example, when the :ref:`supercritical_water_energy_eos` EOS is used, relative permeabilities may be modified so that they approach simple saturation functions as the critical point is approached. Similarly, the capillary pressure is reduced to zero at the crtical point.
 
-This effect can be represented using the **"eos.relative_permeability_modifier"** value. This object has a **"type"** string value which determines how the relative permeability is modified according to temperature. Its possible values are "none" and "linear". If the type is "none", there is no relative permeability modification (the default for most equations of state). This can also be achieved by setting the **"eos.relative_permeability_modifier"** value to ``null``.
+These effects can be represented using the **"eos.relative_permeability_modifier"** and **"eos.capillary_pressure_modifier"** values. These object has a **"type"** string value which determines how the relative permeability or capillary pressure is modified according to temperature. Its possible values are "none" and "linear". If the type is "none", there is no modification (the default for most equations of state). This can also be achieved by setting the **"eos.relative_permeability_modifier"** or **"eos.capillary_pressure_modifier"** value to ``null``.
 
 .. admonition:: JSON input
 
@@ -182,16 +187,43 @@ This effect can be represented using the **"eos.relative_permeability_modifier"*
    |                     |          |                   |modification           |
    +---------------------+----------+-------------------+-----------------------+
 
-If the type is "linear" (the default for the :ref:`supercritical_water_energy_eos` EOS), the effective relative permeability :math:`K^r_p` is given by:
+.. admonition:: JSON input
+
+   **JSON object**: fluid capillary_pressure modifier
+
+   **JSON path**: eos.capillary_pressure_modifier
+
+   +---------------------+----------+-------------------+-----------------------+
+   |**name**             |**type**  |**default**        |**value**              |
+   +---------------------+----------+-------------------+-----------------------+
+   |"type"               |string    |"none"             |capillary pressure     |
+   |                     |          |                   |modifier type          |
+   +---------------------+----------+-------------------+-----------------------+
+   |"minimum_temperature"|number    |350                |minimum temperature    |
+   |                     |          |                   |:math:`T_0` for        |
+   |                     |          |                   |capillary pressure     |
+   |                     |          |                   |modification           |
+   +---------------------+----------+-------------------+-----------------------+
+
+If the relative permeability modifier type is "linear" (the default for the :ref:`supercritical_water_energy_eos` and :ref:`supercritical_water_air_energy_eos` EOS modules), the effective relative permeability :math:`k'^r_p` is given by:
 
 .. math::
 
-   f = \begin{cases}
+   k'^r_p = \begin{cases}
    k^r_p & T \le T_0 \\
-   K^r_p = (1 - \xi) k^r_p + \xi S_p & T > T_0
+   (1 - \xi) k^r_p + \xi S_p & T > T_0
    \end{cases}
 
 where :math:`k^r_p` is the original unmodified relative permeability, :math:`T` is temperature (:math:`^{\circ}`\ C), :math:`T_0` is a specified minimum temperature (:math:`^{\circ}`\ C), :math:`\xi = (T - T_0) / (T_c - T_0)`, :math:`T_c` is critical temperature of water (:math:`^{\circ}`\ C) and :math:`S_p` is the saturation of phase :math:`p`. As the critical point is approached, the properties of the liquid and vapour phases converge, so that the relative permeability functions approach simple saturation functions (:math:`K^r_p = S_p`) and do not include any other interactions between phases.
+
+Similarly, if the capillary pressure modifier type in "linear" (also the default for the :ref:`supercritical_water_energy_eos` and :ref:`supercritical_water_air_energy_eos` EOS modules), the effective capillary pressure :math:`P'_c` is given by:
+
+.. math::
+
+   P'_c = \begin{cases}
+   P_c & T \le T_0 \\
+   (1 - \xi) P_c & T > T_0
+   \end{cases}
 
 .. index:: simulation; initial conditions, initial conditions
 .. index:: simulation; boundary conditions, boundary conditions
@@ -199,7 +231,7 @@ where :math:`k^r_p` is the original unmodified relative permeability, :math:`T` 
 Alternative initial and boundary conditions
 ===========================================
 
-In general, :ref:`initial_conditions` and :ref:`boundary_conditions` are set by specifying the primary variables for the equation of state being used. However, for convenience, some equations of state allow the user to specify them using variables different from the primary variables. This can be done using the **"eos.conditions"** value. Its possible values depend on the EOS being used.
+In general, :ref:`initial_conditions` and :ref:`boundary_conditions` are set by specifying the primary variables for the equation of state being used. However, for convenience, some equations of state allow the user to specify them using variables different from the primary variables. This can be done using the **"eos.conditions"** value. Its possible values depend on the EOS being used (see below).
 
 Water EOS modules
 =================
