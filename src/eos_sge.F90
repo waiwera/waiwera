@@ -552,8 +552,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p, pp, phases, pseudo_phases, effective_phases
-    PetscReal :: water_properties(2), pi_pseudo_phase(2), xg
-    PetscReal :: gas_properties(2)
+    PetscReal :: water_properties(2), gas_properties(2), xg
     PetscReal :: viscosity, energy_solution, water_enthalpy
     PetscReal :: effective_water_pressure, effective_water_density
     PetscReal :: effective_water_internal_energy, effective_gas_density
@@ -606,60 +605,51 @@ contains
                       select type (thermo => self%thermo)
                       type is (IAPWS_type)
                          call thermo%pi_liquidlike(water_pressure, temperature, &
-                              water_density, pi_pseudo_phase(1), pseudo_phases, err)
+                              water_density, fluid%liquidlike_fraction, &
+                              pseudo_phases, err)
                       end select
 
                       if (err == 0) then
 
-                         pi_pseudo_phase(2) = 1._dp - pi_pseudo_phase(1)
-                         fluid%liquidlike_fraction = pi_pseudo_phase(1)
                          fluid%supercritical_phases = dble(pseudo_phases)
                          if (fluid%is_supercritical()) then
                             effective_phases = pseudo_phases
                          else
                             effective_phases = phases
                          end if
+                         if (effective_phases == 1) then
+                            ! Liquid or liquid-like SCF:
+                            pp = 1
+                         else
+                            pp = 2
+                         end if
 
-                         ! Loop over pseudo-phases:
-                         do pp = 1, 2
-                            if (btest(effective_phases, pp - 1)) then
+                         call effective_liquid_properties(pp, fluid%pressure, &
+                              temperature, partial_pressure, water_pressure, &
+                              water_density, water_internal_energy, &
+                              effective_water_pressure, effective_water_density, &
+                              effective_water_internal_energy, err)
 
-                               call effective_liquid_properties(pp, fluid%pressure, &
-                                    temperature, partial_pressure, water_pressure, &
-                                    water_density, water_internal_energy, &
-                                    effective_water_pressure, effective_water_density, &
-                                    effective_water_internal_energy, err)
-
-                               if (err == 0) then
-
-                                  call self%effective_gas_properties(pp, fluid, &
-                                       effective_water_pressure, effective_water_density, &
-                                       gas_density, energy_solution, effective_gas_density, &
-                                       xg, viscosity, err)
-
-                                  if (err == 0) then
-                                     phase%density = phase%density + pi_pseudo_phase(pp) * &
-                                          (effective_water_density + effective_gas_density)
-                                     phase%mass_fraction = phase%mass_fraction + &
-                                          pi_pseudo_phase(pp) * [1._dp - xg, xg]
-                                     water_enthalpy = effective_water_internal_energy &
-                                          + effective_water_pressure / effective_water_density
-                                     phase%specific_enthalpy = phase%specific_enthalpy + &
-                                          pi_pseudo_phase(pp) * (water_enthalpy * (1._dp - xg) &
-                                          + (gas_enthalpy + energy_solution) * xg)
-                                     phase%viscosity = phase%viscosity + &
-                                          pi_pseudo_phase(pp) * viscosity
-                                  else
-                                     exit
-                                  end if
-                               else
-                                  exit
-                               end if
-                            end if
-                         end do
                          if (err == 0) then
-                            phase%internal_energy = phase%specific_enthalpy &
-                                 - fluid%pressure / phase%density
+
+                            call self%effective_gas_properties(pp, fluid, &
+                                 effective_water_pressure, effective_water_density, &
+                                 gas_density, energy_solution, effective_gas_density, &
+                                 xg, viscosity, err)
+
+                            if (err == 0) then
+                               phase%density = effective_water_density + &
+                                    effective_gas_density
+                               phase%mass_fraction = [1._dp - xg, xg]
+                               water_enthalpy = effective_water_internal_energy &
+                                    + effective_water_pressure / effective_water_density
+                               phase%specific_enthalpy = (water_enthalpy * (1._dp - xg) &
+                                    + (gas_enthalpy + energy_solution) * xg)
+                               phase%internal_energy = phase%specific_enthalpy &
+                                    - fluid%pressure / phase%density
+                               phase%viscosity = viscosity
+                            end if
+
                          end if
                       end if
                     end associate
