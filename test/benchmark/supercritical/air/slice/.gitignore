@@ -1,6 +1,7 @@
 run/*
 !run/gslice.*
 !run/*.json
+!run/slice_cold.*
 !run/*.listing
 output/
 *.pyc

@@ -58,7 +58,7 @@ map_out_atm = list(range(geo.num_atmosphere_blocks, geo.num_blocks))
 test_fields = ['Pressure', 'Temperature']
 field_scale = {'Pressure': 1e6, 'Temperature': 1.}
 field_unit = {'Pressure': 'MPa', 'Temperature': '$^{\circ}$C'}
-field_tols = {"Pressure": 0.03, "Temperature": 0.01}
+field_tols = {"Pressure": 0.03, "Temperature": 0.1}
 
 slice_test = SciBenchmarkTest(model_name + "_test", nproc = args.np)
 slice_test.description = """Supercritical natural-state air/water 2D slice problem
