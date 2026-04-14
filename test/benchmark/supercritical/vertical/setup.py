@@ -64,7 +64,7 @@ dat.add_generator(gen)
 dat.write(model_name + '.dat')
 inc.write(model_name + '.incon')
 
-mesh_filename = model_name + '.msh'
+mesh_filename = 'g' + model_name + '.msh'
 geo.write_mesh(mesh_filename, file_format = 'gmsh22')
 jsondata = dat.json(geo, mesh_filename, eos = 1, incons = inc)
 

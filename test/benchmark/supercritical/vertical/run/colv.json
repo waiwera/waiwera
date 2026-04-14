@@ -26,7 +26,7 @@
     "filename": "colv_cold.h5"
   },
   "mesh": {
-    "filename": "colv.msh"
+    "filename": "gcolv.msh"
   },
   "output": {
     "filename": "colv.h5",
