@@ -581,7 +581,8 @@ contains
 
   subroutine dm_cell_normal_face(dm, c, normal, f)
     !! Returns index of DM mesh face on the specified cell c, with
-    !! outward normal vector closest to the specified one.
+    !! outward normal vector closest to the specified one. Returns -1
+    !! if the face is not found.
 
     use kinds_module
 
@@ -627,8 +628,12 @@ contains
           end if
        end do
 
-       imax = maxloc(cos_theta, 1)
-       f = faces(imax)
+       if (maxval(cos_theta) > 0._dp) then
+          imax = maxloc(cos_theta, 1)
+          f = faces(imax)
+       else
+          f = -1
+       end if
 
        nullify(pcentroid, pface_normal)
        deallocate(cos_theta, centroid, face_normal)
