@@ -315,6 +315,9 @@ Reinjectors are set up in the Waiwera JSON input file via the **"network.reinjec
    |"overflow"             |string | object |{}          |:ref:`reinjector_overflow`        |
    |                       |                |            |                                  |
    +-----------------------+----------------+------------+----------------------------------+
+   |"policy"               |string          |"output"    |:ref:`reinjection_policy`         |
+   |                       |                |            |                                  |
+   +-----------------------+----------------+------------+----------------------------------+
 
 .. index:: reinjectors; name
 .. _reinjector_name:
@@ -521,6 +524,18 @@ Example:
    }}
 
 In this example, two production wells on deliverability feed into a group "g1" and this in turn feeds into a reinjector "r1", which has two fixed-rate outputs into the injection wells "i1" and "i2". Any water flow left over after injection into these two wells is directed to a second reinjector, "r2", which divides the overflow equally between the injection wells "i3" and "i4".
+
+.. index:: reinjectors; policy
+.. _reinjection_policy:
+
+Reinjection policy
+------------------
+
+As described above, by default a reinjector will distribute its input fluid amongst its outputs according to the specified output rates and/or proportions, and if these cannot reinject all the input fluid, the remainder is sent to the overflow.
+
+In some situations, however, the first priority is to reinject as much of the input fluid as possible (i.e. minimise the overflow), even if this means departing from the specified output rates and/or proportions. For example, if fluid is being reinjected to sources with :ref:`injectivity` controls, their capacities will change in response to pressure changes, and at a given time some may have spare capacity that is not utilised if the specified output rates and/or proportions are strictly adhered to.
+
+A reinjector's **"policy"** value (a string) can be used to select the policy used for assigning flows to the reinjector outputs. Setting it to **"output"** (the default) means that the output rates and/or proportions are strictly respected, and no attempt is made to minimise overflow. Setting it to **"overflow"** means the reinjector's first priority will be minimise the overflow, while attempting to respect the specified output rates and/or proportions as closely as possible. Clearly, overflow may still occur if there is insufficient capacity in the outputs.
 
 .. index:: reinjectors; file output
 .. _reinjector_file_output:

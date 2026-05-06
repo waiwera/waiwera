@@ -60,6 +60,9 @@ module source_network_reinjector_module
   PetscReal, parameter, public :: default_reinjector_output_proportion = 0._dp
   PetscReal, parameter, public :: default_reinjector_output_enthalpy = -1._dp
 
+  PetscInt, parameter, public :: REINJECTOR_POLICY_DEFAULT = 1, &
+       REINJECTOR_POLICY_OVERFLOW = 2
+
   type, extends(source_network_node_type) :: reinjector_output_type
      !! Type for reinjector outputs, distributing part of the
      !! reinjector flow to another network node.
@@ -70,7 +73,7 @@ module source_network_reinjector_module
      private
      procedure, public :: allocate_variables => reinjector_output_allocate_variables
      procedure, public :: deallocate_variables => reinjector_output_deallocate_variables
-     procedure, public :: node_limit => reinjector_output_node_limit
+     procedure, public :: node_capacity => reinjector_output_node_capacity
      procedure, public :: update => reinjector_output_update
      procedure, public :: destroy => reinjector_output_destroy
   end type reinjector_output_type
@@ -89,7 +92,7 @@ module source_network_reinjector_module
      procedure, public :: default_enthalpies => specified_reinjector_output_default_enthalpies
      procedure, public :: rates => specified_reinjector_output_rates
      procedure, public :: enthalpies => specified_reinjector_output_enthalpies
-     procedure, public :: node_limit => specified_reinjector_output_node_limit
+     procedure, public :: node_capacity => specified_reinjector_output_node_capacity
   end type specified_reinjector_output_type
 
   type, public, extends(specified_reinjector_output_type) :: rate_reinjector_output_type
@@ -126,7 +129,7 @@ module source_network_reinjector_module
      procedure, public :: deallocate_variables => overflow_reinjector_output_deallocate_variables
      procedure, public :: assign => overflow_reinjector_output_assign
      procedure, public :: set_flows => overflow_reinjector_output_set_flows
-     procedure, public :: node_limit => overflow_reinjector_output_node_limit
+     procedure, public :: node_capacity => overflow_reinjector_output_node_capacity
   end type overflow_reinjector_output_type
 
   type, public, extends(source_network_node_type) :: source_network_reinjector_type
@@ -160,6 +163,7 @@ module source_network_reinjector_module
      PetscInt, allocatable, public :: water_source_cell_indices(:), steam_source_cell_indices(:) !! Natural cell indices of output sources (including those from outputs that are also reinjectors), unsorted
      PetscInt, allocatable, public :: water_fluid_dep_source_cell_indices(:), &
           steam_fluid_dep_source_cell_indices(:) !! Natural cell indices of fluid-dependent (e.g. with injectivity controls) output sources
+     procedure(reinjector_limiter), pointer, public :: limiter
    contains
      private
      procedure, public :: init => source_network_reinjector_init
@@ -175,6 +179,20 @@ module source_network_reinjector_module
      procedure, public :: gather_cell_indices => source_network_reinjector_gather_cell_indices
      procedure, public :: destroy => source_network_reinjector_destroy
   end type source_network_reinjector_type
+
+  interface
+
+     subroutine reinjector_limiter(self, total, cap, q)
+       import :: source_network_reinjector_type
+       class(source_network_reinjector_type), intent(in) :: self
+       PetscReal, intent(in) :: total
+       PetscReal, intent(in out) :: cap(:)
+       PetscReal, intent(in out) :: q(:)
+     end subroutine reinjector_limiter
+
+  end interface
+
+  public :: reinjector_limiter_overflow
 
 contains
 
@@ -196,23 +214,45 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine node_limit_rate(node_rate, rate)
-    !! Limits specified rate according to node_rate.
+  subroutine preprocess_rates(total, cap, q)
+    !! Pre-processes specified capacities and rates q, setting
+    !! appropriate values for unrated items (-1 values).
 
-    PetscReal, intent(in) :: node_rate
-    PetscReal, intent(in out) :: rate
+    PetscReal, intent(in) :: total
+    PetscReal, intent(in out) :: cap(:), q(:)
+    ! Locals:
+    PetscBool :: unlimited
+    PetscInt :: i
+    PetscReal :: qsum
 
-    if (node_rate > -1._dp) then
-       if (rate > -1._dp) then
-          ! rates specified in both reinjector output and node:
-          rate = min(rate, node_rate)
-       else
-          ! rate specified in node only:
-          rate = node_rate
-       end if
-    end if
+    qsum = 0._dp
+    unlimited = PETSC_FALSE
 
-  end subroutine node_limit_rate
+    associate (n => size(q))
+      do i = 1, n
+
+         if (unlimited) then
+            q(i) = 0._dp
+            cap(i) = 0._dp
+         else
+            if (q(i) < -0.5_dp) then
+               if (cap(i) < -0.5_dp) then
+                  unlimited = PETSC_TRUE
+                  q(i) = total - qsum
+                  cap(i) = q(i)
+               else
+                  q(i) = cap(i)
+               end if
+            else if (cap(i) < -0.5_dp) then
+               cap(i) = total
+            end if
+         end if
+         qsum = qsum + q(i)
+
+      end do
+    end associate
+
+  end subroutine preprocess_rates
 
 !------------------------------------------------------------------------
 
@@ -267,16 +307,16 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine reinjector_output_node_limit(self, rate)
-    !! Limits injection rate to what can be injected into the output
-    !! node. Derived types override this routine.
+  PetscReal function reinjector_output_node_capacity(self) &
+       result(capacity)
+    !! Returns maximum rate that can be injected into the output
+    !! node. Derived types override this function.
 
     class(reinjector_output_type), intent(in out) :: self
-    PetscReal, intent(in out) :: rate
 
     continue
 
-  end subroutine reinjector_output_node_limit
+  end function reinjector_output_node_capacity
 
 !------------------------------------------------------------------------
 
@@ -430,31 +470,30 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine specified_reinjector_output_node_limit(self, rate)
-    !! Limits injection rate to what can be injected into the output
+  PetscReal function specified_reinjector_output_node_capacity(self) &
+       result(capacity)
+    !! Returns maximum flow rate that can be injected into the output
     !! node.
 
     class(specified_reinjector_output_type), intent(in out) :: self
-    PetscReal, intent(in out) :: rate
-    ! Locals:
-    PetscReal :: node_rate
 
     if (associated(self%out)) then
        select type (n => self%out)
        class is (source_type)
-          node_rate = n%specified_injection_rate()
-          call node_limit_rate(node_rate, rate)
+          capacity = n%specified_injection_rate()
        class is (source_network_reinjector_type)
           select case (self%flow_type)
           case (SEPARATED_FLOW_TYPE_WATER)
-             call node_limit_rate(n%water_rate, rate)
+             capacity = n%water_rate
           case (SEPARATED_FLOW_TYPE_STEAM)
-             call node_limit_rate(n%steam_rate, rate)
+             capacity = n%steam_rate
           end select
        end select
+    else
+       capacity = -1._dp
     end if
 
-  end subroutine specified_reinjector_output_node_limit
+  end function specified_reinjector_output_node_capacity
 
 !------------------------------------------------------------------------
 ! Rate reinjector output type
@@ -613,41 +652,47 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine overflow_reinjector_output_node_limit(self, rate)
-    !! Limits injection rate from overflow to what can be injected
+  PetscReal function overflow_reinjector_output_node_capacity(self) &
+       result(capacity)
+    !! Returns maximum injection rate from overflow that can be injected
     !! into the output node. The overflow is limited only if
     !! reinjecting it directly to a source. If reinjecting it to
     !! another reinjector, it is permitted to exceed that reinjector's
     !! capacity, and the excess will be assigned to its own overflow.
 
     class(overflow_reinjector_output_type), intent(in out) :: self
-    PetscReal, intent(in out) :: rate
-    ! Locals:
-    PetscReal :: node_rate
 
     if (associated(self%out)) then
        select type (n => self%out)
        class is (source_type)
-          node_rate = n%specified_injection_rate()
-          call node_limit_rate(node_rate, rate)
+          capacity = n%specified_injection_rate()
        end select
+    else
+       capacity = -1._dp
     end if
 
-  end subroutine overflow_reinjector_output_node_limit
+  end function overflow_reinjector_output_node_capacity
 
 !------------------------------------------------------------------------
 ! Reinjector type
 !------------------------------------------------------------------------
 
-  subroutine source_network_reinjector_init(self, name)
+  subroutine source_network_reinjector_init(self, name, policy)
     !! Initialises a source network reinjector. Only variables stored in
     !! the object itself are initialised, not those stored in the
     !! reinjector data vector and accessed via pointers.
 
     class(source_network_reinjector_type), intent(in out) :: self
     character(*), intent(in) :: name !! Reinjector name
+    PetscInt, intent(in) :: policy !! Reinjection policy
 
     self%name = name
+    select case (policy)
+    case (REINJECTOR_POLICY_OVERFLOW)
+       self%limiter => reinjector_limiter_overflow
+    case default
+       self%limiter => reinjector_limiter_default
+    end select
 
     self%in => null()
     call self%out%init(owner = PETSC_TRUE)
@@ -1042,7 +1087,7 @@ contains
       ! Locals:
       PetscBool :: unrated
 
-      call MPI_allreduce(local_capacity < 0._dp, unrated, 1, &
+      call MPI_allreduce(local_capacity < -0.5_dp, unrated, 1, &
            MPI_LOGICAL, MPI_LOR, self%comm, ierr)
       if (unrated) then
          total_capacity = -1._dp
@@ -1062,8 +1107,8 @@ contains
       PetscReal, intent(in) :: rate
       PetscReal, intent(in out) :: capacity
 
-      if (rate > -1._dp) then
-         if (capacity > -1._dp) capacity = capacity + rate
+      if (rate > -0.5_dp) then
+         if (capacity > -0.5_dp) capacity = capacity + rate
       else
          capacity = -1._dp
       end if
@@ -1112,6 +1157,104 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine reinjector_limiter_default(self, total, cap, q)
+    !! Applies output node limits to default reinjector outputs. Any
+    !! fluid left over will be assigned to the overflow.
+
+    class(source_network_reinjector_type), intent(in) :: self
+    PetscReal, intent(in) :: total
+    PetscReal, intent(in out) :: cap(:)
+    PetscReal, intent(in out) :: q(:)
+
+    call preprocess_rates(total, cap, q)
+    q = min(q, cap)
+
+  end subroutine reinjector_limiter_default
+
+!------------------------------------------------------------------------
+
+  subroutine reinjector_limiter_overflow(self, total, cap, q)
+    !! Applies output node limits to default reinjector outputs,
+    !! giving priority to minimising overflow rather than adhering
+    !! strictly to specified output flows.
+
+    class(source_network_reinjector_type), intent(in) :: self
+    PetscReal, intent(in) :: total
+    PetscReal, intent(in out) :: cap(:)
+    PetscReal, intent(in out) :: q(:)
+    ! Locals:
+    PetscInt :: i, k
+    PetscReal :: qsum, d, excess, excess_prop
+    PetscReal :: prop(size(q)), spare(size(q))
+    PetscReal :: spare_prop(size(q))
+    PetscReal, parameter :: tol = 1.e-12_dp
+
+    if (total > tol) then
+
+       call preprocess_rates(total, cap, q)
+       qsum = sum(q)
+
+       ! Scale output flows to add to total:
+       if (qsum > tol) then
+          q = q * total / qsum
+       end if
+
+       if (sum(cap) < total) then
+          ! Not enough capacity to reinject total - set all flows to
+          ! their capacities:
+          q = cap
+       else
+
+          prop = q / total
+          spare = 0._dp
+
+          associate(n => size(q))
+            do k = 1, n
+
+               excess = 0._dp
+               do i = 1, n
+                  d = q(i) - cap(i)
+                  if (d > 0._dp) then
+                     excess = excess + d
+                     q(i) = cap(i)
+                     prop(i) = 0._dp
+                     spare(i) = 0._dp
+                  else
+                     spare(i) = -d
+                  end if
+               end do
+
+               if (excess > tol) then
+                  excess_prop = 1._dp - sum(prop)
+                  spare = min(spare, excess)
+                  spare_prop = spare / sum(spare)
+                  prop = prop + spare_prop * excess_prop
+                  q = q + prop * excess
+               else
+                  if (excess > 0._dp) then
+                     do i = 1, n
+                        if (spare(i) > excess) then
+                           q(i) = q(i) + excess
+                           exit
+                        end if
+                     end do
+                  end if
+                  exit
+               end if
+
+            end do
+          end associate
+
+       end if
+
+    else
+       q = 0._dp
+    end if
+
+  end subroutine reinjector_limiter_overflow
+
+!------------------------------------------------------------------------
+
   subroutine source_network_reinjector_distribute(self)
     !! Distributes reinjector input flow to outputs (and overflow if
     !! needed).
@@ -1122,6 +1265,9 @@ contains
     PetscReal :: steam_balance
     PetscReal :: local_qw(self%local_gather_count), qw(self%gather_count)
     PetscReal :: local_qs(self%local_gather_count), qs(self%gather_count)
+    PetscReal :: local_cap(self%local_gather_count), cap(self%gather_count)
+    PetscReal :: qw_ordered(self%gather_count), qs_ordered(self%gather_count)
+    PetscReal :: cap_ordered(self%gather_count)
     PetscInt :: i, j
     PetscErrorCode :: ierr
 
@@ -1153,12 +1299,19 @@ contains
 
     if (self%rank >= 0) then
 
+       ! Gather rate arrays:
        call MPI_gatherv(local_qw, self%local_gather_count, &
             MPI_DOUBLE_PRECISION, qw, self%gather_counts, &
             self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
             self%comm, ierr)
        call MPI_gatherv(local_qs, self%local_gather_count, &
             MPI_DOUBLE_PRECISION, qs, self%gather_counts, &
+            self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
+            self%comm, ierr)
+
+       ! Gather capacity array:
+       call MPI_gatherv(local_cap, self%local_gather_count, &
+            MPI_DOUBLE_PRECISION, cap, self%gather_counts, &
             self%gather_displacements, MPI_DOUBLE_PRECISION, 0, &
             self%comm, ierr)
 
@@ -1177,10 +1330,27 @@ contains
 
           do i = 1, self%gather_count
              j = self%gather_index(i)
-             call limit_rate(qw(j), water_balance, self%output_water_rate)
-             call limit_rate(qs(j), steam_balance, self%output_steam_rate)
+             qw_ordered(i) = qw(j)
+             qs_ordered(i) = qs(j)
+             cap_ordered(i) = cap(j)
+          end do
+
+          call self%limiter(self%water_rate, cap_ordered, qw_ordered)
+          call self%limiter(self%steam_rate, cap_ordered, qs_ordered)
+
+          do i = 1, self%gather_count
+             call update_balance(qw_ordered(i), water_balance, &
+                  self%output_water_rate)
+             call update_balance(qs_ordered(i), steam_balance, &
+                  self%output_steam_rate)
           end do
           self%output_rate = self%output_water_rate + self%output_steam_rate
+
+          do i = 1, self%gather_count
+             j = self%gather_index(i)
+             qw(j) = qw_ordered(i)
+             qs(j) = qs_ordered(i)
+          end do
 
        end if
 
@@ -1203,6 +1373,7 @@ contains
   contains
 
     subroutine local_rates_iterator(node, stopped)
+      !! Gets local flow rate and capacity arrays.
 
       type(list_node_type), pointer, intent(in out) :: node
       PetscBool, intent(out) :: stopped
@@ -1213,17 +1384,13 @@ contains
          if (associated(output%out)) then
             if (output%out%link_index >= 0) then
                call output%rates(local_qw(i), local_qs(i))
-               select case (output%flow_type)
-               case (SEPARATED_FLOW_TYPE_WATER)
-                  call output%node_limit(local_qw(i))
-               case (SEPARATED_FLOW_TYPE_STEAM)
-                  call output%node_limit(local_qs(i))
-               end select
+               local_cap(i) = output%node_capacity()
                i = i + 1
             end if
          else
             if (output%link_index >= 0) then
                call output%rates(local_qw(i), local_qs(i))
+               local_cap(i) = output%node_capacity()
                i = i + 1
             end if
          end if
@@ -1233,13 +1400,13 @@ contains
 
 !........................................................................
 
-    subroutine limit_rate(rate, balance, total)
+    subroutine update_balance(rate, balance, total)
       !! Limits rate to remaining balance, and updates balance and
       !! total.
 
       PetscReal, intent(in out) :: rate, balance, total
 
-      if (rate < 0._dp) then
+      if (rate < -0.5_dp) then
          ! No limit on flow rate - set to remaining balance:
          rate = balance
       end if
@@ -1251,7 +1418,7 @@ contains
       balance = max(balance - rate, 0._dp)
       total = total + rate
 
-    end subroutine limit_rate
+    end subroutine update_balance
 
 !........................................................................
 

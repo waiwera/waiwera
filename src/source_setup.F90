@@ -1927,6 +1927,9 @@ contains
       type(source_network_reinjector_type), pointer :: reinjector
       type(list_node_type), pointer :: group_dict_node
       PetscBool :: has_outputs
+      character(len=12), parameter :: default_policy_str = "output"
+      character(len=12) :: policy_str
+      PetscInt :: policy
 
       err = 0
       call reinjector_input_dict%init(PETSC_FALSE)
@@ -1941,8 +1944,17 @@ contains
 
          call fson_get_mpi(reinjector_json, "name", "", name)
 
+         call fson_get_mpi(reinjector_json, "policy", default_policy_str, &
+              policy_str, logfile, log_key = trim(rstr) // "policy")
+         select case (trim(str_to_lower(policy_str)))
+         case ("overflow")
+            policy = REINJECTOR_POLICY_OVERFLOW
+         case default
+            policy = REINJECTOR_POLICY_DEFAULT
+         end select
+
          allocate(reinjector)
-         call reinjector%init(name)
+         call reinjector%init(name, policy)
 
          if (fson_has_mpi(reinjector_json, "in")) then
 
@@ -2951,6 +2963,11 @@ contains
              call deliv%calculate_PI_from_rate(start_time, initial_rate, &
                   fluid_data, fluid_section, fluid_range_start, &
                   deliv%productivity%val(1, 1))
+             if (present(logfile) .and. logfile%active) then
+                call logfile%write(LOG_LEVEL_INFO, 'input', 'calculated', &
+                     real_keys = [trim(srcstr) // "deliverability.productivity"], &
+                     real_values = [deliv%productivity%val(1, 1)])
+             end if
           end if
           if (deliv%threshold > 0._dp) then
              deliv%threshold_productivity = &

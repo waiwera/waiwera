@@ -581,7 +581,9 @@ contains
 
   subroutine dm_cell_normal_face(dm, c, normal, f)
     !! Returns index of DM mesh face on the specified cell c, with
-    !! outward normal vector closest to the specified one.
+    !! difference vector between face centroid and cell centroid
+    !! closest to the specified normal. Returns -1 if the face is not
+    !! found.
 
     use kinds_module
 
@@ -594,10 +596,13 @@ contains
     PetscInt :: start_cell, end_cell
     PetscErrorCode :: ierr
     PetscInt, pointer :: faces(:)
-    PetscReal, allocatable, target :: centroid(:), face_normal(:)
-    PetscReal, pointer :: pcentroid(:), pface_normal(:)
+    PetscReal, allocatable, target :: cell_centroid(:), cell_normal(:)
+    PetscReal, pointer :: pcell_centroid(:), pcell_normal(:)
+    PetscReal, allocatable, target :: face_centroid(:), face_normal(:)
+    PetscReal, pointer :: pface_centroid(:), pface_normal(:)
     PetscReal, allocatable :: cos_theta(:)
-    PetscReal :: area, normal_norm, face_normal_norm
+    PetscReal, allocatable :: diff(:)
+    PetscReal :: vol, area, normal_norm, diff_norm
 
     call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
     call DMPlexGetHeightStratum(dm, 0, start_cell, &
@@ -605,11 +610,18 @@ contains
 
     if ((start_cell <= c) .and. (c < end_cell)) then
 
-       allocate(centroid(3), face_normal(3))
-       pcentroid => centroid
+       allocate(cell_centroid(3), cell_normal(3))
+       pcell_centroid => cell_centroid
+       pcell_normal => cell_normal
+       call DMPlexComputeCellGeometryFVM(dm, c, vol, &
+            pcell_centroid, pcell_normal, ierr); CHKERRQ(ierr)
+
+       allocate(face_centroid(3), face_normal(3), diff(3))
+       pface_centroid => face_centroid
        pface_normal => face_normal
        call DMPlexGetConeSize(dm, c, num_faces, ierr); CHKERRQ(ierr)
        call DMPlexGetCone(dm, c, faces, ierr); CHKERRQ(ierr)
+
        allocate(cos_theta(num_faces))
        cos_theta = -1._dp
        normal_norm = norm2(normal(1: dim))
@@ -619,19 +631,24 @@ contains
           CHKERRQ(ierr)
           if (num_cells < 2) then
              call DMPlexComputeCellGeometryFVM(dm, faces(i), area, &
-                  pcentroid, pface_normal, ierr); CHKERRQ(ierr)
-             face_normal_norm = norm2(face_normal(1: dim))
+                  pface_centroid, pface_normal, ierr); CHKERRQ(ierr)
+             diff = face_centroid - cell_centroid
+             diff_norm = norm2(diff(1: dim))
              cos_theta(i) = dot_product(normal(1: dim), &
-                  face_normal(1: dim)) / &
-                  (normal_norm * face_normal_norm)
+                  diff(1: dim)) / (normal_norm * diff_norm)
           end if
        end do
 
-       imax = maxloc(cos_theta, 1)
-       f = faces(imax)
+       if (maxval(cos_theta) > 0._dp) then
+          imax = maxloc(cos_theta, 1)
+          f = faces(imax)
+       else
+          f = -1
+       end if
 
-       nullify(pcentroid, pface_normal)
-       deallocate(cos_theta, centroid, face_normal)
+       nullify(pcell_centroid, pcell_normal, pface_centroid, pface_normal)
+       deallocate(cos_theta, cell_centroid, cell_normal, &
+            face_centroid, face_normal)
 
     else
        f = -1
