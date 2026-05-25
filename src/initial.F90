@@ -961,8 +961,10 @@ contains
 
     if (err == 0) then
 
-       call process_initial_primary(mesh, eos, y, fluid_vector, y_range_start, &
-            fluid_range_start, err)
+       if (.not. has_file) then
+          call process_initial_primary(mesh, eos, y, fluid_vector, y_range_start, &
+               fluid_range_start, err)
+       end if
 
        if (err == 0) then
           if (mesh%has_minc .and. (.not. minc_specified)) then
