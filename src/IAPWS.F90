@@ -2856,9 +2856,11 @@ contains
     PetscReal, intent(out):: props(:)  !! (density, internal energy)
     PetscInt, intent(out) :: err  !! error code
     ! Locals:
-    PetscReal :: T_a, T_b, xi
-    PetscReal :: props_a(2), props_b(2)
+    PetscReal :: T_a, xi, T_ai, T_bi
+    PetscReal :: props_a(2), props_b(2), props_ai(2), props_bi(2)
+    PetscReal :: dprops_a(2), dprops_b(2)
     PetscReal, parameter :: dT = 0.05_dp !! size of interpolation zone
+    PetscReal, parameter :: Tinc = 1.e-6_dp !! increment for temperature derivatives
 
     err = 0
     select type (thermo => self%thermo)
@@ -2870,11 +2872,21 @@ contains
             if (t > T_a) then
                call properties(param, props)
             else
+               T_ai = T_a + Tinc
+               T_bi = T_b - Tinc
                call properties([p, T_a], props_a)
+               call properties([p, T_ai], props_ai)
                call thermo%region(2)%ptr%properties([p, T_b], props_b, err)
                if (err == 0) then
-                  xi = (t - T_b) / dT
-                  props = (1._dp - xi) * props_b + xi * props_a
+                  call thermo%region(2)%ptr%properties([p, T_bi], props_bi, err)
+                  if (err == 0) then
+                     dprops_a = (props_ai - props_a) / Tinc
+                     dprops_b = (props_b - props_bi) / Tinc
+                     xi = (t - T_b) / dT
+                     props = hermite_interpolate(props_b, props_a, &
+                          dprops_b, dprops_a, dT, xi)
+                     ! props = (1._dp - xi) * props_b + xi * props_a
+                  end if
                end if
             end if
          else

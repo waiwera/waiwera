@@ -265,8 +265,8 @@ module IAPWS_test
        ! Near 2/5 boundary:
        param = [30.e6_dp, 800.02_dp]
        call IAPWS%htsteam%properties(param, props, err)
-       call test%assert(63.9823842967715_dp, props(1), 'near 2/5 boundary density')
-       call test%assert(3551.42198472783e3_dp, props(2), 'near 2/5 boundary energy')
+       call test%assert(63.982430107687264_dp, props(1), 'near 2/5 boundary density')
+       call test%assert(3551.4207724393522e3_dp, props(2), 'near 2/5 boundary energy')
        call test%assert(0, err, 'near boundary 2/3 no error')
 
     end if
