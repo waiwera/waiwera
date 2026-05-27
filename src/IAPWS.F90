@@ -1737,7 +1737,6 @@ contains
                                     props_bi(1) = rho_bi
                                     dprops_b = (props_bi - props_b) / Tinc
                                     xi = (t - T_a) / dT
-                                    ! props = (1._dp - xi) * props_a + xi * props_b
                                     props = hermite_interpolate(props_a, props_b, &
                                          dprops_a, dprops_b, dT, xi)
                                  end if
@@ -1917,9 +1916,12 @@ contains
     PetscReal, intent(out):: props(:)  !! (density, internal energy)
     PetscInt, intent(out) :: err  !! error code
     ! Locals:
-    PetscReal :: T_a, T_b, xi
+    PetscReal :: T_a, T_b, T_ai, T_bi, xi
     PetscReal :: props_a(2), props_b(2), rho_b
+    PetscReal :: props_ai(2), props_bi(2), rho_bi
+    PetscReal :: dprops_a(2), dprops_b(2)
     PetscReal, parameter :: dT = 0.05_dp !! size of interpolation zone
+    PetscReal, parameter :: Tinc = 1.e-6_dp !! increment for temperature derivatives
 
     err = 0
     select type (thermo => self%thermo)
@@ -1941,7 +1943,10 @@ contains
                      call properties(param, props)
                   else
 
+                     T_ai = T_a + Tinc
+                     T_bi = T_b - Tinc
                      call properties([p, T_a], props_a)
+                     call properties([p, T_ai], props_ai)
                      select type (region3 => thermo%region(3)%ptr)
                      type is (IAPWS_region3_type)
                         call region3%density([p, T_b], rho_b, err, &
@@ -1949,10 +1954,20 @@ contains
                         if (err == 0) then
                            call region3%properties([rho_b, T_b], props_b, err)
                            if (err == 0) then
-                              associate (u_b => props_b(2))
-                                xi = (T_a - t) / dT
-                                props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
-                              end associate
+                              props_b(1) = rho_b
+                              call region3%density([p, T_bi], rho_bi, err, &
+                                   polish = PETSC_TRUE, phases = SUBREGION_PHASES_VAPOUR)
+                              if (err == 0) then
+                                 call region3%properties([rho_bi, T_bi], props_bi, err)
+                                 if (err == 0) then
+                                    props_bi(1) = rho_bi
+                                    dprops_a = (props_ai - props_a) / Tinc
+                                    dprops_b = (props_b - props_bi) / Tinc
+                                    xi = (t - T_b) / dT
+                                    props = hermite_interpolate(props_b, props_a, &
+                                         dprops_b, dprops_a, dT, xi)
+                                 end if
+                              end if
                            end if
                         end if
                      end select
@@ -2885,7 +2900,6 @@ contains
                      xi = (t - T_b) / dT
                      props = hermite_interpolate(props_b, props_a, &
                           dprops_b, dprops_a, dT, xi)
-                     ! props = (1._dp - xi) * props_b + xi * props_a
                   end if
                end if
             end if
