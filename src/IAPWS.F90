@@ -1330,8 +1330,6 @@ contains
     !! the fluid is completely liquidlike (001), vapourlike (010) or
     !! in between (011).
 
-    use utils_module, only: hermite_spline_00, hermite_spline_01
-
     class(IAPWS_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure, temperature, density
     PetscReal, intent(out) :: pi_liq
@@ -1686,10 +1684,13 @@ contains
     PetscReal, intent(out):: props(:) !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    PetscReal :: T_a, xi
+    PetscReal :: T_a, xi, T_ai, T_bi
     PetscReal :: props_a(2), props_b(2), rho_b
+    PetscReal :: props_ai(2), props_bi(2), rho_bi
+    PetscReal :: dprops_a(2), dprops_b(2)
     PetscReal, parameter :: eps = 1.e-5_dp !! tolerance for differencing near max temperature
     PetscReal, parameter :: dT = 0.05_dp !! size of interpolation zone
+    PetscReal, parameter :: Tinc = 1.e-6_dp !! increment for temperature derivatives
 
     err = 0
     select type (thermo => self%thermo)
@@ -1708,25 +1709,42 @@ contains
                else
 
                   T_a = T_b - dT
+                  T_ai = T_a + Tinc
+                  T_bi = T_b + Tinc
 
                   if (t < T_a) then
                      call properties(param, props)
                   else
 
-                     call properties([p, T_a], props_a)
                      select type (region3 => thermo%region(3)%ptr)
                      type is (IAPWS_region3_type)
+
+                        call properties([p, T_a], props_a)
+                        call properties([p, T_ai], props_ai)
+                        dprops_a = (props_ai - props_a) / Tinc
+
                         call region3%density([p, T_b], rho_b, err, &
                              polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
                         if (err == 0) then
                            call region3%properties([rho_b, T_b], props_b, err)
                            if (err == 0) then
-                              associate (u_b => props_b(2))
-                                xi = (t - T_a) / dT
-                                props = (1._dp - xi) * props_a + xi * [rho_b, u_b]
-                              end associate
+                              props_b(1) = rho_b
+                              call region3%density([p, T_bi], rho_bi, err, &
+                                   polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
+                              if (err == 0) then
+                                 call region3%properties([rho_bi, T_bi], props_bi, err)
+                                 if (err == 0) then
+                                    props_bi(1) = rho_bi
+                                    dprops_b = (props_bi - props_b) / Tinc
+                                    xi = (t - T_a) / dT
+                                    ! props = (1._dp - xi) * props_a + xi * props_b
+                                    props = hermite_interpolate(props_a, props_b, &
+                                         dprops_a, dprops_b, dT, xi)
+                                 end if
+                              end if
                            end if
                         end if
+
                      end select
 
                      if (err > 0) then ! fallback

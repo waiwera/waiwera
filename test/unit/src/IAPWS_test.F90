@@ -113,8 +113,8 @@ module IAPWS_test
        ! Near 1/3 boundary:
        param = [20.e6_dp, 349.98_dp]
        call IAPWS%water%properties(param, props, err)
-       call test%assert(600.7386856047377_dp, props(1), 'near 1/3 boundary density')
-       call test%assert(1612.4999684415134e3_dp, props(2), 'near 1/3 boundary energy')
+       call test%assert(600.73927320721077_dp, props(1), 'near 1/3 boundary density')
+       call test%assert(1612.5001775648068e3_dp, props(2), 'near 1/3 boundary energy')
        call test%assert(0, err, 'near boundary 1/3 no error')
 
     end if
