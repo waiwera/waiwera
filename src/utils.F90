@@ -60,6 +60,11 @@ module utils_module
      module procedure newton1d_polynomial
   end interface newton1d
 
+  interface hermite_interpolate
+     module procedure hermite_interpolate_single
+     module procedure hermite_interpolate_multiple
+  end interface hermite_interpolate
+
   public :: str_to_lower, &
        int_str_len, str_array_index, &
        split_filename, change_filename_extension, &
@@ -919,7 +924,8 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function hermite_interpolate(y0, y1, d0, d1, dx, xi) result(hi)
+  PetscReal function hermite_interpolate_single(y0, y1, d0, d1, dx, xi) &
+       result(hi)
     !! Cubic Hermite spline interpolation between values y0, y1 and
     !! slopes d0, d1, on an interval of length dx, at normalised
     !! coordinate xi.
@@ -931,7 +937,25 @@ contains
     h = hermite_splines(xi)
     hi = h(1) * y0 + h(2) * y1 + dx * (h(3) * d0 + h(4) * d1)
 
-  end function hermite_interpolate
+  end function hermite_interpolate_single
+
+!------------------------------------------------------------------------
+
+  function hermite_interpolate_multiple(y0, y1, d0, d1, dx, xi) &
+       result(hi)
+    !! Cubic Hermite spline interpolation between array values y0, y1
+    !! and slopes d0, d1, on an interval of length dx, at normalised
+    !! coordinate xi.
+
+    PetscReal, intent(in) :: y0(:), y1(:), d0(:), d1(:), dx, xi
+    PetscReal :: hi(size(y0))
+    ! Locals:
+    PetscReal :: h(4)
+
+    h = hermite_splines(xi)
+    hi = h(1) * y0 + h(2) * y1 + dx * (h(3) * d0 + h(4) * d1)
+
+  end function hermite_interpolate_multiple
 
 !------------------------------------------------------------------------
 
