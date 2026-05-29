@@ -1684,85 +1684,39 @@ contains
     PetscReal, intent(out):: props(:) !! (density, internal energy)
     PetscInt, intent(out) :: err !! error code
     ! Locals:
-    PetscReal :: T_a, xi, T_ai, T_bi
-    PetscReal :: props_a(2), props_b(2), rho_b
-    PetscReal :: props_ai(2), props_bi(2), rho_bi
-    PetscReal :: dprops_a(2), dprops_b(2)
+    PetscReal :: T_a, T_b
     PetscReal, parameter :: eps = 1.e-5_dp !! tolerance for differencing near max temperature
     PetscReal, parameter :: dT = 0.05_dp !! size of interpolation zone
-    PetscReal, parameter :: Tinc = 1.e-6_dp !! increment for temperature derivatives
 
     err = 0
-    select type (thermo => self%thermo)
-    type is (IAPWS_type)
-       associate (T_b => self%max_temperature, p => param(1), &
-            t => param(2))
+    associate (p => param(1), t => param(2))
 
-         if ((0._dp < t) .and. (t <= (1._dp + eps) * self%max_temperature) .and. &
-              (0._dp < p) .and. (p <= self%max_pressure)) then
+      if ((0._dp < t) .and. (t <= (1._dp + eps) * self%max_temperature) .and. &
+           (0._dp < p) .and. (p <= self%max_pressure)) then
 
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
             if (thermo%extrapolate) then
                call properties(param, props)
             else
-               if (p < thermo%saturation_pressure_bdy_1_3) then
+               T_b = self%max_temperature
+               T_a = T_b - dT
+               if (t < T_a) then
                   call properties(param, props)
                else
-
-                  T_a = T_b - dT
-                  T_ai = T_a + Tinc
-                  T_bi = T_b + Tinc
-
-                  if (t < T_a) then
-                     call properties(param, props)
-                  else
-
-                     select type (region3 => thermo%region(3)%ptr)
-                     type is (IAPWS_region3_type)
-
-                        call properties([p, T_a], props_a)
-                        call properties([p, T_ai], props_ai)
-                        dprops_a = (props_ai - props_a) / Tinc
-
-                        call region3%density([p, T_b], rho_b, err, &
-                             polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
-                        if (err == 0) then
-                           call region3%properties([rho_b, T_b], props_b, err)
-                           if (err == 0) then
-                              props_b(1) = rho_b
-                              call region3%density([p, T_bi], rho_bi, err, &
-                                   polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
-                              if (err == 0) then
-                                 call region3%properties([rho_bi, T_bi], props_bi, err)
-                                 if (err == 0) then
-                                    props_bi(1) = rho_bi
-                                    dprops_b = (props_bi - props_b) / Tinc
-                                    xi = (t - T_a) / dT
-                                    props = hermite_interpolate(props_a, props_b, &
-                                         dprops_a, dprops_b, dT, xi)
-                                 end if
-                              end if
-                           end if
-                        end if
-
-                     end select
-
-                     if (err > 0) then ! fallback
-                        call properties(param, props)
-                        err = 0
-                     end if
-
-                  end if
-
+                  call interpolated_properties(param, T_a, T_b, props)
                end if
             end if
-         else
-            err = 1
-         end if
+         end select
+      else
+         err = 1
+      end if
 
-       end associate
-    end select
+    end associate
 
   contains
+
+!........................................................................
 
     subroutine properties(param, props)
 
@@ -1791,6 +1745,69 @@ contains
       end associate
 
     end subroutine properties
+
+!........................................................................
+
+    subroutine interpolated_properties(param, T_a, T_b, props)
+      !! Interpolates region 1 properties using cubic spline
+      !! interpolation for temperatures within dT of the region 1/3
+      !! boundary. Temperature derivatives are computed using finite
+      !! differences.
+
+      PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+      PetscReal, intent(in) :: T_a, T_b !! Interpolation temperature range
+      PetscReal, intent(out):: props(:) !! (density, internal energy)
+
+      ! Locals:
+      PetscReal :: xi, T_ai, T_bi, P_b, P_bs
+      PetscReal :: props_a(2), props_b(2), rho_b
+      PetscReal :: props_ai(2), props_bi(2), rho_bi
+      PetscReal :: dprops_a(2), dprops_b(2)
+      PetscReal, parameter :: Tinc = 1.e-6_dp !! increment for temperature derivatives
+
+      T_ai = T_a - Tinc
+      T_bi = T_b - Tinc
+
+      associate (p => param(1), t => param(2))
+        call properties([p, T_a], props_a)
+        call properties([p, T_ai], props_ai)
+        dprops_a = (props_a - props_ai) / Tinc
+        call self%thermo%saturation%pressure(T_b, P_bs, err)
+        if (err == 0) then
+           P_b = max(p, P_bs)
+           select type (region3 => self%thermo%region(3)%ptr)
+           type is (IAPWS_region3_type)
+              call region3%density([P_b, T_b], rho_b, err, &
+                   polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
+              if (err == 0) then
+                 call region3%properties([rho_b, T_b], props_b, err)
+                 if (err == 0) then
+                    props_b(1) = rho_b
+                    call region3%density([P_b, T_bi], rho_bi, err, &
+                         polish = PETSC_TRUE, &
+                         phases = SUBREGION_PHASES_LIQUID)
+                    if (err == 0) then
+                       call region3%properties([rho_bi, T_bi], props_bi, err)
+                       if (err == 0) then
+                          props_bi(1) = rho_bi
+                          dprops_b = (props_b - props_bi) / Tinc
+                          xi = (t - T_a) / dT
+                          props = hermite_interpolate(props_a, props_b, &
+                               dprops_a, dprops_b, dT, xi)
+                       end if
+                    end if
+                 end if
+              end if
+           end select
+        end if
+      end associate
+
+      if (err > 0) then ! fallback
+         call properties(param, props)
+         err = 0
+      end if
+
+    end subroutine interpolated_properties
 
   end subroutine region1_properties
 
