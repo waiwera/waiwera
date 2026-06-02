@@ -2381,6 +2381,7 @@ contains
     PetscBool :: liq
     PetscErrorCode :: err
     PetscInt, parameter :: default_phases = SUBREGION_PHASES_EITHER
+    PetscReal, parameter :: eps = 1.e-6_dp ! Tolerance for differencing
 
     sr = -1
     if (present(phases)) then
@@ -2499,7 +2500,7 @@ contains
                end if
             end if
          end if
-      else if (p >= self%psat_623) then
+      else if (p >= (1._dp - eps) * self%psat_623) then
          call self%subregion_liquid(p, tk, ph, liq, err)
          if (err == 0) then
             if (liq) then
