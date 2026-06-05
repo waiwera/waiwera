@@ -419,7 +419,7 @@ contains
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal, allocatable :: primary1(:), primary2(:)
-    PetscReal :: props(2), t, d, Pw1
+    PetscReal :: props(2), t, d, Pw1, Pw2
 
     PetscErrorCode :: err
 
@@ -505,6 +505,25 @@ contains
        call eos%fluid_properties(primary1, rock, fluid1, err)
        call eos%fluid_properties(primary2, rock, fluid2, err)
        call fluid_compare(test, fluid1, fluid2, "region 4 350 C")
+
+       ! region 4 at 350 deg C case 2
+       associate (P1 => primary1(1), Sv1 => primary1(2), &
+            Pa1 => primary1(3), P2 => primary2(1), &
+            Sv2 => primary2(2), Pa2 => primary2(3))
+         Pw1 = thermo%saturation_pressure_bdy_1_3 - 1.e-6_dp
+         Pa1 = 5.e5_dp
+         P1 = Pw1 + Pa1
+         Sv1 = 0.5_dp
+         Pw2 = thermo%saturation_pressure_bdy_1_3 + 1.e-6_dp
+         Sv2 = Sv1
+         Pa2 = Pa1
+         P2 = Pw2 + Pa2
+       end associate
+       fluid1%region = dble(4)
+       fluid2%region = dble(4)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 4 350 C case 2")
 
        ! region 4 / 3 liquid
        associate (P1 => primary1(1), Sv1 => primary1(2), &
