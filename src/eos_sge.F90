@@ -727,22 +727,28 @@ contains
     type(rock_type), intent(in out) :: rock !! Rock object
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: water_pressure
+    PetscInt :: region
 
     call self%eos_wge%bulk_properties(primary, fluid, err)
 
-    associate(pressure => primary(1))
+    region = nint(fluid%region)
+    call self%water_pressure(primary, region, PETSC_FALSE, water_pressure, err)
+
+    if (err == 0) then
       select type (thermo => self%thermo)
       type is (IAPWS_type)
-         if (pressure <= thermo%saturation_pressure_bdy_1_3) then ! T <= 350:
+         if (water_pressure <= thermo%saturation_pressure_bdy_1_3) then ! T <= 350:
             call self%eos_wge%phase_properties(primary, rock, fluid, err)
          else
             call region4_above_bdy_1_3_phase_properties()
          end if
       end select
-    end associate
-    call fluid%phase(3)%zero()
-    call self%relative_permeability_modifier%modify(fluid)
-    call self%capillary_pressure_modifier%modify(fluid)
+      call fluid%phase(3)%zero()
+      call self%relative_permeability_modifier%modify(fluid)
+      call self%capillary_pressure_modifier%modify(fluid)
+   end if
 
   contains
 
