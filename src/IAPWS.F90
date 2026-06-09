@@ -2048,7 +2048,7 @@ contains
 
       ! Locals:
       PetscReal :: theta, xi
-      PetscReal :: T_a, T_b, Ts_a, Ps_b, rho_b
+      PetscReal :: T_a, T_b, Ts_a, rho_b
       PetscReal :: props_a(2), props_b(2)
 
       select type (thermo => self%thermo)
