@@ -23,7 +23,7 @@ module IAPWS_test
        test_IAPWS_region3_density, test_IAPWS_region3_saturation_density, &
        test_IAPWS_widom, test_IAPWS_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
-       test_IAPWS_region3_subregion_index
+       test_IAPWS_region3_subregion_index, test_IAPWS_bdy_consistency
 
   contains
 
@@ -1105,6 +1105,89 @@ module IAPWS_test
     end subroutine saturation_subregion_case
 
   end subroutine test_IAPWS_region3_subregion_index
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_bdy_consistency(test)
+    ! IAPWS-97 boundary consistency test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr, i
+    PetscReal :: T, P, d, props_a(2), props_b(2)
+    PetscReal :: T_a, T_b, P_a, P_b
+    PetscErrorCode :: err
+    character(1) :: name
+    PetscReal :: P_13(4), T_23(4)
+    PetscReal, parameter :: dT = 1.e-6_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       ! region 1/3:
+       P_13 = [IAPWS%saturation_pressure_bdy_1_3, &
+            50.e6_dp, 75.e6_dp, 95.e6_dp]
+       do i = 1, size(P_13)
+          write(name, '(i1)') i
+          P = P_13(i)
+          T = IAPWS%temperature_bdy_1_3
+          call IAPWS%water%properties([P, T], props_a, err)
+          select type (region3 => IAPWS%supercritical)
+          type is (IAPWS_region3_type)
+             call region3%density([P, T], d, err, &
+                  polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
+          end select
+          call IAPWS%supercritical%properties([d, T], props_b, err)
+          props_b(1) = d
+          call test%assert(props_a, props_b, 'region 1/3 ' // name)
+       end do
+
+       ! region 2/3:
+       T_23 = [350._dp, 400._dp, 500._dp, 580._dp]
+       do i = 1, size(T_23)
+          write(name, '(i1)') i
+          T = T_23(i)
+          call IAPWS%boundary23%pressure(T, P)
+          call IAPWS%steam%properties([P, T], props_a, err)
+          select type (region3 => IAPWS%supercritical)
+          type is (IAPWS_region3_type)
+             call region3%density([P, T], d, err, &
+                  polish = PETSC_TRUE, phases = SUBREGION_PHASES_VAPOUR)
+          end select
+          call IAPWS%supercritical%properties([d, T], props_b, err)
+          props_b(1) = d
+          call test%assert(props_a, props_b, 'region 2/3 ' // name)
+       end do
+
+       ! region 4 at 350 deg C:
+       T_a = 350._dp - dT
+       T_b = 350._dp + dT
+       call IAPWS%saturation%pressure(T_a, P_a, err)
+       call IAPWS%saturation%pressure(T_b, P_b, err)
+
+       call IAPWS%water%properties([P_a, T_a], props_a, err)
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+          call region3%density([P_b, T_b], d, err, &
+               polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
+       end select
+       call IAPWS%supercritical%properties([d, T_b], props_b, err)
+       props_b(1) = d
+       call test%assert(props_a, props_b, 'region 4 liquid 350 deg C')
+
+       call IAPWS%steam%properties([P_a, T_a], props_a, err)
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+          call region3%density([P_b, T_b], d, err, &
+               polish = PETSC_TRUE, phases = SUBREGION_PHASES_VAPOUR)
+       end select
+       call IAPWS%supercritical%properties([d, T_b], props_b, err)
+       props_b(1) = d
+       call test%assert(props_a, props_b, 'region 4 vapour 350 deg C')
+    end if
+
+  end subroutine test_IAPWS_bdy_consistency
 
 !------------------------------------------------------------------------
 
