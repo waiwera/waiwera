@@ -169,6 +169,15 @@ module IAPWS_test
        call test%assert(2442.4936687414022e3_dp, props(2), 'near 2/3 boundary energy')
        call test%assert(0, err, 'near boundary 2/3 no error')
 
+       ! Near 2/3 boundary just below 350 deg C:
+       param = [16.5245e6_dp, 349.98_dp]
+       call IAPWS%steam%properties(param, props, err)
+       call test%assert(113.55952093219193_dp, props(1), &
+            'near 2/3 boundary below 350 density')
+       call test%assert(2418.2863144859206e3_dp, props(2), &
+            'near 2/3 boundary below 350 energy')
+       call test%assert(0, err, 'near boundary 2/3 no error')
+
     end if
 
   end subroutine test_IAPWS_region2
