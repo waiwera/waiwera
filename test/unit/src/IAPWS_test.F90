@@ -163,10 +163,10 @@ module IAPWS_test
        end do
 
        ! Near 2/3 boundary:
-       param = [40.e6_dp, 459.37521897358727_dp]
+       param = [40.0035e6_dp, 459.37521897358727_dp]
        call IAPWS%steam%properties(param, props, err)
-       call test%assert(242.61561357440996_dp, props(1), 'near 2/3 boundary density')
-       call test%assert(2442.5842178085037e3_dp, props(2), 'near 2/3 boundary energy')
+       call test%assert(242.66291396096656_dp, props(1), 'near 2/3 boundary density')
+       call test%assert(2442.4936687414022e3_dp, props(2), 'near 2/3 boundary energy')
        call test%assert(0, err, 'near boundary 2/3 no error')
 
     end if
