@@ -1194,6 +1194,26 @@ module IAPWS_test
        call IAPWS%supercritical%properties([d, T_b], props_b, err)
        props_b(1) = d
        call test%assert(props_a, props_b, 'region 4 vapour 350 deg C')
+
+       ! region 2 near 2/3 boundary at 350 deg C:
+       T_a = 350._dp - dT
+       T_b = 350._dp + dT
+       P = 16.5245e6_dp
+       call IAPWS%steam%properties([P, T_a], props_a, err)
+       call IAPWS%steam%properties([P, T_b], props_b, err)
+       call test%assert(props_a, props_b, 'region 2 near 2/3 bdy 350 C ')
+
+       ! region 2/4 just below 350 deg C:
+       P = IAPWS%saturation_pressure_bdy_1_3 - 0.05e5_dp
+       call IAPWS%saturation%temperature(P, T, err)
+       T_a = T - dT
+       T_b = T + dT
+       call IAPWS%saturation%pressure(T_a, P_a, err)
+       call IAPWS%saturation%pressure(T_b, P_b, err)
+       call IAPWS%steam%properties([P_a, T_a], props_a, err)
+       call IAPWS%steam%properties([P_b, T_b], props_b, err)
+       call test%assert(props_a, props_b, 'region 2/4 just below 350 C ')
+
     end if
 
   end subroutine test_IAPWS_bdy_consistency
