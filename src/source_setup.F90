@@ -2963,10 +2963,12 @@ contains
              call deliv%calculate_PI_from_rate(start_time, initial_rate, &
                   fluid_data, fluid_section, fluid_range_start, &
                   deliv%productivity%val(1, 1))
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_INFO, 'input', 'calculated', &
-                     real_keys = [trim(srcstr) // "deliverability.productivity"], &
-                     real_values = [deliv%productivity%val(1, 1)])
+             if (present(logfile)) then
+                if (logfile%active) then
+                   call logfile%write(LOG_LEVEL_INFO, 'input', 'calculated', &
+                        real_keys = [trim(srcstr) // "deliverability.productivity"], &
+                        real_values = [deliv%productivity%val(1, 1)])
+                end if
              end if
           end if
           if (deliv%threshold > 0._dp) then
