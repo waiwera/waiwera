@@ -419,7 +419,7 @@ contains
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscReal, allocatable :: primary1(:), primary2(:)
-    PetscReal :: props(2), t, d, Pw1, Pw2
+    PetscReal :: props(2), t, d, Pw1, Pw2, P
 
     PetscErrorCode :: err
 
@@ -674,6 +674,49 @@ contains
        call eos%fluid_properties(primary1, rock, fluid1, err)
        call eos%fluid_properties(primary2, rock, fluid2, err)
        call fluid_compare(test, fluid1, fluid2, "region 2/5 SC")
+
+       ! region 3 sub/supercritical liquid
+       associate (d1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), d2 => primary2(1), &
+            T2 => primary2(2), Pa2 => primary2(3))
+         d1 = 350._dp
+         T1 = thermo%critical%temperature - 1.e-9_dp
+         Pa1 = 1.e5_dp
+         d2 = d1
+         T2 = thermo%critical%temperature + 1.e-9_dp
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(3)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call single_phase_fluid_compare(test, fluid1, fluid2, &
+            1, 3, "region 3 sub/super L")
+
+       ! region 3 sub/supercritical vapour
+       associate (d1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), d2 => primary2(1), &
+            T2 => primary2(2), Pa2 => primary2(3))
+         T1 = 380._dp
+         Pa1 = 1.e5_dp
+         T2 = T1
+         Pa2 = Pa1
+         select type (region3 => thermo%region(3)%ptr)
+         type is (IAPWS_region3_type)
+            P = thermo%critical%pressure - 1.e-6_dp
+            call region3%density([P, T1], d1, &
+                 err, polish = PETSC_TRUE)
+            P = thermo%critical%pressure + 1.e-6_dp
+            call region3%density([P, T2], d2, &
+                 err, polish = PETSC_TRUE)
+         end select
+       end associate
+       fluid1%region = dble(3)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call single_phase_fluid_compare(test, fluid1, fluid2, &
+            2, 3, "region 3 sub/super V")
 
     end if
 
