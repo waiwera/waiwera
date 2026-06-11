@@ -10,7 +10,7 @@ module unit_test_utils_module
   implicit none
   private
 
-  public :: transition_compare, fluid_compare
+  public :: transition_compare, fluid_compare, single_phase_fluid_compare
   public :: vec_write, vec_diff_test
 
 contains
@@ -91,6 +91,50 @@ contains
     end do
 
   end subroutine fluid_compare
+
+!------------------------------------------------------------------------
+
+  subroutine single_phase_fluid_compare(test, fluid1, fluid2, p1, p2, &
+       message, tol)
+
+    use fluid_module
+
+    ! Runs assertions to see if two single-phase fluids have the same
+    ! properties. p1 and p2 are the phase indices for fluid1 and
+    ! fluid2 to be compared.
+
+    class(unit_test_type), intent(in out) :: test
+    type(fluid_type), intent(in) :: fluid1, fluid2
+    PetscInt, intent(in) :: p1, p2
+    character(*), intent(in) :: message
+    PetscReal, intent(in), optional :: tol
+    ! Locals:
+    PetscReal :: effective_tol
+    PetscReal, parameter :: default_tol = 1.e-10_dp
+
+    if (present(tol)) then
+       effective_tol = tol
+    else
+       effective_tol = default_tol
+    end if
+
+    call test%assert(fluid1%pressure, fluid2%pressure, &
+         trim(message) // " pressure", tol = effective_tol)
+    call test%assert(fluid1%temperature, fluid2%temperature, &
+         trim(message) // " temperature", tol = effective_tol)
+    call test%assert(fluid1%liquidlike_fraction, fluid2%liquidlike_fraction, &
+         trim(message) // " liquid-like fraction", tol = effective_tol)
+    call test%assert(fluid1%partial_pressure, fluid2%partial_pressure, &
+         trim(message) // " partial pressure", tol = effective_tol)
+
+    associate (phase1 => fluid1%phase(p1), phase2 => fluid2%phase(p2))
+      if ((phase1%saturation > 0._dp) .or. (phase2%saturation > 0._dp)) then
+         call test%assert(phase1%data, phase2%data, &
+              trim(message) // " phase ", tol = effective_tol)
+      end if
+    end associate
+
+  end subroutine single_phase_fluid_compare
 
 !------------------------------------------------------------------------
 
