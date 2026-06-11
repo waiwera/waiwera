@@ -16,7 +16,8 @@ module eos_se_test_module
   use fson
   use fson_mpi_module
   use eos_se_module
-  use unit_test_utils_module, only: transition_compare, fluid_compare
+  use unit_test_utils_module, only: transition_compare, &
+       fluid_compare, single_phase_fluid_compare
 
   implicit none
   private
@@ -1380,13 +1381,8 @@ contains
        fluid2%region = dble(4)
        call eos%fluid_properties(primary1, rock, fluid1, err)
        call eos%fluid_properties(primary2, rock, fluid2, err)
-       call test%assert(fluid1%phase(1)%density, fluid2%phase(2)%density, &
-            "region 4 L/V CP density", tol = 1.e-10_dp)
-       call test%assert(fluid1%phase(1)%viscosity, fluid2%phase(2)%viscosity, &
-            "region 4 L/V CP viscosity", tol = 1.e-10_dp)
-       call test%assert(fluid1%phase(1)%specific_enthalpy, &
-            fluid2%phase(2)%specific_enthalpy, &
-            "region 4 L/V CP enthalpy", tol = 1.e-10_dp)
+       fluid2%liquidlike_fraction = fluid1%liquidlike_fraction ! don't test
+       call single_phase_fluid_compare(test, fluid1, fluid2, 1, 2, "region 4 L/V CP")
 
        ! region 2 / 5 subcritical
        associate (P1 => primary1(1), T1 => primary1(2), &
