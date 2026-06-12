@@ -3049,7 +3049,6 @@ contains
     ! Locals:
     PetscReal:: tk
     PetscReal:: theta, theta2, a, b, c, x
-    PetscReal, parameter :: T0 = 373.9459627047695_dp
 
     if ((t >= 0._dp).and.(t <= self%thermo%critical%temperature)) then
 
@@ -3082,7 +3081,6 @@ contains
     PetscInt, intent(out) :: err !! Error code
     ! Locals:
     PetscReal:: beta, beta2, d, e, f, g, x
-    PetscReal, parameter :: P0 = 22.06399e6_dp
 
     if ((p >= 611.213_dp).and.(p <= self%thermo%critical%pressure)) then
        beta2 = dsqrt(p / self%pstar)
