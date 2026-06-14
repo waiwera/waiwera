@@ -1049,9 +1049,9 @@ module IAPWS_module
      PetscReal, public :: temperature_bdy_1_3 !! Temperature of boundary between regions 1 & 3
      PetscReal, public :: saturation_pressure_bdy_1_3 !! Saturation pressure at boundary between regions 1 & 3
      PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
-     PetscReal, public :: widom_slope = 6.479 !! Slope A_s of Widom line for water (Banuti et al., 2017)
+     PetscReal, public :: widom_slope = 6.479_dp !! Slope A_s of Widom line for water (Banuti et al., 2017)
      PetscReal, allocatable, public :: widom_delta_slope(:) !! Widom delta boundary slopes
-     PetscReal :: widom_delta_delp = 0.02e6 !! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
+     PetscReal :: widom_delta_delp = 0.02e6_dp !! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
      PetscReal :: widom_interpolation_pressure !! Pressure below which to interpolate Widom slope
      PetscReal :: critical_saturation_slope !! Slope of saturation line at critical point
    contains
