@@ -882,8 +882,11 @@ module IAPWS_test
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call pi_liquidlike_case(IAPWS%critical%pressure, &
-            IAPWS%critical%temperature, 0._dp, 0.5_dp, 3, 0, 'case 1')
+       select type (region3 => IAPWS%region(3)%ptr)
+       type is (IAPWS_region3_type)
+          call pi_liquidlike_case(region3%computed_critical_pressure, &
+               IAPWS%critical%temperature, 0._dp, 0.5_dp, 3, 0, 'case 1')
+       end select
        call pi_liquidlike_case(60.e6_dp, IAPWS%critical%temperature, &
             0._dp, 1.0_dp, 1, 0, 'case 2')
        call pi_liquidlike_case(IAPWS%critical%pressure, 700._dp, 0._dp, &

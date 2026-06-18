@@ -703,10 +703,10 @@ contains
          Pa2 = Pa1
          select type (region3 => thermo%region(3)%ptr)
          type is (IAPWS_region3_type)
-            P = thermo%critical%pressure - 1.e-6_dp
+            P = region3%computed_critical_pressure - 1.e-6_dp
             call region3%density([P, T1], d1, &
                  err, polish = PETSC_TRUE)
-            P = thermo%critical%pressure + 1.e-6_dp
+            P = region3%computed_critical_pressure + 1.e-6_dp
             call region3%density([P, T2], d2, &
                  err, polish = PETSC_TRUE)
          end select

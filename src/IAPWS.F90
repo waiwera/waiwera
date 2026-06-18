@@ -975,6 +975,7 @@ module IAPWS_module
           0.00000000000000e+00_dp, 0.00000000000000e+00_dp], &
           [43,26])
      PetscReal, public :: max_pressure
+     PetscReal, public :: computed_critical_pressure
    contains
      private
      procedure, public :: init => region3_init
@@ -1161,7 +1162,11 @@ contains
     self%max_vapour_density_bdy_1_3 = props(1)
 
     ! Auxiliary Widom delta parameters:
-    self%widom_interpolation_pressure = self%critical%pressure + self%widom_delta_delp
+    select type (region3 => self%region(3)%ptr)
+    type is (IAPWS_region3_type)
+       self%widom_interpolation_pressure = region3%computed_critical_pressure + &
+            self%widom_delta_delp
+    end select
     self%critical_saturation_slope = 7.8640285295767445_dp ! from symbolic differentiation of saturation line
 
   end subroutine IAPWS_init
@@ -1210,29 +1215,32 @@ contains
     else
        if (temperature <= self%critical%temperature) then
           select case(region)
-             case (1)
-                phases = int(b'001')
-             case (2)
-                phases = int(b'010')
-             case (3)
-                call self%saturation%pressure(temperature, &
-                     saturation_pressure, ierr)
-                if (ierr == 0) then
-                   if (pressure >= saturation_pressure) then
-                      phases = int(b'001')
-                   else
-                      phases = int(b'010')
-                   end if
-                else
-                   phases = -1 ! error in saturation pressure
-                end if
-             end select
-       else
-          if (pressure <= self%critical%pressure) then
+          case (1)
+             phases = int(b'001')
+          case (2)
              phases = int(b'010')
-          else
-             phases = int(b'100')
-          end if
+          case (3)
+             call self%saturation%pressure(temperature, &
+                  saturation_pressure, ierr)
+             if (ierr == 0) then
+                if (pressure >= saturation_pressure) then
+                   phases = int(b'001')
+                else
+                   phases = int(b'010')
+                end if
+             else
+                phases = -1 ! error in saturation pressure
+             end if
+          end select
+       else
+          select type (region3 => self%region(3)%ptr)
+          type is (IAPWS_region3_type)
+             if (pressure <= region3%computed_critical_pressure) then
+                phases = int(b'010')
+             else
+                phases = int(b'100')
+             end if
+          end select
        end if
     end if
 
@@ -1270,23 +1278,30 @@ contains
     ! Locals:
     PetscReal :: slope, xi, h
 
-    if (pressure >= self%critical%pressure) then
+    select type (region3 => self%region(3)%ptr)
+    type is (IAPWS_region3_type)
+       associate (critical_pressure => region3%computed_critical_pressure)
 
-       if (pressure < self%widom_interpolation_pressure) then
-          xi = (pressure - self%critical%pressure) / self%widom_delta_delP
-          h = hermite_spline_01(xi)
-          slope = (1._dp - h) * self%critical_saturation_slope + &
-               h * self%widom_slope
-       else
-          slope = self%widom_slope
-       end if
+         if (pressure >= critical_pressure) then
 
-       temperature = self%banuti(pressure, self%critical%pressure, slope)
-       err = 0
+            if (pressure < self%widom_interpolation_pressure) then
+               xi = (pressure - critical_pressure) / self%widom_delta_delP
+               h = hermite_spline_01(xi)
+               slope = (1._dp - h) * self%critical_saturation_slope + &
+                    h * self%widom_slope
+            else
+               slope = self%widom_slope
+            end if
 
-    else
-       err = 1
-    end if
+            temperature = self%banuti(pressure, critical_pressure, slope)
+            err = 0
+
+         else
+            err = 1
+         end if
+
+       end associate
+    end select
 
   end subroutine IAPWS_widom
 
@@ -1309,10 +1324,15 @@ contains
 
     err = 0
 
-    delta(1) = self%banuti(pressure, self%critical%pressure, &
-         self%widom_delta_slope(1))
-    delta(2) = self%banuti(pressure, self%critical%pressure, &
-         self%widom_delta_slope(2))
+    select type (region3 => self%region(3)%ptr)
+    type is (IAPWS_region3_type)
+       associate (critical_pressure => region3%computed_critical_pressure)
+         delta(1) = self%banuti(pressure, critical_pressure, &
+              self%widom_delta_slope(1))
+         delta(2) = self%banuti(pressure, critical_pressure, &
+              self%widom_delta_slope(2))
+       end associate
+    end select
 
   end subroutine IAPWS_widom_delta
 
@@ -1344,54 +1364,57 @@ contains
     err = 0
     pseudo_phases = 0
 
-    if (pressure >= self%critical%pressure) then
-       if (temperature >= self%critical%temperature) then
+    select type (region3 => self%region(3)%ptr)
+    type is (IAPWS_region3_type)
+       if (pressure >= region3%computed_critical_pressure) then
+          if (temperature >= self%critical%temperature) then
 
-          call self%widom(pressure, widom_temperature, err)
-          if (err == 0) then
-             call self%widom_delta(pressure, delta, err)
+             call self%widom(pressure, widom_temperature, err)
              if (err == 0) then
+                call self%widom_delta(pressure, delta, err)
+                if (err == 0) then
 
-                if (delta(2) > delta(1)) then
-                   xi = (temperature - delta(1)) / (delta(2) - delta(1))
-                   xit = transform_xi(xi, widom_temperature, delta)
-                   pi_liq = sigmoid(xit)
-                else
-                   if (temperature > delta(2)) then
-                      pi_liq = 0._dp
-                   else if (temperature < delta(1)) then
-                      pi_liq = 1._dp
+                   if (delta(2) > delta(1)) then
+                      xi = (temperature - delta(1)) / (delta(2) - delta(1))
+                      xit = transform_xi(xi, widom_temperature, delta)
+                      pi_liq = sigmoid(xit)
                    else
-                      pi_liq = 0.5_dp
+                      if (temperature > delta(2)) then
+                         pi_liq = 0._dp
+                      else if (temperature < delta(1)) then
+                         pi_liq = 1._dp
+                      else
+                         pi_liq = 0.5_dp
+                      end if
                    end if
-                end if
 
-                if (pi_liq < eps) then
-                   pseudo_phases = int(b'010')
-                else if (pi_liq < 1._dp - eps) then
-                   pseudo_phases = int(b'011')
-                else
-                   pseudo_phases = int(b'001')
-                end if
+                   if (pi_liq < eps) then
+                      pseudo_phases = int(b'010')
+                   else if (pi_liq < 1._dp - eps) then
+                      pseudo_phases = int(b'011')
+                   else
+                      pseudo_phases = int(b'001')
+                   end if
 
+                end if
+             end if
+
+          else
+             pi_liq = 1._dp
+          end if
+
+       else
+          if (temperature >= self%critical%temperature) then
+             pi_liq = 0._dp
+          else
+             if (density >= self%critical%density) then
+                pi_liq = 1._dp
+             else
+                pi_liq = 0._dp
              end if
           end if
-
-       else
-          pi_liq = 1._dp
        end if
-
-    else
-       if (temperature >= self%critical%temperature) then
-          pi_liq = 0._dp
-       else
-          if (density >= self%critical%density) then
-             pi_liq = 1._dp
-          else
-             pi_liq = 0._dp
-          end if
-       end if
-    end if
+    end select
 
   contains
 
@@ -2165,6 +2188,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo
     ! Locals:
     PetscInt :: i
+    PetscReal :: props(2)
     PetscErrorCode :: err
 
     call self%IAPWS_region_type%init(thermo)
@@ -2207,6 +2231,11 @@ contains
     end do
 
     self%max_pressure = 100.e6_dp
+    call self%properties([self%thermo%critical%density, &
+         self%thermo%critical%temperature], props, err)
+    associate(pressure => props(1))
+      self%computed_critical_pressure = pressure
+    end associate
 
   end subroutine region3_init
 
