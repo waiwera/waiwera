@@ -1213,7 +1213,7 @@ contains
     if (region == 4) then
        phases = int(b'011')
     else
-       if (temperature <= self%critical%temperature) then
+       if (temperature < self%critical%temperature) then
           select case(region)
           case (1)
              phases = int(b'001')
@@ -1235,7 +1235,7 @@ contains
        else
           select type (region3 => self%region(3)%ptr)
           type is (IAPWS_region3_type)
-             if (pressure <= region3%computed_critical_pressure) then
+             if (pressure < region3%computed_critical_pressure) then
                 phases = int(b'010')
              else
                 phases = int(b'100')
