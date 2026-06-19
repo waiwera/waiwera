@@ -641,6 +641,42 @@ contains
        fluid2%liquidlike_fraction = fluid1%liquidlike_fraction ! don't test
        call single_phase_fluid_compare(test, fluid1, fluid2, 1, 2, "region 4 L/V CP")
 
+       ! region 3 critical point density
+       associate (d1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), d2 => primary2(1), T2 => primary2(2), &
+            Pa2 => primary2(3))
+         d1 = thermo%critical%density - 1.e-8_dp
+         T1 = thermo%critical%temperature
+         Pa1 = 1.e5_dp
+         d1 = thermo%critical%density + 1.e-8_dp
+         T2 = T1
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(3)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call single_phase_fluid_compare(test, fluid1, fluid2, 2, 3, &
+            "region 3 CP rho")
+
+       ! region 3 critical point temperature
+       associate (d1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), d2 => primary2(1), T2 => primary2(2), &
+            Pa2 => primary2(3))
+         d1 = thermo%critical%density
+         T1 = thermo%critical%temperature
+         Pa1 = 1.e5_dp
+         d2 = d1
+         T2 = T1 + 1.e-8_dp
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(3)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       fluid2%liquidlike_fraction = fluid1%liquidlike_fraction ! don't test
+       call fluid_compare(test, fluid1, fluid2, "region 3 CP T", tol = 1.e-9_dp)
+
        ! region 2 / 5 subcritical
        associate (P1 => primary1(1), T1 => primary1(2), &
             Pa1 => primary1(3), P2 => primary2(1), T2 => primary2(2), &
