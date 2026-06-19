@@ -1289,8 +1289,7 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: p, pseudo_phases
-    PetscReal :: properties(2), PT(2), sl, pi_liq
-    PetscReal :: relative_permeability(2), capillary_pressure(2)
+    PetscReal :: properties(2), PT(2), pi_liq
 
     err = 0
 
@@ -1325,6 +1324,8 @@ contains
                     p = self%region3_phase(nint(fluid%phase_composition))
                     associate(phase => fluid%phase(p))
                       phase%saturation = 1._dp
+                      phase%relative_permeability = 1._dp
+                      phase%capillary_pressure = 0._dp
                       phase%density = density
                       phase%internal_energy = internal_energy
                       phase%specific_enthalpy = phase%internal_energy + &
@@ -1332,18 +1333,6 @@ contains
                       phase%mass_fraction(1) = 1._dp
                       call region%viscosity(fluid%temperature, fluid%pressure, &
                            phase%density, phase%viscosity)
-
-                      if (fluid%temperature <= self%thermo%critical%temperature) then
-                         sl = fluid%phase(1)%saturation
-                         relative_permeability = rock%relative_permeability%values(sl)
-                         capillary_pressure = [rock%capillary_pressure%value(sl, &
-                              fluid%temperature), 0._dp]
-                         phase%relative_permeability = relative_permeability(p)
-                         phase%capillary_pressure =  capillary_pressure(p)
-                      else
-                         phase%relative_permeability = 1._dp
-                         phase%capillary_pressure =  0._dp
-                      end if
                     end associate
 
                     select type (thermo => self%thermo)
