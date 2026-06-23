@@ -1350,8 +1350,6 @@ contains
     !! the fluid is completely liquidlike (001), vapourlike (010) or
     !! in between (011).
 
-    use utils_module, only: hermite_spline_00, hermite_spline_01
-
     class(IAPWS_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure, temperature, density
     PetscReal, intent(out) :: pi_liq
