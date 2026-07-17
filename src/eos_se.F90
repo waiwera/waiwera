@@ -1664,13 +1664,13 @@ contains
     class(eos_se_type), intent(in) :: self
     type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
 
-    call convert_scf(fluid1)
-    call convert_scf(fluid2)
+    call convert_fluid(fluid1)
+    call convert_fluid(fluid2)
 
   contains
 
-    subroutine convert_scf(fluid)
-      ! If fluid is supercritical, convert to equivalent two-phase
+    subroutine convert_supercritical(fluid)
+      ! Convert supercritical fluid to equivalent subcritical
       ! representation.
 
       type(fluid_type), target, intent(in out) :: fluid
@@ -1678,47 +1678,94 @@ contains
       PetscInt :: super_phases, p
       type(fluid_type) :: tmp
 
+      call tmp%init(fluid%num_components, fluid%num_phases)
+      call tmp%assign(fluid%internal_data, 1)
+
+      tmp%pressure = fluid%pressure
+      tmp%temperature = fluid%temperature
+      tmp%phase_composition = fluid%supercritical_phases
+
+      super_phases = nint(fluid%supercritical_phases)
+      select case (super_phases)
+      case (int(b'001'))
+
+         call tmp%phase(1)%copy(fluid%phase(3))
+         call tmp%phase(2)%zero()
+
+      case (int(b'010'))
+
+         call tmp%phase(1)%zero()
+         call tmp%phase(2)%copy(fluid%phase(3))
+
+      case (int(b'011'))
+
+         call tmp%phase(1)%copy(fluid%phase(3))
+         call tmp%phase(2)%copy(fluid%phase(3))
+         tmp%phase(1)%saturation = fluid%liquidlike_fraction
+         tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
+         do p = 1, 2
+            tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
+         end do
+
+      end select
+
+      call tmp%phase(3)%zero()
+
+      call fluid%assign_internal()
+      call tmp%destroy()
+
+    end subroutine convert_supercritical
+
+!........................................................................
+
+    subroutine convert_subcritical(fluid)
+      ! Convert subcritical fluid in Widom delta extension to
+      ! equivalent two-phase representation.
+
+      type(fluid_type), target, intent(in out) :: fluid
+      ! Locals:
+      PetscInt :: p
+      type(fluid_type) :: tmp
+
+      call tmp%init(fluid%num_components, fluid%num_phases)
+      call tmp%assign(fluid%internal_data, 1)
+
+      tmp%pressure = fluid%pressure
+      tmp%temperature = fluid%temperature
+      tmp%phase_composition = fluid%supercritical_phases
+
+      p = self%region3_phase(nint(fluid%phase_composition))
+      call tmp%phase(1)%copy(fluid%phase(p))
+      call tmp%phase(2)%copy(fluid%phase(p))
+      tmp%phase(1)%saturation = fluid%liquidlike_fraction
+      tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
+      do p = 1, 2
+         tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
+         tmp%phase(p)%capillary_pressure = 0._dp
+      end do
+
+      call tmp%phase(3)%zero()
+
+      call fluid%assign_internal()
+      call tmp%destroy()
+
+    end subroutine convert_subcritical
+
+!........................................................................
+
+    subroutine convert_fluid(fluid)
+      ! If fluid is supercritical or in sub-critical Widom delta
+      ! extension, convert to equivalent subcritical representation.
+
+      type(fluid_type), target, intent(in out) :: fluid
+
       if (fluid%is_supercritical()) then
-
-         call tmp%init(fluid%num_components, fluid%num_phases)
-         call tmp%assign(fluid%internal_data, 1)
-
-         super_phases = nint(fluid%supercritical_phases)
-
-         select case (super_phases)
-         case (int(b'001'))
-
-            call tmp%phase(1)%copy(fluid%phase(3))
-            call tmp%phase(2)%zero()
-
-         case (int(b'010'))
-
-            call tmp%phase(1)%zero()
-            call tmp%phase(2)%copy(fluid%phase(3))
-
-         case (int(b'011'))
-
-            call tmp%phase(1)%copy(fluid%phase(3))
-            call tmp%phase(2)%copy(fluid%phase(3))
-            tmp%phase(1)%saturation = fluid%liquidlike_fraction
-            tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
-            do p = 1, 2
-               tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
-            end do
-
-         end select
-
-         tmp%pressure = fluid%pressure
-         tmp%temperature = fluid%temperature
-         tmp%phase_composition = fluid%supercritical_phases
-         call tmp%phase(3)%zero()
-
-         call fluid%assign_internal()
-         call tmp%destroy()
-
+         call convert_supercritical(fluid)
+      else if (nint(fluid%supercritical_phases) == int(b'011')) then
+         call convert_subcritical(fluid)
       end if
 
-    end subroutine convert_scf
+    end subroutine convert_fluid
 
   end subroutine eos_se_convert_fluid
 
