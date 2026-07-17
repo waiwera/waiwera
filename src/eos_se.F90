@@ -214,11 +214,11 @@ contains
          select type (thermo => self%thermo)
          type is (IAPWS_type)
             default_min_temperature = thermo%temperature_bdy_1_3
+            call fson_get_mpi(json, &
+                 "eos.relative_permeability_modifier.minimum_temperature", &
+                 default_min_temperature, modifier%min_temperature, logfile)
+            modifier%max_temperature = thermo%widom_delta_zero_temperature
          end select
-         call fson_get_mpi(json, &
-              "eos.relative_permeability_modifier.minimum_temperature", &
-              default_min_temperature, modifier%min_temperature, logfile)
-         modifier%max_temperature = self%thermo%critical%temperature
       end select
 
     end subroutine init_linear_modifier
@@ -285,11 +285,11 @@ contains
          select type (thermo => self%thermo)
          type is (IAPWS_type)
             default_min_temperature = thermo%temperature_bdy_1_3
+            call fson_get_mpi(json, &
+                 "eos.capillary_pressure_modifier.minimum_temperature", &
+                 default_min_temperature, modifier%min_temperature, logfile)
+            modifier%max_temperature = thermo%widom_delta_zero_temperature
          end select
-         call fson_get_mpi(json, &
-              "eos.capillary_pressure_modifier.minimum_temperature", &
-              default_min_temperature, modifier%min_temperature, logfile)
-         modifier%max_temperature = self%thermo%critical%temperature
       end select
 
     end subroutine init_linear_modifier
