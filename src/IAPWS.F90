@@ -1094,7 +1094,7 @@ contains
     PetscErrorCode :: err
     PetscBool, parameter :: default_extrapolate = PETSC_FALSE
     PetscReal, parameter :: default_widom_delta_slope(2) = [31.46_dp, 2.356_dp]
-    PetscReal, parameter :: default_widom_delta_offset = 0._dp
+    PetscReal, parameter :: default_widom_delta_offset = 1.e-3_dp
 
     self%name = "IAPWS-97"
 
