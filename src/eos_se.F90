@@ -1763,6 +1763,7 @@ contains
       type(fluid_type), target, intent(in out) :: fluid
       ! Locals:
       PetscReal :: pi_liq_sat(2), sl, pi_liq
+      PetscInt :: p
       type(fluid_type) :: tmp
 
       call tmp%init(fluid%num_components, fluid%num_phases)
@@ -1788,6 +1789,11 @@ contains
          tmp%phase(2)%saturation = 1._dp - pi_liq
 
       end select
+
+      do p = 1, 2
+         tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
+         tmp%phase(p)%capillary_pressure = 0._dp
+      end do
 
       call tmp%phase(3)%zero()
 
