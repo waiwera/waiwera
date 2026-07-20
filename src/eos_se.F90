@@ -1762,9 +1762,7 @@ contains
 
       type(fluid_type), target, intent(in out) :: fluid
       ! Locals:
-      PetscReal :: widom_temperature, delta(2)
       PetscReal :: pi_liq_sat(2), sl, pi_liq
-      PetscErrorCode :: err
 
       select type (thermo => self%thermo)
       type is (IAPWS_type)
