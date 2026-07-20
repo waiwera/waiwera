@@ -1718,8 +1718,8 @@ contains
 
 !........................................................................
 
-    subroutine convert_subcritical(fluid)
-      ! Convert subcritical fluid in Widom delta extension to
+    subroutine convert_subcritical_region3(fluid)
+      ! Convert subcritical fluid in region 3 Widom delta extension to
       ! equivalent two-phase representation.
 
       type(fluid_type), target, intent(in out) :: fluid
@@ -1749,7 +1749,38 @@ contains
       call fluid%assign_internal()
       call tmp%destroy()
 
-    end subroutine convert_subcritical
+    end subroutine convert_subcritical_region3
+
+!........................................................................
+
+    subroutine convert_near_critical_region4(fluid)
+      ! Convert near-critical fluid in region 4 for flux calculation,
+      ! adjusting vapour saturation to make it consistent with
+      ! liquid-like fraction of fluid over the region 3/4 boundary.
+
+      use utils_module, only: midpoint_transform
+
+      type(fluid_type), target, intent(in out) :: fluid
+      ! Locals:
+      PetscReal :: widom_temperature, delta(2)
+      PetscReal :: pi_liq_sat(2), sl, pi_liq
+      PetscErrorCode :: err
+
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+
+         call thermo%pi_liquidlike_near_critical(fluid%temperature, &
+              0.5_dp, PETSC_FALSE, pi_liq_sat(1))
+         call thermo%pi_liquidlike_near_critical(fluid%temperature, &
+              0.5_dp, PETSC_TRUE, pi_liq_sat(2))
+         sl = fluid%phase(1)%saturation
+         pi_liq = (1._dp - sl) * pi_liq_sat(1) + sl * pi_liq_sat(2)
+         fluid%phase(1)%saturation = pi_liq
+         fluid%phase(2)%saturation = 1._dp - pi_liq
+
+      end select
+
+    end subroutine convert_near_critical_region4
 
 !........................................................................
 
@@ -1758,12 +1789,22 @@ contains
       ! extension, convert to equivalent subcritical representation.
 
       type(fluid_type), target, intent(in out) :: fluid
+      ! Locals:
+      PetscInt :: region
 
-      if (fluid%is_supercritical()) then
-         call convert_supercritical(fluid)
-      else if (nint(fluid%supercritical_phases) == int(b'011')) then
-         call convert_subcritical(fluid)
-      end if
+      region = nint(fluid%region)
+      select type (thermo => self%thermo)
+      type is (IAPWS_type)
+         if (fluid%is_supercritical()) then
+            call convert_supercritical(fluid)
+         else if ((region == 3) .and. &
+              (nint(fluid%supercritical_phases) == int(b'011'))) then
+            call convert_subcritical_region3(fluid)
+         else if ((region == 4) .and. &
+              (fluid%temperature > thermo%widom_delta_zero_temperature)) then
+            call convert_near_critical_region4(fluid)
+         end if
+      end select
 
     end subroutine convert_fluid
 
