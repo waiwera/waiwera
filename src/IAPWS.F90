@@ -1066,6 +1066,7 @@ module IAPWS_module
      procedure, public :: widom => IAPWS_widom
      procedure, public :: widom_delta => IAPWS_widom_delta
      procedure, public :: pi_liquidlike => IAPWS_pi_liquidlike
+     procedure, public :: pi_liquidlike_near_critical => IAPWS_pi_liquidlike_near_critical
   end type IAPWS_type
 
 !------------------------------------------------------------------------
@@ -1342,6 +1343,37 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine IAPWS_pi_liquidlike_near_critical(self, temperature, xi, &
+       liquid, pi_liq)
+    !! Returns pi_liquidlike (see below) for near-critical fluid in
+    !! the Widom delta extension, with given temperature and
+    !! transformed xi coordinate representing its position within the
+    !! extended Widom delta (xi = 1/2 being the saturation line).
+
+    use utils_module, only: hermite_spline_01, sigmoid
+    class(IAPWS_type), intent(in out) :: self
+    PetscReal, intent(in) :: temperature, xi
+    PetscBool, intent(in) :: liquid
+    PetscReal, intent(out) :: pi_liq
+    ! Locals:
+    PetscReal :: theta, s, xi0, xi1, xim
+
+    theta = (temperature - self%widom_delta_zero_temperature) / &
+         self%widom_delta_offset
+    s = hermite_spline_01(theta)
+    xi0 = 0.5_dp * s
+    xi1 = 1._dp - xi0
+    if (liquid) then
+       xim = 2._dp * xi0 * xi
+    else
+       xim = xi1 + (2._dp * xi - 1._dp) * (1._dp - xi1)
+    end if
+    pi_liq = sigmoid(xim)
+
+  end subroutine IAPWS_pi_liquidlike_near_critical
+
+!------------------------------------------------------------------------
+
   subroutine IAPWS_pi_liquidlike(self, pressure, temperature, density, &
        pi_liq, pseudo_phases, err)
     !! Returns number fraction of liquid-like fluid particles as a
@@ -1382,8 +1414,8 @@ contains
                    if (temperature >= self%critical%temperature) then
                       pi_liq = sigmoid(xit)
                    else
-                      xim = near_critical_xi(temperature, xit)
-                      pi_liq = sigmoid(xim)
+                      call self%pi_liquidlike_near_critical(temperature, &
+                           xit, (density >= self%critical%density), pi_liq)
                    end if
                 else
                    if (temperature > delta(2)) then
@@ -1421,30 +1453,6 @@ contains
           end if
        end if
     end if
-
-!........................................................................
-
-    PetscReal function near_critical_xi(temperature, xi) result(xim)
-      !! Between the delta zero temperature and the critical
-      !! point, space the pi contours smoothly around the
-      !! boundary of region 4.
-
-      PetscReal, intent(in) :: temperature, xi
-      ! Locals:
-      PetscReal :: s, xi0, xi1, theta
-
-      theta = (temperature - self%widom_delta_zero_temperature) / &
-           self%widom_delta_offset
-      s = hermite_spline_01(theta)
-      xi0 = 0.5_dp * s
-      xi1 = 1._dp - xi0
-      if (xi < 0.5_dp) then
-         xim = 2._dp * xi0 * xi
-      else
-         xim = xi1 + (2._dp * xi - 1._dp) * (1._dp - xi1)
-      end if
-
-    end function near_critical_xi
 
   end subroutine IAPWS_pi_liquidlike
 
