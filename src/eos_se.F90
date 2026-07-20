@@ -1763,6 +1763,17 @@ contains
       type(fluid_type), target, intent(in out) :: fluid
       ! Locals:
       PetscReal :: pi_liq_sat(2), sl, pi_liq
+      type(fluid_type) :: tmp
+
+      call tmp%init(fluid%num_components, fluid%num_phases)
+      call tmp%assign(fluid%internal_data, 1)
+
+      tmp%pressure = fluid%pressure
+      tmp%temperature = fluid%temperature
+      tmp%phase_composition = fluid%phase_composition
+
+      call tmp%phase(1)%copy(fluid%phase(1))
+      call tmp%phase(2)%copy(fluid%phase(2))
 
       select type (thermo => self%thermo)
       type is (IAPWS_type)
@@ -1773,10 +1784,15 @@ contains
               0.5_dp, PETSC_TRUE, pi_liq_sat(2))
          sl = fluid%phase(1)%saturation
          pi_liq = (1._dp - sl) * pi_liq_sat(1) + sl * pi_liq_sat(2)
-         fluid%phase(1)%saturation = pi_liq
-         fluid%phase(2)%saturation = 1._dp - pi_liq
+         tmp%phase(1)%saturation = pi_liq
+         tmp%phase(2)%saturation = 1._dp - pi_liq
 
       end select
+
+      call tmp%phase(3)%zero()
+
+      call fluid%assign_internal()
+      call tmp%destroy()
 
     end subroutine convert_near_critical_region4
 
