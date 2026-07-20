@@ -72,7 +72,7 @@ module utils_module
        array_unique, array_progressive_limit, newton1d, sign_test, &
        hermite_spline_00, hermite_spline_01, hermite_spline_10, &
        hermite_spline_11, hermite_interpolate, &
-       hermite_spline_inv_00
+       hermite_spline_inv_00, sigmoid, midpoint_transform
 
 contains
 
@@ -932,6 +932,47 @@ contains
     hi = h(1) * y0 + h(2) * y1 + dx * (h(3) * d0 + h(4) * d1)
 
   end function hermite_interpolate
+
+!------------------------------------------------------------------------
+
+  PetscReal function sigmoid(xi)
+    !! Sigmoid function on unit interval decreasing from 1 to 0,
+    !! with zero slopes at each end, and constant outside the unit
+    !! interval.
+
+    PetscReal, intent(in) :: xi
+
+    if (xi < 0._dp) then
+       sigmoid = 1._dp
+    else if (xi > 1._dp) then
+       sigmoid = 0._dp
+    else
+       sigmoid = hermite_spline_00(xi)
+    end if
+
+  end function sigmoid
+
+!------------------------------------------------------------------------
+
+  PetscReal function midpoint_transform(xi, mid, ends) result(xi_t)
+    !! Transforms xi coordinate quadratically into space with values
+    !! (0,1) at the ends and value 0.5 at mid (which is not
+    !! necessarily half way between the ends).
+
+    PetscReal, intent(in) :: xi, mid
+    PetscReal, intent(in) :: ends(2)
+    ! Locals:
+    PetscReal :: xi_m, c
+
+    if ((xi < 0._dp) .or. (xi > 1._dp)) then
+       xi_t = xi
+    else
+       xi_m = (mid - ends(1)) / (ends(2) - ends(1))
+       c = (0.5_dp - xi_m) / (xi_m * (xi_m - 1._dp))
+       xi_t = xi * ((1._dp - c) + c * xi)
+    end if
+
+  end function midpoint_transform
 
 !------------------------------------------------------------------------
 
