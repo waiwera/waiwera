@@ -471,6 +471,7 @@ contains
     end if
 
     call eos%convert_fluid(self%cell(1)%fluid, self%cell(2)%fluid)
+
     do i = 1, 2
        phases(i) = nint(self%cell(i)%fluid%phase_composition)
     end do
@@ -511,6 +512,10 @@ contains
       end do
 
     end associate
+
+    do i = 1, 2
+       call self%cell(i)%fluid%assign_external()
+    end do
 
   end function face_flux
 
