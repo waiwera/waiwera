@@ -1697,9 +1697,10 @@ contains
 
          end select
 
-         tmp%pressure = fluid%pressure
-         tmp%temperature = fluid%temperature
+         call tmp%copy_bulk(fluid)
          tmp%phase_composition = fluid%supercritical_phases
+         tmp%supercritical_phases = 0._dp
+
          call tmp%phase(3)%zero()
 
          call fluid%assign_internal()
