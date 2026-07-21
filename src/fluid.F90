@@ -85,6 +85,7 @@ module fluid_module
      !! contain integer data (though stored as real in the underlying
      !! data vector).
      private
+     PetscReal, pointer, contiguous, public :: data(:) !! Fluid data
      PetscReal, pointer, public :: pressure    !! Pressure
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
@@ -106,6 +107,7 @@ module fluid_module
      procedure, public :: init => fluid_init
      procedure, public :: assign => fluid_assign
      procedure, public :: assign_internal => fluid_assign_internal
+     procedure, public :: assign_external => fluid_assign_external
      procedure, public :: destroy => fluid_destroy
      procedure, public :: component_density => fluid_component_density
      procedure, public :: component_mass_fraction => fluid_component_mass_fraction
@@ -117,6 +119,7 @@ module fluid_module
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
      procedure, public :: is_supercritical => fluid_is_supercritical
+     procedure, public :: copy_bulk => fluid_copy_bulk
   end type fluid_type
 
   type, public :: fluid_modifier_type
@@ -299,6 +302,8 @@ contains
     ! Locals:
     PetscInt :: i, p
 
+    self%data => data(offset: offset + self%dof - 1)
+
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
     self%region => data(offset + 2)
@@ -330,12 +335,25 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine fluid_assign_external(self)
+    !! Assign fluid to its external data array.
+
+    class(fluid_type), intent(in out) :: self
+
+    call self%assign(self%data, 1)
+
+  end subroutine fluid_assign_external
+
+!------------------------------------------------------------------------
+
   subroutine fluid_destroy(self)
     !! Destroys a fluid object.
     
     class(fluid_type), intent(in out) :: self
     ! Locals:
     PetscInt :: p
+
+    nullify(self%data)
 
     nullify(self%pressure)
     nullify(self%temperature)
@@ -555,6 +573,18 @@ contains
     fluid_is_supercritical = btest(phases, 2)
 
   end function fluid_is_supercritical
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_copy_bulk(self, other)
+    !! Copies bulk fluid properties from other to self.
+
+    class(fluid_type), intent(in out) :: self
+    class(fluid_type), intent(in) :: other
+
+    self%data(1: self%bulk_dof) = other%data(1: self%bulk_dof)
+
+  end subroutine fluid_copy_bulk
 
 !------------------------------------------------------------------------
 ! Fluid vector setup routine
