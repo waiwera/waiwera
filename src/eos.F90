@@ -233,7 +233,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_convert_fluid(self, fluid1, fluid2)
+  subroutine eos_convert_fluid(self, fluid, converted_fluid)
 
     !! Carry out any conversions of fluid objects before computing
     !! fluxes on face between them. This routine can be overridden by
@@ -242,7 +242,8 @@ contains
     use fluid_module, only: fluid_type
 
     class(eos_type), intent(in) :: self
-    type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
+    type(fluid_type), intent(in) :: fluid
+    type(fluid_type), intent(in out) :: converted_fluid
 
     continue
 

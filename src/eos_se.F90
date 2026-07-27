@@ -1638,77 +1638,60 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_se_convert_fluid(self, fluid1, fluid2)
+  subroutine eos_se_convert_fluid(self, fluid, converted_fluid)
 
-    !! For fluid objects on face, convert supercritical fluid to
-    !! equivalent two-phase fluid for the flux calculation. This
-    !! enables the flux between sub-critical and supercritical cells
-    !! to be computed twice, once treating the supercritical fluid as
-    !! liquid and once treating it as vapour. The effective flux is
-    !! calculated as a weighted sum of the two, according to the
-    !! liquidlike fraction of the supercritical fluid.
+    !! Convert supercritical fluid to equivalent two-phase fluid for
+    !! the flux calculation. This enables the flux between
+    !! sub-critical and supercritical cells to be computed twice, once
+    !! treating the supercritical fluid as liquid and once treating it
+    !! as vapour. The effective flux is calculated as a weighted sum
+    !! of the two, according to the liquidlike fraction of the
+    !! supercritical fluid.
 
     use fluid_module, only: fluid_type
 
     class(eos_se_type), intent(in) :: self
-    type(fluid_type), intent(in out) :: fluid1, fluid2 !! Fluid objects
+    type(fluid_type), intent(in) :: fluid
+    type(fluid_type), intent(in out) :: converted_fluid
+    ! Locals:
+    PetscInt :: super_phases, p
 
-    call convert_scf(fluid1)
-    call convert_scf(fluid2)
+    if (fluid%is_supercritical()) then
 
-  contains
+       super_phases = nint(fluid%supercritical_phases)
 
-    subroutine convert_scf(fluid)
-      ! If fluid is supercritical, convert to equivalent two-phase
-      ! representation.
+       select case (super_phases)
+       case (int(b'001'))
 
-      type(fluid_type), target, intent(in out) :: fluid
-      ! Locals:
-      PetscInt :: super_phases, p
-      type(fluid_type) :: tmp
+          call converted_fluid%phase(1)%copy(fluid%phase(3))
+          call converted_fluid%phase(2)%zero()
 
-      if (fluid%is_supercritical()) then
+       case (int(b'010'))
 
-         call tmp%init(fluid%num_components, fluid%num_phases)
-         call tmp%assign(fluid%internal_data, 1)
+          call converted_fluid%phase(1)%zero()
+          call converted_fluid%phase(2)%copy(fluid%phase(3))
 
-         super_phases = nint(fluid%supercritical_phases)
+       case (int(b'011'))
 
-         select case (super_phases)
-         case (int(b'001'))
+          call converted_fluid%phase(1)%copy(fluid%phase(3))
+          call converted_fluid%phase(2)%copy(fluid%phase(3))
+          converted_fluid%phase(1)%saturation = fluid%liquidlike_fraction
+          converted_fluid%phase(2)%saturation = 1._dp - &
+               converted_fluid%phase(1)%saturation
+          do p = 1, 2
+             converted_fluid%phase(p)%relative_permeability = &
+                  converted_fluid%phase(p)%saturation
+          end do
 
-            call tmp%phase(1)%copy(fluid%phase(3))
-            call tmp%phase(2)%zero()
+       end select
 
-         case (int(b'010'))
+       call converted_fluid%copy_bulk(fluid)
+       converted_fluid%phase_composition = fluid%supercritical_phases
+       converted_fluid%supercritical_phases = 0._dp
 
-            call tmp%phase(1)%zero()
-            call tmp%phase(2)%copy(fluid%phase(3))
+       call converted_fluid%phase(3)%zero()
 
-         case (int(b'011'))
-
-            call tmp%phase(1)%copy(fluid%phase(3))
-            call tmp%phase(2)%copy(fluid%phase(3))
-            tmp%phase(1)%saturation = fluid%liquidlike_fraction
-            tmp%phase(2)%saturation = 1._dp - tmp%phase(1)%saturation
-            do p = 1, 2
-               tmp%phase(p)%relative_permeability = tmp%phase(p)%saturation
-            end do
-
-         end select
-
-         call tmp%copy_bulk(fluid)
-         tmp%phase_composition = fluid%supercritical_phases
-         tmp%supercritical_phases = 0._dp
-
-         call tmp%phase(3)%zero()
-
-         call fluid%assign_internal()
-         call tmp%destroy()
-
-      end if
-
-    end subroutine convert_scf
+    end if
 
   end subroutine eos_se_convert_fluid
 
