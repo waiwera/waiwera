@@ -1028,7 +1028,7 @@ contains
     class(capillary_pressure_type), allocatable :: cp
     PetscInt :: offset(2), rock_offset = 1
     PetscMPIInt :: rank
-    PetscInt :: ierr, i
+    PetscInt :: ierr, i, dof
     PetscErrorCode :: err
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
@@ -1042,9 +1042,10 @@ contains
     do i = 1, 2
        call fluid(i)%init(eos%num_components, eos%num_phases)
     end do
-    allocate(fluid_data(2 * fluid(1)%dof))
+    dof = fluid(1)%dof
+    allocate(fluid_data(2 * dof))
     fluid_data = 0._dp
-    offset = [1, 1 + fluid(1)%dof]
+    offset = [1, 1 + dof]
     do i = 1, 2
        call fluid(i)%assign(fluid_data, offset(i))
     end do
@@ -1058,76 +1059,35 @@ contains
     if (rank == 0) then
 
        call convert_fluid_test( &
-            [1.e5_dp, 20._dp], 1, [1.e5_dp, 20._dp], 1, &
-            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "L-L")
+            [1.e5_dp, 20._dp], 1, 1, [1._dp, 0._dp, 0._dp], "L")
 
        call convert_fluid_test( &
-            [3.e5_dp, 120._dp], 1, [1.e5_dp, 120._dp], 2, &
-            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-V")
+            [1.e5_dp, 120._dp], 2, 2, [0._dp, 1._dp, 0._dp], "V")
 
        call convert_fluid_test( &
-            [3.e5_dp, 120._dp], 1, [1.e5_dp, 0.3_dp], 4, &
-            [1, 3], [1.0_dp, 0._dp, 0._dp], [0.7_dp, 0.3_dp, 0._dp], "L-2P")
+            [1.e5_dp, 0.3_dp], 4, 3, [0.7_dp, 0.3_dp, 0._dp], "2P")
 
        call convert_fluid_test( &
-            [600._dp, 380._dp], 3, [600._dp, 390._dp], 3, &
-            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "SL-SL")
+            [600._dp, 390._dp], 3, 1, [1._dp, 0._dp, 0._dp], "SL")
 
        call convert_fluid_test( &
-            [600._dp, 390._dp], 3, [163._dp, 385._dp], 3, &
-            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "SL-SV")
+            [163._dp, 385._dp], 3, 2, [0._dp, 1._dp, 0._dp], "SV")
 
        call convert_fluid_test( &
-            [600._dp, 390._dp], 3, [291._dp, 400._dp], 3, &
-            [1, 3], [1._dp, 0._dp, 0._dp], [0.50006117143812734_dp, &
-            0.49993882856187266_dp, 0._dp], "SL-S2P")
+            [291._dp, 400._dp], 3, 3, [0.50006117143812734_dp, &
+            0.49993882856187266_dp, 0._dp], "SW")
 
        call convert_fluid_test( &
-            [40.e6_dp, 340._dp], 1, [650._dp, 360._dp], 3, &
-            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "L-3L")
+            [650._dp, 360._dp], 3, 1, [1._dp, 0._dp, 0._dp], "3L")
 
        call convert_fluid_test( &
-            [17.e6_dp, 360._dp], 2, [150._dp, 370._dp], 3, &
-            [2, 2], [0._dp, 1._dp, 0._dp], [0._dp, 1._dp, 0._dp], "V-3V")
+            [150._dp, 370._dp], 3, 2, [0._dp, 1._dp, 0._dp], "3V")
 
        call convert_fluid_test( &
-            [50.e6_dp, 340._dp], 1, [600._dp, 380._dp], 3, &
-            [1, 1], [1._dp, 0._dp, 0._dp], [1._dp, 0._dp, 0._dp], "L-SL")
+            [10.e6_dp, 1200._dp], 5, 2, [0._dp, 1._dp, 0._dp], "HV")
 
        call convert_fluid_test( &
-            [50.e6_dp, 340._dp], 1, [163._dp, 385._dp], 3, &
-            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-SV")
-
-       call convert_fluid_test( &
-            [50.e6_dp, 340._dp], 1, [290._dp, 450._dp], 3, &
-            [1, 3], [1._dp, 0._dp, 0._dp], [0.34326398922634693_dp, &
-            0.65673601077365307_dp, 0._dp], "L-S2P")
-
-       call convert_fluid_test( &
-            [18.e6_dp, 0.3_dp], 4, [600._dp, 380._dp], 3, &
-            [3, 1], [0.7_dp, 0.3_dp, 0._dp], [1._dp, 0._dp, 0._dp], "2P-SL")
-
-       call convert_fluid_test( &
-            [18.e6_dp, 0.3_dp], 4, [163._dp, 385._dp], 3, &
-            [3, 2], [0.7_dp, 0.3_dp, 0._dp], [0._dp, 1._dp, 0._dp], "2P-SV")
-
-       call convert_fluid_test( &
-            [18.e6_dp, 0.3_dp], 4, [358._dp, 400._dp], 3, &
-            [3, 3], [0.7_dp, 0.3_dp, 0._dp], &
-            [0.62250733832501437_dp, 0.37749266167498563_dp, 0._dp], "2P-S2P")
-
-       call convert_fluid_test( &
-            [18.e6_dp, 0.3_dp], 4, [40.e6_dp, 500._dp], 2, &
-            [3, 3], [0.7_dp, 0.3_dp, 0._dp], &
-            [0.020115471980336697_dp, 0.9798845280196633_dp, 0._dp], "2P-2S2P")
-
-       call convert_fluid_test( &
-            [3.e5_dp, 120._dp], 1, [10.e6_dp, 1200._dp], 5, &
-            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-HV")
-
-       call convert_fluid_test( &
-            [3.e5_dp, 120._dp], 1, [30.e6_dp, 1200._dp], 5, &
-            [1, 2], [1._dp, 0._dp, 0._dp], [0._dp, 1._dp, 0._dp], "L-HVS")
+            [30.e6_dp, 1200._dp], 5, 2, [0._dp, 1._dp, 0._dp], "HVS")
 
     end if
 
@@ -1144,37 +1104,28 @@ contains
 
   contains
 
-    subroutine convert_fluid_test(primary1, region1, primary2, &
-         region2, expected_phase_composition, expected_saturations1, &
-         expected_saturations2, name)
+    subroutine convert_fluid_test(primary, region, &
+         expected_phase_composition, expected_saturations, name)
 
-      PetscReal, intent(in) :: primary1(eos%num_primary_variables)
-      PetscReal, intent(in) :: primary2(eos%num_primary_variables)
-      PetscInt, intent(in) :: region1, region2
-      PetscInt, intent(in) :: expected_phase_composition(2)
-      PetscReal, intent(in) :: expected_saturations1(eos%num_mobile_phases)
-      PetscReal, intent(in) :: expected_saturations2(eos%num_mobile_phases)
+      PetscReal, intent(in) :: primary(eos%num_primary_variables)
+      PetscInt, intent(in) :: region
+      PetscInt, intent(in) :: expected_phase_composition
+      PetscReal, intent(in) :: expected_saturations(eos%num_mobile_phases)
       character(*), intent(in) :: name
       ! Locals:
-      PetscReal :: sat1(eos%num_mobile_phases), sat2(eos%num_mobile_phases)
+      PetscReal :: sat(eos%num_mobile_phases)
 
-      fluid(1)%region = dble(region1)
-      call eos%fluid_properties(primary1, rock, fluid(1), err)
-      fluid(2)%region = dble(region2)
-      call eos%fluid_properties(primary2, rock, fluid(2), err)
-
+      fluid(1)%region = dble(region)
+      call eos%fluid_properties(primary, rock, fluid(1), err)
+      fluid_data(offset(2): offset(2) + dof - 1) = &
+           fluid_data(offset(1): offset(1) + dof - 1)
       call eos%convert_fluid(fluid(1), fluid(2))
 
-      call test%assert(expected_phase_composition(1), &
-           nint(fluid(1)%phase_composition), name // ' phases 1')
-      call test%assert(expected_phase_composition(2), &
-           nint(fluid(2)%phase_composition), name // ' phases 2')
-      sat1 = [fluid(1)%phase(1)%saturation, fluid(1)%phase(2)%saturation, &
-           fluid(1)%phase(3)%saturation]
-      call test%assert(expected_saturations1, sat1, name // ' saturations 1')
-      sat2 = [fluid(2)%phase(1)%saturation, fluid(2)%phase(2)%saturation, &
+      call test%assert(expected_phase_composition, &
+           nint(fluid(2)%phase_composition), name // ' phases')
+      sat = [fluid(2)%phase(1)%saturation, fluid(2)%phase(2)%saturation, &
            fluid(2)%phase(3)%saturation]
-      call test%assert(expected_saturations2, sat2, name // ' saturations 2')
+      call test%assert(expected_saturations, sat, name // ' saturations')
 
     end subroutine convert_fluid_test
 

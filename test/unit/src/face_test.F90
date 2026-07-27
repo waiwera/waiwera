@@ -745,14 +745,15 @@ contains
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
-    type(fluid_type) :: fluid
+    type(fluid_type) :: fluid, cfluid
     type(eos_se_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
     PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
     PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: converted_fluid_data(:)
     PetscReal, allocatable :: flux(:)
-    PetscInt :: face_offset, cell_offsets(2)
+    PetscInt :: face_offset, cell_offsets(2), i
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal :: density
     PetscReal, parameter :: expected_density = 656._dp
@@ -773,9 +774,11 @@ contains
        call cell%init(eos%num_components, eos%num_phases)
        call face%init(eos%num_components, eos%num_phases)
        call fluid%init(eos%num_components, eos%num_phases)
+       call cfluid%init(eos%num_components, eos%num_phases)
        call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
-       allocate(rock_data(rock%dof), fluid_data(fluid%dof * 2))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof * 2), &
+            converted_fluid_data(fluid%dof * 2))
        allocate(flux(eos%num_primary_variables + eos%num_mobile_phases))
        face_offset = 1
        cell_offsets = [1, 1]
@@ -798,13 +801,20 @@ contains
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             712._dp, 9.e-5_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
             1500.e3_dp, 1450.e3_dp, 1._dp]
+       converted_fluid_data = fluid_data
 
        call face%assign_geometry(face_data, face_offset)
        call face%assign_cell_geometry(cell_data, cell_offsets)
        call face%assign_cell_rock(rock_data, rock_offsets)
-       call face%assign_cell_fluid(fluid_data, fluid_offsets)
+       call face%assign_cell_fluid(converted_fluid_data, fluid_offsets)
 
-       density = face%phase_density(3)
+       do i = 1, 2
+          call fluid%assign(fluid_data, fluid_offsets(i))
+          call cfluid%assign(converted_fluid_data, fluid_offsets(i))
+          call eos%convert_fluid(fluid, cfluid)
+       end do
+
+       density = face%phase_density(1)
        call test%assert(expected_density, density, "Liquid density")
 
        flux = face%flux(eos)
@@ -814,8 +824,10 @@ contains
        call cell%destroy()
        call face%destroy()
        call fluid%destroy()
+       call cfluid%destroy()
        call rock%destroy()
-       deallocate(face_data, cell_data, rock_data, fluid_data, flux)
+       deallocate(face_data, cell_data, rock_data, fluid_data, &
+            converted_fluid_data, flux)
 
     end if
 
@@ -841,14 +853,15 @@ contains
     type(face_type) :: face
     type(cell_type) :: cell
     type(rock_type) :: rock
-    type(fluid_type) :: fluid
+    type(fluid_type) :: fluid, cfluid
     type(eos_se_type) :: eos
     type(IAPWS_type) :: thermo
     type(fson_value), pointer :: json
     PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
     PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: converted_fluid_data(:)
     PetscReal, allocatable :: flux(:)
-    PetscInt :: face_offset, cell_offsets(2)
+    PetscInt :: i, face_offset, cell_offsets(2)
     PetscInt :: rock_offsets(2), fluid_offsets(2)
     PetscReal :: density
     PetscReal, parameter :: expected_density(2) = &
@@ -870,9 +883,11 @@ contains
        call cell%init(eos%num_components, eos%num_phases)
        call face%init(eos%num_components, eos%num_phases)
        call fluid%init(eos%num_components, eos%num_phases)
+       call cfluid%init(eos%num_components, eos%num_phases)
        call rock%init()
        allocate(face_data(face%dof), cell_data(cell%dof))
-       allocate(rock_data(rock%dof), fluid_data(fluid%dof * 2))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof * 2), &
+            converted_fluid_data(fluid%dof * 2))
        allocate(flux(eos%num_primary_variables + eos%num_mobile_phases))
        face_offset = 1
        cell_offsets = [1, 1]
@@ -897,11 +912,18 @@ contains
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
             382.839167051206_dp, 4.5486482996368864e-05_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
             2025.1604273800494e3_dp, 1962.4709168347767e3_dp, 1._dp]
+       converted_fluid_data = fluid_data
 
        call face%assign_geometry(face_data, face_offset)
        call face%assign_cell_geometry(cell_data, cell_offsets)
        call face%assign_cell_rock(rock_data, rock_offsets)
-       call face%assign_cell_fluid(fluid_data, fluid_offsets)
+       call face%assign_cell_fluid(converted_fluid_data, fluid_offsets)
+
+       do i = 1, 2
+          call fluid%assign(fluid_data, fluid_offsets(i))
+          call cfluid%assign(converted_fluid_data, fluid_offsets(i))
+          call eos%convert_fluid(fluid, cfluid)
+       end do
 
        flux = face%flux(eos)
        call test%assert(expected_component_flux, flux(1:2), "Component flux")
@@ -915,8 +937,10 @@ contains
        call cell%destroy()
        call face%destroy()
        call fluid%destroy()
+       call cfluid%destroy()
        call rock%destroy()
-       deallocate(face_data, cell_data, rock_data, fluid_data, flux)
+       deallocate(face_data, cell_data, rock_data, fluid_data, &
+            converted_fluid_data, flux)
 
     end if
 
