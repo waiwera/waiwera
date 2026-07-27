@@ -1356,7 +1356,7 @@ contains
     ! Locals:
     PetscInt :: f, i, np, nf, iface
     PetscInt :: start_cell, end_cell, end_interior_cell
-    Vec :: local_fluid, local_rock, local_update
+    Vec :: local_fluid, local_rock, local_update, converted_fluid
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
@@ -1379,6 +1379,10 @@ contains
     nf = np + self%eos%num_mobile_phases ! total number of fluxes stored
     allocate(face_flux(nf), face_component_flow(np))
 
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
+
     call global_vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     rhs_array = 0._dp
@@ -1390,7 +1394,8 @@ contains
     call VecGetArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
-    call global_to_local_vec_section(self%current_fluid, local_fluid, &
+    call convert_fluids(self%current_fluid, converted_fluid)
+    call global_to_local_vec_section(converted_fluid, local_fluid, &
          fluid_section)
     call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -1405,9 +1410,6 @@ contains
     call VecGetArrayF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
 
     call face%init(self%eos%num_components, self%eos%num_mobile_phases)
-    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
     do iface = 1, size(self%mesh%flux_face)
 
@@ -1483,6 +1485,53 @@ contains
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flux, face_component_flow)
+    call VecDestroy(converted_fluid, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine convert_fluids(current_fluid, converted_fluid)
+      !! Convert fluids for flux calculation - for e.g. supercritical
+      !! cells that need to be converted to an equivalent two-phase
+      !! representation.
+
+      use fluid_module, only: fluid_type
+
+      Vec, intent(in) :: current_fluid
+      Vec, intent(out) :: converted_fluid
+      ! Locals:
+      PetscInt :: nc, nph, c, fluid_offset
+      PetscReal, pointer, contiguous :: fluid_array(:), converted_fluid_array(:)
+      type(fluid_type) :: fluid, cfluid
+      PetscSection :: section
+
+      call VecDuplicate(current_fluid, converted_fluid, ierr); CHKERRQ(ierr)
+      call VecCopy(current_fluid, converted_fluid, ierr); CHKERRQ(ierr)
+
+      call global_vec_section(current_fluid, section)
+      call VecGetArrayReadF90(current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+      call VecGetArrayF90(converted_fluid, converted_fluid_array, ierr); CHKERRQ(ierr)
+
+      nc = self%eos%num_components
+      nph = self%eos%num_phases
+      call fluid%init(nc, nph)
+      call cfluid%init(nc, nph)
+
+      do c = start_cell, end_interior_cell - 1
+         if (self%mesh%ghost_cell(c) < 0) then
+            fluid_offset = global_section_offset(section, c, &
+                 self%fluid_range_start)
+            call fluid%assign(fluid_array, fluid_offset)
+            call cfluid%assign(converted_fluid_array, fluid_offset)
+            call self%eos%convert_fluid(fluid, cfluid)
+         end if
+      end do
+
+      call fluid%destroy()
+      call cfluid%destroy()
+      call VecRestoreArrayF90(converted_fluid, converted_fluid_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    end subroutine convert_fluids
 
   end subroutine flow_simulation_cell_inflows
 
