@@ -101,13 +101,10 @@ module fluid_module
      PetscInt, public :: dof !! Number of degrees of freedom
      PetscInt, public :: bulk_dof !! Number of degrees of freedom for bulk fluid properties
      PetscInt, public :: phase_dof !! Number of degrees of freedom per phase
-     PetscReal, pointer, contiguous, public :: internal_data(:) !! Temporary internal data array
    contains
      private
      procedure, public :: init => fluid_init
      procedure, public :: assign => fluid_assign
-     procedure, public :: assign_internal => fluid_assign_internal
-     procedure, public :: assign_external => fluid_assign_external
      procedure, public :: destroy => fluid_destroy
      procedure, public :: component_density => fluid_component_density
      procedure, public :: component_mass_fraction => fluid_component_mass_fraction
@@ -285,8 +282,6 @@ contains
     self%phase_dof = num_phase_variables + self%num_components - 1
     self%bulk_dof = num_fluid_variables + self%num_components - 1
     self%dof = self%bulk_dof + self%num_phases * self%phase_dof
-    allocate(self%internal_data(self%dof))
-    self%internal_data = 0._dp
 
   end subroutine fluid_init
     
@@ -324,28 +319,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fluid_assign_internal(self)
-    !! Assign fluid to its own internal data array.
-
-    class(fluid_type), intent(in out) :: self
-
-    call self%assign(self%internal_data, 1)
-
-  end subroutine fluid_assign_internal
-
-!------------------------------------------------------------------------
-
-  subroutine fluid_assign_external(self)
-    !! Assign fluid to its external data array.
-
-    class(fluid_type), intent(in out) :: self
-
-    call self%assign(self%data, 1)
-
-  end subroutine fluid_assign_external
-
-!------------------------------------------------------------------------
-
   subroutine fluid_destroy(self)
     !! Destroys a fluid object.
     
@@ -369,7 +342,6 @@ contains
        call self%phase(p)%destroy()
     end do
     deallocate(self%phase)
-    deallocate(self%internal_data)
 
   end subroutine fluid_destroy
 
