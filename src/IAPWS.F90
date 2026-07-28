@@ -33,8 +33,7 @@ module IAPWS_module
   use kinds_module
   use powertable_module
   use thermodynamics_module
-  use utils_module, only: polynomial, newton1d, &
-       hermite_interpolate, hermite_spline_00, hermite_spline_01
+  use utils_module, only: polynomial, newton1d
 
   implicit none
   private
@@ -1052,6 +1051,9 @@ module IAPWS_module
      PetscReal, public :: min_liquid_density_bdy_1_3, max_vapour_density_bdy_1_3
      PetscReal, public :: widom_slope = 6.479_dp !! Slope A_s of Widom line for water (Banuti et al., 2017)
      PetscReal, allocatable, public :: widom_delta_slope(:) !! Widom delta boundary slopes
+     PetscReal :: widom_delta_angle(2) !! Widom delta boundary angles in T*, P* space
+     PetscReal :: widom_delta_grade !! Steepness parameter for liquidlike fraction at Widom line
+     PetscReal :: erf_b !! Parameter for transformed error function used for liquidlike fraction interpolation in Widom delta
      PetscReal :: widom_delta_delp = 0.02e6_dp !! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
      PetscReal :: widom_interpolation_pressure !! Pressure below which to interpolate Widom slope
      PetscReal :: critical_saturation_slope !! Slope of saturation line at critical point
@@ -1060,8 +1062,6 @@ module IAPWS_module
      procedure, public :: init => IAPWS_init
      procedure, public :: destroy => IAPWS_destroy
      procedure, public :: phase_composition => IAPWS_phase_composition
-     procedure :: banuti => IAPWS_banuti
-     procedure, public :: widom => IAPWS_widom
      procedure, public :: widom_delta => IAPWS_widom_delta
      procedure, public :: pi_liquidlike => IAPWS_pi_liquidlike
   end type IAPWS_type
@@ -1081,6 +1081,7 @@ contains
     use fson_value_m, only: TYPE_OBJECT
     use fson_mpi_module
     use logfile_module
+    use utils_module, only: pi
 
     class(IAPWS_type), intent(in out) :: self
     type(fson_value), pointer, intent(in), optional :: json !! JSON input object
@@ -1088,10 +1089,11 @@ contains
     ! Locals:
     PetscInt :: i, thermo_type
     PetscBool :: defaults
-    PetscReal :: props(2)
+    PetscReal :: props(2), xiw
     PetscErrorCode :: err
     PetscBool, parameter :: default_extrapolate = PETSC_FALSE
     PetscReal, parameter :: default_widom_delta_slope(2) = [31.46_dp, 2.356_dp]
+    PetscReal, parameter :: default_widom_delta_grade = 0.5_dp
 
     self%name = "IAPWS-97"
 
@@ -1126,6 +1128,9 @@ contains
              call fson_get_mpi(json, "thermodynamics.widom.delta.slope", &
                   default_widom_delta_slope, self%widom_delta_slope, &
                   logfile)
+             call fson_get_mpi(json, "thermodynamics.widom.delta.grade", &
+                  default_widom_delta_grade, self%widom_delta_grade, &
+                  logfile)
              defaults = PETSC_FALSE
           end if
        end if
@@ -1144,6 +1149,12 @@ contains
                real_keys = ['thermodynamics.widom.delta.slope[0]', &
                'thermodynamics.widom.delta.slope[1]'], &
                real_values = default_widom_delta_slope)
+       end if
+       self%widom_delta_grade = default_widom_delta_grade
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               real_keys = ['thermodynamics.widom.delta.grade'], &
+               real_values = [default_widom_delta_grade])
        end if
     end if
 
@@ -1168,6 +1179,11 @@ contains
             self%widom_delta_delp
     end select
     self%critical_saturation_slope = 7.8640285295767445_dp ! from symbolic differentiation of saturation line
+
+    self%widom_delta_angle = atan(self%widom_delta_slope / self%widom_slope)
+    xiw = (self%widom_delta_angle(1) - 0.25_dp * pi) / &
+         (self%widom_delta_angle(1) - self%widom_delta_angle(2))
+    self%erf_b = -log(2._dp) / log(xiw) ! so sigmoid attains 0.5 at xiw
 
   end subroutine IAPWS_init
 
@@ -1248,89 +1264,31 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function IAPWS_banuti(self, pressure, reference_pressure, &
-       slope) result(temperature)
-    !! Inverse of exponential Widom function of Banuti et al. (2017)
-    !! (not actually part of the IAPWS formulation).
-
-    class(IAPWS_type), intent(in) :: self
-    PetscReal, intent(in) :: pressure !! Pressure
-    PetscReal, intent(in) :: reference_pressure !! Reference for pressure scaling
-    PetscReal, intent(in) :: slope !! Exponential slope factor
-
-    temperature = self%critical%temperature_k * (1._dp + &
-            log(pressure / reference_pressure) / slope) - tc_k
-
-  end function IAPWS_banuti
-
-!------------------------------------------------------------------------
-
-  subroutine IAPWS_widom(self, pressure, temperature, err)
-    !! Returns Widom line temperature as a function of pressure,
-    !! according to Banuti et al. (2017). The slope is interpolated
-    !! over a small pressure range above the critical point to remain
-    !! differentiable where it meets the saturation line.
-
-    class(IAPWS_type), intent(in out) :: self
-    PetscReal, intent(in) :: pressure
-    PetscReal, intent(out) :: temperature
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: slope, xi, h
-
-    select type (region3 => self%region(3)%ptr)
-    type is (IAPWS_region3_type)
-       associate (critical_pressure => region3%computed_critical_pressure)
-
-         if (pressure >= critical_pressure) then
-
-            if (pressure < self%widom_interpolation_pressure) then
-               xi = (pressure - critical_pressure) / self%widom_delta_delP
-               h = hermite_spline_01(xi)
-               slope = (1._dp - h) * self%critical_saturation_slope + &
-                    h * self%widom_slope
-            else
-               slope = self%widom_slope
-            end if
-
-            temperature = self%banuti(pressure, critical_pressure, slope)
-            err = 0
-
-         else
-            err = 1
-         end if
-
-       end associate
-    end select
-
-  end subroutine IAPWS_widom
-
-!------------------------------------------------------------------------
-
   subroutine IAPWS_widom_delta(self, pressure, delta, err)
     !! Returns Widom delta minimum and maximum temperatures as a
     !! function of pressure. These are the temperatures at which the
     !! number fractions of liquid-like particles are 1 and 0
     !! respectively. The Widom delta boundaries are assumed to grow
     !! logarithmically with pressure difference from the critical
-    !! point, starting from a small finite width (for numerical
-    !! purposes). This is an approximation to the Widom delta
-    !! boundaries given by Wang et al. (2021).
+    !! point. This is an approximation to the Widom delta boundaries
+    !! given by Wang et al. (2021).
 
     class(IAPWS_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure
     PetscReal, intent(out) :: delta(2)
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: Pr, tstar(2), Tr(2)
 
     err = 0
 
     select type (region3 => self%region(3)%ptr)
     type is (IAPWS_region3_type)
        associate (critical_pressure => region3%computed_critical_pressure)
-         delta(1) = self%banuti(pressure, critical_pressure, &
-              self%widom_delta_slope(1))
-         delta(2) = self%banuti(pressure, critical_pressure, &
-              self%widom_delta_slope(2))
+         Pr = pressure / critical_pressure
+         tstar = log(Pr) / self%widom_delta_slope
+         Tr = tstar + 1._dp
+         delta = Tr * self%critical%temperature_k - tc_k
        end associate
     end select
 
@@ -1343,12 +1301,14 @@ contains
     !! Returns number fraction of liquid-like fluid particles as a
     !! function of pressure and temperature. For supercritical fluid
     !! this is assumed to vary smoothly from 1 to 0 through the Widom
-    !! delta according to a cubic Hermite polynomial with zero slope
+    !! delta according to a sigmoid function with zero slope
     !! at both ends and value 0.5 at the Widom line. For sub-critical
     !! fluid, the result is determined by the given density. Also
     !! returns a pseudo-phase composition, corresponding to whether
     !! the fluid is completely liquidlike (001), vapourlike (010) or
     !! in between (011).
+
+    use utils_module, only: pi, sigmoid
 
     class(IAPWS_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure, temperature, density
@@ -1356,7 +1316,7 @@ contains
     PetscInt, intent(out) :: pseudo_phases
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: widom_temperature, delta(2), xi, xit
+    PetscReal :: pstar, tstar, theta, xi
     PetscReal, parameter :: eps = epsilon(pi_liq)
 
     err = 0
@@ -1367,33 +1327,36 @@ contains
        if (pressure >= region3%computed_critical_pressure) then
           if (temperature >= self%critical%temperature) then
 
-             call self%widom(pressure, widom_temperature, err)
-             if (err == 0) then
-                call self%widom_delta(pressure, delta, err)
-                if (err == 0) then
+             tstar = (temperature + tc_k) / self%critical%temperature_k - 1._dp
+             pstar = log(pressure / region3%computed_critical_pressure) / &
+                  self%widom_slope
 
-                   if (delta(2) > delta(1)) then
-                      xi = (temperature - delta(1)) / (delta(2) - delta(1))
-                      xit = transform_xi(xi, widom_temperature, delta)
-                      pi_liq = sigmoid(xit)
-                   else
-                      if (temperature > delta(2)) then
-                         pi_liq = 0._dp
-                      else if (temperature < delta(1)) then
-                         pi_liq = 1._dp
-                      else
-                         pi_liq = 0.5_dp
-                      end if
-                   end if
+             if (tstar > eps) then
+                theta = atan(pstar / tstar)
+             else
+                if (pstar > eps) then
+                   theta = 0.5_dp * pi
+                else
+                   theta = 0.25_dp * pi
+                end if
+             end if
 
-                   if (pi_liq < eps) then
-                      pseudo_phases = int(b'010')
-                   else if (pi_liq < 1._dp - eps) then
-                      pseudo_phases = int(b'011')
-                   else
-                      pseudo_phases = int(b'001')
-                   end if
-
+             if (theta > self%widom_delta_angle(1)) then
+                pi_liq = 1._dp
+                pseudo_phases = int(b'001')
+             else if (theta < self%widom_delta_angle(2)) then
+                pi_liq = 0._dp
+                pseudo_phases = int(b'010')
+             else ! Widom delta:
+                xi = (self%widom_delta_angle(1) - theta) / &
+                     (self%widom_delta_angle(1) - self%widom_delta_angle(2))
+                pi_liq = sigmoid(self%widom_delta_grade, self%erf_b, xi)
+                if (pi_liq < eps) then
+                   pseudo_phases = int(b'010')
+                else if (pi_liq < 1._dp - eps) then
+                   pseudo_phases = int(b'011')
+                else
+                   pseudo_phases = int(b'001')
                 end if
              end if
 
@@ -1413,47 +1376,6 @@ contains
           end if
        end if
     end select
-
-  contains
-
-    PetscReal function transform_xi(xi, mid, ends) result(xi_t)
-      !! Transforms xi coordinate quadratically into space with values
-      !! (0,1) at the ends and value 0.5 at mid (which is not
-      !! necessarily half way between the ends).
-
-      PetscReal, intent(in) :: xi, mid
-      PetscReal, intent(in) :: ends(2)
-      ! Locals:
-      PetscReal :: xi_m, c
-
-      if ((xi < 0._dp) .or. (xi > 1._dp)) then
-         xi_t = xi
-      else
-         xi_m = (mid - ends(1)) / (ends(2) - ends(1))
-         c = (0.5_dp - xi_m) / (xi_m * (xi_m - 1._dp))
-         xi_t = xi * ((1._dp - c) + c * xi)
-      end if
-
-    end function transform_xi
-
-!........................................................................
-
-    PetscReal function sigmoid(xi)
-      !! Sigmoid function on unit interval decreasing from 1 to 0,
-      !! with zero slopes at each end, and constant outside the unit
-      !! interval.
-
-      PetscReal, intent(in) :: xi
-
-    if (xi < 0._dp) then
-       sigmoid = 1._dp
-    else if (xi > 1._dp) then
-       sigmoid = 0._dp
-    else
-       sigmoid = hermite_spline_00(xi)
-    end if
-
-    end function sigmoid
 
   end subroutine IAPWS_pi_liquidlike
 

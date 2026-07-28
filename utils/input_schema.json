@@ -103,6 +103,7 @@
                                "delta": {
                                    "type": "object",
                                    "properties": {
+                                       "grade": {"type": "number", "minimum": 0},
                                        "slope": {"type": "array",
                                                  "items": {"type": "number", "minimum": 0},
                                                  "minItems": 2, "maxItems": 2}

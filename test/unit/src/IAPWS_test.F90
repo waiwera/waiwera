@@ -21,7 +21,7 @@ module IAPWS_test
        test_IAPWS_boundary23, test_IAPWS_phase_composition, &
        test_IAPWS_region3_subbdy, test_IAPWS_region3_dpdd, &
        test_IAPWS_region3_density, test_IAPWS_region3_saturation_density, &
-       test_IAPWS_widom, test_IAPWS_pi_liquidlike, &
+       test_IAPWS_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
        test_IAPWS_region3_subregion_index, test_IAPWS_bdy_consistency
 
@@ -812,65 +812,6 @@ module IAPWS_test
 
 !------------------------------------------------------------------------
 
-  subroutine test_IAPWS_widom(test)
-    ! IAPWS Widom line and delta tests
-
-    class(unit_test_type), intent(in out) :: test
-    ! Locals:
-    PetscMPIInt :: rank
-    PetscInt :: ierr
-
-    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
-    if (rank == 0) then
-
-       call widom_case(IAPWS%critical%pressure, &
-            [IAPWS%critical%temperature, IAPWS%critical%temperature], 0, 'case 1')
-       call widom_case(40.e6_dp, &
-            [386.1830694080271_dp, 537.3493122141463_dp], 0, 'case 2')
-       call widom_case(75.e6_dp, &
-            [399.11282621278156_dp, 710.002176848094_dp], 0, 'case 3')
-       call widom_case(100.e6_dp, &
-            [405.0301154166996_dp, 789.0165734335175_dp], 0, 'case 4')
-
-    end if
-
-  contains
-
-    PetscReal function widom_p(t)
-      ! Widom line from Banuti et al. (2017)
-      PetscReal, intent(in) :: t
-
-      widom_p = IAPWS%critical%pressure * exp(IAPWS%widom_slope * &
-           ((t + tc_k) / IAPWS%critical%temperature_k - 1._dp))
-
-    end function widom_p
-
-    subroutine widom_case(p, expected_delta, expected_err, name)
-
-      PetscReal, intent(in) :: p, expected_delta(2)
-      PetscErrorCode, intent(in) :: expected_err
-      character(*), intent(in) :: name
-      ! Locals:
-      PetscReal :: t, delta(2)
-      PetscErrorCode :: err
-
-      call IAPWS%widom(p, t, err)
-      call test%assert(expected_err, err, name // ' widom error')
-      if (err == 0) then
-         call test%assert(p, widom_p(t), name // ' widom temperature')
-         call IAPWS%widom_delta(p, delta, err)
-         call test%assert(expected_err, err, name // ' widom delta error')
-         if (err == 0) then
-            call test%assert(expected_delta, delta, name // ' widom delta')
-         end if
-      end if
-
-    end subroutine widom_case
-
-  end subroutine test_IAPWS_widom
-
-!------------------------------------------------------------------------
-
   subroutine test_IAPWS_pi_liquidlike(test)
     ! IAPWS pi_liquidlike tests
 
@@ -892,11 +833,11 @@ module IAPWS_test
        call pi_liquidlike_case(IAPWS%critical%pressure, 700._dp, 0._dp, &
             0.0_dp, 2, 0, 'case 3')
        call pi_liquidlike_case(64.e6_dp, 450._dp, 0._dp, &
-            0.7315542263694861_dp, 3, 0, 'case 4')
+            0.8593012212223283_dp, 3, 0, 'case 4')
        call pi_liquidlike_case(64.e6_dp, 520._dp, 0._dp, &
-            0.2467814866882898_dp, 3, 0, 'case 5')
+            0.1368402639143666_dp, 3, 0, 'case 5')
        call pi_liquidlike_case(64.e6_dp, 600._dp, 0._dp, &
-            0.01972162759518381_dp, 3, 0, 'case 6')
+            7.26856297372791e-9_dp, 3, 0, 'case 6')
        call pi_liquidlike_case(40.e6_dp, 377._dp, 0._dp, &
             1.0_dp, 1, 0, 'case 7')
        call pi_liquidlike_case(30.e6_dp, 500._dp, 0._dp, &
