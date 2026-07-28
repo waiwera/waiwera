@@ -72,7 +72,7 @@ module utils_module
        array_unique, array_progressive_limit, newton1d, sign_test, &
        hermite_spline_00, hermite_spline_01, hermite_spline_10, &
        hermite_spline_11, hermite_interpolate, &
-       hermite_spline_inv_00
+       hermite_spline_inv_00, sigmoid
 
 contains
 
@@ -932,6 +932,32 @@ contains
     hi = h(1) * y0 + h(2) * y1 + dx * (h(3) * d0 + h(4) * d1)
 
   end function hermite_interpolate
+
+!------------------------------------------------------------------------
+
+  PetscReal function sigmoid(a, b, x)
+    !! Sigmoid function interpolating smoothly between values 1 at x =
+    !! 0 and 0 at x = 1, based on a transformed error function. The
+    !! parameter a controls the maximum slope and b controls where in
+    !! the unit interval the function attains the value 0.5.
+
+    PetscReal, intent(in) :: a, b !! Parameters
+    PetscReal, intent(in) :: x
+    ! Locals:
+    PetscReal :: xb
+    PetscReal, parameter :: eps = 1.e-16_dp
+
+    if (x < eps) then
+       sigmoid = 1._dp
+    else if (x > 1._dp - eps) then
+       sigmoid = 0._dp
+    else
+       xb = x ** b
+       sigmoid = 0.5_dp - 0.5_dp * erf((a * (2._dp * xb - 1._dp)) / &
+            (xb * (1._dp - xb)))
+    end if
+
+  end function sigmoid
 
 !------------------------------------------------------------------------
 
