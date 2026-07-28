@@ -1054,9 +1054,6 @@ module IAPWS_module
      PetscReal :: widom_delta_angle(2) !! Widom delta boundary angles in T*, P* space
      PetscReal :: widom_delta_grade !! Steepness parameter for liquidlike fraction at Widom line
      PetscReal :: erf_b !! Parameter for transformed error function used for liquidlike fraction interpolation in Widom delta
-     PetscReal :: widom_delta_delp = 0.02e6_dp !! Pressure range above critical point over which to interpolate centre of delta between saturation line slope and Widom line
-     PetscReal :: widom_interpolation_pressure !! Pressure below which to interpolate Widom slope
-     PetscReal :: critical_saturation_slope !! Slope of saturation line at critical point
    contains
      private
      procedure, public :: init => IAPWS_init
@@ -1172,14 +1169,7 @@ contains
          self%temperature_bdy_1_3], props, err)
     self%max_vapour_density_bdy_1_3 = props(1)
 
-    ! Auxiliary Widom delta parameters:
-    select type (region3 => self%region(3)%ptr)
-    type is (IAPWS_region3_type)
-       self%widom_interpolation_pressure = region3%computed_critical_pressure + &
-            self%widom_delta_delp
-    end select
-    self%critical_saturation_slope = 7.8640285295767445_dp ! from symbolic differentiation of saturation line
-
+    ! Widom delta interpolation parameters:
     self%widom_delta_angle = atan(self%widom_delta_slope / self%widom_slope)
     xiw = (self%widom_delta_angle(1) - 0.25_dp * pi) / &
          (self%widom_delta_angle(1) - self%widom_delta_angle(2))
