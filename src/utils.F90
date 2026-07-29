@@ -935,14 +935,14 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function sigmoid(a, b, x)
+  PetscReal function sigmoid(x, a, b)
     !! Sigmoid function interpolating smoothly between values 1 at x =
     !! 0 and 0 at x = 1, based on a transformed error function. The
     !! parameter a controls the maximum slope and b controls where in
     !! the unit interval the function attains the value 0.5.
 
-    PetscReal, intent(in) :: a, b !! Parameters
     PetscReal, intent(in) :: x
+    PetscReal, intent(in) :: a, b !! Parameters
     ! Locals:
     PetscReal :: xb
     PetscReal, parameter :: eps = 1.e-16_dp

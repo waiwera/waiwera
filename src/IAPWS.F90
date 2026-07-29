@@ -1340,7 +1340,7 @@ contains
              else ! Widom delta:
                 xi = (self%widom_delta_angle(1) - theta) / &
                      (self%widom_delta_angle(1) - self%widom_delta_angle(2))
-                pi_liq = sigmoid(self%widom_delta_grade, self%erf_b, xi)
+                pi_liq = sigmoid(xi, self%widom_delta_grade, self%erf_b)
                 if (pi_liq < eps) then
                    pseudo_phases = int(b'010')
                 else if (pi_liq < 1._dp - eps) then
