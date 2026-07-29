@@ -24,7 +24,7 @@ module utils_test
        test_array_indices_in_int_array, test_is_permutation, &
        test_array_progressive_limit, test_newton1d, &
        test_is_permutation_of, test_array_unique, test_sign_test, &
-       test_hermite_spline, test_hermite_interpolate
+       test_hermite_spline, test_hermite_interpolate, test_sigmoid
 
 contains
 
@@ -824,6 +824,33 @@ contains
     end if
 
   end subroutine test_hermite_interpolate
+
+!------------------------------------------------------------------------
+
+  subroutine test_sigmoid(test)
+    ! Test sigmoid function
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert(1._dp, sigmoid(-1._dp, 1.0_dp, 1._dp), 'case 1')
+       call test%assert(1._dp, sigmoid(0._dp, 0.5_dp, 1.5_dp), 'case 2')
+       call test%assert(0.5_dp, sigmoid(0.5_dp, 0.5_dp, 1._dp), 'case 3')
+       call test%assert(0.5_dp, sigmoid(2._dp / 3._dp, 0.5_dp, &
+            1.7095112913514545_dp), 'case 4')
+       call test%assert(0.5_dp, sigmoid(1._dp / sqrt(2._dp), 1.25_dp, &
+            2._dp), 'case 5')
+       call test%assert(0._dp, sigmoid(1._dp, 0.3_dp, 0.8_dp), 'case 6')
+       call test%assert(0._dp, sigmoid(3._dp, 0.25_dp, 1.2_dp), 'case 7')
+
+    end if
+
+  end subroutine test_sigmoid
 
 !------------------------------------------------------------------------
 
