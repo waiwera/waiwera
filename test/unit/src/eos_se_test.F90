@@ -26,7 +26,7 @@ module eos_se_test_module
   public :: test_eos_se_fluid_properties, test_eos_se_transition, &
        test_eos_se_errors, test_eos_se_conductivity, &
        test_eos_se_phase_saturations, test_eos_se_check_primary_variables, &
-       test_eos_se_convert_fluid, test_eos_se_bdy_consistency
+       test_eos_se_convert_fluid, test_eos_se_fluid_continuity
 
 contains
 
@@ -1133,9 +1133,9 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_eos_se_bdy_consistency(test)
+  subroutine test_eos_se_fluid_continuity(test)
 
-    ! Test eos_se boundary consistency
+    ! Test eos_se fluid continuity
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -1430,7 +1430,22 @@ contains
        call single_phase_fluid_compare(test, fluid1, fluid2, &
             2, 3, "region 3 sub/super V")
 
-    end if
+       ! region 3 near-critical
+       associate (d1 => primary1(1), T1 => primary1(2), &
+            d2 => primary2(1), T2 => primary2(2))
+         d1 = 328._dp
+         T1 = 374._dp
+         d2 = d1
+         T2 = T1 + 1.e-9_dp
+       end associate
+       fluid1%region = dble(3)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call single_phase_fluid_compare(test, fluid1, fluid2, &
+            3, 3, "region 3 near-critical")
+
+     end if
 
     call fluid1%destroy()
     call fluid2%destroy()
@@ -1444,7 +1459,7 @@ contains
     call cp%destroy()
     deallocate(cp)
 
-  end subroutine test_eos_se_bdy_consistency
+  end subroutine test_eos_se_fluid_continuity
 
 !------------------------------------------------------------------------
 

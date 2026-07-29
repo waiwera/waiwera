@@ -22,7 +22,7 @@ module eos_sae_test_module
   private
 
   public :: setup, teardown, setup_test
-  public :: test_eos_sae_fluid_properties, test_eos_sae_bdy_consistency
+  public :: test_eos_sae_fluid_properties, test_eos_sae_fluid_continuity
 
 contains
 
@@ -402,7 +402,7 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine test_eos_sae_bdy_consistency(test)
+  subroutine test_eos_sae_fluid_continuity(test)
 
     ! Test eos_sae boundary consistency
 
@@ -754,6 +754,24 @@ contains
        call single_phase_fluid_compare(test, fluid1, fluid2, &
             2, 3, "region 3 sub/super V")
 
+       ! region 3 near-critical
+       associate (d1 => primary1(1), T1 => primary1(2), &
+            Pa1 => primary1(3), d2 => primary2(1), &
+            T2 => primary2(2), Pa2 => primary2(3))
+         d1 = 328._dp
+         T1 = 374._dp
+         d2 = d1
+         T2 = T1 + 1.e-9_dp
+         Pa1 = 1.e5_dp
+         Pa2 = Pa1
+       end associate
+       fluid1%region = dble(3)
+       fluid2%region = dble(3)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call single_phase_fluid_compare(test, fluid1, fluid2, &
+            3, 3, "region 3 near-critical")
+
     end if
 
     call fluid1%destroy()
@@ -768,7 +786,7 @@ contains
     call cp%destroy()
     deallocate(cp)
 
-  end subroutine test_eos_sae_bdy_consistency
+  end subroutine test_eos_sae_fluid_continuity
 
 !------------------------------------------------------------------------
 
