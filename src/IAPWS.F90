@@ -1053,7 +1053,7 @@ module IAPWS_module
      PetscReal, allocatable, public :: widom_delta_slope(:) !! Widom delta boundary slopes
      PetscReal :: widom_delta_angle(2) !! Widom delta boundary angles in T*, P* space
      PetscReal :: widom_delta_grade !! Steepness parameter for liquidlike fraction at Widom line
-     PetscReal :: erf_b !! Parameter for transformed error function used for liquidlike fraction interpolation in Widom delta
+     PetscReal :: sigmoid_b !! Parameter for sigmoid function used for liquidlike fraction interpolation in Widom delta
    contains
      private
      procedure, public :: init => IAPWS_init
@@ -1173,7 +1173,7 @@ contains
     self%widom_delta_angle = atan(self%widom_delta_slope / self%widom_slope)
     xiw = (self%widom_delta_angle(1) - 0.25_dp * pi) / &
          (self%widom_delta_angle(1) - self%widom_delta_angle(2))
-    self%erf_b = -log(2._dp) / log(xiw) ! so sigmoid attains 0.5 at xiw
+    self%sigmoid_b = -log(2._dp) / log(xiw) ! so sigmoid attains 0.5 at xiw
 
   end subroutine IAPWS_init
 
@@ -1340,7 +1340,7 @@ contains
              else ! Widom delta:
                 xi = (self%widom_delta_angle(1) - theta) / &
                      (self%widom_delta_angle(1) - self%widom_delta_angle(2))
-                pi_liq = sigmoid(xi, self%widom_delta_grade, self%erf_b)
+                pi_liq = sigmoid(xi, self%widom_delta_grade, self%sigmoid_b)
                 if (pi_liq < eps) then
                    pseudo_phases = int(b'010')
                 else if (pi_liq < 1._dp - eps) then
