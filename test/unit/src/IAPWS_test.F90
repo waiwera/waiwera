@@ -852,6 +852,8 @@ module IAPWS_test
             0.0_dp, 0, 0, 'case 12')
        call pi_liquidlike_case(21.976407368553966e6_dp, 373.6172901183901_dp, &
             370.0243306702589_dp, 1.0_dp, 0, 0, 'case 13')
+       call pi_liquidlike_case(25.91149746673966e6_dp, 390._dp, &
+            300._dp, 0.5_dp, 3, 0, 'case 14')
 
     end if
 
