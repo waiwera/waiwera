@@ -1171,7 +1171,7 @@ contains
 
     ! Widom delta interpolation parameters:
     self%widom_delta_angle = atan(self%widom_delta_slope / self%widom_slope)
-    xiw = (self%widom_delta_angle(1) - 0.25_dp * pi) / &
+    xiw = (0.25_dp * pi - self%widom_delta_angle(2)) / &
          (self%widom_delta_angle(1) - self%widom_delta_angle(2))
     self%sigmoid_b = -log(2._dp) / log(xiw) ! so sigmoid attains 0.5 at xiw
 
@@ -1338,7 +1338,7 @@ contains
                 pi_liq = 0._dp
                 pseudo_phases = int(b'010')
              else ! Widom delta:
-                xi = (self%widom_delta_angle(1) - theta) / &
+                xi = (theta - self%widom_delta_angle(2)) / &
                      (self%widom_delta_angle(1) - self%widom_delta_angle(2))
                 pi_liq = sigmoid(xi, self%widom_delta_grade, self%sigmoid_b)
                 if (pi_liq < eps) then
