@@ -838,15 +838,15 @@ contains
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
-       call test%assert(1._dp, sigmoid(-1._dp, 1.0_dp, 1._dp), 'case 1')
-       call test%assert(1._dp, sigmoid(0._dp, 0.5_dp, 1.5_dp), 'case 2')
+       call test%assert(0._dp, sigmoid(-1._dp, 1.0_dp, 1._dp), 'case 1')
+       call test%assert(0._dp, sigmoid(0._dp, 0.5_dp, 1.5_dp), 'case 2')
        call test%assert(0.5_dp, sigmoid(0.5_dp, 0.5_dp, 1._dp), 'case 3')
        call test%assert(0.5_dp, sigmoid(2._dp / 3._dp, 0.5_dp, &
             1.7095112913514545_dp), 'case 4')
        call test%assert(0.5_dp, sigmoid(1._dp / sqrt(2._dp), 1.25_dp, &
             2._dp), 'case 5')
-       call test%assert(0._dp, sigmoid(1._dp, 0.3_dp, 0.8_dp), 'case 6')
-       call test%assert(0._dp, sigmoid(3._dp, 0.25_dp, 1.2_dp), 'case 7')
+       call test%assert(1._dp, sigmoid(1._dp, 0.3_dp, 0.8_dp), 'case 6')
+       call test%assert(1._dp, sigmoid(3._dp, 0.25_dp, 1.2_dp), 'case 7')
 
     end if
 

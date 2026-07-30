@@ -936,8 +936,8 @@ contains
 !------------------------------------------------------------------------
 
   PetscReal function sigmoid(x, a, b)
-    !! Sigmoid function interpolating smoothly between values 1 at x =
-    !! 0 and 0 at x = 1, based on a transformed error function. The
+    !! Sigmoid function interpolating smoothly between values 0 at x =
+    !! 0 and 0 at 1 = 1, based on a transformed error function. The
     !! parameter a controls the maximum slope and b controls where in
     !! the unit interval the function attains the value 0.5.
 
@@ -948,12 +948,12 @@ contains
     PetscReal, parameter :: eps = 1.e-16_dp
 
     if (x < eps) then
-       sigmoid = 1._dp
-    else if (x > 1._dp - eps) then
        sigmoid = 0._dp
+    else if (x > 1._dp - eps) then
+       sigmoid = 1._dp
     else
        xb = x ** b
-       sigmoid = 0.5_dp - 0.5_dp * erf((a * (2._dp * xb - 1._dp)) / &
+       sigmoid = 0.5_dp + 0.5_dp * erf((a * (2._dp * xb - 1._dp)) / &
             (xb * (1._dp - xb)))
     end if
 
