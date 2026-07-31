@@ -568,12 +568,14 @@ contains
 
        call table%init(data)
        call table%set_derivatives(deriv)
+       call test%assert(0._dp, table%interpolate(-1._dp, 1), "-1")
        call test%assert(0._dp, table%interpolate(0._dp, 1), "0")
        call test%assert(0.1251459259_dp, table%interpolate(0.2_dp, 1), "0.2")
        call test%assert(0.2653916087_dp, table%interpolate(0.3_dp, 1), "0.3")
        call test%assert(data(2, 2), table%interpolate(data(2, 1), 1), "mid")
        call test%assert(0.9882570397_dp, table%interpolate(0.9_dp, 1), "0.9")
        call test%assert(1._dp, table%interpolate(1._dp, 1), "1")
+       call test%assert(1._dp, table%interpolate(3._dp, 1), "3")
        call table%destroy()
 
     end if

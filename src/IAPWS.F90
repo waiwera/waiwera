@@ -34,6 +34,7 @@ module IAPWS_module
   use powertable_module
   use thermodynamics_module
   use utils_module, only: polynomial, newton1d
+  use interpolation_module, only: interpolation_table_pchip_type
 
   implicit none
   private
@@ -1052,8 +1053,7 @@ module IAPWS_module
      PetscReal, public :: widom_slope = 6.479_dp !! Slope A_s of Widom line for water (Banuti et al., 2017)
      PetscReal, allocatable, public :: widom_delta_slope(:) !! Widom delta boundary slopes
      PetscReal :: widom_delta_angle(2) !! Widom delta boundary angles in T*, P* space
-     PetscReal :: widom_delta_grade !! Steepness parameter for liquidlike fraction at Widom line
-     PetscReal :: sigmoid_b !! Parameter for sigmoid function used for liquidlike fraction interpolation in Widom delta
+     type(interpolation_table_pchip_type) :: sigmoid !! Sigmoid interpolator for liquidlike fraction in Widom delta
    contains
      private
      procedure, public :: init => IAPWS_init
@@ -1088,9 +1088,9 @@ contains
     PetscBool :: defaults
     PetscReal :: props(2), xiw
     PetscErrorCode :: err
+    PetscReal :: sigmoid_data(3,2), sigmoid_derivs(3,1)
     PetscBool, parameter :: default_extrapolate = PETSC_FALSE
     PetscReal, parameter :: default_widom_delta_slope(2) = [31.46_dp, 2.356_dp]
-    PetscReal, parameter :: default_widom_delta_grade = 0.5_dp
 
     self%name = "IAPWS-97"
 
@@ -1125,9 +1125,6 @@ contains
              call fson_get_mpi(json, "thermodynamics.widom.delta.slope", &
                   default_widom_delta_slope, self%widom_delta_slope, &
                   logfile)
-             call fson_get_mpi(json, "thermodynamics.widom.delta.grade", &
-                  default_widom_delta_grade, self%widom_delta_grade, &
-                  logfile)
              defaults = PETSC_FALSE
           end if
        end if
@@ -1146,12 +1143,6 @@ contains
                real_keys = ['thermodynamics.widom.delta.slope[0]', &
                'thermodynamics.widom.delta.slope[1]'], &
                real_values = default_widom_delta_slope)
-       end if
-       self%widom_delta_grade = default_widom_delta_grade
-       if (present(logfile)) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               real_keys = ['thermodynamics.widom.delta.grade'], &
-               real_values = [default_widom_delta_grade])
        end if
     end if
 
@@ -1173,7 +1164,13 @@ contains
     self%widom_delta_angle = atan(self%widom_delta_slope / self%widom_slope)
     xiw = (0.25_dp * pi - self%widom_delta_angle(2)) / &
          (self%widom_delta_angle(1) - self%widom_delta_angle(2))
-    self%sigmoid_b = -log(2._dp) / log(xiw) ! so sigmoid attains 0.5 at xiw
+    sigmoid_data = reshape([&
+         0._dp, xiw, 1.0_dp, &
+         0._dp, 0.5_dp, 1.0_dp], &
+         [3,2])
+    sigmoid_derivs = reshape([0._dp, 2._dp, 0.0_dp], [3,1])
+    call self%sigmoid%init(sigmoid_data)
+    call self%sigmoid%set_derivatives(sigmoid_derivs)
 
   end subroutine IAPWS_init
 
@@ -1194,6 +1191,7 @@ contains
     deallocate(self%region)
     deallocate(self%water, self%steam, self%supercritical, self%htsteam)
     deallocate(self%saturation)
+    call self%sigmoid%destroy()
 
   end subroutine IAPWS_destroy
 
@@ -1298,7 +1296,7 @@ contains
     !! the fluid is completely liquidlike (001), vapourlike (010) or
     !! in between (011).
 
-    use utils_module, only: pi, sigmoid
+    use utils_module, only: pi
 
     class(IAPWS_type), intent(in out) :: self
     PetscReal, intent(in) :: pressure, temperature, density
@@ -1340,7 +1338,7 @@ contains
              else ! Widom delta:
                 xi = (theta - self%widom_delta_angle(2)) / &
                      (self%widom_delta_angle(1) - self%widom_delta_angle(2))
-                pi_liq = sigmoid(xi, self%widom_delta_grade, self%sigmoid_b)
+                pi_liq = self%sigmoid%interpolate(xi, 1)
                 if (pi_liq < eps) then
                    pseudo_phases = int(b'010')
                 else if (pi_liq < 1._dp - eps) then
