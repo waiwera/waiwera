@@ -30,7 +30,7 @@ module interpolation_test
        test_average_linear_integration, test_average_step_integration, &
        test_average_pchip_integration, &
        test_interpolation_linear_array, test_find, test_unsorted, &
-       test_duplicate
+       test_duplicate, test_pchip_set_deriv
 
 contains
 
@@ -544,6 +544,41 @@ contains
     end if
 
   end subroutine test_duplicate
+
+!------------------------------------------------------------------------
+
+  subroutine test_pchip_set_deriv(test)
+    ! Set PCHIP derivative array
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(interpolation_table_pchip_type) :: table
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, dimension(3,2), parameter :: data = reshape([&
+         0._dp, 0.429_dp, 1.0_dp, &
+         0._dp, 0.5_dp, 1.0_dp], &
+         [3,2])
+    PetscReal, dimension(3,1), parameter :: deriv = reshape([&
+         0._dp, 2._dp, 0.0_dp], &
+         [3,1])
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call table%init(data)
+       call table%set_derivatives(deriv)
+       call test%assert(0._dp, table%interpolate(0._dp, 1), "0")
+       call test%assert(0.1251459259_dp, table%interpolate(0.2_dp, 1), "0.2")
+       call test%assert(0.2653916087_dp, table%interpolate(0.3_dp, 1), "0.3")
+       call test%assert(data(2, 2), table%interpolate(data(2, 1), 1), "mid")
+       call test%assert(0.9882570397_dp, table%interpolate(0.9_dp, 1), "0.9")
+       call test%assert(1._dp, table%interpolate(1._dp, 1), "1")
+       call table%destroy()
+
+    end if
+
+  end subroutine test_pchip_set_deriv
 
 !------------------------------------------------------------------------
 

@@ -108,6 +108,7 @@ module interpolation_module
      PetscReal, allocatable :: integral_polynomial(:, :) !! Quartic integration polynomial coefficients
    contains
      procedure :: get_derivatives => interpolation_table_pchip_get_derivatives
+     procedure, public :: set_derivatives => interpolation_table_pchip_set_derivatives
      procedure :: get_polynomial => interpolation_table_pchip_get_polynomial
      procedure, public :: interpolation_table_init => interpolation_table_pchip_init
      procedure, public :: interpolant => interpolation_table_pchip_interpolant
@@ -885,6 +886,20 @@ contains
     end subroutine pchip_deriv
 
   end subroutine interpolation_table_pchip_get_derivatives
+
+!------------------------------------------------------------------------
+
+  subroutine interpolation_table_pchip_set_derivatives(self, deriv)
+    !! Sets PCHIP derivative array manually. Note that even if the
+    !! data used to initialise the table were unsorted, the derivative
+    !! data apply to the sorted coordiinates.
+
+    class(interpolation_table_pchip_type), intent(in out) :: self
+    PetscReal, intent(in) :: deriv(:,:)
+
+    self%deriv = transpose(deriv)
+
+  end subroutine interpolation_table_pchip_set_derivatives
 
 !------------------------------------------------------------------------
 
