@@ -1168,7 +1168,7 @@ contains
          0._dp, xiw, 1.0_dp, &
          0._dp, 0.5_dp, 1.0_dp], &
          [3,2])
-    sigmoid_derivs = reshape([0._dp, 2._dp, 0.0_dp], [3,1])
+    sigmoid_derivs = reshape([0._dp, 2.5_dp, 0.0_dp], [3,1])
     call self%sigmoid%init(sigmoid_data)
     call self%sigmoid%set_derivatives(sigmoid_derivs)
 
