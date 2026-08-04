@@ -368,7 +368,6 @@ contains
       !! fraction).
 
     use fluid_module, only: fluid_type
-    use utils_module, only: hermite_spline_inv_00
 
     class(eos_se_type), intent(in out) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
@@ -390,7 +389,7 @@ contains
          type is (IAPWS_type)
             call thermo%widom_delta(water_pressure, delta, err)
             if (err == 0) then
-               xi = hermite_spline_inv_00(Sl)
+               xi = 1._dp - Sl
                t_delta = (1._dp - xi) * delta(1) + xi * delta(2)
 
                call thermo%boundary23%pressure(t_delta, pressure_bdy_2_3)
