@@ -570,7 +570,7 @@ contains
       PetscReal :: vold(2), vb(2), vdiff(2), direction(2), water_param(2)
       PetscReal :: boundary_pressure, vapour_props(2), water_pressure
       PetscBool :: liquid
-      PetscReal, parameter :: primary_increment = 1._dp, &
+      PetscReal, parameter :: primary_increment = 0.1_dp, &
            min_sat_diff = 1.e-3_dp
 
       liquid = (new_region == 1)
