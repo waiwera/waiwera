@@ -1089,6 +1089,7 @@ contains
     PetscReal :: props(2), xiw
     PetscErrorCode :: err
     PetscReal :: sigmoid_data(3,2), sigmoid_derivs(3,1)
+    PetscReal, parameter :: sigmoid_max_deriv = 2.5_dp !! Slope of sigmoid at Widom line
     PetscBool, parameter :: default_extrapolate = PETSC_FALSE
     PetscReal, parameter :: default_widom_delta_slope(2) = [31.46_dp, 2.356_dp]
 
@@ -1168,7 +1169,7 @@ contains
          0._dp, xiw, 1.0_dp, &
          0._dp, 0.5_dp, 1.0_dp], &
          [3,2])
-    sigmoid_derivs = reshape([0._dp, 2.5_dp, 0.0_dp], [3,1])
+    sigmoid_derivs = reshape([0._dp, sigmoid_max_deriv, 0.0_dp], [3,1])
     call self%sigmoid%init(sigmoid_data)
     call self%sigmoid%set_derivatives(sigmoid_derivs)
 
