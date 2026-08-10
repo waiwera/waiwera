@@ -459,12 +459,6 @@ contains
        title = "Region 4 to region 3 liquid, T > 350"
        old_fluid%region = dble(4)
        old_fluid%temperature = 356.99181334434775_dp
-       old_fluid%phase(1)%density = 540._dp
-       old_fluid%phase(1)%saturation = 0.8_dp
-       old_fluid%phase(1)%mass_fraction = 1._dp
-       old_fluid%phase(2)%density = 130._dp
-       old_fluid%phase(2)%saturation = 0.2_dp
-       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
        expected_primary = [510.39402907654625_dp, 362.91787808947413_dp]
@@ -479,12 +473,6 @@ contains
        title = "Region 4 to region 3 vapour, T > 350"
        old_fluid%region = dble(4)
        old_fluid%temperature = 373.93854042827775_dp
-       old_fluid%phase(1)%density = 329.9_dp
-       old_fluid%phase(1)%saturation = 0.01_dp
-       old_fluid%phase(1)%mass_fraction = 1._dp
-       old_fluid%phase(2)%density = 313.4_dp
-       old_fluid%phase(2)%saturation = 0.99_dp
-       old_fluid%phase(2)%mass_fraction = 1._dp
        fluid%region = old_fluid%region
        expected_region = 3
        expected_primary = [312.74816150605153_dp, 373.94040546390397_dp]
