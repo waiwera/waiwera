@@ -484,6 +484,35 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 4 to near-critical region 3 vapour"
+       old_fluid%region = dble(4)
+       old_fluid%temperature = 373.945_dp
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [314.69704712591363_dp, 373.94531352826823_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [22.063731864615474e6_dp, 0.95_dp]
+       primary = [22.0639e6_dp, 1.05_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 4 to near-critical region 3 liquid"
+       old_fluid%region = dble(4)
+       old_fluid%temperature = 373.945_dp
+       fluid%region = old_fluid%region
+       expected_region = 3
+       expected_primary = [329.70896096413639_dp, 373.94409015750455_dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [22.063731864615474e6_dp, 0.02_dp]
+       primary = [22.063e6_dp, -0.04_dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       write (*,*) primary
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
        title = "Region 4 to region 2, T > 350"
        old_fluid%region = dble(4)
        old_fluid%temperature = 350.00000000000387_dp
