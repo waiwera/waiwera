@@ -467,7 +467,7 @@ contains
     PetscReal :: old_saturation_pressure, pressure_factor, boundary_pressure
     PetscReal :: saturation_bound, saturation_difference, xi, saturation_temperature
     PetscReal :: interpolated_primary(self%num_primary_variables)
-    PetscReal :: interpolated_water_pressure, water_pressure, new_density
+    PetscReal :: interpolated_water_pressure, water_pressure
     PetscErrorCode :: errf
     PetscReal, parameter :: small = 1.e-6_dp
 
