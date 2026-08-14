@@ -1305,8 +1305,8 @@ contains
     PetscInt, intent(out) :: pseudo_phases
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: pstar, tstar, theta, xi
-    PetscReal, parameter :: eps = epsilon(pi_liq)
+    PetscReal :: tk, log_pr, tstar, pstar, theta, xi, r, eta
+    PetscReal, parameter :: eps = epsilon(tstar), tol = 1.e-8_dp
 
     err = 0
     pseudo_phases = 0
@@ -1316,27 +1316,26 @@ contains
        if (pressure >= region3%computed_critical_pressure) then
           if (temperature >= self%critical%temperature) then
 
-             tstar = (temperature + tc_k) / self%critical%temperature_k - 1._dp
-             pstar = log(pressure / region3%computed_critical_pressure) / &
-                  self%widom_slope
+             tk = temperature + tc_k
+             log_pr = log(pressure / region3%computed_critical_pressure)
 
-             if (tstar > eps) then
-                theta = atan(pstar / tstar)
-             else
-                if (pstar > eps) then
-                   theta = 0.5_dp * pi
-                else
-                   theta = 0.25_dp * pi
-                end if
-             end if
-
-             if (theta > self%widom_delta_angle(1)) then
+             ! reformulate theta > theta_l, theta < theta_v to avoid numerical cancellation:
+             if (self%widom_delta_slope(1) * tk < self%critical%temperature_k * &
+                  (log_pr + self%widom_delta_slope(1))) then
                 pi_liq = 1._dp
                 pseudo_phases = int(b'001')
-             else if (theta < self%widom_delta_angle(2)) then
+             else if (self%widom_delta_slope(2) * tk > self%critical%temperature_k * &
+                  (log_pr + self%widom_delta_slope(2))) then
                 pi_liq = 0._dp
                 pseudo_phases = int(b'010')
              else ! Widom delta:
+                tstar = tk / self%critical%temperature_k - 1._dp
+                pstar = log_pr / self%widom_slope
+                if (tstar > eps) then
+                   theta = atan(pstar / tstar)
+                else
+                   theta = 0.25_dp * pi
+                end if
                 xi = (theta - self%widom_delta_angle(2)) / &
                      (self%widom_delta_angle(1) - self%widom_delta_angle(2))
                 pi_liq = self%sigmoid%interpolate(xi, 1)
