@@ -1339,6 +1339,10 @@ contains
                 xi = (theta - self%widom_delta_angle(2)) / &
                      (self%widom_delta_angle(1) - self%widom_delta_angle(2))
                 pi_liq = self%sigmoid%interpolate(xi, 1)
+                r = hypot(tstar, pstar)
+                if (r < tol) then
+                   eta = r / tol
+                   pi_liq = eta * pi_liq + (1._dp - eta) * 0.5_dp
                 end if
                 pseudo_phases = int(b'011')
              end if
