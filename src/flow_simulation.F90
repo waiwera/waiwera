@@ -108,7 +108,6 @@ module flow_simulation_module
      procedure, public :: aux_rhs => flow_simulation_tracer_cell_inflows
      procedure, public :: aux_pre_solve => flow_simulation_tracer_pre_solve
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
-     procedure, public :: pre_try_timestep => flow_simulation_pre_try_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
      procedure, public :: pre_eval => flow_simulation_pre_eval
@@ -2036,18 +2035,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_pre_try_timestep(self, t)
-    !! Routine to be called before trying a time step.
-
-    class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
-
-    call self%update_rock_properties(t)
-
-  end subroutine flow_simulation_pre_try_timestep
-
-!------------------------------------------------------------------------
-
   subroutine flow_simulation_update_rock_properties(self, t)
 
     !! Update any time-dependent rock properties from the list of rock
@@ -2143,6 +2130,7 @@ contains
     if (self%unperturbed) then
        call VecCopy(self%current_fluid, self%fluid, ierr); CHKERRQ(ierr)
     end if
+    call self%update_rock_properties(t)
 
   end subroutine flow_simulation_pre_eval
 
