@@ -2336,10 +2336,12 @@ contains
           call fson_get_mpi(source_json, "separator", val = has_separator)
           if (has_separator) then
              separator_pressure = [default_separator_pressure]
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-                     [trim(srcstr) // "separator.pressure"], &
-                     real_values = separator_pressure)
+             if (present(logfile)) then
+                if (logfile%active) then
+                   call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+                        [trim(srcstr) // "separator.pressure"], &
+                        real_values = separator_pressure)
+                end if
              end if
           end if
        case (TYPE_OBJECT)
@@ -2356,10 +2358,12 @@ contains
              end select
           else
              separator_pressure = [default_separator_pressure]
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-                     [trim(srcstr) // "separator.pressure"], &
-                     real_values = separator_pressure)
+             if (present(logfile)) then
+                if (logfile%active) then
+                   call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+                        [trim(srcstr) // "separator.pressure"], &
+                        real_values = separator_pressure)
+                end if
              end if
           end if
        end select
@@ -2782,18 +2786,22 @@ contains
              calculate_reference_pressure = PETSC_TRUE
              pressure_table_coordinate = SRC_PRESSURE_TABLE_COORD_TIME
           else
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                     str_key = trim(srcstr) // source_type // ".pressure", &
-                     str_value = pressure_str)
+             if (present(logfile)) then
+                if (logfile%active) then
+                   call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                        str_key = trim(srcstr) // source_type // ".pressure", &
+                        str_value = pressure_str)
+                end if
              end if
           end if
        end select
     else
-       if (present(logfile) .and. logfile%active) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-               real_keys = [trim(srcstr) // source_type // ".pressure"], &
-               real_values = [reference_pressure])
+       if (present(logfile)) then
+          if (logfile%active) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+                  real_keys = [trim(srcstr) // source_type // ".pressure"], &
+                  real_values = [reference_pressure])
+          end if
        end if
     end if
 
@@ -2839,10 +2847,12 @@ contains
                   val = productivity_array)
           end if
        case default
-          if (present(logfile) .and. logfile%active) then
-             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = trim(srcstr) // "deliverability.productivity", &
-                  str_value = "...")
+          if (present(logfile)) then
+             if (logfile%active) then
+                call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                     str_key = trim(srcstr) // "deliverability.productivity", &
+                     str_value = "...")
+             end if
           end if
        end select
 
@@ -2851,10 +2861,12 @@ contains
        calculate_PI_from_rate = PETSC_TRUE
 
     else
-       if (present(logfile) .and. logfile%active) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               [trim(srcstr) // "deliverability.productivity"], &
-               real_values = [productivity])
+       if (present(logfile)) then
+          if (logfile%active) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+                  [trim(srcstr) // "deliverability.productivity"], &
+                  real_values = [productivity])
+          end if
        end if
     end if
 
@@ -2906,10 +2918,12 @@ contains
     if (fson_has_mpi(source_json, "deliverability")) then
 
        if (null_cell) then
-          if (present(logfile) .and. logfile%active) then
-             call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
-                  str_key = trim(srcstr) // "deliverability", &
-                  str_value = "... (null cell)")
+          if (present(logfile)) then
+             if (logfile%active) then
+                call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
+                     str_key = trim(srcstr) // "deliverability", &
+                     str_value = "... (null cell)")
+             end if
           end if
           err = 1
        else
@@ -2963,10 +2977,12 @@ contains
              call deliv%calculate_PI_from_rate(start_time, initial_rate, &
                   fluid_data, fluid_section, fluid_range_start, &
                   deliv%productivity%val(1, 1))
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_INFO, 'input', 'calculated', &
-                     real_keys = [trim(srcstr) // "deliverability.productivity"], &
-                     real_values = [deliv%productivity%val(1, 1)])
+             if (present(logfile)) then
+                if (logfile%active) then
+                   call logfile%write(LOG_LEVEL_INFO, 'input', 'calculated', &
+                        real_keys = [trim(srcstr) // "deliverability.productivity"], &
+                        real_values = [deliv%productivity%val(1, 1)])
+                end if
              end if
           end if
           if (deliv%threshold > 0._dp) then
@@ -3022,18 +3038,22 @@ contains
                   val = recharge_array)
           end if
        case default
-          if (present(logfile) .and. logfile%active) then
-             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = trim(srcstr) // trim(key) // ".coefficient", &
-                  str_value = "...")
+          if (present(logfile)) then
+             if (logfile%active) then
+                call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                     str_key = trim(srcstr) // trim(key) // ".coefficient", &
+                     str_value = "...")
+             end if
           end if
        end select
 
     else
-       if (present(logfile) .and. logfile%active) then
-          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
-               [trim(srcstr) // trim(key) // ".coefficient"], &
-               real_values = [recharge_coefficient])
+       if (present(logfile)) then
+          if (logfile%active) then
+             call logfile%write(LOG_LEVEL_INFO, 'input', 'default', real_keys = &
+                  [trim(srcstr) // trim(key) // ".coefficient"], &
+                  real_values = [recharge_coefficient])
+          end if
        end if
     end if
 
@@ -3083,10 +3103,12 @@ contains
        if (fson_has_mpi(source_json, key)) then
 
           if (null_cell) then
-             if (present(logfile) .and. logfile%active) then
-                call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
-                     str_key = trim(srcstr) // key, &
-                     str_value = "... (null cell)")
+             if (present(logfile)) then
+                if (logfile%active) then
+                   call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
+                        str_key = trim(srcstr) // key, &
+                        str_value = "... (null cell)")
+                end if
              end if
              err = 1
              exit
@@ -3106,10 +3128,12 @@ contains
                 call spec_sources%traverse(setup_recharge_iterator)
 
              else
-                if (present(logfile) .and. logfile%active) then
-                   call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
-                        str_key = trim(srcstr) // trim(key) // ".pressure", &
-                        str_value = "...")
+                if (present(logfile)) then
+                   if (logfile%active) then
+                      call logfile%write(LOG_LEVEL_WARN, 'input', 'not_supported', &
+                           str_key = trim(srcstr) // trim(key) // ".pressure", &
+                           str_value = "...")
+                   end if
                 end if
              end if
 
@@ -3379,19 +3403,23 @@ contains
        case ("both")
           direction = SRC_DIRECTION_BOTH
        case default
-          if (present(logfile) .and. logfile%active) then
-             call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
-                  str_key = trim(srcstr) // "direction", &
-                  str_value = direction_str)
+          if (present(logfile)) then
+             if (logfile%active) then
+                call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                     str_key = trim(srcstr) // "direction", &
+                     str_value = direction_str)
+             end if
           end if
           direction = default_source_direction
        end select
 
        if (null_cell .and. (direction /= SRC_DIRECTION_INJECTION)) then
-          if (present(logfile) .and. logfile%active) then
-             call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
-                  str_key = trim(srcstr) // "direction", &
-                  str_value = trim(direction_str) // " (null cell)")
+          if (present(logfile)) then
+             if (logfile%active) then
+                call logfile%write(LOG_LEVEL_ERR, 'input', 'invalid', &
+                     str_key = trim(srcstr) // "direction", &
+                     str_value = trim(direction_str) // " (null cell)")
+             end if
           end if
           err = 1
        else
