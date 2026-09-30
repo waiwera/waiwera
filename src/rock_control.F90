@@ -26,6 +26,7 @@ module rock_control_module
   use rock_module
   use interpolation_module
   use control_module
+  use eos_module
 
   implicit none
   private
@@ -42,8 +43,19 @@ module rock_control_module
      procedure, public :: update => porosity_table_rock_control_update
   end type porosity_table_rock_control_type
 
+  type, public, abstract, extends(vector_vector_control_type) :: fluid_rock_control_type
+     !! Controls rock properties according to fluid properties.
+     private
+     class(eos_type), pointer :: eos !! Equation of state
+   contains
+     procedure :: local_update => fluid_rock_control_local_update
+     procedure, public :: update => fluid_rock_control_update
+  end type fluid_rock_control_type
+
 contains
   
+!------------------------------------------------------------------------
+! Permeability table rock control
 !------------------------------------------------------------------------
 
   subroutine permeability_table_rock_control_update(self, time, &
@@ -84,6 +96,8 @@ contains
   end subroutine permeability_table_rock_control_update
 
 !------------------------------------------------------------------------
+! Porosity table rock control
+!------------------------------------------------------------------------
 
   subroutine porosity_table_rock_control_update(self, time, &
        vector_array, section, range_start)
@@ -114,6 +128,63 @@ contains
     call rock%destroy()
 
   end subroutine porosity_table_rock_control_update
+
+!------------------------------------------------------------------------
+! Fluid rock control
+!------------------------------------------------------------------------
+
+  subroutine fluid_rock_control_local_update(self, fluid, rock)
+    !! Updates rock object according to fluid object. Derived types
+    !! override this procedure.
+
+    use fluid_module, only: fluid_type
+
+    class(fluid_rock_control_type), intent(in out) :: self
+    type(fluid_type), intent(in) :: fluid
+    type(rock_type), intent(in out) :: rock
+
+    continue
+
+  end subroutine fluid_rock_control_local_update
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_rock_control_update(self, &
+       subject_array, subject_section, subject_range_start, &
+       object_array, object_section, object_range_start)
+    !! Updates rock vector based on the fluid vector.
+
+    use dm_utils_module, only: global_section_offset
+    use fluid_module, only: fluid_type
+
+    class(fluid_rock_control_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: subject_array(:) !! Array on fluid vector
+    PetscSection, intent(in) :: subject_section !! Global section for fluid vector
+    PetscInt, intent(in) :: subject_range_start !! Range start for fluid vector
+    PetscReal, pointer, contiguous, intent(in out) :: object_array(:) !! Array on rock vector
+    PetscSection, intent(in) :: object_section !! Global section for rock vector
+    PetscInt, intent(in) :: object_range_start !! Range start for rock vector
+    ! Locals:
+    PetscInt :: i, c, fluid_offset, rock_offset
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid
+
+    call fluid%init(self%eos%num_components, self%eos%num_phases)
+    call rock%init()
+
+    do i = 1, size(self%indices)
+       c = self%indices(i)
+       fluid_offset = global_section_offset(subject_section, c, subject_range_start)
+       rock_offset = global_section_offset(object_section, c, object_range_start)
+       call fluid%assign(subject_array, fluid_offset)
+       call rock%assign(object_array, rock_offset)
+       call self%local_update(fluid, rock)
+    end do
+
+    call fluid%destroy()
+    call rock%destroy()
+
+  end subroutine fluid_rock_control_update
 
 !------------------------------------------------------------------------
 
