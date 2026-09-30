@@ -52,6 +52,18 @@ module rock_control_module
      procedure, public :: update => fluid_rock_control_update
   end type fluid_rock_control_type
 
+  type, public, extends(fluid_rock_control_type) :: &
+       temperature_dependent_permeability_rock_control_type
+     !! Controls rock permeability according to fluid temperature.
+     private
+     class(interpolation_table_type), allocatable, public :: table !! Table of log permeability vs. temperature
+   contains
+     procedure, public :: init => temperature_dependent_permeability_rock_control_init
+     procedure, public :: local_update => &
+          temperature_dependent_permeability_rock_control_local_update
+     procedure, public :: destroy => temperature_dependent_permeability_rock_control_destroy
+  end type temperature_dependent_permeability_rock_control_type
+
 contains
   
 !------------------------------------------------------------------------
@@ -185,6 +197,72 @@ contains
     call rock%destroy()
 
   end subroutine fluid_rock_control_update
+
+!------------------------------------------------------------------------
+! Temperature-dependent permeability rock control
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_permeability_rock_control_init(self, &
+       data, indices, interpolation_type, eos)
+    !! Initialises temperature-dependent permeability rock control
+    !! object. The data and interpoliation type are used to create an
+    !! internal table of log permeability vs. temperature.
+
+    class(temperature_dependent_permeability_rock_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: data(:,:) !! Data for interpolation table
+    PetscInt, intent(in) :: indices(:) !! Vector indices
+    PetscInt, intent(in) :: interpolation_type !! Interpolation type for data
+    class(eos_type), intent(in), target :: eos
+
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%table)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%table)
+    case default
+       allocate(interpolation_table_type :: self%table)
+    end select
+    call self%table%init(data)
+
+    self%indices = indices
+    self%eos => eos
+
+  end subroutine temperature_dependent_permeability_rock_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_permeability_rock_control_local_update( &
+       self, fluid, rock)
+    !! Updates rock permeability according to local fluid temperature
+    !! based on internal table of log permeability vs. temperature.
+
+    use fluid_module, only: fluid_type
+
+    class(temperature_dependent_permeability_rock_control_type), &
+         intent(in out) :: self
+    type(fluid_type), intent(in) :: fluid
+    type(rock_type), intent(in out) :: rock
+    ! Locals:
+    PetscReal :: logk
+
+    logk = self%table%interpolate(fluid%temperature, 1)
+    rock%permeability = 10._dp ** logk
+
+  end subroutine temperature_dependent_permeability_rock_control_local_update
+
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_permeability_rock_control_destroy(self)
+    !! Destroys a temperature-dependent permeability rock control.
+
+    class(temperature_dependent_permeability_rock_control_type), intent(in out) :: self
+
+    if (allocated(self%indices)) deallocate(self%indices)
+    call self%table%destroy()
+    deallocate(self%table)
+    self%eos => null()
+
+  end subroutine temperature_dependent_permeability_rock_control_destroy
 
 !------------------------------------------------------------------------
 
