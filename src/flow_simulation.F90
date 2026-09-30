@@ -2042,19 +2042,23 @@ contains
 
     use dm_utils_module, only: global_vec_section
     use control_module, only: table_vector_control_type
+    use rock_control_module, only: fluid_rock_control_type
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
 
     ! Locals:
-    PetscSection :: rock_section
-    PetscReal, pointer, contiguous :: rock_data(:)
+    PetscSection :: rock_section, fluid_section
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscErrorCode :: ierr
 
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayF90(self%fluid, fluid_data, ierr); CHKERRQ(ierr)
     call self%rock_controls%traverse(rock_control_iterator)
     call VecRestoreArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%fluid, fluid_data, ierr); CHKERRQ(ierr)
 
   contains
 
@@ -2069,6 +2073,9 @@ contains
       class is (table_vector_control_type)
          call rock_control%update(t, rock_data, &
               rock_section, self%rock_range_start)
+      class is (fluid_rock_control_type)
+         call rock_control%update(fluid_data, fluid_section, self%fluid_range_start, &
+              rock_data, rock_section, self%rock_range_start)
       end select
 
     end subroutine rock_control_iterator
