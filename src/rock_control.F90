@@ -64,6 +64,14 @@ module rock_control_module
      procedure, public :: destroy => temperature_dependent_permeability_rock_control_destroy
   end type temperature_dependent_permeability_rock_control_type
 
+  type, public, extends(temperature_dependent_permeability_rock_control_type) :: &
+       hayba_ingebritsen_permeability_rock_control_type
+     !! Permeability rock control with temperature dependence from
+     !! Hayba and Ingebritsen (1997)
+   contains
+     procedure, public :: init => hayba_ingebritsen_permeability_rock_control_init
+  end type hayba_ingebritsen_permeability_rock_control_type
+
 contains
   
 !------------------------------------------------------------------------
@@ -268,6 +276,44 @@ contains
     self%eos => null()
 
   end subroutine temperature_dependent_permeability_rock_control_destroy
+
+!------------------------------------------------------------------------
+! Hayba-Ingebritsen permeability rock control
+!------------------------------------------------------------------------
+
+  subroutine hayba_ingebritsen_permeability_rock_control_init(self, &
+       data, indices, interpolation_type, eos)
+    !! Initialises Hayba-Ingebritsen permeability rock control
+    !! object. The data value contains the low-temperature
+    !! permeability determining the first element in the table of
+    !! log(k) vs. T.
+
+    class(hayba_ingebritsen_permeability_rock_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: data(:, :) !! Low-temperature permeability (below 360 deg C)
+    PetscInt, intent(in) :: indices(:) !! Vector indices
+    PetscInt, intent(in) :: interpolation_type !! Interpolation type for data - assumed linear
+    class(eos_type), intent(in), target :: eos
+    ! Locals:
+    PetscInt :: nk
+    PetscReal, allocatable :: logk_data(:, :)
+
+    allocate(interpolation_table_type :: self%table)
+
+    nk = size(data, 2)
+    allocate(logk_data(3, 1 + nk))
+    logk_data(1, 1) = 360._dp
+    logk_data(1, 2:) = log10(data(1, :))
+    logk_data(2, 1) = 400._dp
+    logk_data(2, 2:) = -17._dp
+    logk_data(3, 1) = 500._dp
+    logk_data(3, 2:) = -22._dp
+
+    call self%table%init(logk_data)
+
+    self%indices = indices
+    self%eos => eos
+
+  end subroutine hayba_ingebritsen_permeability_rock_control_init
 
 !------------------------------------------------------------------------
 
