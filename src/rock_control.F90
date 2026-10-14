@@ -243,10 +243,15 @@ contains
     type(fluid_type), intent(in) :: fluid
     type(rock_type), intent(in out) :: rock
     ! Locals:
-    PetscReal :: logk
+    PetscReal :: logk(self%table%dim)
 
-    logk = self%table%interpolate(fluid%temperature, 1)
-    rock%permeability = 10._dp ** logk
+    logk = self%table%interpolate(fluid%temperature)
+    select case (self%table%dim)
+    case (1)
+       rock%permeability = 10._dp ** logk(1) ! scalar permeabilities
+    case default
+       rock%permeability(1: self%table%dim) = 10._dp ** logk
+    end select
 
   end subroutine temperature_dependent_permeability_rock_control_local_update
 
