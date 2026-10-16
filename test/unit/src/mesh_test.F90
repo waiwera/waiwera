@@ -1155,7 +1155,7 @@ contains
 
       call setup_rocks(json, mesh%dm, rock_vector, &
            rock_dict, rock_controls, rock_range_start, &
-           mesh%ghost_cell, err = err)
+           mesh%ghost_cell, eos, err = err)
       call test%assert(0, err, "setup rock vector error")
       call fson_destroy_mpi(json)
       call mesh%destroy_distribution_data()
@@ -1326,7 +1326,7 @@ contains
 
       call rock_dict%init(owner = PETSC_TRUE)
       call setup_rocks(json, mesh%dm, rock_vector, rock_dict, &
-           rock_controls, rock_range_start, mesh%ghost_cell, err = err)
+           rock_controls, rock_range_start, mesh%ghost_cell, eos, err = err)
       call test%assert(0, err, title // " setup rock vector error")
       call mesh%setup_minc_rock_properties(json, rock_vector, &
            rock_range_start, err = err)
@@ -2091,7 +2091,7 @@ contains
       num_tracers = size(tracers)
       call setup_rocks(json, mesh%dm, rock_vector, &
            mesh%rock_types, rock_controls, rock_range_start, mesh%ghost_cell, &
-           err = err)
+           eos, err = err)
       call create_fluid_vector(mesh%dm, max_component_name_length, &
            eos%component_names, max_phase_name_length, &
            eos%phase_names, fluid_vector, fluid_range_start)

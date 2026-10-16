@@ -234,7 +234,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_rocks_from_types(json, dm, rock_vector, &
-       rock_dict, rock_controls, range_start, logfile)
+       rock_dict, rock_controls, range_start, eos, logfile)
     !! Sets up rock vector on DM and rock controls from rock types in
     !! JSON input.
 
@@ -243,8 +243,9 @@ contains
     use zone_label_module
     use fson
     use fson_mpi_module
+    use eos_module, only: eos_type
     use logfile_module
-    use fson_value_m, only : TYPE_ARRAY
+    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT, TYPE_STRING, TYPE_NULL
     use interpolation_module
 
     type(fson_value), pointer, intent(in) :: json
@@ -253,11 +254,12 @@ contains
     type(dictionary_type), intent(in out) :: rock_dict
     type(list_type), intent(in out) :: rock_controls
     PetscInt, intent(in) :: range_start
+    class(eos_type), intent(in) :: eos
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
     PetscInt :: num_rocktypes, ic, num_cells, offset, ghost
     PetscInt :: ir, permeability_type, permeability_rank, dim
-    PetscInt :: porosity_type
+    PetscInt :: permeability_value_type, porosity_type
     PetscInt :: perm_size
     DMLabel :: ghost_label
     type(fson_value), pointer :: rocktypes, r
@@ -308,9 +310,24 @@ contains
                 call fson_get_mpi(r, "permeability", default_permeability, &
                      permeability, logfile, trim(rockstr) // "permeability")
              case (2) ! table of permeabilities vs. time
-                call setup_permeability_rock_control(r, ir, num_cells)
+                call setup_permeability_time_rock_control(r, ir, num_cells)
                 permeability_init = PETSC_FALSE
              end select
+          case (TYPE_OBJECT)
+             permeability_value_type = fson_type_mpi(r, "permeability.value")
+             select case (permeability_value_type)
+             case (TYPE_ARRAY)
+                call fson_get_mpi(r, "permeability.value", default_permeability, &
+                     permeability, logfile, trim(rockstr) // "permeability.value")
+             case default ! real or null
+                call fson_get_mpi(r, "permeability.value", default_permeability_scalar, &
+                     permeability_scalar, logfile, trim(rockstr) // "permeability.value")
+                allocate(permeability(dim))
+                permeability = permeability_scalar
+             end select
+             call setup_permeability_temperature_rock_control(r, ir, num_cells, &
+                  permeability, eos)
+             permeability_init = PETSC_FALSE
           case default ! real or null
              call fson_get_mpi(r, "permeability", default_permeability_scalar, &
                   permeability_scalar, logfile, trim(rockstr) // "permeability")
@@ -321,7 +338,7 @@ contains
           porosity_type = fson_type_mpi(r, "porosity")
           select case (porosity_type)
           case (TYPE_ARRAY)
-             call setup_porosity_rock_control(r, ir, num_cells)
+             call setup_porosity_time_rock_control(r, ir, num_cells)
              porosity_init = PETSC_FALSE
           case default
              call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
@@ -380,8 +397,8 @@ contains
 
   contains
 
-    subroutine setup_permeability_rock_control(rock_json, ir, num_rock_cells)
-      !! Sets up permeability rock control from JSON input.
+    subroutine setup_permeability_time_rock_control(rock_json, ir, num_rock_cells)
+      !! Sets up time-dependent permeability rock control from JSON input.
 
       type(fson_value), pointer, intent(in) :: rock_json
       PetscInt, intent(in) :: ir, num_rock_cells
@@ -418,12 +435,83 @@ contains
       end if
       deallocate(permeability_table)
 
-    end subroutine setup_permeability_rock_control
+    end subroutine setup_permeability_time_rock_control
 
 !........................................................................
 
-    subroutine setup_porosity_rock_control(rock_json, ir, num_rock_cells)
-      !! Sets up porosity rock control from JSON input.
+    subroutine setup_permeability_temperature_rock_control(rock_json, ir, &
+         num_rock_cells, permeability, eos)
+      !! Sets up temperature-dependent permeability rock control from JSON input.
+
+      use utils_module, only: str_to_lower
+
+      type(fson_value), pointer, intent(in) :: rock_json
+      PetscInt, intent(in) :: ir, num_rock_cells
+      PetscReal, intent(in) :: permeability(:)
+      class(eos_type), intent(in) :: eos
+      ! Locals:
+      PetscReal, allocatable :: permeability_table(:,:)
+      class(temperature_dependent_permeability_rock_control_type), pointer :: control
+      character(max_interpolation_str_length) :: interpolation_str
+      character(32) :: permeability_control_name
+      PetscInt :: control_type, i, interpolation_type
+      IS :: cell_IS
+      PetscInt, pointer :: cells(:)
+      PetscInt, allocatable :: ghost_cell(:), rock_cell(:)
+      PetscErrorCode :: ierr
+
+      control_type = fson_type_mpi(rock_json, "permeability.temperature")
+      select case (control_type)
+      case (TYPE_ARRAY)
+         call fson_get_mpi(rock_json, "permeability.temperature", &
+              val = permeability_table)
+         call fson_get_mpi(rock_json, "interpolation", &
+              default_interpolation_str, interpolation_str)
+         interpolation_type = interpolation_type_from_str(interpolation_str)
+         allocate(temperature_dependent_permeability_rock_control_type :: control)
+      case (TYPE_STRING)
+         call fson_get_mpi(rock_json, "permeability.temperature", &
+              val = permeability_control_name)
+         select case (str_to_lower(permeability_control_name))
+         case ('hayba-ingebritsen')
+            associate(nk => size(permeability))
+              allocate(permeability_table(1, nk))
+            end associate
+            permeability_table(1, :) = permeability
+            allocate(hayba_ingebritsen_permeability_rock_control_type :: control)
+         case default
+            !! TODO: error if unrecognised control name
+         end select
+      case (TYPE_NULL)
+         !! TODO: no control, just set k value (or handle this in parent routine)
+      end select
+
+      if (num_rock_cells > 0) then
+         call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
+              ierr); CHKERRQ(ierr)
+         call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+         allocate(ghost_cell(num_rock_cells))
+         do i = 1, num_rock_cells
+            call DMLabelGetValue(ghost_label, cells(i), ghost_cell(i), &
+                 ierr); CHKERRQ(ierr)
+         end do
+         rock_cell = pack(cells, ghost_cell < 0)
+         call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+         call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+         call control%init(permeability_table, rock_cell, interpolation_type, eos)
+         deallocate(rock_cell, ghost_cell)
+         call rock_controls%append(control)
+      else
+         deallocate(control)
+      end if
+      deallocate(permeability_table)
+
+    end subroutine setup_permeability_temperature_rock_control
+
+!........................................................................
+
+    subroutine setup_porosity_time_rock_control(rock_json, ir, num_rock_cells)
+      !! Sets up time-dependent porosity rock control from JSON input.
 
       type(fson_value), pointer, intent(in) :: rock_json
       PetscInt, intent(in) :: ir, num_rock_cells
@@ -460,7 +548,7 @@ contains
       end if
       deallocate(porosity_table)
 
-    end subroutine setup_porosity_rock_control
+    end subroutine setup_porosity_time_rock_control
 
   end subroutine setup_rocks_from_types
 
@@ -497,7 +585,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_rocks(json, dm, rock_vector, rock_dict, &
-       rock_controls, range_start, ghost_cell, logfile, err)
+       rock_controls, range_start, ghost_cell, eos, logfile, err)
 
     !! Sets up rock vector on specified DM and rock controls from JSON
     !! input. If initialising rock properties using rock types, this
@@ -507,6 +595,7 @@ contains
     use dictionary_module
     use fson
     use fson_mpi_module
+    use eos_module, only: eos_type
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
@@ -516,6 +605,7 @@ contains
     type(list_type), intent(in out) :: rock_controls
     PetscInt, intent(out) :: range_start
     PetscInt, allocatable, intent(in) :: ghost_cell(:)
+    class(eos_type), intent(in) :: eos
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
 
@@ -531,7 +621,7 @@ contains
        if (fson_has_mpi(json, "rock.types")) then
 
           call setup_rocks_from_types(json, dm, rock_vector, &
-               rock_dict, rock_controls, range_start, logfile)
+               rock_dict, rock_controls, range_start, eos, logfile)
 
        else
           ! other types of rock initialization here- TODO

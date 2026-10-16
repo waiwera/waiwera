@@ -947,7 +947,7 @@ contains
                self%capillary_pressure, self%logfile)
           call setup_rocks(json, self%mesh%dm, self%rock, &
                self%mesh%rock_types, self%rock_controls, &
-               self%rock_range_start, self%mesh%ghost_cell, &
+               self%rock_range_start, self%mesh%ghost_cell, self%eos, &
                self%logfile, err)
           if (err == 0) then
              if (self%mesh%has_minc) then

@@ -213,7 +213,7 @@ contains
   subroutine temperature_dependent_permeability_rock_control_init(self, &
        data, indices, interpolation_type, eos)
     !! Initialises temperature-dependent permeability rock control
-    !! object. The data and interpoliation type are used to create an
+    !! object. The data and interpolation type are used to create an
     !! internal table of log permeability vs. temperature.
 
     class(temperature_dependent_permeability_rock_control_type), intent(in out) :: self
@@ -221,6 +221,8 @@ contains
     PetscInt, intent(in) :: indices(:) !! Vector indices
     PetscInt, intent(in) :: interpolation_type !! Interpolation type for data
     class(eos_type), intent(in), target :: eos
+    ! Locals:
+    PetscReal :: log_data(size(data, 1), size(data, 2))
 
     select case (interpolation_type)
     case (INTERP_STEP)
@@ -230,7 +232,10 @@ contains
     case default
        allocate(interpolation_table_type :: self%table)
     end select
-    call self%table%init(data)
+
+    log_data(:, 1) = data(:, 1)
+    log_data(:, 2:) = log10(data(:, 2:))
+    call self%table%init(log_data)
 
     self%indices = indices
     self%eos => eos
