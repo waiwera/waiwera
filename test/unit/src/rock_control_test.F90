@@ -82,24 +82,25 @@ contains
     PetscMPIInt :: rank
     DMLabel :: ghost_label
     PetscReal :: time
-    PetscInt, parameter :: expected_num_rocks = 3
-    character(10), parameter :: rock_names(expected_num_rocks) = &
-         ["constant", "scalar  ", "array   "]
+    PetscInt, parameter :: expected_num_rocks = 5
+    character(12), parameter :: rock_names(expected_num_rocks) = &
+         ["constant    ", "scalar      ", "array       ", &
+         "value scalar", "value array "]
     PetscReal, parameter :: start_time = 0._dp, test_time = 4500._dp
     PetscReal, parameter :: expected_initial_permeability(expected_num_rocks, 3) = reshape([ &
-         1.e-13_dp, 1.e-13_dp, 1.e-14_dp, &
-         1.e-13_dp, 1.e-13_dp, 2.e-14_dp, &
-         1.e-13_dp, 1.e-13_dp, 3.e-14_dp], &
+         1.e-13_dp, 1.e-13_dp, 1.e-14_dp, 1.e-13_dp, 1.e-14_dp, &
+         1.e-13_dp, 1.e-13_dp, 2.e-14_dp, 1.e-13_dp, 2.e-14_dp, &
+         1.e-13_dp, 1.e-13_dp, 3.e-14_dp, 1.e-13_dp, 3.e-14_dp], &
          [expected_num_rocks, 3])
     PetscReal, parameter :: expected_permeability(expected_num_rocks, 3) = reshape([ &
-         1.e-13_dp, 7.e-14_dp, 4.e-15_dp, &
-         1.e-13_dp, 7.e-14_dp, 5.e-15_dp, &
-         1.e-13_dp, 7.e-14_dp, 6.e-15_dp], &
+         1.e-13_dp, 7.e-14_dp, 4.e-15_dp, 7.e-14_dp, 4.e-15_dp, &
+         1.e-13_dp, 7.e-14_dp, 5.e-15_dp, 7.e-14_dp, 5.e-15_dp, &
+         1.e-13_dp, 7.e-14_dp, 6.e-15_dp, 7.e-14_dp, 6.e-15_dp], &
          [expected_num_rocks, 3])
     PetscReal, parameter :: expected_initial_porosity(expected_num_rocks) = &
-         [0.1_dp, 0.1_dp, 0.2_dp]
+         [0.1_dp, 0.1_dp, 0.2_dp, 0.1_dp, 0.2_dp]
     PetscReal, parameter :: expected_porosity(expected_num_rocks) = &
-         [0.1_dp, 0.05_dp, 0.2_dp]
+         [0.1_dp, 0.05_dp, 0.2_dp, 0.05_dp, 0.2_dp]
     PetscReal, parameter :: gravity(3) = [0._dp, 0._dp, -9.8_dp]
     PetscReal, parameter :: ktol = 1.e-20_dp
 
