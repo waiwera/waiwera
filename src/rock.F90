@@ -24,6 +24,7 @@ module rock_module
   use kinds_module
   use relative_permeability_module
   use capillary_pressure_module
+  use hdf5io_module, only: max_field_name_length
 
   implicit none
   private
@@ -64,6 +65,10 @@ module rock_module
        rock_variable_num_components(num_rock_variables) = &
        [3, 1, 1, 1, 1, 1]
   PetscInt, parameter, public :: max_rockname_length = 24
+  character(max_field_name_length), parameter, public :: default_output_rock_fields(0) = [&
+       character(max_field_name_length)::]
+  character(max_field_name_length), parameter, public :: required_output_rock_fields(0) = [&
+       character(max_field_name_length)::]
 
   ! Default rock properties:
   PetscReal, parameter, public :: default_permeability_scalar = 1.e-13_dp

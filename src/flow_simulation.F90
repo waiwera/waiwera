@@ -71,6 +71,7 @@ module flow_simulation_module
      PetscInt, allocatable :: output_cell_geom_field_indices(:) !! Field indices for cell geometry output
      PetscInt, allocatable :: output_face_geom_field_indices(:) !! Field indices for face geometry output
      PetscInt, allocatable :: output_fluid_field_indices(:) !! Field indices for fluid output
+     PetscInt, allocatable :: output_rock_field_indices(:) !! Field indices for rock output
      PetscInt, allocatable :: output_flux_field_indices(:)  !! Field indices for flux output
      PetscInt, allocatable :: output_source_field_indices(:) !! Field indices for source output
      PetscInt, allocatable :: output_source_network_group_field_indices(:) !! Field indices for source network group output
@@ -81,7 +82,7 @@ module flow_simulation_module
      integer(int32) :: start_clock !! Start wall clock time of simulation
      PetscBool :: unperturbed !! Whether any primary variables are being perturbed for Jacobian calculation
      PetscBool :: source_tracer_output !! Whether to output source tracer flow rates
-     PetscBool :: flux_output !! Whether to output fluxes
+     PetscBool :: flux_output, rock_output !! Whether to output fluxes or rock properties
      character(max_initial_filename_length) :: initial_filename !! Initial conditions filename
    contains
      private
@@ -425,6 +426,7 @@ contains
     call check_deallocate(self%output_cell_geom_field_indices)
     call check_deallocate(self%output_face_geom_field_indices)
     call check_deallocate(self%output_fluid_field_indices)
+    call check_deallocate(self%output_rock_field_indices)
     call check_deallocate(self%output_flux_field_indices)
     call check_deallocate(self%output_source_field_indices)
     call check_deallocate(self%output_source_network_group_field_indices)
@@ -454,6 +456,8 @@ contains
     use source_network_reinjector_module, only: &
          default_output_source_network_reinjector_fields, &
          required_output_source_network_reinjector_fields
+    use rock_module, only: &
+         default_output_rock_fields, required_output_rock_fields
     use hdf5io_module, only: max_field_name_length
 
     class(flow_simulation_type), intent(in out) :: self
@@ -494,6 +498,13 @@ contains
          self%eos%required_output_fluid_fields, &
          self%output_fluid_field_indices, output_fields)
     deallocate(output_fields)
+
+    call setup_vector_output_fields("rock", self%rock, &
+         default_output_rock_fields, &
+         required_output_rock_fields, &
+         self%output_rock_field_indices, output_fields)
+    deallocate(output_fields)
+    self%rock_output = (size(self%output_rock_field_indices) > 0)
 
     call setup_vector_output_fields("flux", self%flux, &
          default_output_flux_fields, &
@@ -2972,6 +2983,11 @@ contains
        call vec_sequence_view_hdf5(self%fluid, &
             self%output_fluid_field_indices, "/cell_fields", time_index, &
             time, self%hdf5_viewer)
+       if (self%rock_output) then
+          call vec_sequence_view_hdf5(self%rock, &
+               self%output_rock_field_indices, "/cell_fields", time_index, &
+               time, self%hdf5_viewer)
+       end if
        if (self%flux_output) then
           call VecGetDM(self%flux, flux_dm, ierr); CHKERRQ(ierr)
           call DMGetGlobalVector(flux_dm, global_flux, ierr); CHKERRQ(ierr)
