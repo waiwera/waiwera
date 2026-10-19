@@ -517,7 +517,36 @@
                                                                  "type": "array",
                                                                  "items": {
                                                                      "type": "number", "minimum": 0},
-                                                                 "minItems": 2, "maxItems": 4}}
+                                                                 "minItems": 2, "maxItems": 4}},
+                                                            {"type": "object",
+                                                             "properties": {
+                                                                 "value": {"oneOf": [
+                                                                     {"type": "number",
+                                                                      "minimum": 0},
+                                                                     {"type": "array",
+                                                                      "items": {
+                                                                          "type": "number", "minimum": 0},
+                                                                      "minItems": 2, "maxItems": 3}
+                                                                 ]},
+                                                                 "time": {"type": "array",
+                                                                          "items": {
+                                                                              "type": "array",
+                                                                              "items": {
+                                                                                  "type": "number", "minimum": 0},
+                                                                              "minItems": 2, "maxItems": 4}},
+                                                                 "temperature": {"oneOf": [
+                                                                     {"type": "string",
+                                                                      "enum": ["hayba-ingebritsen",
+                                                                               "Hayba-Ingebritsen"
+                                                                              ]},
+                                                                     {"type": "array",
+                                                                      "items": {
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                              "type": "number", "minimum": 0},
+                                                                          "minItems": 2, "maxItems": 2}}
+                                                                 ]}
+                                                             }, "additionalProperties": false}
                                                              ]},
                                  "interpolation": {"type": "string",
                                                    "enum": ["linear", "Linear",
