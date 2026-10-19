@@ -26,6 +26,7 @@ module rock_control_module
   use rock_module
   use interpolation_module
   use control_module
+  use eos_module
 
   implicit none
   private
@@ -42,8 +43,39 @@ module rock_control_module
      procedure, public :: update => porosity_table_rock_control_update
   end type porosity_table_rock_control_type
 
+  type, public, abstract, extends(vector_vector_control_type) :: fluid_rock_control_type
+     !! Controls rock properties according to fluid properties.
+     private
+     class(eos_type), pointer :: eos !! Equation of state
+   contains
+     procedure :: local_update => fluid_rock_control_local_update
+     procedure, public :: update => fluid_rock_control_update
+  end type fluid_rock_control_type
+
+  type, public, extends(fluid_rock_control_type) :: &
+       temperature_dependent_permeability_rock_control_type
+     !! Controls rock permeability according to fluid temperature.
+     private
+     class(interpolation_table_type), allocatable, public :: table !! Table of log permeability vs. temperature
+   contains
+     procedure, public :: init => temperature_dependent_permeability_rock_control_init
+     procedure, public :: local_update => &
+          temperature_dependent_permeability_rock_control_local_update
+     procedure, public :: destroy => temperature_dependent_permeability_rock_control_destroy
+  end type temperature_dependent_permeability_rock_control_type
+
+  type, public, extends(temperature_dependent_permeability_rock_control_type) :: &
+       hayba_ingebritsen_permeability_rock_control_type
+     !! Permeability rock control with temperature dependence from
+     !! Hayba and Ingebritsen (1997)
+   contains
+     procedure, public :: init => hayba_ingebritsen_permeability_rock_control_init
+  end type hayba_ingebritsen_permeability_rock_control_type
+
 contains
   
+!------------------------------------------------------------------------
+! Permeability table rock control
 !------------------------------------------------------------------------
 
   subroutine permeability_table_rock_control_update(self, time, &
@@ -84,6 +116,8 @@ contains
   end subroutine permeability_table_rock_control_update
 
 !------------------------------------------------------------------------
+! Porosity table rock control
+!------------------------------------------------------------------------
 
   subroutine porosity_table_rock_control_update(self, time, &
        vector_array, section, range_start)
@@ -114,6 +148,177 @@ contains
     call rock%destroy()
 
   end subroutine porosity_table_rock_control_update
+
+!------------------------------------------------------------------------
+! Fluid rock control
+!------------------------------------------------------------------------
+
+  subroutine fluid_rock_control_local_update(self, fluid, rock)
+    !! Updates rock object according to fluid object. Derived types
+    !! override this procedure.
+
+    use fluid_module, only: fluid_type
+
+    class(fluid_rock_control_type), intent(in out) :: self
+    type(fluid_type), intent(in) :: fluid
+    type(rock_type), intent(in out) :: rock
+
+    continue
+
+  end subroutine fluid_rock_control_local_update
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_rock_control_update(self, &
+       subject_array, subject_section, subject_range_start, &
+       object_array, object_section, object_range_start)
+    !! Updates rock vector based on the fluid vector.
+
+    use dm_utils_module, only: global_section_offset
+    use fluid_module, only: fluid_type
+
+    class(fluid_rock_control_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: subject_array(:) !! Array on fluid vector
+    PetscSection, intent(in) :: subject_section !! Global section for fluid vector
+    PetscInt, intent(in) :: subject_range_start !! Range start for fluid vector
+    PetscReal, pointer, contiguous, intent(in out) :: object_array(:) !! Array on rock vector
+    PetscSection, intent(in) :: object_section !! Global section for rock vector
+    PetscInt, intent(in) :: object_range_start !! Range start for rock vector
+    ! Locals:
+    PetscInt :: i, c, fluid_offset, rock_offset
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid
+
+    call fluid%init(self%eos%num_components, self%eos%num_phases)
+    call rock%init()
+
+    do i = 1, size(self%indices)
+       c = self%indices(i)
+       fluid_offset = global_section_offset(subject_section, c, subject_range_start)
+       rock_offset = global_section_offset(object_section, c, object_range_start)
+       call fluid%assign(subject_array, fluid_offset)
+       call rock%assign(object_array, rock_offset)
+       call self%local_update(fluid, rock)
+    end do
+
+    call fluid%destroy()
+    call rock%destroy()
+
+  end subroutine fluid_rock_control_update
+
+!------------------------------------------------------------------------
+! Temperature-dependent permeability rock control
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_permeability_rock_control_init(self, &
+       data, indices, interpolation_type, eos)
+    !! Initialises temperature-dependent permeability rock control
+    !! object. The data and interpolation type are used to create an
+    !! internal table of log permeability vs. temperature.
+
+    class(temperature_dependent_permeability_rock_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: data(:,:) !! Data for interpolation table
+    PetscInt, intent(in) :: indices(:) !! Vector indices
+    PetscInt, intent(in) :: interpolation_type !! Interpolation type for data
+    class(eos_type), intent(in), target :: eos
+    ! Locals:
+    PetscReal :: log_data(size(data, 1), size(data, 2))
+
+    select case (interpolation_type)
+    case (INTERP_STEP)
+       allocate(interpolation_table_step_type :: self%table)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%table)
+    case default
+       allocate(interpolation_table_type :: self%table)
+    end select
+
+    log_data(:, 1) = data(:, 1)
+    log_data(:, 2:) = log10(data(:, 2:))
+    call self%table%init(log_data)
+
+    self%indices = indices
+    self%eos => eos
+
+  end subroutine temperature_dependent_permeability_rock_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_permeability_rock_control_local_update( &
+       self, fluid, rock)
+    !! Updates rock permeability according to local fluid temperature
+    !! based on internal table of log permeability vs. temperature.
+
+    use fluid_module, only: fluid_type
+
+    class(temperature_dependent_permeability_rock_control_type), &
+         intent(in out) :: self
+    type(fluid_type), intent(in) :: fluid
+    type(rock_type), intent(in out) :: rock
+    ! Locals:
+    PetscReal :: logk(self%table%dim)
+
+    logk = self%table%interpolate(fluid%temperature)
+    select case (self%table%dim)
+    case (1)
+       rock%permeability = 10._dp ** logk(1) ! scalar permeabilities
+    case default
+       rock%permeability(1: self%table%dim) = 10._dp ** logk
+    end select
+
+  end subroutine temperature_dependent_permeability_rock_control_local_update
+
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_permeability_rock_control_destroy(self)
+    !! Destroys a temperature-dependent permeability rock control.
+
+    class(temperature_dependent_permeability_rock_control_type), intent(in out) :: self
+
+    if (allocated(self%indices)) deallocate(self%indices)
+    call self%table%destroy()
+    deallocate(self%table)
+    self%eos => null()
+
+  end subroutine temperature_dependent_permeability_rock_control_destroy
+
+!------------------------------------------------------------------------
+! Hayba-Ingebritsen permeability rock control
+!------------------------------------------------------------------------
+
+  subroutine hayba_ingebritsen_permeability_rock_control_init(self, &
+       data, indices, interpolation_type, eos)
+    !! Initialises Hayba-Ingebritsen permeability rock control
+    !! object. The data value contains the low-temperature
+    !! permeability determining the first element in the table of
+    !! log(k) vs. T.
+
+    class(hayba_ingebritsen_permeability_rock_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: data(:, :) !! Low-temperature permeability (below 360 deg C)
+    PetscInt, intent(in) :: indices(:) !! Vector indices
+    PetscInt, intent(in) :: interpolation_type !! Interpolation type for data - assumed linear
+    class(eos_type), intent(in), target :: eos
+    ! Locals:
+    PetscInt :: nk
+    PetscReal, allocatable :: logk_data(:, :)
+
+    allocate(interpolation_table_type :: self%table)
+
+    nk = size(data, 2)
+    allocate(logk_data(3, 1 + nk))
+    logk_data(1, 1) = 360._dp
+    logk_data(1, 2:) = log10(data(1, :))
+    logk_data(2, 1) = 400._dp
+    logk_data(2, 2:) = -17._dp
+    logk_data(3, 1) = 500._dp
+    logk_data(3, 2:) = -22._dp
+
+    call self%table%init(logk_data)
+
+    self%indices = indices
+    self%eos => eos
+
+  end subroutine hayba_ingebritsen_permeability_rock_control_init
 
 !------------------------------------------------------------------------
 

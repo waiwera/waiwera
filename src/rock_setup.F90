@@ -234,7 +234,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_rocks_from_types(json, dm, rock_vector, &
-       rock_dict, rock_controls, range_start, logfile)
+       rock_dict, rock_controls, range_start, eos, logfile, err)
     !! Sets up rock vector on DM and rock controls from rock types in
     !! JSON input.
 
@@ -243,8 +243,9 @@ contains
     use zone_label_module
     use fson
     use fson_mpi_module
+    use eos_module, only: eos_type
     use logfile_module
-    use fson_value_m, only : TYPE_ARRAY
+    use fson_value_m, only : TYPE_ARRAY, TYPE_OBJECT, TYPE_STRING
     use interpolation_module
 
     type(fson_value), pointer, intent(in) :: json
@@ -253,12 +254,11 @@ contains
     type(dictionary_type), intent(in out) :: rock_dict
     type(list_type), intent(in out) :: rock_controls
     PetscInt, intent(in) :: range_start
+    class(eos_type), intent(in) :: eos
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscInt :: num_rocktypes, ic, num_cells, offset, ghost
-    PetscInt :: ir, permeability_type, permeability_rank, dim
-    PetscInt :: porosity_type
-    PetscInt :: perm_size
+    PetscInt :: num_rocktypes, ir, ic, num_cells, offset, ghost, perm_size
     DMLabel :: ghost_label
     type(fson_value), pointer :: rocktypes, r
     PetscInt, pointer :: cells(:)
@@ -267,7 +267,6 @@ contains
     IS :: cell_IS
     PetscReal :: porosity, density, specific_heat
     PetscReal :: wet_conductivity, dry_conductivity
-    PetscReal :: permeability_scalar
     PetscReal, allocatable :: permeability(:)
     PetscReal, pointer, contiguous :: rock_array(:)
     PetscSection :: section
@@ -275,6 +274,8 @@ contains
     PetscErrorCode :: ierr
     character(len=64) :: rockstr
     character(len=12) :: irstr
+
+    err = 0
 
     if (fson_has_mpi(json, "rock.types")) then
 
@@ -287,7 +288,6 @@ contains
        call fson_get_mpi(json, "rock.types", rocktypes)
        num_rocktypes = fson_value_count_mpi(rocktypes, ".")
        r => fson_value_children_mpi(rocktypes)
-       call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
 
        do ir = 1, num_rocktypes
 
@@ -296,78 +296,56 @@ contains
           call fson_get_mpi(r, "name", "", name, logfile, trim(rockstr) // "name")
           call DMGetStratumSize(dm, rock_type_label_name, ir, num_cells, &
                ierr); CHKERRQ(ierr)
-          permeability_init = PETSC_TRUE
-          porosity_init = PETSC_TRUE
 
-          permeability_type = fson_type_mpi(r, "permeability")
-          select case (permeability_type)
-          case (TYPE_ARRAY)
-             permeability_rank = fson_mpi_array_rank(r, "permeability")
-             select case (permeability_rank)
-             case (1)
-                call fson_get_mpi(r, "permeability", default_permeability, &
-                     permeability, logfile, trim(rockstr) // "permeability")
-             case (2) ! table of permeabilities vs. time
-                call setup_permeability_rock_control(r, ir, num_cells)
-                permeability_init = PETSC_FALSE
-             end select
-          case default ! real or null
-             call fson_get_mpi(r, "permeability", default_permeability_scalar, &
-                  permeability_scalar, logfile, trim(rockstr) // "permeability")
-             allocate(permeability(dim))
-             permeability = permeability_scalar
-          end select
+          call setup_permeability(r, ir, permeability, permeability_init, err)
+          if (err == 0) then
 
-          porosity_type = fson_type_mpi(r, "porosity")
-          select case (porosity_type)
-          case (TYPE_ARRAY)
-             call setup_porosity_rock_control(r, ir, num_cells)
-             porosity_init = PETSC_FALSE
-          case default
-             call fson_get_mpi(r, "porosity", default_porosity, porosity, logfile, &
-                  trim(rockstr) // "porosity")
-          end select
+             call setup_porosity(r, ir, porosity, porosity_init)
 
-          call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
-               wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
-          call fson_get_mpi(r, "dry_conductivity", wet_conductivity, &
-               dry_conductivity, logfile, trim(rockstr) // "dry_conductivity")
-          call fson_get_mpi(r, "density", default_density, density, logfile, &
-               trim(rockstr) // "density")
-          call fson_get_mpi(r, "specific_heat", default_specific_heat, &
-               specific_heat, logfile, trim(rockstr) // "specific_heat")
-          if (permeability_init) then
-             perm_size = size(permeability)
-          end if
+             call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
+                  wet_conductivity, logfile, trim(rockstr) // "wet_conductivity")
+             call fson_get_mpi(r, "dry_conductivity", wet_conductivity, &
+                  dry_conductivity, logfile, trim(rockstr) // "dry_conductivity")
+             call fson_get_mpi(r, "density", default_density, density, logfile, &
+                  trim(rockstr) // "density")
+             call fson_get_mpi(r, "specific_heat", default_specific_heat, &
+                  specific_heat, logfile, trim(rockstr) // "specific_heat")
+             if (permeability_init) then
+                perm_size = size(permeability)
+             end if
 
-          if (num_cells > 0) then
-             call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
-                  ierr); CHKERRQ(ierr)
-             call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-             do ic = 1, num_cells
-                associate(c => cells(ic))
-                  call DMLabelGetValue(ghost_label, c, ghost, ierr)
-                  if (ghost < 0) then
-                     offset = global_section_offset(section, c, range_start)
-                     call rock%assign(rock_array, offset)
-                     if (permeability_init) then
-                        rock%permeability = 0._dp
-                        rock%permeability(1: perm_size) = permeability
+             if (num_cells > 0) then
+                call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
+                     ierr); CHKERRQ(ierr)
+                call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                do ic = 1, num_cells
+                   associate(c => cells(ic))
+                     call DMLabelGetValue(ghost_label, c, ghost, ierr)
+                     if (ghost < 0) then
+                        offset = global_section_offset(section, c, range_start)
+                        call rock%assign(rock_array, offset)
+                        if (permeability_init) then
+                           rock%permeability = 0._dp
+                           rock%permeability(1: perm_size) = permeability
+                        end if
+                        rock%wet_conductivity = wet_conductivity
+                        rock%dry_conductivity = dry_conductivity
+                        if (porosity_init) then
+                           rock%porosity = porosity
+                        end if
+                        rock%density = density
+                        rock%specific_heat = specific_heat
                      end if
-                     rock%wet_conductivity = wet_conductivity
-                     rock%dry_conductivity = dry_conductivity
-                     if (porosity_init) then
-                        rock%porosity = porosity
-                     end if
-                     rock%density = density
-                     rock%specific_heat = specific_heat
-                  end if
-                end associate
-             end do
-             call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
-             call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+                   end associate
+                end do
+                call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+                call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+             end if
+             if (allocated(permeability)) deallocate(permeability)
+
+          else
+             exit
           end if
-          if (allocated(permeability)) deallocate(permeability)
 
           r => fson_value_next_mpi(r)
 
@@ -380,10 +358,114 @@ contains
 
   contains
 
-    subroutine setup_permeability_rock_control(rock_json, ir, num_rock_cells)
-      !! Sets up permeability rock control from JSON input.
+    subroutine setup_permeability(rock_json, ir, permeability, &
+         permeability_init, err)
+      !! Sets up rock permeability and any associated controls.
 
       type(fson_value), pointer, intent(in) :: rock_json
+      PetscInt, intent(in) :: ir
+      PetscReal, allocatable, intent(out) :: permeability(:)
+      PetscBool, intent(out) :: permeability_init
+      PetscErrorCode, intent(in out) :: err
+      ! Locals:
+      PetscInt :: permeability_type, permeability_rank
+      PetscInt :: permeability_value_type, dim
+      PetscReal :: permeability_scalar
+      type(fson_value), pointer :: perm
+
+      permeability_init = PETSC_TRUE
+       call DMGetDimension(dm, dim, ierr); CHKERRQ(ierr)
+
+       permeability_type = fson_type_mpi(rock_json, "permeability")
+      select case (permeability_type)
+      case (TYPE_ARRAY)
+         permeability_rank = fson_mpi_array_rank(rock_json, "permeability")
+         select case (permeability_rank)
+         case (1)
+            call fson_get_mpi(rock_json, "permeability", default_permeability, &
+                 permeability, logfile, trim(rockstr) // "permeability")
+         case (2) ! table of permeabilities vs. time
+            call setup_permeability_time_rock_control(rock_json, "permeability", &
+                 ir, num_cells)
+            permeability_init = PETSC_FALSE
+         end select
+      case (TYPE_OBJECT)
+         if (fson_has_mpi(rock_json, "permeability.time")) then
+            call fson_get_mpi(rock_json, "permeability", perm)
+            call setup_permeability_time_rock_control(perm, "time", ir, num_cells)
+            permeability_init = PETSC_FALSE
+         else if (fson_has_mpi(rock_json, "permeability.temperature")) then
+            permeability_value_type = fson_type_mpi(rock_json, "permeability.value")
+            select case (permeability_value_type)
+            case (TYPE_ARRAY)
+               call fson_get_mpi(rock_json, "permeability.value", default_permeability, &
+                    permeability, logfile, trim(rockstr) // "permeability.value")
+            case default ! real or null
+               call fson_get_mpi(rock_json, "permeability.value", &
+                    default_permeability_scalar, permeability_scalar, &
+                    logfile, trim(rockstr) // "permeability.value")
+               allocate(permeability(dim))
+               permeability = permeability_scalar
+            end select
+            call setup_permeability_temperature_rock_control(rock_json, ir, &
+                 num_cells, permeability, eos, err)
+            permeability_init = PETSC_FALSE
+         else if (fson_has_mpi(rock_json, "permeability.value")) then
+            permeability_type = fson_type_mpi(rock_json, "permeability.value")
+            select case (permeability_type)
+            case (TYPE_ARRAY)
+               call fson_get_mpi(rock_json, "permeability.value", default_permeability, &
+                    permeability, logfile, trim(rockstr) // "permeability.value")
+            case default
+               call fson_get_mpi(rock_json, "permeability.value", &
+                    default_permeability_scalar, permeability_scalar, &
+                    logfile, trim(rockstr) // "permeability.value")
+               allocate(permeability(dim))
+               permeability = permeability_scalar
+            end select
+         end if
+      case default ! real or null
+         call fson_get_mpi(rock_json, "permeability", default_permeability_scalar, &
+              permeability_scalar, logfile, trim(rockstr) // "permeability")
+         allocate(permeability(dim))
+         permeability = permeability_scalar
+      end select
+
+    end subroutine setup_permeability
+
+!........................................................................
+
+    subroutine setup_porosity(rock_json, ir, porosity, porosity_init)
+      !! Sets up rock porosity and any associated controls.
+
+      type(fson_value), pointer, intent(in) :: rock_json
+      PetscInt, intent(in) :: ir
+      PetscReal, intent(out) :: porosity
+      PetscBool, intent(out) :: porosity_init
+      ! Locals:
+      PetscInt :: porosity_type, rank
+
+      porosity_init = PETSC_TRUE
+
+      porosity_type = fson_type_mpi(rock_json, "porosity")
+      select case (porosity_type)
+      case (TYPE_ARRAY)
+         call setup_porosity_time_rock_control(rock_json, ir, num_cells)
+         porosity_init = PETSC_FALSE
+      case default
+         call fson_get_mpi(rock_json, "porosity", default_porosity, &
+              porosity, logfile, trim(rockstr) // "porosity")
+      end select
+
+    end subroutine setup_porosity
+
+!........................................................................
+
+      subroutine setup_permeability_time_rock_control(rock_json, key, ir, num_rock_cells)
+      !! Sets up time-dependent permeability rock control from JSON input.
+
+      type(fson_value), pointer, intent(in) :: rock_json
+      character(*), intent(in) :: key
       PetscInt, intent(in) :: ir, num_rock_cells
       ! Locals:
       PetscReal, allocatable :: permeability_table(:,:)
@@ -395,7 +477,7 @@ contains
       PetscInt, allocatable :: ghost_cell(:), rock_cell(:)
       PetscErrorCode :: ierr
 
-      call fson_get_mpi(rock_json, "permeability", val = permeability_table)
+      call fson_get_mpi(rock_json, key, val = permeability_table)
       call fson_get_mpi(rock_json, "interpolation", &
            default_interpolation_str, interpolation_str)
       interpolation_type = interpolation_type_from_str(interpolation_str)
@@ -418,12 +500,90 @@ contains
       end if
       deallocate(permeability_table)
 
-    end subroutine setup_permeability_rock_control
+    end subroutine setup_permeability_time_rock_control
 
 !........................................................................
 
-    subroutine setup_porosity_rock_control(rock_json, ir, num_rock_cells)
-      !! Sets up porosity rock control from JSON input.
+    subroutine setup_permeability_temperature_rock_control(rock_json, ir, &
+         num_rock_cells, permeability, eos, err)
+      !! Sets up temperature-dependent permeability rock control from JSON input.
+
+      use utils_module, only: str_to_lower
+
+      type(fson_value), pointer, intent(in) :: rock_json
+      PetscInt, intent(in) :: ir, num_rock_cells
+      PetscReal, intent(in) :: permeability(:)
+      class(eos_type), intent(in) :: eos
+      PetscErrorCode, intent(in out) :: err
+
+      ! Locals:
+      PetscReal, allocatable :: permeability_table(:,:)
+      class(temperature_dependent_permeability_rock_control_type), pointer :: control
+      character(max_interpolation_str_length) :: interpolation_str
+      character(32) :: permeability_control_name
+      PetscInt :: control_type, i, interpolation_type
+      IS :: cell_IS
+      PetscInt, pointer :: cells(:)
+      PetscInt, allocatable :: ghost_cell(:), rock_cell(:)
+      PetscErrorCode :: ierr
+
+      control_type = fson_type_mpi(rock_json, "permeability.temperature")
+      select case (control_type)
+      case (TYPE_ARRAY)
+         call fson_get_mpi(rock_json, "permeability.temperature", &
+              val = permeability_table)
+         call fson_get_mpi(rock_json, "interpolation", &
+              default_interpolation_str, interpolation_str)
+         interpolation_type = interpolation_type_from_str(interpolation_str)
+         allocate(temperature_dependent_permeability_rock_control_type :: control)
+      case (TYPE_STRING)
+         call fson_get_mpi(rock_json, "permeability.temperature", &
+              val = permeability_control_name)
+         select case (str_to_lower(permeability_control_name))
+         case ('hayba-ingebritsen')
+            associate(nk => size(permeability))
+              allocate(permeability_table(1, nk))
+            end associate
+            permeability_table(1, :) = permeability
+            allocate(hayba_ingebritsen_permeability_rock_control_type :: control)
+         case default
+            if (present(logfile)) then
+               if (logfile%active) then
+                  call logfile%write(LOG_LEVEL_WARN, 'input', 'unrecognised', &
+                       str_key = trim(rockstr) // ".permeability.temperature", &
+                       str_value = permeability_control_name)
+               end if
+            end if
+            err = 1
+         end select
+      end select
+
+      if (num_rock_cells > 0) then
+         call DMGetStratumIS(dm, rock_type_label_name, ir, cell_IS, &
+              ierr); CHKERRQ(ierr)
+         call ISGetIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+         allocate(ghost_cell(num_rock_cells))
+         do i = 1, num_rock_cells
+            call DMLabelGetValue(ghost_label, cells(i), ghost_cell(i), &
+                 ierr); CHKERRQ(ierr)
+         end do
+         rock_cell = pack(cells, ghost_cell < 0)
+         call ISRestoreIndicesF90(cell_IS, cells, ierr); CHKERRQ(ierr)
+         call ISDestroy(cell_IS, ierr); CHKERRQ(ierr)
+         call control%init(permeability_table, rock_cell, interpolation_type, eos)
+         deallocate(rock_cell, ghost_cell)
+         call rock_controls%append(control)
+      else
+         deallocate(control)
+      end if
+      deallocate(permeability_table)
+
+    end subroutine setup_permeability_temperature_rock_control
+
+!........................................................................
+
+    subroutine setup_porosity_time_rock_control(rock_json, ir, num_rock_cells)
+      !! Sets up time-dependent porosity rock control from JSON input.
 
       type(fson_value), pointer, intent(in) :: rock_json
       PetscInt, intent(in) :: ir, num_rock_cells
@@ -460,7 +620,7 @@ contains
       end if
       deallocate(porosity_table)
 
-    end subroutine setup_porosity_rock_control
+    end subroutine setup_porosity_time_rock_control
 
   end subroutine setup_rocks_from_types
 
@@ -497,7 +657,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine setup_rocks(json, dm, rock_vector, rock_dict, &
-       rock_controls, range_start, ghost_cell, logfile, err)
+       rock_controls, range_start, ghost_cell, eos, logfile, err)
 
     !! Sets up rock vector on specified DM and rock controls from JSON
     !! input. If initialising rock properties using rock types, this
@@ -507,6 +667,7 @@ contains
     use dictionary_module
     use fson
     use fson_mpi_module
+    use eos_module, only: eos_type
     use logfile_module
 
     type(fson_value), pointer, intent(in) :: json
@@ -516,6 +677,7 @@ contains
     type(list_type), intent(in out) :: rock_controls
     PetscInt, intent(out) :: range_start
     PetscInt, allocatable, intent(in) :: ghost_cell(:)
+    class(eos_type), intent(in) :: eos
     type(logfile_type), intent(in out), optional :: logfile
     PetscErrorCode, intent(out) :: err
 
@@ -531,7 +693,7 @@ contains
        if (fson_has_mpi(json, "rock.types")) then
 
           call setup_rocks_from_types(json, dm, rock_vector, &
-               rock_dict, rock_controls, range_start, logfile)
+               rock_dict, rock_controls, range_start, eos, logfile, err)
 
        else
           ! other types of rock initialization here- TODO

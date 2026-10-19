@@ -109,6 +109,14 @@ module control_module
      procedure, public :: destroy => table_vector_control_destroy
   end type table_vector_control_type
 
+  type, public, abstract, extends(vector_control_type) :: vector_vector_control_type
+     !! Controls object vector values according to the values of a
+     !! subject vector.
+   contains
+     private
+     procedure, public :: update => vector_vector_control_update
+  end type vector_vector_control_type
+
   abstract interface
 
      subroutine object_control_destroy_procedure(self)
@@ -459,6 +467,27 @@ contains
     deallocate(self%table)
 
   end subroutine table_vector_control_destroy
+
+!------------------------------------------------------------------------
+! Vector vector control routines
+!------------------------------------------------------------------------
+
+  subroutine vector_vector_control_update(self, &
+       subject_array, subject_section, subject_range_start, &
+       object_array, object_section, object_range_start)
+    !! Updates object vector values according to the values in the
+    !! subject vector. Derived types override this routine to update
+    !! the object vector values.
+
+    class(vector_vector_control_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: subject_array(:) !! Array on subject vector
+    PetscSection, intent(in) :: subject_section !! Global section for subject vector
+    PetscInt, intent(in) :: subject_range_start !! Range start for subject vector
+    PetscReal, pointer, contiguous, intent(in out) :: object_array(:) !! Array on object vector
+    PetscSection, intent(in) :: object_section !! Global section for object vector
+    PetscInt, intent(in) :: object_range_start !! Range start for object vector
+
+  end subroutine vector_vector_control_update
 
 !------------------------------------------------------------------------
 

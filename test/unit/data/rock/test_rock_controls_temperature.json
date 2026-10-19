@@ -1,0 +1,22 @@
+{
+    "title": "Test temperature rock controls",
+    "mesh": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo",
+    "rock": {"types": [
+        {"name": "HI scalar",
+         "cells": [1],
+         "permeability": {"value": 1e-15,
+                          "temperature": "hayba-ingebritsen"}},
+        {"name": "HI array",
+         "cells": [2],
+         "permeability": {"value": [1e-14, 1e-15],
+                          "temperature": "hayba-ingebritsen"}},
+        {"name": "table scalar",
+         "cells": [3],
+         "permeability": {"temperature": [[350, 1e-15],
+                                          [450, 1e-22]]}},
+        {"name": "table array",
+         "cells": [4],
+         "permeability": {"temperature": [[350, 1e-15, 1e-16],
+                                          [450, 1e-21, 1e-22]]}}
+    ]}
+}

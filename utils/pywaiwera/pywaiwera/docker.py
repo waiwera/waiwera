@@ -486,7 +486,7 @@ class DockerEnv(object):
 
         script_name = '.copy_examples.py'
         work_dir = ['--workdir', data_path]
-        cmd = ['/usr/bin/python', script_name]
+        cmd = ['/usr/bin/python3', script_name]
         # cmd = ['pwd']
 
         fo = open(".idcheck", "wb")

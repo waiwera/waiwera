@@ -108,7 +108,6 @@ module flow_simulation_module
      procedure, public :: aux_rhs => flow_simulation_tracer_cell_inflows
      procedure, public :: aux_pre_solve => flow_simulation_tracer_pre_solve
      procedure, public :: pre_timestep => flow_simulation_pre_timestep
-     procedure, public :: pre_try_timestep => flow_simulation_pre_try_timestep
      procedure, public :: pre_retry_timestep => flow_simulation_pre_retry_timestep
      procedure, public :: pre_iteration => flow_simulation_pre_iteration
      procedure, public :: pre_eval => flow_simulation_pre_eval
@@ -937,6 +936,19 @@ contains
           call self%create_solution_vector(self%mesh%dm, self%solution, &
                self%solution_range_start)
           call setup_tracers(json, self%eos, self%tracers, self%logfile, err)
+          self%auxiliary = (size(self%tracers) > 0)
+          if (self%auxiliary) then
+             call create_tracer_vector(self%mesh%dm, self%tracers, &
+                  self%aux_solution, self%aux_solution_range_start)
+          end if
+          call setup_relative_permeabilities(json, &
+               self%relative_permeability, self%logfile)
+          call setup_capillary_pressures(json, &
+               self%capillary_pressure, self%logfile)
+          call setup_rocks(json, self%mesh%dm, self%rock, &
+               self%mesh%rock_types, self%rock_controls, &
+               self%rock_range_start, self%mesh%ghost_cell, self%eos, &
+               self%logfile, err)
           if (err == 0) then
              self%auxiliary = (size(self%tracers) > 0)
              if (self%auxiliary) then
@@ -949,7 +961,7 @@ contains
                   self%capillary_pressure, self%logfile)
              call setup_rocks(json, self%mesh%dm, self%rock, &
                   self%mesh%rock_types, self%rock_controls, &
-                  self%rock_range_start, self%mesh%ghost_cell, &
+                  self%rock_range_start, self%mesh%ghost_cell, self%eos, &
                   self%logfile, err)
              if (err == 0) then
                 if (self%mesh%has_minc) then
@@ -2087,18 +2099,6 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine flow_simulation_pre_try_timestep(self, t)
-    !! Routine to be called before trying a time step.
-
-    class(flow_simulation_type), intent(in out) :: self
-    PetscReal, intent(in) :: t !! time
-
-    call self%update_rock_properties(t)
-
-  end subroutine flow_simulation_pre_try_timestep
-
-!------------------------------------------------------------------------
-
   subroutine flow_simulation_update_rock_properties(self, t)
 
     !! Update any time-dependent rock properties from the list of rock
@@ -2106,19 +2106,23 @@ contains
 
     use dm_utils_module, only: global_vec_section
     use control_module, only: table_vector_control_type
+    use rock_control_module, only: fluid_rock_control_type
 
     class(flow_simulation_type), intent(in out) :: self
     PetscReal, intent(in) :: t !! time
 
     ! Locals:
-    PetscSection :: rock_section
-    PetscReal, pointer, contiguous :: rock_data(:)
+    PetscSection :: rock_section, fluid_section
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
     PetscErrorCode :: ierr
 
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
+    call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayF90(self%fluid, fluid_data, ierr); CHKERRQ(ierr)
     call self%rock_controls%traverse(rock_control_iterator)
     call VecRestoreArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%fluid, fluid_data, ierr); CHKERRQ(ierr)
 
   contains
 
@@ -2133,6 +2137,9 @@ contains
       class is (table_vector_control_type)
          call rock_control%update(t, rock_data, &
               rock_section, self%rock_range_start)
+      class is (fluid_rock_control_type)
+         call rock_control%update(fluid_data, fluid_section, self%fluid_range_start, &
+              rock_data, rock_section, self%rock_range_start)
       end select
 
     end subroutine rock_control_iterator
@@ -2194,6 +2201,7 @@ contains
     if (self%unperturbed) then
        call VecCopy(self%current_fluid, self%fluid, ierr); CHKERRQ(ierr)
     end if
+    call self%update_rock_properties(t)
 
   end subroutine flow_simulation_pre_eval
 
