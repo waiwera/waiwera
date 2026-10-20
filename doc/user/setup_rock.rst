@@ -192,6 +192,8 @@ a rock type is defined with time-dependent 3-D anisotropic permeability, changin
 
 .. index:: rock; temperature-dependent permeabilities
 
+.. _temperature_dependent_permeability:
+
 Temperature-dependent permeabilities
 ------------------------------------
 

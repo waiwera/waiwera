@@ -14,6 +14,7 @@ Waiwera simulation results consist mainly of:
 * selected source properties (e.g. flow rates, enthalpies) at each source (see :ref:`source_terms`)
 * selected source group and reinjector properties (e.g. flow rates, enthalpies) if a source network is defined (see :ref:`source_networks`)
 * selected mesh geometry properties (e.g. cell centroids and volumes, and face areas)
+* selected rock properties (e.g. permeabilities) in each cell
 
 which are written to the HDF5 file at specified times.
 
@@ -195,7 +196,7 @@ This forces any as-yet unwritten data in the buffer to be written to the file im
 Output fields
 =============
 
-The main simulation results consist of fluid, flux and source properties, or "fields", output for each cell, face and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with values **"fluid"**, **flux**, **"source"**, **network_group**, **network_reinject**, **"cell_geometry"** and **"face_geometry"**, specifying the fluid, flux, source, source network group, source network reinjector, cell geometry and face geometry output fields respectively.
+The main simulation results consist of fluid, flux and source properties, or "fields", output for each cell, face and source. It is possible to control which fields are output using the **"output.fields"** value. This is an object, with values **"fluid"**, **flux**, **"source"**, **network_group**, **network_reinject**, **"cell_geometry"**, **"face_geometry"** and **rock"**, specifying the fluid, flux, source, source network group, source network reinjector, cell geometry, face geometry and rock output fields respectively.
 
 .. admonition:: JSON input
 
@@ -230,6 +231,10 @@ The main simulation results consist of fluid, flux and source properties, or "fi
    |                  |               |                        |                |
    +------------------+---------------+------------------------+----------------+
    |"face_geometry"   |array | string |["area"]                |face geometry   |
+   |                  |               |                        |fields          |
+   |                  |               |                        |                |
+   +------------------+---------------+------------------------+----------------+
+   |"rock"            |array | string |[]                      |rock output     |
    |                  |               |                        |fields          |
    |                  |               |                        |                |
    +------------------+---------------+------------------------+----------------+
@@ -551,6 +556,37 @@ The available face geometry fields are:
 +--------------------------+-------------------------+
 
 Note that if no :ref:`output_flux_fields` are specified (the default), then no face geometry fields will be output either.
+
+Rock fields
+-----------
+
+In most cases rock properties are fixed inputs and there is no particular need to output them. However, in some simulations rock properties can be time- or temperature-dependent (see :ref:`temperature_dependent_permeability`) in which case rock output may be useful.
+
+The rock fields available for output are:
+
++---------------------------+-------------------------------------+
+|**field name**             |**value**                            |
++---------------------------+-------------------------------------+
+|"permeability"             |rock permeability (m\ :sup:`2`)      |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|"porosity"                 |rock porosity                        |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|"density"                  |rock grain density (kg/m\ :sup:`3`)  |
+|                           |                                     |
++---------------------------+-------------------------------------+
+|"specific_heat"            |rock specific heat (J / (kg          |
+|                           |:math:`^{\circ}`\ C))                |
++---------------------------+-------------------------------------+
+|"wet_conductivity"         |rock heat conductivity under         |
+|                           |saturated conditions (W / (m         |
+|                           |:math:`^{\circ}`\ C))                |
++---------------------------+-------------------------------------+
+|"dry_conductivity"         |rock heat conductivity under         |
+|                           |unsaturated conditions (W / (m       |
+|                           |:math:`^{\circ}`\ C))                |
++---------------------------+-------------------------------------+
 
 Examples
 --------
