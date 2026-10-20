@@ -54,7 +54,7 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
     |                  |              |                      |                                  |
     +------------------+--------------+----------------------+----------------------------------+
     |"permeability"    |number | array|10\ :sup:`-13` m\     |permeability (\                   |
-    |                  |              |:sup:`2`              |m\ :sup:`2`\ )                    |
+    |                  || object      |:sup:`2`              |m\ :sup:`2`\ )                    |
     +------------------+--------------+----------------------+----------------------------------+
     |"interpolation"   |string        |"linear"              |interpolation type for            |
     |                  |              |                      |time-dependent rock properties    |
@@ -189,6 +189,70 @@ a rock type is defined with time-dependent 3-D anisotropic permeability, changin
                  [7200, 0.11],
                  [9600, 0.08]],
     "permeability": 3.5e-15}
+
+.. index:: rock; temperature-dependent permeabilities
+
+Temperature-dependent permeabilities
+------------------------------------
+
+At very high temperatures, rocks transition from brittle behaviour to becoming more plastic and ductile, which generally lowers permeability. The temperatures (over 350 :math:`^{\circ}`\ C) needed for this are usually only attained when using Waiwera's :ref:`supercritical_eoses`.
+
+Temperature-dependent permeabilities can be used in Waiwera by specifying the rock permeability in the JSON input file as an object rather than a number or array.
+
+.. admonition:: JSON input
+
+   **JSON object**: rock permeability
+
+   **JSON path**: rock.types[`index`].permeability
+
+   +------------------------+----------+-----------+----------------------------+
+   |**name**                |**type**  |**default**|**value**                   |
+   +------------------------+----------+-----------+----------------------------+
+   |"temperature"           |array |   |[]         |table or type of            |
+   |                        |string    |           |permeability vs. temperature|
+   +------------------------+----------+-----------+----------------------------+
+   |"interpolation"         |string    |"linear"   |interpolation type for      |
+   |                        |          |           |temperature-dependent       |
+   |                        |          |           |permeability table          |
+   +------------------------+----------+-----------+----------------------------+
+   |"value"                 |number |  |10\        |low-temperature permeability|
+   |                        |array     |:sup:`-13` |for Hayba-Ingebritsen       |
+   |                        |          |m\ :sup:`2`|temperature-dependent       |
+   |                        |          |           |permeability                |
+   +------------------------+----------+-----------+----------------------------+
+
+A commonly-used formulation for the high-temperature dependence of permeability is that of Hayba and Ingebritsen [HI97]_. In this formulation, up to 360 :math:`^{\circ}`\ C the permeability is unmodified and takes a specified baseline value. This decreases to 10\ :sup:`-17` m\ :sup:`2` at 400 :math:`^{\circ}`\ C and decreases further to 10\ :sup:`-22` m\ :sup:`2` at (and above) 500 :math:`^{\circ}`\ C. The logarithm (base 10) of permeability is assumed to vary linearly between these values.
+
+The Hayba-Ingebritsen formulation can be used by specifying the **"temperature"** value of the permeability object as the string "Hayba-Ingebritsen" (or "hayba-ingebritsen"). In this case the baseline low-temperature permeability can be specified using **"value"**. This can be a number, which gives isotropic permeability, as in the original formulation. Alternatively it can be specified as an array for anisotropic baseline permeability (however, this will still become isotropic above 400 :math:`^{\circ}`\ C).
+
+Alternatively, the temperature dependence of permeability can be specified more generally by setting the **"temperature"** value to a table (i.e. an array of arrays). The first column of the table gives the temperature values, and the remaining columns represent the corresponding isotropic or anisotropic permeabilities. (In this case, it is not necessary to specify "value" as well.) Again, the logarithm of permeability is interpolated between the specified table values. By default this is carried out using linear interpolation but other methods can be specified using the **"interpolation"** value (see :ref:`interpolation_tables`). Below and above the specified temperature bounds the permeabilities are held constant at their low-and high-temperature values.
+
+In this example:
+
+.. code-block:: json
+
+   {"name": "greywacke",
+    "zones": ["basement"],
+    "permeability":
+      {"value": 1e-14, "temperature": "hayba-ingebritsen"}
+    }
+
+a rock type is given isotropic baseline permeability of 10\ :sup:`-14` m\ :sup:`2`, varying with temperature according to the Hayba-Ingebritsen formulation. In the next example:
+
+.. code-block:: json
+
+   {"name": "greywacke",
+    "zones": ["basement"],
+    "permeability":
+      {"temperature": [[350, 1e-14, 1e-14, 1e-15],
+                       [400, 1e-16, 1e-17, 1e-17],
+                       [450, 1e-17, 1e-18, 1e-18],
+                       [520, 1e-21, 1e-22, 1e-22]]}
+    }
+
+a rock type is given values of temperature-dependent anisotropic permeabilities for temperatures of 350 -- 520 :math:`^{\circ}`\ C.
+
+.. [HI97] Hayba, D.O and Ingebritsen, S.E. (1997). "Multiphase groundwater flow near cooling plutons", Journal of Geophysical Research, 102(B6), 12,235 -- 12,252.
 
 .. _rock_type_cells_and_zones:
 
