@@ -314,7 +314,7 @@ contains
 
     class(reinjector_output_type), intent(in out) :: self
 
-    continue
+    capacity = 0._dp
 
   end function reinjector_output_node_capacity
 

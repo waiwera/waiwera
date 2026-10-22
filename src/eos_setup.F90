@@ -32,7 +32,7 @@ contains
 
 !------------------------------------------------------------------------
   
-  subroutine setup_eos(json, thermo, eos, logfile)
+  subroutine setup_eos(json, thermo, eos, logfile, err)
     !! Reads equation of state from JSON input file.  If not present,
     !! a default value is assigned.
 
@@ -41,25 +41,32 @@ contains
     use fson_mpi_module, only: fson_get_mpi, fson_type_mpi
     use logfile_module
     use thermodynamics_module
+    use IAPWS_module
     use utils_module, only : str_to_lower
+    use mpi_utils_module, only: mpi_broadcast_error_flag
     use eos_module
     use eos_w_module
     use eos_we_module
+    use eos_se_module
     use eos_wce_module
     use eos_wae_module
     use eos_wse_module
     use eos_wsae_module
     use eos_wsce_module
+    use eos_sae_module
 
     type(fson_value), pointer, intent(in) :: json
     class(thermodynamics_type), intent(in) :: thermo
     class(eos_type), allocatable, intent(in out) :: eos
     type(logfile_type), intent(in out), optional :: logfile
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: eos_json_type
     character(max_eos_name_length), parameter :: &
          default_eos_name = "we"
     character(max_eos_name_length) :: eos_name
+
+    err = 0
 
     eos_json_type = fson_type_mpi(json, "eos")
     select case (eos_json_type)
@@ -87,11 +94,67 @@ contains
        allocate(eos_wsae_type :: eos)
     case ("wsce")
        allocate(eos_wsce_type :: eos)
+    case ("se")
+       select type (thermo)
+       type is (IAPWS_type)
+          if (thermo%extrapolate) then
+             call thermo_extrapolation_error()
+          else
+             allocate(eos_se_type :: eos)
+          end if
+       class default
+          call invalid_thermo_error()
+       end select
+    case ("sae")
+       select type (thermo)
+       type is (IAPWS_type)
+          if (thermo%extrapolate) then
+             call thermo_extrapolation_error()
+          else
+             allocate(eos_sae_type :: eos)
+          end if
+       class default
+          call invalid_thermo_error()
+       end select
     case default
        allocate(eos_we_type :: eos)
     end select
 
-    call eos%init(json, thermo, logfile)
+    if (err == 0) then
+       call eos%init(json, thermo, logfile)
+    end if
+
+  contains
+
+    subroutine invalid_thermo_error()
+      !! Raises an error if thermodynamics is not compatible with the
+      !! EOS.
+
+      err = 1
+      call mpi_broadcast_error_flag(err)
+      if (present(logfile)) then
+         call logfile%write(LOG_LEVEL_ERR, 'simulation', &
+              'init', str_key = 'stop', &
+              str_value = 'Invalid thermodynamics type for EOS ' // &
+              trim(eos_name) // ': ' // trim(thermo%name), rank = 0)
+      end if
+
+    end subroutine invalid_thermo_error
+
+    subroutine thermo_extrapolation_error()
+      !! Raises an error if thermodynamics extrapolation has been
+      !! specified for an EOS that does not support it.
+
+      err = 1
+      call mpi_broadcast_error_flag(err)
+      if (present(logfile)) then
+         call logfile%write(LOG_LEVEL_ERR, 'simulation', &
+              'init', str_key = 'stop', &
+              str_value = 'Thermodynamics extrapolation not supported for EOS ' // &
+              trim(eos_name), rank = 0)
+      end if
+
+    end subroutine thermo_extrapolation_error
 
   end subroutine setup_eos
 

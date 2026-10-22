@@ -1,0 +1,813 @@
+GENER02  1.00e+25  1.00e-06                                0.00  
+VERTICES
+  a      0.00      0.00
+  b     10.00      0.00
+  c     20.00      0.00
+  d     30.00      0.00
+  e     40.00      0.00
+  f     50.00      0.00
+  g     60.00      0.00
+  h     70.00      0.00
+  i     80.00      0.00
+  j     90.00      0.00
+  k    100.00      0.00
+  l    110.00      0.00
+  m    120.00      0.00
+  n    130.00      0.00
+  o    140.00      0.00
+  p    150.00      0.00
+  q    160.00      0.00
+  r    170.00      0.00
+  s    180.00      0.00
+  t    190.00      0.00
+  u    200.00      0.00
+  v    210.00      0.00
+  w    220.00      0.00
+  x    230.00      0.00
+  y    240.00      0.00
+  z    250.00      0.00
+ aa    260.00      0.00
+ ab    270.00      0.00
+ ac    280.00      0.00
+ ad    290.00      0.00
+ ae    300.00      0.00
+ af    310.00      0.00
+ ag    320.00      0.00
+ ah    330.00      0.00
+ ai    340.00      0.00
+ aj    350.00      0.00
+ ak    360.00      0.00
+ al    370.00      0.00
+ am    380.00      0.00
+ an    390.00      0.00
+ ao    400.00      0.00
+ ap    410.00      0.00
+ aq    420.00      0.00
+ ar    430.00      0.00
+ as    440.00      0.00
+ at    450.00      0.00
+ au    460.00      0.00
+ av    470.00      0.00
+ aw    480.00      0.00
+ ax    490.00      0.00
+ ay    500.00      0.00
+ az    510.00      0.00
+ ba    520.00      0.00
+ bb    530.00      0.00
+ bc    540.00      0.00
+ bd    550.00      0.00
+ be    560.00      0.00
+ bf    570.00      0.00
+ bg    580.00      0.00
+ bh    590.00      0.00
+ bi    600.00      0.00
+ bj    610.00      0.00
+ bk    620.00      0.00
+ bl    630.00      0.00
+ bm    640.00      0.00
+ bn    650.00      0.00
+ bo    660.00      0.00
+ bp    670.00      0.00
+ bq    680.00      0.00
+ br    690.00      0.00
+ bs    700.00      0.00
+ bt    710.00      0.00
+ bu    720.00      0.00
+ bv    730.00      0.00
+ bw    740.00      0.00
+ bx    750.00      0.00
+ by    760.00      0.00
+ bz    770.00      0.00
+ ca    780.00      0.00
+ cb    790.00      0.00
+ cc    800.00      0.00
+ cd    810.00      0.00
+ ce    820.00      0.00
+ cf    830.00      0.00
+ cg    840.00      0.00
+ ch    850.00      0.00
+ ci    860.00      0.00
+ cj    870.00      0.00
+ ck    880.00      0.00
+ cl    890.00      0.00
+ cm    900.00      0.00
+ cn    910.00      0.00
+ co    920.00      0.00
+ cp    930.00      0.00
+ cq    940.00      0.00
+ cr    950.00      0.00
+ cs    960.00      0.00
+ ct    970.00      0.00
+ cu    980.00      0.00
+ cv    990.00      0.00
+ cw   1000.00      0.00
+ cx      0.00     10.00
+ cy     10.00     10.00
+ cz     20.00     10.00
+ da     30.00     10.00
+ db     40.00     10.00
+ dc     50.00     10.00
+ dd     60.00     10.00
+ de     70.00     10.00
+ df     80.00     10.00
+ dg     90.00     10.00
+ dh    100.00     10.00
+ di    110.00     10.00
+ dj    120.00     10.00
+ dk    130.00     10.00
+ dl    140.00     10.00
+ dm    150.00     10.00
+ dn    160.00     10.00
+ do    170.00     10.00
+ dp    180.00     10.00
+ dq    190.00     10.00
+ dr    200.00     10.00
+ ds    210.00     10.00
+ dt    220.00     10.00
+ du    230.00     10.00
+ dv    240.00     10.00
+ dw    250.00     10.00
+ dx    260.00     10.00
+ dy    270.00     10.00
+ dz    280.00     10.00
+ ea    290.00     10.00
+ eb    300.00     10.00
+ ec    310.00     10.00
+ ed    320.00     10.00
+ ee    330.00     10.00
+ ef    340.00     10.00
+ eg    350.00     10.00
+ eh    360.00     10.00
+ ei    370.00     10.00
+ ej    380.00     10.00
+ ek    390.00     10.00
+ el    400.00     10.00
+ em    410.00     10.00
+ en    420.00     10.00
+ eo    430.00     10.00
+ ep    440.00     10.00
+ eq    450.00     10.00
+ er    460.00     10.00
+ es    470.00     10.00
+ et    480.00     10.00
+ eu    490.00     10.00
+ ev    500.00     10.00
+ ew    510.00     10.00
+ ex    520.00     10.00
+ ey    530.00     10.00
+ ez    540.00     10.00
+ fa    550.00     10.00
+ fb    560.00     10.00
+ fc    570.00     10.00
+ fd    580.00     10.00
+ fe    590.00     10.00
+ ff    600.00     10.00
+ fg    610.00     10.00
+ fh    620.00     10.00
+ fi    630.00     10.00
+ fj    640.00     10.00
+ fk    650.00     10.00
+ fl    660.00     10.00
+ fm    670.00     10.00
+ fn    680.00     10.00
+ fo    690.00     10.00
+ fp    700.00     10.00
+ fq    710.00     10.00
+ fr    720.00     10.00
+ fs    730.00     10.00
+ ft    740.00     10.00
+ fu    750.00     10.00
+ fv    760.00     10.00
+ fw    770.00     10.00
+ fx    780.00     10.00
+ fy    790.00     10.00
+ fz    800.00     10.00
+ ga    810.00     10.00
+ gb    820.00     10.00
+ gc    830.00     10.00
+ gd    840.00     10.00
+ ge    850.00     10.00
+ gf    860.00     10.00
+ gg    870.00     10.00
+ gh    880.00     10.00
+ gi    890.00     10.00
+ gj    900.00     10.00
+ gk    910.00     10.00
+ gl    920.00     10.00
+ gm    930.00     10.00
+ gn    940.00     10.00
+ go    950.00     10.00
+ gp    960.00     10.00
+ gq    970.00     10.00
+ gr    980.00     10.00
+ gs    990.00     10.00
+ gt   1000.00     10.00
+
+GRID
+  a0 4                    
+  b
+ cy
+ cx
+  a
+  b0 4                    
+  c
+ cz
+ cy
+  b
+  c0 4                    
+  d
+ da
+ cz
+  c
+  d0 4                    
+  e
+ db
+ da
+  d
+  e0 4                    
+  f
+ dc
+ db
+  e
+  f0 4                    
+  g
+ dd
+ dc
+  f
+  g0 4                    
+  h
+ de
+ dd
+  g
+  h0 4                    
+  i
+ df
+ de
+  h
+  i0 4                    
+  j
+ dg
+ df
+  i
+  j0 4                    
+  k
+ dh
+ dg
+  j
+  k0 4                    
+  l
+ di
+ dh
+  k
+  l0 4                    
+  m
+ dj
+ di
+  l
+  m0 4                    
+  n
+ dk
+ dj
+  m
+  n0 4                    
+  o
+ dl
+ dk
+  n
+  o0 4                    
+  p
+ dm
+ dl
+  o
+  p0 4                    
+  q
+ dn
+ dm
+  p
+  q0 4                    
+  r
+ do
+ dn
+  q
+  r0 4                    
+  s
+ dp
+ do
+  r
+  s0 4                    
+  t
+ dq
+ dp
+  s
+  t0 4                    
+  u
+ dr
+ dq
+  t
+  u0 4                    
+  v
+ ds
+ dr
+  u
+  v0 4                    
+  w
+ dt
+ ds
+  v
+  w0 4                    
+  x
+ du
+ dt
+  w
+  x0 4                    
+  y
+ dv
+ du
+  x
+  y0 4                    
+  z
+ dw
+ dv
+  y
+  z0 4                    
+ aa
+ dx
+ dw
+  z
+ aa0 4                    
+ ab
+ dy
+ dx
+ aa
+ ab0 4                    
+ ac
+ dz
+ dy
+ ab
+ ac0 4                    
+ ad
+ ea
+ dz
+ ac
+ ad0 4                    
+ ae
+ eb
+ ea
+ ad
+ ae0 4                    
+ af
+ ec
+ eb
+ ae
+ af0 4                    
+ ag
+ ed
+ ec
+ af
+ ag0 4                    
+ ah
+ ee
+ ed
+ ag
+ ah0 4                    
+ ai
+ ef
+ ee
+ ah
+ ai0 4                    
+ aj
+ eg
+ ef
+ ai
+ aj0 4                    
+ ak
+ eh
+ eg
+ aj
+ ak0 4                    
+ al
+ ei
+ eh
+ ak
+ al0 4                    
+ am
+ ej
+ ei
+ al
+ am0 4                    
+ an
+ ek
+ ej
+ am
+ an0 4                    
+ ao
+ el
+ ek
+ an
+ ao0 4                    
+ ap
+ em
+ el
+ ao
+ ap0 4                    
+ aq
+ en
+ em
+ ap
+ aq0 4                    
+ ar
+ eo
+ en
+ aq
+ ar0 4                    
+ as
+ ep
+ eo
+ ar
+ as0 4                    
+ at
+ eq
+ ep
+ as
+ at0 4                    
+ au
+ er
+ eq
+ at
+ au0 4                    
+ av
+ es
+ er
+ au
+ av0 4                    
+ aw
+ et
+ es
+ av
+ aw0 4                    
+ ax
+ eu
+ et
+ aw
+ ax0 4                    
+ ay
+ ev
+ eu
+ ax
+ ay0 4                    
+ az
+ ew
+ ev
+ ay
+ az0 4                    
+ ba
+ ex
+ ew
+ az
+ ba0 4                    
+ bb
+ ey
+ ex
+ ba
+ bb0 4                    
+ bc
+ ez
+ ey
+ bb
+ bc0 4                    
+ bd
+ fa
+ ez
+ bc
+ bd0 4                    
+ be
+ fb
+ fa
+ bd
+ be0 4                    
+ bf
+ fc
+ fb
+ be
+ bf0 4                    
+ bg
+ fd
+ fc
+ bf
+ bg0 4                    
+ bh
+ fe
+ fd
+ bg
+ bh0 4                    
+ bi
+ ff
+ fe
+ bh
+ bi0 4                    
+ bj
+ fg
+ ff
+ bi
+ bj0 4                    
+ bk
+ fh
+ fg
+ bj
+ bk0 4                    
+ bl
+ fi
+ fh
+ bk
+ bl0 4                    
+ bm
+ fj
+ fi
+ bl
+ bm0 4                    
+ bn
+ fk
+ fj
+ bm
+ bn0 4                    
+ bo
+ fl
+ fk
+ bn
+ bo0 4                    
+ bp
+ fm
+ fl
+ bo
+ bp0 4                    
+ bq
+ fn
+ fm
+ bp
+ bq0 4                    
+ br
+ fo
+ fn
+ bq
+ br0 4                    
+ bs
+ fp
+ fo
+ br
+ bs0 4                    
+ bt
+ fq
+ fp
+ bs
+ bt0 4                    
+ bu
+ fr
+ fq
+ bt
+ bu0 4                    
+ bv
+ fs
+ fr
+ bu
+ bv0 4                    
+ bw
+ ft
+ fs
+ bv
+ bw0 4                    
+ bx
+ fu
+ ft
+ bw
+ bx0 4                    
+ by
+ fv
+ fu
+ bx
+ by0 4                    
+ bz
+ fw
+ fv
+ by
+ bz0 4                    
+ ca
+ fx
+ fw
+ bz
+ ca0 4                    
+ cb
+ fy
+ fx
+ ca
+ cb0 4                    
+ cc
+ fz
+ fy
+ cb
+ cc0 4                    
+ cd
+ ga
+ fz
+ cc
+ cd0 4                    
+ ce
+ gb
+ ga
+ cd
+ ce0 4                    
+ cf
+ gc
+ gb
+ ce
+ cf0 4                    
+ cg
+ gd
+ gc
+ cf
+ cg0 4                    
+ ch
+ ge
+ gd
+ cg
+ ch0 4                    
+ ci
+ gf
+ ge
+ ch
+ ci0 4                    
+ cj
+ gg
+ gf
+ ci
+ cj0 4                    
+ ck
+ gh
+ gg
+ cj
+ ck0 4                    
+ cl
+ gi
+ gh
+ ck
+ cl0 4                    
+ cm
+ gj
+ gi
+ cl
+ cm0 4                    
+ cn
+ gk
+ gj
+ cm
+ cn0 4                    
+ co
+ gl
+ gk
+ cn
+ co0 4                    
+ cp
+ gm
+ gl
+ co
+ cp0 4                    
+ cq
+ gn
+ gm
+ cp
+ cq0 4                    
+ cr
+ go
+ gn
+ cq
+ cr0 4                    
+ cs
+ gp
+ go
+ cr
+ cs0 4                    
+ ct
+ gq
+ gp
+ cs
+ ct0 4                    
+ cu
+ gr
+ gq
+ ct
+ cu0 4                    
+ cv
+ gs
+ gr
+ cu
+ cv0 4                    
+ cw
+ gt
+ gs
+ cv
+
+CONNECTIONS
+  a  b
+  b  c
+  c  d
+  d  e
+  e  f
+  f  g
+  g  h
+  h  i
+  i  j
+  j  k
+  k  l
+  l  m
+  m  n
+  n  o
+  o  p
+  p  q
+  q  r
+  r  s
+  s  t
+  t  u
+  u  v
+  v  w
+  w  x
+  x  y
+  y  z
+  z aa
+ aa ab
+ ab ac
+ ac ad
+ ad ae
+ ae af
+ af ag
+ ag ah
+ ah ai
+ ai aj
+ aj ak
+ ak al
+ al am
+ am an
+ an ao
+ ao ap
+ ap aq
+ aq ar
+ ar as
+ as at
+ at au
+ au av
+ av aw
+ aw ax
+ ax ay
+ ay az
+ az ba
+ ba bb
+ bb bc
+ bc bd
+ bd be
+ be bf
+ bf bg
+ bg bh
+ bh bi
+ bi bj
+ bj bk
+ bk bl
+ bl bm
+ bm bn
+ bn bo
+ bo bp
+ bp bq
+ bq br
+ br bs
+ bs bt
+ bt bu
+ bu bv
+ bv bw
+ bw bx
+ bx by
+ by bz
+ bz ca
+ ca cb
+ cb cc
+ cc cd
+ cd ce
+ ce cf
+ cf cg
+ cg ch
+ ch ci
+ ci cj
+ cj ck
+ ck cl
+ cl cm
+ cm cn
+ cn co
+ co cp
+ cp cq
+ cq cr
+ cr cs
+ cs ct
+ ct cu
+ cu cv
+
+LAYERS
+ 0       0.00      0.00
+ 1     -10.00     -5.00
+
+

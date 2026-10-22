@@ -1,0 +1,7 @@
+run/*
+!run/gcolv.*
+!run/*.json
+!run/colv_cold.*
+!run/*.listing
+output/
+*.pyc

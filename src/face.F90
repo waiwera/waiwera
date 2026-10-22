@@ -448,12 +448,11 @@ contains
 
     use eos_module, only: eos_type
 
-    class(face_type), intent(in) :: self
+    class(face_type), intent(in out) :: self
     class(eos_type), intent(in) :: eos
     PetscReal :: flux(eos%num_primary_variables + eos%num_mobile_phases)
     ! Locals:
-    PetscInt :: nc, np
-    PetscInt :: i, p, up
+    PetscInt :: i, nc, np, p, up
     PetscReal :: dpdn, dtdn, G, face_density, F
     PetscReal :: phase_component_flux(eos%num_components)
     PetscReal :: k, h, cond

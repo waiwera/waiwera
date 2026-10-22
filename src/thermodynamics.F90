@@ -21,23 +21,35 @@ module thermodynamics_module
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
+  use fson
   use kinds_module
+  use logfile_module
 
   implicit none
   private
 
   PetscInt, parameter, public :: max_thermodynamics_name_length = 16
-  PetscInt, parameter, public :: max_thermodynamic_region_name_length = 16
+  PetscInt, parameter, public :: max_thermodynamic_region_name_length = 24
 
 !------------------------------------------------------------------------
 ! Physical constants
 !------------------------------------------------------------------------
 
-  PetscReal, parameter, public :: rconst     = 0.461526e3_dp     !! Gas constant
-  PetscReal, parameter, public :: tc_k       = 273.15_dp         !! Conversion from Celsius to Kelvin
+  PetscReal, parameter, public :: tc_k = 273.15_dp         !! Conversion from Celsius to Kelvin
   PetscReal, parameter, public :: water_molecular_weight = 18.01528_dp !! Molecular weight of water (g/mol)
   PetscReal, parameter, public :: gas_constant = 8.3144598_dp    !! Gas constant R
+  PetscReal, parameter, public :: specific_gas_constant = 0.461526e3_dp !! Specific gas constant R for water
   PetscReal, parameter, public :: ttriple = 0.01_dp              !! Triple point of water
+
+!------------------------------------------------------------------------
+! Critical point type
+!------------------------------------------------------------------------
+
+  type, public :: critical_point_type
+     !! Type for critical point data.
+     private
+     PetscReal, public :: temperature_k, temperature, pressure, density
+  end type critical_point_type
 
 !------------------------------------------------------------------------
 ! Saturation curve type
@@ -85,16 +97,14 @@ module thermodynamics_module
      !! Thermodynamics type.
      private
      character(max_thermodynamics_name_length), public :: name
-     PetscReal, public :: tcriticalk !! Critical temperature (Kelvin)
-     PetscReal, public :: tcritical !! Critical temperature (\(^\circ C\))
-     PetscReal, public :: pcritical !! Critical pressure (Pa)
-     PetscReal, public :: dcritical !! Critical density (\(kg.m^{-3}\))
+     type(critical_point_type), public :: critical !! Critical point
      class(saturation_type), allocatable, public :: saturation !! Saturation curve
      PetscInt, public :: num_regions  !! Number of thermodynamic regions
      class(region_type), allocatable, public :: water !! Pure water region
      class(region_type), allocatable, public :: steam !! Steam region
      class(region_type), allocatable, public :: supercritical !! Supercritical region
      type(pregion_type), allocatable, public :: region(:) !! Array of region pointers
+     PetscBool, public :: extrapolate !! Whether to extrapolate past region bounds
    contains
      private
      procedure(thermodynamics_init_procedure), public, deferred :: init
@@ -125,14 +135,13 @@ module thermodynamics_module
        PetscInt, intent(out) :: err  !! Error code
      end subroutine saturation_pressure
 
-     subroutine region_init(self, thermo, extrapolate)
+     subroutine region_init(self, thermo)
        !! Initializes region. The extrapolate parameter allows the
        !! region's methods to be called slightly out of their usual
        !! operating range if needed.
        import :: region_type, thermodynamics_type
        class(region_type), intent(in out) :: self
        class(thermodynamics_type), intent(in), target :: thermo
-       PetscBool, intent(in), optional :: extrapolate
      end subroutine region_init
 
      subroutine region_destroy(self)
@@ -158,11 +167,12 @@ module thermodynamics_module
        PetscReal, intent(out) :: viscosity
      end subroutine region_viscosity
 
-     subroutine thermodynamics_init_procedure(self, extrapolate)
+     subroutine thermodynamics_init_procedure(self, json, logfile)
        !! Initializes thermodynamics.
-       import :: thermodynamics_type
+       import :: thermodynamics_type, fson_value, logfile_type
        class(thermodynamics_type), intent(in out) :: self
-       PetscBool, intent(in), optional :: extrapolate
+       type(fson_value), pointer, intent(in), optional :: json
+       type(logfile_type), intent(in out), optional :: logfile
      end subroutine thermodynamics_init_procedure
 
      subroutine thermodynamics_destroy_procedure(self)

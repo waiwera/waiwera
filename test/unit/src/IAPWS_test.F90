@@ -17,8 +17,13 @@ module IAPWS_test
 
   public :: setup, teardown, setup_test
   public :: test_IAPWS_region1, test_IAPWS_region2, test_IAPWS_region3, &
-       test_IAPWS_saturation, test_IAPWS_viscosity, test_IAPWS_boundary23, &
-       test_IAPWS_phase_composition
+       test_IAPWS_region5, test_IAPWS_saturation, test_IAPWS_viscosity, &
+       test_IAPWS_boundary23, test_IAPWS_phase_composition, &
+       test_IAPWS_region3_subbdy, test_IAPWS_region3_dpdd, &
+       test_IAPWS_region3_density, test_IAPWS_region3_saturation_density, &
+       test_IAPWS_pi_liquidlike, &
+       test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
+       test_IAPWS_region3_subregion_index, test_IAPWS_bdy_consistency
 
   contains
 
@@ -27,13 +32,19 @@ module IAPWS_test
   subroutine setup()
 
     use profiling_module, only: init_profiling
+    use fson
+    use fson_mpi_module
 
     ! Locals:
+    type(fson_value), pointer :: json
+    character(120) :: json_str = '{}'
     PetscErrorCode :: ierr
 
     call PetscInitialize(PETSC_NULL_CHARACTER, ierr); CHKERRQ(ierr)
     call init_profiling()
-    call IAPWS%init()
+    json => fson_parse_mpi(str = json_str)
+    call IAPWS%init(json)
+    call fson_destroy_mpi(json)
 
   end subroutine setup
 
@@ -83,6 +94,7 @@ module IAPWS_test
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
        do i = 1, n
           param = params(i,:)
@@ -91,11 +103,20 @@ module IAPWS_test
           call test%assert(u(i), props(2), 'energy')
           call test%assert(0, err, 'no error')
        end do
+
        do i = 1, nerr
           param = err_params(i,:)
           call IAPWS%water%properties(param, props, err)
           call test%assert(1, err, 'error')
        end do
+
+       ! Near 1/3 boundary:
+       param = [20.e6_dp, 349.98_dp]
+       call IAPWS%water%properties(param, props, err)
+       call test%assert(600.7386856047377_dp, props(1), 'near 1/3 boundary density')
+       call test%assert(1612.4999684415134e3_dp, props(2), 'near 1/3 boundary energy')
+       call test%assert(0, err, 'near boundary 1/3 no error')
+
     end if
 
   end subroutine test_IAPWS_region1
@@ -125,6 +146,7 @@ module IAPWS_test
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
        do i = 1, n
           param = params(i,:)
@@ -133,11 +155,29 @@ module IAPWS_test
           call test%assert(u(i), props(2), 'energy')
           call test%assert(0, err, 'error')
        end do
+
        do i = 1, nerr
           param = err_params(i,:)
           call IAPWS%steam%properties(param, props, err)
           call test%assert(1, err, 'error')
        end do
+
+       ! Near 2/3 boundary:
+       param = [40.0035e6_dp, 459.37521897358727_dp]
+       call IAPWS%steam%properties(param, props, err)
+       call test%assert(242.66291396096656_dp, props(1), 'near 2/3 boundary density')
+       call test%assert(2442.4936687414022e3_dp, props(2), 'near 2/3 boundary energy')
+       call test%assert(0, err, 'near boundary 2/3 no error')
+
+       ! Near 2/3 boundary just below 350 deg C:
+       param = [16.5245e6_dp, 349.98_dp]
+       call IAPWS%steam%properties(param, props, err)
+       call test%assert(113.55952093219193_dp, props(1), &
+            'near 2/3 boundary below 350 density')
+       call test%assert(2418.2863144859206e3_dp, props(2), &
+            'near 2/3 boundary below 350 energy')
+       call test%assert(0, err, 'near boundary 2/3 no error')
+
     end if
 
   end subroutine test_IAPWS_region2
@@ -149,7 +189,7 @@ module IAPWS_test
     ! IAPWS-97 region 3 tests
 
     class(unit_test_type), intent(in out) :: test
-    PetscInt, parameter :: n = 3, nerr = 1
+    PetscInt, parameter :: n = 3, nerr = 4
     PetscReal :: params(n,2) = reshape([ &
          500._dp, 200._dp, 500._dp, &
          650._dp, 650._dp, 750._dp], [n,2])
@@ -158,13 +198,14 @@ module IAPWS_test
     PetscInt :: i, err
     PetscReal :: param(2), props(2)
     PetscReal :: err_params(nerr,2) = reshape([ &
-         800._dp, &
-         400._dp], [nerr,2])
+         800._dp, 500._dp, 100._dp, 300._dp, &
+         400._dp, 340._dp, 380._dp, 600._dp], [nerr, 2])
     PetscInt :: ierr
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
        do i = 1, n
           param = params(i,:)
@@ -173,14 +214,73 @@ module IAPWS_test
           call test%assert(u(i), props(2), 'energy')
           call test%assert(0, err, 'error')
        end do
+
        do i = 1, nerr
           param = err_params(i,:)
           call IAPWS%supercritical%properties(param, props, err)
           call test%assert(1, err, 'error')
        end do
+
+       param = [IAPWS%critical%density, IAPWS%critical%temperature]
+       call IAPWS%supercritical%properties(param, props, err)
+       call test%assert(IAPWS%critical%pressure, props(1), 'critical pressure', &
+            tol = 1.e-11_dp)
+
     end if
 
   end subroutine test_IAPWS_region3
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region5(test)
+
+    ! IAPWS-97 region 5 tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 3, nerr = 3
+    PetscReal :: params(n,2) = reshape([ &
+         0.5e6_dp, 30.e6_dp, 30.e6_dp, &
+         1500._dp, 1500._dp, 2000._dp], [n,2])
+    PetscReal, parameter :: nu(n) = [0.138455090e1_dp, 0.230761299e-1_dp, 0.311385219e-1_dp]
+    PetscReal, parameter ::  u(n) = [0.452749310e7_dp, 0.447495124e7_dp, 0.563707038e7_dp]
+    PetscReal, parameter :: rho(n) = 1._dp / nu
+    PetscInt :: i, err
+    PetscReal :: param(2), props(2)
+    PetscReal :: err_params(nerr, 2) = reshape([ &
+         60.e6_dp, 40.e6_dp, 30.e6_dp, &
+         900._dp,  750._dp, 2100._dp], [nerr, 2])
+    PetscInt :: ierr
+    PetscMPIInt :: rank
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
+       do i = 1, n
+          param = params(i,:)
+          call IAPWS%htsteam%properties(param, props, err)
+          call test%assert(rho(i), props(1), 'density')
+          call test%assert(u(i), props(2), 'energy')
+          call test%assert(0, err, 'error')
+       end do
+
+       do i = 1, nerr
+          param = err_params(i,:)
+          call IAPWS%htsteam%properties(param, props, err)
+          call test%assert(1, err, 'error')
+       end do
+
+       ! Near 2/5 boundary:
+       param = [30.e6_dp, 800.02_dp]
+       call IAPWS%htsteam%properties(param, props, err)
+       call test%assert(63.9823842967715_dp, props(1), 'near 2/5 boundary density')
+       call test%assert(3551.42198472783e3_dp, props(2), 'near 2/5 boundary energy')
+       call test%assert(0, err, 'near boundary 2/3 no error')
+
+    end if
+
+  end subroutine test_IAPWS_region5
 
 !------------------------------------------------------------------------
 
@@ -190,32 +290,54 @@ module IAPWS_test
     
     class(unit_test_type), intent(in out) :: test
     ! Locals:
-    PetscInt, parameter :: n = 3, nerr = 1
+    PetscInt, parameter :: n = 3, nerr = 1, nnc = 2
     PetscReal, parameter ::  t(n) = [300._dp, 500._dp, 600._dp] - tc_k
     PetscReal, parameter :: p(n) = [0.353658941e4_dp, 0.263889776e7_dp, &
          0.123443146e8_dp]
     PetscReal :: ps, ts
     PetscInt :: i, err
     PetscReal :: terr(nerr) = [380._dp], perr(nerr) = [30.e6_dp]
+    PetscReal :: tnc(nnc) = [373.94597_dp, 373.94599_dp]
     PetscInt :: ierr
     PetscMPIInt :: rank
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
+
        do i = 1, n
           call IAPWS%saturation%pressure(t(i), ps, err)
           call test%assert(p(i), ps, 'pressure')
           call test%assert(0, err, 'pressure no error')
           call IAPWS%saturation%temperature(ps, ts, err)
-          call test%assert(t(i), ts, 'temperature')
+          call test%assert(t(i), ts, 'temperature', tol = 1.e-11_dp)
           call test%assert(0, err, 'temperature no error')
        end do
+
        do i = 1, nerr
           call IAPWS%saturation%pressure(terr(i), ps, err)
           call test%assert(1, err, 'pressure error')
           call IAPWS%saturation%temperature(perr(i), ts, err)
           call test%assert(1, err, 'temperature error')
        end do
+
+       call IAPWS%saturation%pressure(IAPWS%critical%temperature, ps, err)
+       call test%assert(0, err, 'critical pressure error')
+       call test%assert(IAPWS%critical%pressure, ps, 'critical pressure', &
+            tol = 1.e-10_dp)
+
+       call IAPWS%saturation%temperature(IAPWS%critical%pressure, ts, err)
+       call test%assert(0, err, 'critical temperature error')
+       call test%assert(IAPWS%critical%temperature, ts, 'critical temperature', &
+            tol = 1.e-11_dp)
+
+       do i = 1, nnc
+          call IAPWS%saturation%pressure(tnc(i), ps, err)
+          call test%assert(0, err, 'near-critical pressure no error')
+          call IAPWS%saturation%temperature(ps, ts, err)
+          call test%assert(tnc(i), ts, 'near-critical temperature', tol = 1.e-12_dp)
+          call test%assert(0, err, 'near-critical temperature no error')
+       end do
+
     end if
 
   end subroutine test_IAPWS_saturation
@@ -350,6 +472,697 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_phase_composition
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_subbdy(test)
+    ! Region 3 subregion boundary tests
+    ! From tables 3 and 11 of IAPWS (2014)
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscReal, parameter :: MPa = 1.e6_dp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: tb
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+
+          call logpoly_test(40._dp, 6.930341408e2_dp, region3, &
+               region3%subregion_bdy_n_ab, region3%subregion_bdy_ninv_ab, 'ab')
+          call poly_test(25._dp, 6.493659208e2_dp, region3, &
+               region3%subregion_bdy_n_cd, 'cd')
+          tb = region3%subregion_boundary_3ef(40._dp * MPa)
+          call test%assert(7.139593992e2_dp, tb, 'IAPWS region 3 subregion bdy ef')
+          call poly_test(23._dp, 6.498873759e2_dp, region3, &
+               region3%subregion_bdy_n_gh, 'gh')
+          call poly_test(23._dp, 6.515778091e2_dp, region3, &
+               region3%subregion_bdy_n_ij, 'ij')
+          call poly_test(23._dp, 6.558338344e2_dp, region3, &
+               region3%subregion_bdy_n_jk, 'jk')
+          call poly_test(22.8_dp, 6.496054133e2_dp, region3, &
+               region3%subregion_bdy_n_mn, 'mn')
+          call logpoly_test(22.8_dp, 6.500106943e2_dp, region3, &
+               region3%subregion_bdy_n_op, region3%subregion_bdy_ninv_op, 'op')
+          call poly_test(22._dp, 6.456355027e2_dp, region3, &
+               region3%subregion_bdy_n_qu, 'qu')
+          call poly_test(22._dp, 6.482622754e2_dp, region3, &
+               region3%subregion_bdy_n_rx, 'rx')
+          call poly_test(22.3_dp, 6.477996121e2_dp, region3, &
+               region3%subregion_bdy_n_uv, 'uv')
+          call logpoly_test(22.3_dp, 6.482049480e2_dp, region3, &
+               region3%subregion_bdy_n_wx, region3%subregion_bdy_ninv_wx, 'wx')
+
+       end select
+    end if
+
+  contains
+
+    subroutine logpoly_test(p, tk, region3, poly, invpoly, name)
+
+      PetscReal, intent(in) :: p, tk
+      type(IAPWS_region3_type), intent(in) :: region3
+      PetscReal, intent(in) :: poly(:), invpoly(:)
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: tb
+
+      tb = region3%subregion_boundary_logpoly(poly, invpoly, p * MPa)
+      call test%assert(tk, tb, 'IAPWS region 3 subregion bdy ' // name)
+
+    end subroutine logpoly_test
+
+    subroutine poly_test(p, tk, region3, poly, name)
+
+      PetscReal, intent(in) :: p, tk
+      type(IAPWS_region3_type), intent(in) :: region3
+      PetscReal, intent(in) :: poly(:)
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: tb
+
+      tb = region3%subregion_boundary_poly(poly, p * MPa)
+      call test%assert(tk, tb, 'IAPWS region 3 subregion bdy ' // name)
+
+    end subroutine poly_test
+
+  end subroutine test_IAPWS_region3_subbdy
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_dpdd(test)
+    ! Region 3 dp/dd tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+          call dpdd_test(region3, [600._dp, 400._dp], 'case 1')
+          call dpdd_test(region3, [700._dp, 360._dp], 'case 2')
+          call dpdd_test(region3, [400._dp, 500._dp], 'case 3')
+          call dpdd_test(region3, [200._dp, 380._dp], 'case 4')
+       end select
+    end if
+
+  contains
+
+    subroutine dpdd_test(region3, param, name)
+      ! Test dp/dd against finite difference approximation
+
+      type(IAPWS_region3_type), intent(in out) :: region3
+      PetscReal, intent(in) :: param(2)
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: dp_drho, dp_drho2, del_rho
+      PetscReal :: rho2, props(2), p, p2
+      PetscErrorCode :: err
+      PetscReal, parameter :: drho = 1e-8_dp
+
+      dp_drho = region3%dpdd(param)
+
+      associate(rho => param(1), t => param(2))
+        call region3%properties(param, props, err)
+        p = props(1)
+        del_rho = drho * rho
+        rho2 = rho + del_rho
+        call region3%properties([rho2, t], props, err)
+        p2 = props(1)
+        dp_drho2 = (p2 - p) / del_rho
+      end associate
+
+      call test%assert(dp_drho2, dp_drho, &
+           'IAPWS region 3 dp/dd ' // name, tol = 1.e-5_dp)
+
+    end subroutine dpdd_test
+
+  end subroutine test_IAPWS_region3_dpdd
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_density(test)
+    ! Region 3 density tests
+    ! From tables 5 and 13 of IAPWS (2014)
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 52
+    PetscReal :: data(n, 3) = transpose(reshape([ &
+         50._dp, 630._dp, 1.470853100e-3_dp, &
+         80._dp, 670._dp, 1.503831359e-3_dp, &
+         50._dp, 710._dp, 2.204728587e-3_dp, &
+         80._dp, 750._dp, 1.973692940e-3_dp, &
+         20._dp, 630._dp, 1.761696406e-3_dp, &
+         30._dp, 650._dp, 1.819560617e-3_dp, &
+         26._dp, 656._dp, 2.245587720e-3_dp, &
+         30._dp, 670._dp, 2.506897702e-3_dp, &
+         26._dp, 661._dp, 2.970225962e-3_dp, &
+         30._dp, 675._dp, 3.004627086e-3_dp, &
+         26._dp, 671._dp, 5.019029401e-3_dp, &
+         30._dp, 690._dp, 4.656470142e-3_dp, &
+         23.6_dp, 649._dp, 2.163198378e-3_dp, &
+         24._dp, 650._dp, 2.166044161e-3_dp, &
+         23.6_dp, 652._dp, 2.651081407e-3_dp, &
+         24._dp, 654._dp, 2.967802335e-3_dp, &
+         23.6_dp, 653._dp, 3.273916816e-3_dp, &
+         24._dp, 655._dp, 3.550329864e-3_dp, &
+         23.5_dp, 655._dp, 4.545001142e-3_dp, &
+         24._dp, 660._dp, 5.100267704e-3_dp, &
+         23._dp, 660._dp, 6.109525997e-3_dp, &
+         24._dp, 670._dp, 6.427325645e-3_dp, &
+         22.6_dp, 646._dp, 2.117860851e-3_dp, &
+         23._dp, 646._dp, 2.062374674e-3_dp, &
+         22.6_dp, 648.6_dp, 2.533063780e-3_dp, &
+         22.8_dp, 649.3_dp, 2.572971781e-3_dp, &
+         22.6_dp, 649.0_dp, 2.923432711e-3_dp, &
+         22.8_dp, 649.7_dp, 2.913311494e-3_dp, &
+         22.6_dp, 649.1_dp, 3.131208996e-3_dp, &
+         22.8_dp, 649.9_dp, 3.221160278e-3_dp, &
+         22.6_dp, 649.4_dp, 3.715596186e-3_dp, &
+         22.8_dp, 650.2_dp, 3.664754790e-3_dp, &
+         21.1_dp, 640._dp, 1.970999272e-3_dp, &
+         21.8_dp, 643._dp, 2.043919161e-3_dp, &
+         21.1_dp, 644._dp, 5.251009921e-3_dp, &
+         21.8_dp, 648._dp, 5.256844741e-3_dp, &
+         19.1_dp, 635._dp, 1.932829079e-3_dp, &
+         20._dp, 638._dp, 1.985387227e-3_dp, &
+         17._dp, 626._dp, 8.483262001e-3_dp, &
+         20._dp, 640._dp, 6.227528101e-3_dp, &
+         21.5_dp, 644.6_dp, 2.268366647e-3_dp, &
+         22._dp, 646.1_dp,  2.296350553e-3_dp, &
+         22.5_dp, 648.6_dp,  2.832373260e-3_dp, &
+         22.3_dp, 647.9_dp,  2.811424405e-3_dp, &
+         22.15_dp, 647.5_dp,  3.694032281e-3_dp, &
+         22.3_dp, 648.1_dp,  3.622226305e-3_dp, &
+         22.11_dp, 648._dp,  4.528072649e-3_dp, &
+         22.3_dp, 649._dp,  4.556905799e-3_dp, &
+         22._dp, 646.84_dp,  2.698354719e-3_dp, &
+         22.064_dp, 647.05_dp,  2.717655648e-3_dp, &
+         22._dp, 646.89_dp,  3.798732962e-3_dp, &
+         22.064_dp, 647.15_dp,  3.701940010e-3_dp], &
+         [3, n]))
+    PetscInt, parameter :: subregion(n) = [ &
+         1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, &
+         8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, &
+         14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, &
+         21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26]
+    PetscReal, parameter :: MPa = 1.e6_dp
+    PetscInt :: i, err, sr
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: param(2), density, p, props(2)
+    character(2) :: istr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       data(:,1) = data(:,1) * MPa
+       data(:,2) = data(:,2) - tc_k
+       do i = 1, n
+          write(istr, '(i2)') i
+          param = data(i, 1:2)
+          select type (region3 => IAPWS%region(3)%ptr)
+          type is (IAPWS_region3_type)
+
+             sr = region3%subregion_index(param)
+             call test%assert(subregion(i), sr, 'subregion' // istr)
+             call region3%density(param, density, err, polish = PETSC_FALSE)
+             call test%assert(0, err, 'error' // istr)
+
+             if (err == 0) then
+                call test%assert(1._dp / data(i,3), density, 'density' // istr)
+                p = data(i, 1)
+                param(1) = density
+                call region3%properties(param, props, err)
+                associate(pback => props(1))
+                  call test%assert(p, pback, 'p back' // istr, tol = 3.e-4_dp)
+                end associate
+             end if
+
+             param = data(i, 1:2)
+             call region3%density(param, density, err, polish = PETSC_TRUE)
+             call test%assert(0, err, 'polished error' // istr)
+             if (err == 0) then
+                p = data(i, 1)
+                param(1) = density
+                call region3%properties(param, props, err)
+                associate(pback => props(1))
+                  call test%assert(p, pback, 'p back polished' // istr)
+                end associate
+             end if
+
+          end select
+       end do
+    end if
+
+  end subroutine test_IAPWS_region3_density
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_saturation_density(test)
+    ! Region 3 saturation density tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 13
+    PetscReal, parameter :: pressure(n) = &
+         [16.52916425260448e6_dp, 19.00881189173929e6_dp, &
+         20.5e6_dp, 21.e6_dp, 21.9e6_dp, 21.99e6_dp, &
+         22.04e6_dp, 22.05e6_dp, &
+         22.063603204895619e6_dp, &
+         22.0639911177352e6_dp, 22.063994473664202e6_dp, &
+         22.063991311720084e6_dp, 22.064e6_dp]
+    PetscInt, parameter :: liquid_index(n) = &
+         [3, 3, 19, 19, 21, 25, 25, 25, 25, 25, 25, 25, 25]
+    PetscInt, parameter :: vapour_index(n) = &
+         [20, 20, 20, 18, 24, 26, 26, 26, 26, 26, 26, 26, 26]
+    PetscInt :: i, ierr, sr
+    character(2) :: istr
+    PetscMPIInt :: rank
+    PetscErrorCode :: err
+    PetscReal :: Ts, dl, dv
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       do i = 1, n
+          write(istr, '(i2)') i
+          call IAPWS%saturation%temperature(pressure(i), Ts, err)
+          call density_case(i, PETSC_TRUE, dl)
+          call density_case(i, PETSC_FALSE, dv)
+          call test%assert(dv <= dl, ' density order ' // istr)
+       end do
+
+    end if
+
+  contains
+
+    subroutine density_case(i, liquid, density)
+
+      PetscInt, intent(in) :: i
+      PetscBool, intent(in) :: liquid
+      PetscReal, intent(out) :: density
+      ! Locals:
+      character(6) :: phase_str
+      PetscInt :: expected_sr
+      PetscReal :: props(2)
+      PetscBool :: density_pos
+
+      if (liquid) then
+         phase_str = 'liquid'
+         expected_sr = liquid_index(i)
+      else
+         phase_str = 'vapour'
+         expected_sr = vapour_index(i)
+      end if
+
+      select type (region3 => IAPWS%region(3)%ptr)
+      type is (IAPWS_region3_type)
+
+         sr = region3%saturation_subregion_index(pressure(i), liquid)
+         call test%assert(expected_sr, sr, ' ' // phase_str // ' sr ' // istr)
+         call region3%saturation_density([pressure(i), Ts], &
+              liquid, density, err, polish = PETSC_TRUE)
+         call test%assert(0, err, ' ' // phase_str // ' err ' // istr)
+         if (err == 0) then
+            if (liquid) then
+               density_pos = (density >= IAPWS%critical%density)
+            else
+               density_pos = (density <= IAPWS%critical%density)
+            end if
+            call test%assert(density_pos, &
+                 phase_str // ' density position ' // istr)
+            call region3%properties([density, Ts], props, err)
+            associate(P2 => props(1))
+              call test%assert(pressure(i), P2, ' ' // phase_str // &
+                   ' pressure ' // istr, tol = 1.e-10_dp)
+            end associate
+         end if
+      end select
+
+    end subroutine density_case
+
+  end subroutine test_IAPWS_region3_saturation_density
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_pi_liquidlike(test)
+    ! IAPWS pi_liquidlike tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       select type (region3 => IAPWS%region(3)%ptr)
+       type is (IAPWS_region3_type)
+          call pi_liquidlike_case(region3%computed_critical_pressure, &
+               IAPWS%critical%temperature, 0._dp, 0.5_dp, 3, 0, 'case 1')
+       end select
+       call pi_liquidlike_case(60.e6_dp, IAPWS%critical%temperature, &
+            0._dp, 1.0_dp, 1, 0, 'case 2')
+       call pi_liquidlike_case(IAPWS%critical%pressure, 700._dp, 0._dp, &
+            0.0_dp, 2, 0, 'case 3')
+       call pi_liquidlike_case(64.e6_dp, 450._dp, 0._dp, &
+            0.80513206770741164_dp, 3, 0, 'case 4')
+       call pi_liquidlike_case(64.e6_dp, 520._dp, 0._dp, &
+            0.19605751773723412_dp, 3, 0, 'case 5')
+       call pi_liquidlike_case(64.e6_dp, 600._dp, 0._dp, &
+            1.9271474596312635e-2_dp, 3, 0, 'case 6')
+       call pi_liquidlike_case(40.e6_dp, 377._dp, 0._dp, &
+            1.0_dp, 1, 0, 'case 7')
+       call pi_liquidlike_case(30.e6_dp, 500._dp, 0._dp, &
+            0.0_dp, 2, 0, 'case 8')
+       call pi_liquidlike_case(40.45712306840381e6_dp, 360._dp, 650._dp, &
+            1.0_dp, 0, 0, 'case 9')
+       call pi_liquidlike_case(20.16407678415291_dp, 360._dp, 550._dp, &
+            1.0_dp, 0, 0, 'case 10')
+       call pi_liquidlike_case(21.51502247903555_dp, 380._dp, 150._dp, &
+            0.0_dp, 0, 0, 'case 11')
+       call pi_liquidlike_case(18.843641755076366_dp, 365._dp, 130._dp, &
+            0.0_dp, 0, 0, 'case 12')
+       call pi_liquidlike_case(21.976407368553966e6_dp, 373.6172901183901_dp, &
+            370.0243306702589_dp, 1.0_dp, 0, 0, 'case 13')
+       call pi_liquidlike_case(25.91149746673966e6_dp, 390._dp, &
+            300._dp, 0.5_dp, 3, 0, 'case 14')
+
+    end if
+
+  contains
+
+    subroutine pi_liquidlike_case(pressure, temperature, density, &
+         expected_pi, expected_phases, expected_err, name)
+
+      PetscReal, intent(in) :: pressure, temperature, density
+      PetscReal, intent(in) :: expected_pi
+      PetscInt, intent(in) :: expected_phases
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: pi_liq
+      PetscInt :: phases
+      PetscErrorCode :: err
+
+      call IAPWS%pi_liquidlike(pressure, temperature, density, &
+           pi_liq, phases, err)
+      call test%assert(expected_err, err, name // ' pi_liq error')
+      if (err == 0) then
+         call test%assert(expected_pi, pi_liq, name // ' pi_liq')
+         call test%assert(expected_phases, phases, name // ' phases')
+      end if
+
+    end subroutine pi_liquidlike_case
+
+  end subroutine test_IAPWS_pi_liquidlike
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region1_pressure(test)
+    ! Region 1 pressure tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call pressure_case([990._dp, 100._dp], 60.e6_dp, 0, 'case 1')
+       call pressure_case([800._dp, 300._dp], 60.e6_dp, 0, 'case 2')
+       call pressure_case([700._dp, 320._dp], 20.e6_dp, 0, 'case 3')
+       call pressure_case([700._dp, 320._dp], 80.e6_dp, 0, 'case 4')
+       call pressure_case([600._dp, 340._dp], 20.e6_dp, 0, 'case 5')
+
+    end if
+
+  contains
+
+    subroutine pressure_case(param, P0, expected_err, name)
+
+      PetscReal, intent(in) :: param(2), P0
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: pressure, props(2)
+      PetscErrorCode :: err
+
+      select type (region1 => IAPWS%region(1)%ptr)
+      type is (IAPWS_region1_type)
+         pressure = P0
+         call region1%pressure(param, pressure, err)
+         call test%assert(expected_err, err, name // ' error')
+         if (err == 0) then
+            associate(t => param(2), expected_density => param(1), &
+                 d => props(1))
+              call region1%properties([pressure, t], props, err)
+              call test%assert(expected_err, err, name // ' error')
+              if (err == 0) then
+                 call test%assert(expected_density, d, name // ' density')
+              end if
+            end associate
+         end if
+      end select
+
+    end subroutine pressure_case
+
+  end subroutine test_IAPWS_region1_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region2_pressure(test)
+    ! Region 2 pressure tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call pressure_case([0.01_dp, 50._dp], 1.e3_dp, 0, 'case 1')
+       call pressure_case([10._dp, 300._dp], 10.e5_dp, 0, 'case 2')
+       call pressure_case([100._dp, 400._dp], 25.e6_dp, 0, 'case 3')
+       call pressure_case([250._dp, 500._dp], 70.e6_dp, 0, 'case 4')
+       call pressure_case([200._dp, 700._dp], 50.e6_dp, 0, 'case 5')
+       call pressure_case([10._dp, 750._dp], 1.e6_dp, 0, 'case 6')
+
+    end if
+
+  contains
+
+    subroutine pressure_case(param, P0, expected_err, name)
+
+      PetscReal, intent(in) :: param(2), P0
+      PetscErrorCode, intent(in) :: expected_err
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: pressure, props(2)
+      PetscErrorCode :: err
+
+      select type (region2 => IAPWS%region(2)%ptr)
+      type is (IAPWS_region2_type)
+         pressure = P0
+         call region2%pressure(param, pressure, err)
+         call test%assert(expected_err, err, name // ' error')
+         if (err == 0) then
+            associate(t => param(2), expected_density => param(1), &
+                 d => props(1))
+              call region2%properties([pressure, t], props, err)
+              call test%assert(expected_err, err, name // ' error')
+              if (err == 0) then
+                 call test%assert(expected_density, d, name // ' density')
+              end if
+            end associate
+         end if
+      end select
+
+    end subroutine pressure_case
+
+  end subroutine test_IAPWS_region2_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region3_subregion_index(test)
+    ! Region 3 subregion index tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call subregion_case([41.e6_dp, 390._dp], SUBREGION_PHASES_EITHER, 1, 'case 1')
+       call subregion_case([44.e6_dp, 450._dp], SUBREGION_PHASES_EITHER, 2, 'case 2')
+       call subregion_case([30.e6_dp, 370._dp], SUBREGION_PHASES_EITHER, 3, 'case 3')
+       call subregion_case([30.e6_dp, 370._dp], SUBREGION_PHASES_LIQUID, 3, 'case 4')
+       call subregion_case([30.e6_dp, 407._dp], SUBREGION_PHASES_LIQUID, 6, 'case 5')
+       call subregion_case([23.e6_dp, 375._dp], SUBREGION_PHASES_LIQUID, 12, 'case 6')
+       call subregion_case([18.e6_dp, 360._dp], SUBREGION_PHASES_VAPOUR, 20, 'case 8')
+
+       call saturation_subregion_case(352._dp, SUBREGION_PHASES_LIQUID, 3, 'case 9')
+       call saturation_subregion_case(352._dp, SUBREGION_PHASES_VAPOUR, 20, 'case 10')
+       call saturation_subregion_case(365._dp, SUBREGION_PHASES_LIQUID, 19, 'case 11')
+       call saturation_subregion_case(365._dp, SUBREGION_PHASES_VAPOUR, 20, 'case 12')
+       call saturation_subregion_case(373._dp, SUBREGION_PHASES_LIQUID, 21, 'case 13')
+       call saturation_subregion_case(373._dp, SUBREGION_PHASES_VAPOUR, 24, 'case 14')
+       call saturation_subregion_case(373.9_dp, SUBREGION_PHASES_LIQUID, 25, 'case 15')
+       call saturation_subregion_case(373.9_dp, SUBREGION_PHASES_VAPOUR, 26, 'case 16')
+
+    end if
+
+  contains
+
+    subroutine subregion_case(param, phases, expected_subregion, name)
+
+      PetscReal, intent(in) :: param(2)
+      PetscInt, intent(in) :: phases
+      PetscInt, intent(in) :: expected_subregion
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscInt :: sr
+
+      select type (region3 => IAPWS%region(3)%ptr)
+      type is (IAPWS_region3_type)
+         sr = region3%subregion_index(param, phases)
+         call test%assert(expected_subregion, sr, name)
+      end select
+
+    end subroutine subregion_case
+
+!........................................................................
+
+    subroutine saturation_subregion_case(t, phases, expected_subregion, name)
+
+      PetscReal, intent(in) :: t
+      PetscInt, intent(in) :: phases
+      PetscInt, intent(in) :: expected_subregion
+      character(*), intent(in) :: name
+      ! Locals:
+      PetscReal :: p
+      PetscInt :: err
+
+      call IAPWS%saturation%pressure(t, p, err)
+      call subregion_case([p, t], phases, expected_subregion, name)
+
+    end subroutine saturation_subregion_case
+
+  end subroutine test_IAPWS_region3_subregion_index
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_bdy_consistency(test)
+    ! IAPWS-97 boundary consistency test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr, i
+    PetscReal :: T, P, d, props_a(2), props_b(2)
+    PetscReal :: T_a, T_b, P_a, P_b
+    PetscErrorCode :: err
+    character(1) :: name
+    PetscReal :: P_13(4), T_23(4)
+    PetscReal, parameter :: dT = 1.e-6_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       ! region 1/3:
+       P_13 = [IAPWS%saturation_pressure_bdy_1_3, &
+            50.e6_dp, 75.e6_dp, 95.e6_dp]
+       do i = 1, size(P_13)
+          write(name, '(i1)') i
+          P = P_13(i)
+          T = IAPWS%temperature_bdy_1_3
+          call IAPWS%water%properties([P, T], props_a, err)
+          select type (region3 => IAPWS%supercritical)
+          type is (IAPWS_region3_type)
+             call region3%density([P, T], d, err, &
+                  polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
+          end select
+          call IAPWS%supercritical%properties([d, T], props_b, err)
+          props_b(1) = d
+          call test%assert(props_a, props_b, 'region 1/3 ' // name)
+       end do
+
+       ! region 2/3:
+       T_23 = [350._dp, 400._dp, 500._dp, 580._dp]
+       do i = 1, size(T_23)
+          write(name, '(i1)') i
+          T = T_23(i)
+          call IAPWS%boundary23%pressure(T, P)
+          call IAPWS%steam%properties([P, T], props_a, err)
+          select type (region3 => IAPWS%supercritical)
+          type is (IAPWS_region3_type)
+             call region3%density([P, T], d, err, &
+                  polish = PETSC_TRUE, phases = SUBREGION_PHASES_VAPOUR)
+          end select
+          call IAPWS%supercritical%properties([d, T], props_b, err)
+          props_b(1) = d
+          call test%assert(props_a, props_b, 'region 2/3 ' // name)
+       end do
+
+       ! region 4 at 350 deg C:
+       T_a = 350._dp - dT
+       T_b = 350._dp + dT
+       call IAPWS%saturation%pressure(T_a, P_a, err)
+       call IAPWS%saturation%pressure(T_b, P_b, err)
+
+       call IAPWS%water%properties([P_a, T_a], props_a, err)
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+          call region3%density([P_b, T_b], d, err, &
+               polish = PETSC_TRUE, phases = SUBREGION_PHASES_LIQUID)
+       end select
+       call IAPWS%supercritical%properties([d, T_b], props_b, err)
+       props_b(1) = d
+       call test%assert(props_a, props_b, 'region 4 liquid 350 deg C')
+
+       call IAPWS%steam%properties([P_a, T_a], props_a, err)
+       select type (region3 => IAPWS%supercritical)
+       type is (IAPWS_region3_type)
+          call region3%density([P_b, T_b], d, err, &
+               polish = PETSC_TRUE, phases = SUBREGION_PHASES_VAPOUR)
+       end select
+       call IAPWS%supercritical%properties([d, T_b], props_b, err)
+       props_b(1) = d
+       call test%assert(props_a, props_b, 'region 4 vapour 350 deg C')
+
+       ! region 2 near 2/3 boundary at 350 deg C:
+       T_a = 350._dp - dT
+       T_b = 350._dp + dT
+       P = 16.5245e6_dp
+       call IAPWS%steam%properties([P, T_a], props_a, err)
+       call IAPWS%steam%properties([P, T_b], props_b, err)
+       call test%assert(props_a, props_b, 'region 2 near 2/3 bdy 350 C ')
+
+       ! region 2/4 just below 350 deg C:
+       P = IAPWS%saturation_pressure_bdy_1_3 - 0.05e5_dp
+       call IAPWS%saturation%temperature(P, T, err)
+       T_a = T - dT
+       T_b = T + dT
+       call IAPWS%saturation%pressure(T_a, P_a, err)
+       call IAPWS%saturation%pressure(T_b, P_b, err)
+       call IAPWS%steam%properties([P_a, T_a], props_a, err)
+       call IAPWS%steam%properties([P_b, T_b], props_b, err)
+       call test%assert(props_a, props_b, 'region 2/4 just below 350 C ')
+
+    end if
+
+  end subroutine test_IAPWS_bdy_consistency
 
 !------------------------------------------------------------------------
 

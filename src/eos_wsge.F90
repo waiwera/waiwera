@@ -40,6 +40,8 @@ module eos_wsge_module
    contains
      private
      procedure, public :: init => eos_wsge_init
+     procedure, public :: water_pressure => eos_wsge_water_pressure
+     procedure, public :: partial_pressures => eos_wsge_partial_pressures
      procedure, public :: transition => eos_wsge_transition
      procedure, public :: transition_to_single_phase => eos_wsge_transition_to_single_phase
      procedure, public :: transition_to_two_phase => eos_wsge_transition_to_two_phase
@@ -59,7 +61,7 @@ contains
 
     use fson
     use fson_mpi_module, only: fson_get_mpi, fson_has_mpi, fson_type_mpi
-    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL
+    use fson_value_m, only: TYPE_STRING, TYPE_REAL, TYPE_NULL, TYPE_OBJECT
     use logfile_module
     use thermodynamics_module
     use utils_module, only: str_to_lower
@@ -69,13 +71,9 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_function), pointer :: f
-    class(*), pointer :: pinterp
-    PetscReal, allocatable :: data(:, :)
+    procedure(root_finder_routine), pointer :: f
     PetscReal :: pressure_scale, temperature_scale, partial_pressure_scale
     PetscInt :: scale_type
-    character(max_fluid_modifier_name_length) :: permeability_modifier_type_name
-    type(fson_value), pointer :: perm_json
     PetscReal, parameter :: default_pressure = 1.0e5_dp
     PetscReal, parameter :: default_temperature = 20._dp ! deg C
     PetscReal, parameter :: default_salt_mass_fraction = 0._dp
@@ -83,8 +81,6 @@ contains
     PetscReal, parameter :: default_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising pressure
     PetscReal, parameter :: default_temperature_scale = 1.e2_dp !! Default scale factor for non-dimensionalising temperature
     PetscReal, parameter :: default_partial_pressure_scale = 1.e6_dp !! Default scale factor for non-dimensionalising partial pressure
-    character(max_fluid_modifier_name_length), parameter :: &
-         default_permeability_modifier_type_name = "none"
 
     self%name = "wsge"
     self%description = "Water, salt, non-condensible gas and energy"
@@ -148,39 +144,59 @@ contains
 
     self%thermo => thermo
 
-    ! Set up saturation line finder:
+    f => eos_wsge_saturation_difference
     allocate(eos_wse_primary_variable_interpolator_type :: &
          self%primary_variable_interpolator)
-    allocate(data(2, 1 + self%num_primary_variables))
-    data = 0._dp
-    data(:, 1) = [0._dp, 1._dp]
-    call self%primary_variable_interpolator%init(data)
-    deallocate(data)
-    self%primary_variable_interpolator%thermo => self%thermo
-    f => eos_wsge_saturation_difference
-    pinterp => self%primary_variable_interpolator
-    call self%saturation_line_finder%init(f, context = pinterp)
+    call self%init_line_finder(self%saturation_line_finder, &
+         self%primary_variable_interpolator, f, init_interpolator = PETSC_TRUE)
 
-    ! Set up permeability modifier:
-    call fson_get_mpi(json, "eos.permeability_modifier.type", &
-         default_permeability_modifier_type_name, &
-         permeability_modifier_type_name, logfile)
-    select case (str_to_lower(permeability_modifier_type_name))
-    case ("power")
-       allocate(fluid_permeability_factor_power_type :: self%permeability_modifier)
-    case ("verma-pruess")
-       allocate(fluid_permeability_factor_verma_pruess_type :: self%permeability_modifier)
-    case default
-       allocate(fluid_permeability_factor_null_type :: self%permeability_modifier)
-    end select
-    if (fson_has_mpi(json, "eos.permeability_modifier")) then
-       call fson_get_mpi(json, "eos.permeability_modifier", perm_json)
-    else
-       perm_json => null()
-    end if
-    call self%permeability_modifier%init(perm_json, logfile)
+    call self%init_permeability_modifier(json, logfile)
 
   end subroutine eos_wsge_init
+
+!------------------------------------------------------------------------
+
+  subroutine eos_wsge_water_pressure(self, primary, region, liquid, &
+       water_pressure, err)
+    !! For eos_wsge, return water pressure from primary variables.
+
+    class(eos_wsge_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscBool, intent(in) :: liquid
+    PetscReal, intent(out) :: water_pressure
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    associate (pressure => primary(1), partial_pressure => primary(4))
+      if (liquid) then
+         water_pressure = pressure
+      else
+         water_pressure = pressure - partial_pressure
+      end if
+    end associate
+
+  end subroutine eos_wsge_water_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine eos_wsge_partial_pressures(self, primary, region, &
+       partial_pressures, err)
+    !! Set partial pressures from primary variables for non-isothermal
+    !! water, salt and non-condensible gas.
+
+    class(eos_wsge_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscInt, intent(in) :: region !! Fluid region
+    PetscReal, intent(out) :: partial_pressures(self%num_components) !! Partial pressures
+    PetscErrorCode, intent(out) :: err !! Error code
+
+    call self%water_pressure(primary, region, PETSC_FALSE, &
+         partial_pressures(1), err)
+    partial_pressures(2) = 0._dp
+    partial_pressures(3) = primary(4)
+
+  end subroutine eos_wsge_partial_pressures
 
 !------------------------------------------------------------------------
 
@@ -636,28 +652,26 @@ contains
 
     err = 0
     fluid%pressure = primary(1)
-    region = nint(fluid%region)
-    water_region = self%water_region(region)
+    call self%partial_pressures(primary, region, fluid%partial_pressure, err)
+    if (err == 0) then
 
-    associate(partial_pressure => primary(4))
-      fluid%partial_pressure(1) = fluid%pressure - partial_pressure
-      fluid%partial_pressure(2) = 0._dp
-      fluid%partial_pressure(3) = partial_pressure
-    end associate
+       region = nint(fluid%region)
+       water_region = self%water_region(region)
 
-    if (water_region == 4) then ! two-phase
-       if (region == 4) then ! without halite
-          salt_mass_fraction = primary(3)
-       else ! with halite
-          call halite_solubility_two_phase(fluid%partial_pressure(1), self%thermo, &
-               salt_mass_fraction, err)
+       if (water_region == 4) then ! two-phase
+          if (region == 4) then ! without halite
+             salt_mass_fraction = primary(3)
+          else ! with halite
+             call halite_solubility_two_phase(fluid%partial_pressure(1), self%thermo, &
+                  salt_mass_fraction, err)
+          end if
+          if (err == 0) then
+             call brine_saturation_temperature(fluid%partial_pressure(1), &
+                  salt_mass_fraction, self%thermo, fluid%temperature, err)
+          end if
+       else ! single-phase
+          fluid%temperature = primary(2)
        end if
-       if (err == 0) then
-          call brine_saturation_temperature(fluid%partial_pressure(1), &
-               salt_mass_fraction, self%thermo, fluid%temperature, err)
-       end if
-    else ! single-phase
-       fluid%temperature = primary(2)
     end if
 
     if (err == 0) then
@@ -665,6 +679,8 @@ contains
        if (err == 0) then
           call self%phase_saturations(primary, fluid)
           call self%permeability_modifier%modify(fluid)
+          fluid%liquidlike_fraction = fluid%phase(1)%saturation
+          fluid%supercritical_phases = 0._dp
        end if
     end if
 
@@ -804,13 +820,7 @@ contains
                   end if
 
                else
-                  phase%density = 0._dp
-                  phase%internal_energy = 0._dp
-                  phase%specific_enthalpy = 0._dp
-                  phase%relative_permeability = 0._dp
-                  phase%capillary_pressure = 0._dp
-                  phase%viscosity = 0._dp
-                  phase%mass_fraction = 0._dp
+                  call phase%zero()
                end if
 
              end associate
@@ -835,13 +845,7 @@ contains
                      solid_phase%mass_fraction = [0._dp, 1._dp, 0._dp]
                   end if
                else
-                  solid_phase%density = 0._dp
-                  solid_phase%internal_energy = 0._dp
-                  solid_phase%specific_enthalpy = 0._dp
-                  solid_phase%relative_permeability = 0._dp
-                  solid_phase%capillary_pressure = 0._dp
-                  solid_phase%viscosity = 0._dp
-                  solid_phase%mass_fraction = 0._dp
+                  call solid_phase%zero()
                end if
              end associate
           end if
@@ -999,19 +1003,20 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_wsge_saturation_difference(x, context) result(dp)
+  subroutine eos_wsge_saturation_difference(x, context, f, err)
     !! Returns difference between brine saturation pressure and
     !! brine pressure at normalised point 0 <= x <= 1 along line between
     !! start and end primary variables.
 
     PetscReal, intent(in) :: x
     class(*), pointer, intent(in out) :: context
-
+    PetscReal, intent(out) :: f
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, allocatable :: var(:)
     PetscReal :: salt_mass_fraction, Ps
-    PetscInt :: err
 
+    err = 0
     select type (context)
     type is (eos_wse_primary_variable_interpolator_type)
        allocate(var(context%dim))
@@ -1023,17 +1028,21 @@ contains
             else
                salt_mass_fraction = var(3)
             end if
-            call brine_saturation_pressure(T, salt_mass_fraction, &
-                 context%thermo, Ps, err)
+            if (err == 0) then
+               call brine_saturation_pressure(T, salt_mass_fraction, &
+                    context%thermo, Ps, err)
+            end if
          else ! dry steam:
             call context%thermo%saturation%pressure(T, Ps, err)
          end if
-         dp = P - Pg - Ps
+         if (err == 0) then
+            f = P - Pg - Ps
+         end if
        end associate
        deallocate(var)
     end select
 
-  end function eos_wsge_saturation_difference
+  end subroutine eos_wsge_saturation_difference
 
 !------------------------------------------------------------------------
 

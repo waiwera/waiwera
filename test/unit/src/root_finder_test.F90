@@ -15,7 +15,8 @@ module root_finder_test
   public :: setup, teardown
   public :: test_root_finder_linear, test_root_finder_quadratic, &
        test_root_finder_Zhang, test_root_finder_inverse_quadratic, &
-       test_root_finder_saturation
+       test_root_finder_saturation, test_root_finder_function_err, &
+       test_root_finder_equal_bounds
 
 contains
 
@@ -53,7 +54,7 @@ contains
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     PetscReal, parameter :: expected_root = 0.5_dp
     PetscInt, parameter :: expected_iterations = 2
 
@@ -82,11 +83,16 @@ contains
 
   contains
 
-    PetscReal function linear(x, context) result(y)
+    subroutine linear(x, context, f, err)
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
-      y = 0.5_dp - x
-    end function linear
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      err = 0
+      f = 0.5_dp - x
+
+    end subroutine linear
 
   end subroutine test_root_finder_linear
 
@@ -100,7 +106,7 @@ contains
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     PetscReal, parameter :: expected_root = 0.75_dp - sqrt(0.5_dp)
     PetscInt, parameter :: expected_iterations = 7
 
@@ -122,11 +128,16 @@ contains
 
   contains
 
-    PetscReal function quadratic(x, context) result(y)
+    subroutine quadratic(x, context, f, err)
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
-      y = (x - 0.75_dp) ** 2 - 0.5_dp
-    end function quadratic
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      err = 0
+      f = (x - 0.75_dp) ** 2 - 0.5_dp
+
+    end subroutine quadratic
 
   end subroutine test_root_finder_quadratic
 
@@ -143,7 +154,7 @@ contains
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     PetscReal, parameter :: expected_root = 0.8654740331015734_dp
     PetscInt, parameter :: expected_iterations = 12
 
@@ -165,11 +176,16 @@ contains
 
   contains
 
-    PetscReal function zhang(x, context) result(y)
+    subroutine zhang(x, context, f, err)
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
-      y = cos(x) - x ** 3
-    end function zhang
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      err = 0
+      f = cos(x) - x ** 3
+
+    end subroutine zhang
 
   end subroutine test_root_finder_Zhang
 
@@ -186,7 +202,7 @@ contains
     type(root_finder_type) :: finder
     PetscMPIInt :: rank
     PetscInt :: ierr
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     PetscReal, parameter :: expected_root = 2._dp / 3._dp
     PetscInt, parameter :: expected_iterations = 18
 
@@ -208,16 +224,21 @@ contains
 
   contains
 
-    PetscReal function invquad(x, context) result(y)
+    subroutine invquad(x, context, f, err)
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      err = 0
       associate(xs => x - 2._dp / 3._dp)
-        y = sqrt(abs(xs))
+        f = sqrt(abs(xs))
         if (xs > 0._dp) then
-           y = -y
+           f = -f
         end if
       end associate
-    end function invquad
+
+    end subroutine invquad
 
   end subroutine test_root_finder_inverse_quadratic
 
@@ -236,7 +257,7 @@ contains
     class(*), pointer :: pinc
     PetscMPIInt :: rank
     PetscInt :: ierr
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     type(IAPWS_type) :: thermo
     PetscInt, parameter :: num_vars = 2
     PetscReal :: var(num_vars), data(2, 1 + num_vars)
@@ -273,25 +294,130 @@ contains
 
   contains
 
-    PetscReal function saturation_difference(x, context) result(dp)
+    subroutine saturation_difference(x, context, f, err)
       ! Returns pressure difference between point 0 <= x <= 1 along
       ! line between (P0, T0) and (P1, T1) and saturation curve.
+
       PetscReal, intent(in) :: x
       class(*), pointer, intent(in out) :: context
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
       ! Locals:
       PetscReal :: var(num_vars), Ps
-      PetscInt :: err
+
+      err = 0
       associate(P => var(1), T => var(2))
         select type (context)
         type is (interpolation_table_type)
            var = context%interpolate_at_index(x)
            call thermo%saturation%pressure(T, Ps, err)
         end select
-        dp = Ps - P
+        if (err == 0) then
+           f = Ps - P
+        end if
       end associate
-    end function saturation_difference
+
+    end subroutine saturation_difference
 
   end subroutine test_root_finder_saturation
+
+!------------------------------------------------------------------------
+
+  subroutine test_root_finder_function_err(test)
+    ! Quadratic equation with error
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(root_finder_type) :: finder
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    procedure(root_finder_routine), pointer :: f
+    PetscReal, parameter :: expected_root = 0.75_dp - sqrt(0.5_dp)
+    PetscInt, parameter :: expected_iterations = 7
+
+    f => quadratic_err
+    call finder%init(f)
+    call finder%find()
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       call test%assert(ROOT_FINDER_FUNCTION_ERR, finder%err, "Quadratic function error")
+    end if
+
+    call finder%destroy()
+
+  contains
+
+    subroutine quadratic_err(x, context, f, err)
+      ! Quadratic with root 0.3 but which errors out for x near the root
+      PetscReal, intent(in) :: x
+      class(*), pointer, intent(in out) :: context
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      if ((0.25_dp < x) .and. (x < 0.35_dp)) then
+         err = 1
+      else
+         f = x * x - 0.09_dp
+         err = 0
+      end if
+
+    end subroutine quadratic_err
+
+  end subroutine test_root_finder_function_err
+
+!------------------------------------------------------------------------
+
+  subroutine test_root_finder_equal_bounds(test)
+    ! Equal lower and upper bounds
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(root_finder_type) :: finder
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    procedure(root_finder_routine), pointer :: f
+    PetscReal, parameter :: expected_root = 2._dp
+    PetscInt, parameter :: expected_iterations = 0
+
+    f => fn
+
+    ! Bounds at root:
+    call finder%init(f, [expected_root, expected_root])
+    call finder%find()
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       call test%assert(0, finder%err, "error")
+       call test%assert(expected_iterations, finder%iterations, &
+            "iterations")
+       call test%assert(expected_root, finder%root, "root")
+    end if
+
+    ! Bounds not at root:
+    call finder%init(f, [0._dp, 0._dp])
+    call finder%find()
+    if (rank == 0) then
+       call test%assert(ROOT_FINDER_INTERVAL_NOT_BRACKETED, finder%err, "error")
+    end if
+
+    call finder%destroy()
+
+  contains
+
+    subroutine fn(x, context, f, err)
+      ! Quadratic with root 2
+      PetscReal, intent(in) :: x
+      class(*), pointer, intent(in out) :: context
+      PetscReal, intent(out) :: f
+      PetscErrorCode, intent(out) :: err
+
+      f = x * x - 4._dp
+      err = 0
+
+    end subroutine fn
+
+  end subroutine test_root_finder_equal_bounds
 
 !------------------------------------------------------------------------
 

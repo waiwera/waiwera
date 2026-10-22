@@ -33,6 +33,13 @@ module IFC67_module
   private
 
 !------------------------------------------------------------------------
+! Constants
+!------------------------------------------------------------------------
+
+  type(critical_point_type), parameter :: critical = critical_point_type( &
+       647.3_dp, 374.15_dp, 22.12e6_dp, 322.0_dp)
+
+!------------------------------------------------------------------------
 ! Saturation curve type
 !------------------------------------------------------------------------
 
@@ -77,7 +84,7 @@ module IFC67_module
           SA7 = 1.150e-6_dp,        SA8 = 1.51080e-5_dp, &
           SA9 = 1.41880e-1_dp,      SA10 = 7.002753165_dp, &
           SA11 = 2.995284926e-4_dp, SA12 = 2.040e-1_dp
-     PetscReal :: max_temperature
+     PetscReal :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region1_init
@@ -114,6 +121,7 @@ module IFC67_module
           SB = 7.633333333e-1_dp, SB61 = 4.006073948e-1_dp, &
           SB71 = 8.636081627e-2_dp, SB81 = -8.532322921e-1_dp, &
           SB82 = 3.460208861e-1_dp
+     PetscReal :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region2_init
@@ -144,20 +152,25 @@ contains
 ! IFC67 class
 !------------------------------------------------------------------------
 
-  subroutine IFC67_init(self, extrapolate)
+  subroutine IFC67_init(self, json, logfile)
     !! Constructs IFC-67 thermodynamics object.
 
+    use fson
+    use fson_value_m, only: TYPE_OBJECT
+    use fson_mpi_module
+    use logfile_module
+
     class(IFC67_type), intent(in out) :: self
-    PetscBool, intent(in), optional :: extrapolate
+    type(fson_value), pointer, intent(in), optional :: json !! JSON input object
+    type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    PetscInt :: i
+    PetscInt :: i, thermo_type
+    PetscBool :: defaults
+    PetscBool, parameter :: default_extrapolate = PETSC_FALSE
 
     self%name = 'IFC-67'
 
-    self%tcriticalk = 647.3_dp
-    self%tcritical = self%tcriticalk - tc_k
-    self%pcritical  = 22.12e6_dp
-    self%dcritical  = 322.0_dp
+    self%critical = critical
 
     allocate(IFC67_saturation_type :: self%saturation)
     call self%saturation%init(self)
@@ -170,8 +183,29 @@ contains
     call self%region(1)%set(self%water)
     call self%region(2)%set(self%steam)
 
+    defaults = PETSC_TRUE
+    if (present(json)) then
+       if (fson_has_mpi(json, "thermodynamics")) then
+          thermo_type = fson_type_mpi(json, "thermodynamics")
+          if (thermo_type == TYPE_OBJECT) then
+             call fson_get_mpi(json, "thermodynamics.extrapolate", &
+                  default_extrapolate, self%extrapolate, logfile)
+             defaults = PETSC_FALSE
+          end if
+       end if
+    end if
+
+    if (defaults) then
+       self%extrapolate = default_extrapolate
+       if (present(logfile)) then
+          call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
+               logical_keys = ['thermodynamics.extrapolate'], &
+               logical_values = [default_extrapolate])
+       end if
+    end if
+
     do i = 1, self%num_regions
-       call self%region(i)%ptr%init(self, extrapolate)
+       call self%region(i)%ptr%init(self)
     end do
 
   end subroutine IFC67_init
@@ -225,12 +259,11 @@ contains
 ! Region 1 (liquid water)
 !------------------------------------------------------------------------
 
-  subroutine region1_init(self, thermo, extrapolate)
+  subroutine region1_init(self, thermo)
     !! Initializes IFC-67 region 1 object.
 
     class(IFC67_region1_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
     ! Locals:
     PetscReal, parameter :: default_max_temperature = 350._dp
     PetscReal, parameter :: extrapolated_max_temperature = 360._dp
@@ -238,15 +271,12 @@ contains
     self%name = 'water'
     self%thermo => thermo
 
-    if (present(extrapolate)) then
-       if (extrapolate) then
-          self%max_temperature = extrapolated_max_temperature
-       else
-          self%max_temperature = default_max_temperature
-       end if
+    if (thermo%extrapolate) then
+       self%max_temperature = extrapolated_max_temperature
     else
        self%max_temperature = default_max_temperature
     end if
+    self%max_pressure = 100.e6_dp
 
   end subroutine region1_init
 
@@ -283,9 +313,9 @@ contains
     
     associate (p => param(1), t => param(2))
 
-      if ((t <= self%max_temperature).and.(p <= 100.e6_dp)) then
+      if ((t <= self%max_temperature).and.(p <= self%max_pressure)) then
 
-         TKR = (t + tc_k) / self%thermo%tcriticalk
+         TKR = (t + tc_k) / self%thermo%critical%temperature_k
          TKR2 = TKR * TKR
          TKR3 = TKR * TKR2
          TKR4 = TKR2 * TKR2
@@ -299,7 +329,7 @@ contains
          TKR18 = TKR8 * TKR10
          TKR19 = TKR8 * TKR11
          TKR20 = TKR10 * TKR10
-         PNMR = p / self%thermo%pcritical
+         PNMR = p / self%thermo%critical%pressure
          PNMR2 = PNMR * PNMR
          PNMR3 = PNMR * PNMR2
          PNMR4 = PNMR * PNMR3
@@ -399,15 +429,17 @@ contains
 ! Region 2 (steam)
 !------------------------------------------------------------------------
 
-  subroutine region2_init(self, thermo, extrapolate)
+  subroutine region2_init(self, thermo)
     !! Initializes IFC-67 region 2 object.
 
     class(IFC67_region2_type), intent(in out) :: self
     class(thermodynamics_type), intent(in), target :: thermo
-    PetscBool, intent(in), optional :: extrapolate
 
     self%name = 'steam'
     self%thermo => thermo
+
+    self%max_temperature = 800._dp
+    self%max_pressure = 100.e6_dp
 
   end subroutine region2_init
 
@@ -442,10 +474,10 @@ contains
     associate (p => param(1), t => param(2))
 
       ! Check input:
-      if ((t <= 800.0_dp).and.(p <= 100.e6_dp)) then
+      if ((t <= self%max_temperature).and.(p <= self%max_pressure)) then
 
-         THETA = (T + tc_k) / self%thermo%tcriticalk
-         BETA = P / self%thermo%pcritical
+         THETA = (T + tc_k) / self%thermo%critical%temperature_k
+         BETA = P / self%thermo%critical%pressure
          RI1 = 4.260321148_dp
          X = exp(self%SB * (1.0_dp - THETA))
          X2 = X * X
@@ -614,8 +646,8 @@ subroutine saturation_pressure(self, t, p, err)
   ! Locals:
   PetscReal :: PC, SC, TC, X1, X2
 
-  if ((t >= 1._dp).and.(t <= self%thermo%tcritical)) then
-     TC = (t + tc_k) / self%thermo%tcriticalk
+  if ((t >= 1._dp).and.(t <= self%thermo%critical%temperature)) then
+     TC = (t + tc_k) / self%thermo%critical%temperature_k
      X1 = 1._dp - TC
      X2 = X1 * X1
      SC = self%A5 * X1 + self%A4
@@ -624,7 +656,7 @@ subroutine saturation_pressure(self, t, p, err)
      SC = SC * X1 + self%A1
      SC = SC * X1
      PC = exp(SC / (TC * (1._dp + self%A6 * X1 + self%A7 * X2)) - X1 / (self%A8 * X2 + self%A9))
-     p = PC * self%thermo%pcritical
+     p = PC * self%thermo%critical%pressure
      err = 0
   else
      err = 1
@@ -649,7 +681,7 @@ subroutine saturation_temperature(self, p, t, err)
   PetscReal, parameter :: ftol = 1.e-10_dp, xtol = 1.e-10_dp
   PetscReal, parameter :: inc = 1.e-8_dp
 
-  if ((p >= 0.0061e5_dp) .and. (p <= self%thermo%pcritical)) then
+  if ((p >= 0.0061e5_dp) .and. (p <= self%thermo%critical%pressure)) then
 
      ! Initial estimate:
      t = max(4606.0_dp / (24.02_dp - dlog(p)) - tc_k, 5._dp)

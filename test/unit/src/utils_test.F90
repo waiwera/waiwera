@@ -23,7 +23,8 @@ module utils_test
        test_array_exclusive_products, test_array_sorted, &
        test_array_indices_in_int_array, test_is_permutation, &
        test_array_progressive_limit, test_newton1d, &
-       test_is_permutation_of, test_array_unique, test_sign_test
+       test_is_permutation_of, test_array_unique, test_sign_test, &
+       test_hermite_spline, test_hermite_interpolate
 
 contains
 
@@ -684,9 +685,14 @@ contains
        call test%assert(0, err, 'case 3 error')
 
        x = 1._dp
-       call newton1d(poly, x, ftol, xtol, 6, err)
-       call test%assert(3._dp, x, 'case 4 value')
+       call newton1d(f2, df2, x, ftol, xtol, 5, err)
+       call test%assert(sqrt(2._dp), x, 'case 4 value')
        call test%assert(0, err, 'case 4 error')
+
+       x = 1._dp
+       call newton1d(poly, x, ftol, xtol, 6, err)
+       call test%assert(3._dp, x, 'case 5 value')
+       call test%assert(0, err, 'case 5 error')
 
     end if
 
@@ -705,6 +711,13 @@ contains
       f2 = x * x - 2._dp
       err = 0
     end function f2
+
+    PetscReal function df2(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      df2 = 2._dp * x
+      err = 0
+    end function df2
 
   end subroutine test_newton1d
 
@@ -731,6 +744,86 @@ contains
     end if
 
   end subroutine test_sign_test
+
+!------------------------------------------------------------------------
+
+  subroutine test_hermite_spline(test)
+    ! Test hermite splines
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: xi
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert(1._dp, hermite_spline_00(0._dp), '00 0')
+       call test%assert(0._dp, hermite_spline_00(1._dp), '00 1')
+       call test%assert(0.5_dp, hermite_spline_00(0.5_dp), '00 0.5')
+       call test%assert(0.896_dp, hermite_spline_00(0.2_dp), '00 0.2')
+       call test%assert(0.216_dp, hermite_spline_00(0.7_dp), '00 0.7')
+
+       call test%assert(1._dp, hermite_spline_01(1._dp), '01 0')
+       call test%assert(0._dp, hermite_spline_01(0._dp), '01 1')
+       call test%assert(0.5_dp, hermite_spline_01(0.5_dp), '01 0.5')
+       call test%assert(0.896_dp, hermite_spline_01(0.8_dp), '01 0.2')
+       call test%assert(0.216_dp, hermite_spline_01(0.3_dp), '01 0.7')
+
+       call test%assert(0._dp, hermite_spline_10(0._dp), '10 0')
+       call test%assert(0._dp, hermite_spline_10(1._dp), '10 1')
+       call test%assert(0.125_dp, hermite_spline_10(0.5_dp), '10 0.5')
+       call test%assert(0.128_dp, hermite_spline_10(0.2_dp), '10 0.2')
+       call test%assert(0.063_dp, hermite_spline_10(0.7_dp), '10 0.7')
+
+       call test%assert(0._dp, hermite_spline_11(0._dp), '11 0')
+       call test%assert(0._dp, hermite_spline_11(1._dp), '11 1')
+       call test%assert(-0.125_dp, hermite_spline_11(0.5_dp), '11 0.5')
+       call test%assert(-0.032_dp, hermite_spline_11(0.2_dp), '11 0.2')
+       call test%assert(-0.147_dp, hermite_spline_11(0.7_dp), '11 0.7')
+
+       xi = 0._dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 0')
+       xi = 0.5_dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 0.5')
+       xi = 0.7_dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 0.7')
+       xi = 1._dp
+       call test%assert(xi, hermite_spline_inv_00(hermite_spline_00(xi)), '00 inv 1')
+
+    end if
+
+  end subroutine test_hermite_spline
+
+!------------------------------------------------------------------------
+
+  subroutine test_hermite_interpolate(test)
+    ! Test hermite interpolation
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call test%assert(0._dp, hermite_interpolate( &
+            0._dp, 0._dp, 0._dp, 0._dp, &
+            1._dp, 0.5_dp), 'case 1')
+
+       call test%assert(0.5_dp, hermite_interpolate( &
+            1._dp, 0._dp, -1._dp, -1._dp, &
+            1._dp, 0.5_dp), 'case 2')
+
+       call test%assert(0.9375_dp, hermite_interpolate( &
+            0._dp, 1._dp, 1._dp, 0._dp, &
+            2._dp, 0.75_dp), 'case 3')
+
+    end if
+
+  end subroutine test_hermite_interpolate
 
 !------------------------------------------------------------------------
 

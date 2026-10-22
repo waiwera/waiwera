@@ -33,15 +33,16 @@ module fluid_module
   implicit none
   private
 
-  PetscInt, parameter, public :: num_fluid_variables = 7
+  PetscInt, parameter, public :: num_fluid_variables = 9
   PetscInt, parameter, public :: num_phase_variables = 8
-  PetscInt, parameter, public :: max_fluid_variable_name_length = 19
+  PetscInt, parameter, public :: max_fluid_variable_name_length = 20
   character(max_fluid_variable_name_length), public :: &
        fluid_variable_names(num_fluid_variables) = [ &
-       "pressure           ", "temperature        ", &
-       "region             ", "old_region         ", &
-       "phases             ", "permeability_factor", &
-       "partial_pressure   "]
+       "pressure            ", "temperature         ", &
+       "region              ", "old_region          ", &
+       "phases              ", "permeability_factor ", &
+       "liquidlike_fraction ", "supercritical_phases", &
+       "partial_pressure    "]
   PetscInt, parameter, public :: max_phase_variable_name_length = 21
   character(max_phase_variable_name_length), public :: &
        phase_variable_names(num_phase_variables) = [ &
@@ -54,6 +55,8 @@ module fluid_module
 
   type phase_type
      !! Type for accessing local fluid properties for a particular phase.
+     PetscInt, public :: dof !! Degrees of freedom
+     PetscReal, pointer, contiguous, public :: data(:) !! Fluid phase data
      PetscReal, pointer :: density    !! Phase density
      PetscReal, pointer :: viscosity  !! Viscosity
      PetscReal, pointer :: saturation !! Phase saturation
@@ -64,8 +67,11 @@ module fluid_module
      PetscReal, pointer, contiguous :: mass_fraction(:) !! Component mass fractions
    contains
      private
+     procedure, public :: assign => phase_assign
      procedure, public :: destroy => phase_destroy
+     procedure, public :: zero => phase_zero
      procedure, public :: mobility => phase_mobility
+     procedure, public :: copy => phase_copy
   end type phase_type
 
   type fluid_type
@@ -79,17 +85,21 @@ module fluid_module
      !! contain integer data (though stored as real in the underlying
      !! data vector).
      private
+     PetscReal, pointer, contiguous, public :: data(:) !! Fluid data
      PetscReal, pointer, public :: pressure    !! Pressure
      PetscReal, pointer, public :: temperature !! Temperature
      PetscReal, pointer, public :: region      !! Thermodynamic region
      PetscReal, pointer, public :: old_region  !! Thermodynamic region at start of time step
      PetscReal, pointer, public :: phase_composition   !! Phase composition
-     PetscReal, pointer, public :: permeability_factor !! Fluid-induced permeability modification factor 
+     PetscReal, pointer, public :: permeability_factor !! Fluid-induced permeability modification factor
+     PetscReal, pointer, public :: liquidlike_fraction !! Number fraction of liquidlike particles
+     PetscReal, pointer, public :: supercritical_phases !! Pseudo-phase composition of supercritical fluid
      PetscReal, pointer, contiguous, public :: partial_pressure(:) !! Component partial pressures
      type(phase_type), allocatable, public :: phase(:) !! Phase variables
      PetscInt, public :: num_phases !! Number of phases
      PetscInt, public :: num_components !! Number of mass components
      PetscInt, public :: dof !! Number of degrees of freedom
+     PetscInt, public :: bulk_dof !! Number of degrees of freedom for bulk fluid properties
      PetscInt, public :: phase_dof !! Number of degrees of freedom per phase
    contains
      private
@@ -105,16 +115,18 @@ module fluid_module
      procedure, public :: specific_enthalpy => fluid_specific_enthalpy
      procedure, public :: update_phase_composition => &
           fluid_update_phase_composition
+     procedure, public :: is_supercritical => fluid_is_supercritical
+     procedure, public :: copy_bulk => fluid_copy_bulk
   end type fluid_type
 
-  type, public, abstract :: fluid_modifier_type
+  type, public :: fluid_modifier_type
      !! Abstract type for fluid modification object.
      private
      character(max_fluid_modifier_name_length), public :: name !! Name of fluid modifier
    contains
      private
-     procedure(fluid_modifier_init_routine), public, deferred :: init
-     procedure(fluid_modifier_modify_routine), public, deferred :: modify
+     procedure, public :: init => fluid_modifier_init
+     procedure, public :: modify => fluid_modifier_modify
      procedure, public :: destroy => fluid_modifier_destroy
   end type fluid_modifier_type
 
@@ -122,7 +134,6 @@ module fluid_module
      !! Type for null permeability factor - assigns permeability factor 1.
    contains
      private
-     procedure, public :: init => fluid_permeability_factor_null_init
      procedure, public :: modify => fluid_permeability_factor_null_modify
   end type fluid_permeability_factor_null_type
 
@@ -147,25 +158,25 @@ module fluid_module
      procedure, public :: modify => fluid_permeability_factor_verma_pruess_modify
   end type fluid_permeability_factor_verma_pruess_type
 
-  abstract interface
+  type, public, extends(fluid_modifier_type) :: &
+       fluid_relative_permeability_linear_temperature_type
+     !! Type for linear variation in relative permeability with temperature
+     PetscReal, public :: min_temperature !! Minimum temperature for modification
+     PetscReal, public :: max_temperature !! Maximum temperature for modification
+   contains
+     private
+     procedure, public :: modify => fluid_relative_permeability_linear_temperature_modify
+  end type fluid_relative_permeability_linear_temperature_type
 
-     subroutine fluid_modifier_init_routine(self, json, logfile)
-       !! Initializes fluid modifier object from JSON data.
-       use logfile_module
-       import :: fluid_modifier_type, fson_value
-       class(fluid_modifier_type), intent(in out) :: self
-       type(fson_value), pointer, intent(in) :: json
-       type(logfile_type), intent(in out), optional :: logfile
-     end subroutine fluid_modifier_init_routine
-
-     subroutine fluid_modifier_modify_routine(self, fluid)
-       !! Routine for modifying the specified fluid object.
-       import :: fluid_type, fluid_modifier_type
-       class(fluid_modifier_type), intent(in out) :: self
-       type(fluid_type), intent(in out) :: fluid
-     end subroutine fluid_modifier_modify_routine
-
-  end interface
+  type, public, extends(fluid_modifier_type) :: &
+       fluid_capillary_pressure_linear_temperature_type
+     !! Type for linear variation in capillary pressure with temperature
+     PetscReal, public :: min_temperature !! Minimum temperature for modification
+     PetscReal, public :: max_temperature !! Maximum temperature for modification
+   contains
+     private
+     procedure, public :: modify => fluid_capillary_pressure_linear_temperature_modify
+  end type fluid_capillary_pressure_linear_temperature_type
 
   public :: fluid_type, phase_type
   public :: create_fluid_vector
@@ -176,10 +187,35 @@ contains
 ! Phase procedures
 !------------------------------------------------------------------------
 
+  subroutine phase_assign(self, data, offset, dof)
+
+    class(phase_type), intent(in out) :: self
+    PetscReal, pointer, contiguous, intent(in) :: data(:)  !! fluid data array
+    PetscInt, intent(in) :: offset  !! fluid array offset
+    PetscInt, intent(in) :: dof  !! degrees of freedom
+
+    self%dof = dof
+    self%data => data(offset: offset + self%dof - 1)
+
+    self%density => data(offset)
+    self%viscosity => data(offset + 1)
+    self%saturation => data(offset + 2)
+    self%relative_permeability => data(offset + 3)
+    self%capillary_pressure => data(offset + 4)
+    self%specific_enthalpy => data(offset + 5)
+    self%internal_energy => data(offset + 6)
+    self%mass_fraction => data(offset + 7: offset + self%dof - 1)
+
+  end subroutine phase_assign
+
+!------------------------------------------------------------------------
+
   subroutine phase_destroy(self)
     !! Destroys a phase object.
 
     class(phase_type), intent(in out) :: self
+
+    self%data => null()
 
     self%density => null()
     self%viscosity => null()
@@ -194,6 +230,17 @@ contains
 
 !------------------------------------------------------------------------
 
+  subroutine phase_zero(self)
+    !! Zeroes out a phase object.
+
+    class(phase_type), intent(in out) :: self
+
+    self%data = 0._dp
+
+  end subroutine phase_zero
+
+!------------------------------------------------------------------------
+
   PetscReal function phase_mobility(self)
     !! Returns mobility of the phase:
     !! mobility = \(k_r \rho / \mu \)
@@ -204,6 +251,18 @@ contains
          self%viscosity
 
   end function phase_mobility
+
+!------------------------------------------------------------------------
+
+  subroutine phase_copy(self, other)
+    !! Copies other phase to self.
+
+    class(phase_type), intent(in out) :: self
+    type(phase_type), intent(in) :: other
+
+    self%data = other%data
+
+  end subroutine phase_copy
 
 !------------------------------------------------------------------------
 ! Fluid procedures
@@ -221,9 +280,8 @@ contains
     allocate(self%phase(num_phases))
 
     self%phase_dof = num_phase_variables + self%num_components - 1
-    associate(bulk_dof => num_fluid_variables + self%num_components - 1)
-      self%dof = bulk_dof + self%num_phases * self%phase_dof
-    end associate
+    self%bulk_dof = num_fluid_variables + self%num_components - 1
+    self%dof = self%bulk_dof + self%num_phases * self%phase_dof
 
   end subroutine fluid_init
     
@@ -239,29 +297,22 @@ contains
     ! Locals:
     PetscInt :: i, p
 
+    self%data => data(offset: offset + self%dof - 1)
+
     self%pressure => data(offset)
     self%temperature => data(offset + 1)
     self%region => data(offset + 2)
     self%old_region => data(offset + 3)
     self%phase_composition => data(offset + 4)
     self%permeability_factor => data(offset + 5)
-    self%partial_pressure => data(offset + 6: offset + 6 + self%num_components - 1)
+    self%liquidlike_fraction => data(offset + 6)
+    self%supercritical_phases => data(offset + 7)
+    self%partial_pressure => data(offset + 8: offset + 8 + self%num_components - 1)
     
-    associate(bulk_dof => num_fluid_variables + self%num_components - 1)
-      i = offset + bulk_dof
-    end associate
+    i = offset + self%bulk_dof
     do p = 1, self%num_phases
-       associate(phase => self%phase(p))
-         phase%density => data(i)
-         phase%viscosity => data(i + 1)
-         phase%saturation => data(i + 2)
-         phase%relative_permeability => data(i + 3)
-         phase%capillary_pressure => data(i + 4)
-         phase%specific_enthalpy => data(i + 5)
-         phase%internal_energy => data(i + 6)
-         phase%mass_fraction => data(i + 7: i + 7 + self%num_components - 1)
-         i = i + self%phase_dof
-       end associate
+       call self%phase(p)%assign(data, i, self%phase_dof)
+       i = i + self%phase_dof
     end do
 
   end subroutine fluid_assign
@@ -275,12 +326,16 @@ contains
     ! Locals:
     PetscInt :: p
 
+    nullify(self%data)
+
     nullify(self%pressure)
     nullify(self%temperature)
     nullify(self%region)
     nullify(self%old_region)
     nullify(self%phase_composition)
     nullify(self%permeability_factor)
+    nullify(self%liquidlike_fraction)
+    nullify(self%supercritical_phases)
     nullify(self%partial_pressure)
 
     do p = 1, self%num_phases
@@ -477,6 +532,33 @@ contains
   end subroutine fluid_update_phase_composition
 
 !------------------------------------------------------------------------
+
+  PetscBool function fluid_is_supercritical(self)
+    !! Returns true if the fluid is supercritical, based on its phase
+    !! composition property.
+
+    class(fluid_type), intent(in) :: self
+    ! Locals:
+    PetscInt :: phases
+
+    phases = nint(self%phase_composition)
+    fluid_is_supercritical = btest(phases, 2)
+
+  end function fluid_is_supercritical
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_copy_bulk(self, other)
+    !! Copies bulk fluid properties from other to self.
+
+    class(fluid_type), intent(in out) :: self
+    class(fluid_type), intent(in) :: other
+
+    self%data(1: self%bulk_dof) = other%data(1: self%bulk_dof)
+
+  end subroutine fluid_copy_bulk
+
+!------------------------------------------------------------------------
 ! Fluid vector setup routine
 !------------------------------------------------------------------------
 
@@ -561,28 +643,42 @@ contains
 ! Fluid modifier types:
 !------------------------------------------------------------------------
 
-  subroutine fluid_modifier_destroy(self)
-    !! Destroys fluid modifier object. To be overridden by derived types.
-    class(fluid_modifier_type), intent(in out) :: self
-
-    continue
-
-  end subroutine fluid_modifier_destroy
-
-!------------------------------------------------------------------------
-
-  subroutine fluid_permeability_factor_null_init(self, json, logfile)
-    !! Initializes null permeability factor object from JSON data.
+  subroutine fluid_modifier_init(self, json, logfile)
+    !! Initializes fluid modifier object - to be overridden by derived
+    !! types.
 
     use logfile_module
 
-    class(fluid_permeability_factor_null_type), intent(in out) :: self
+    class(fluid_modifier_type), intent(in out) :: self
     type(fson_value), pointer, intent(in) :: json
     type(logfile_type), intent(in out), optional :: logfile
 
     continue
 
-  end subroutine fluid_permeability_factor_null_init
+  end subroutine fluid_modifier_init
+
+!........................................................................
+
+  subroutine fluid_modifier_modify(self, fluid)
+    !! Default null fluid modifier - to be overridden by derived types.
+
+    class(fluid_modifier_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+
+    continue
+
+  end subroutine fluid_modifier_modify
+
+!------------------------------------------------------------------------
+
+  subroutine fluid_modifier_destroy(self)
+    !! Destroys fluid modifier object - to be overridden by derived
+    !! types.
+    class(fluid_modifier_type), intent(in out) :: self
+
+    continue
+
+  end subroutine fluid_modifier_destroy
 
 !........................................................................
 
@@ -672,6 +768,70 @@ contains
          ** self%exponent)
 
   end subroutine fluid_permeability_factor_verma_pruess_modify
+
+!........................................................................
+
+  subroutine fluid_relative_permeability_linear_temperature_modify(self, fluid)
+    !! Modifies relative permeability linearly with temperature. Above
+    !! the minimum temperature, relative permeabilities are adjusted
+    !! to approach simple linear curves from 0 to 1 at the maximum
+    !! temperature (the critical point).
+
+    use thermodynamics_module, only: thermodynamics_type
+
+    class(fluid_relative_permeability_linear_temperature_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+    ! Locals:
+    PetscReal :: xi
+    PetscInt :: p
+
+    if (fluid%temperature < self%min_temperature) then
+       xi = 0._dp
+    else if (fluid%temperature < self%max_temperature) then
+       xi = (fluid%temperature - self%min_temperature) / &
+            (self%max_temperature - self%min_temperature)
+    else
+       xi = 1._dp
+    end if
+
+    do p = 1, 2
+       associate(phase => fluid%phase(p))
+         phase%relative_permeability = (1._dp - xi) * &
+              phase%relative_permeability + xi * phase%saturation
+       end associate
+    end do
+
+  end subroutine fluid_relative_permeability_linear_temperature_modify
+
+!........................................................................
+
+  subroutine fluid_capillary_pressure_linear_temperature_modify(self, fluid)
+    !! Modifies capillary pressure linearly with temperature. Above
+    !! the minimum temperature, capillary pressures (for the liquid
+    !! phase) are adjusted to approach zero at the maximum temperature
+    !! (the critical point).
+
+    use thermodynamics_module, only: thermodynamics_type
+
+    class(fluid_capillary_pressure_linear_temperature_type), intent(in out) :: self
+    type(fluid_type), intent(in out) :: fluid
+    ! Locals:
+    PetscReal :: xi
+
+    if (fluid%temperature < self%min_temperature) then
+       xi = 0._dp
+    else if (fluid%temperature < self%max_temperature) then
+       xi = (fluid%temperature - self%min_temperature) / &
+            (self%max_temperature - self%min_temperature)
+    else
+       xi = 1._dp
+    end if
+
+    associate(phase => fluid%phase(1))
+      phase%capillary_pressure = (1._dp - xi) * phase%capillary_pressure
+    end associate
+
+  end subroutine fluid_capillary_pressure_linear_temperature_modify
 
 !------------------------------------------------------------------------
 

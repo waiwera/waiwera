@@ -925,98 +925,100 @@ contains
          self%logfile)
 
     call setup_thermodynamics(json, self%thermo, self%logfile)
-    call setup_eos(json, self%thermo, self%eos, self%logfile)
-
-    call self%mesh%init(self%eos, json, self%logfile)
-    call self%setup_gravity(json)
-
-    call self%mesh%configure(self%gravity, json, self%logfile, err)
+    call setup_eos(json, self%thermo, self%eos, self%logfile, err)
     if (err == 0) then
-       call self%mesh%override_face_properties()
-       call self%create_solution_vector(self%mesh%dm, self%solution, &
-            self%solution_range_start)
-       call setup_tracers(json, self%eos, self%tracers, self%logfile, err)
+
+       call self%mesh%init(self%eos, json, self%logfile)
+       call self%setup_gravity(json)
+
+       call self%mesh%configure(self%gravity, json, self%logfile, err)
        if (err == 0) then
-          self%auxiliary = (size(self%tracers) > 0)
-          if (self%auxiliary) then
-             call create_tracer_vector(self%mesh%dm, self%tracers, &
-                  self%aux_solution, self%aux_solution_range_start)
-          end if
-          call setup_relative_permeabilities(json, &
-               self%relative_permeability, self%logfile)
-          call setup_capillary_pressures(json, &
-               self%capillary_pressure, self%logfile)
-          call setup_rocks(json, self%mesh%dm, self%rock, &
-               self%mesh%rock_types, self%rock_controls, &
-               self%rock_range_start, self%mesh%ghost_cell, &
-               self%logfile, err)
+          call self%mesh%override_face_properties()
+          call self%create_solution_vector(self%mesh%dm, self%solution, &
+               self%solution_range_start)
+          call setup_tracers(json, self%eos, self%tracers, self%logfile, err)
           if (err == 0) then
-             if (self%mesh%has_minc) then
-                call self%mesh%setup_minc_rock_properties(json, self%rock, &
-                     self%rock_range_start, self%logfile, err)
+             self%auxiliary = (size(self%tracers) > 0)
+             if (self%auxiliary) then
+                call create_tracer_vector(self%mesh%dm, self%tracers, &
+                     self%aux_solution, self%aux_solution_range_start)
              end if
+             call setup_relative_permeabilities(json, &
+                  self%relative_permeability, self%logfile)
+             call setup_capillary_pressures(json, &
+                  self%capillary_pressure, self%logfile)
+             call setup_rocks(json, self%mesh%dm, self%rock, &
+                  self%mesh%rock_types, self%rock_controls, &
+                  self%rock_range_start, self%mesh%ghost_cell, &
+                  self%logfile, err)
              if (err == 0) then
-                call create_fluid_vector(self%mesh%dm, max_component_name_length, &
-                     self%eos%component_names, max_phase_name_length, &
-                     self%eos%phase_names, self%fluid, self%fluid_range_start)
-
-                call setup_initial(json, self%mesh, self%eos, &
-                     self%time, self%solution, self%fluid, self%aux_solution, &
-                     self%solution_range_start, self%fluid_range_start, &
-                     self%aux_solution_range_start, self%tracers, &
-                     self%initial_filename, self%logfile, err)
-
+                if (self%mesh%has_minc) then
+                   call self%mesh%setup_minc_rock_properties(json, self%rock, &
+                        self%rock_range_start, self%logfile, err)
+                end if
                 if (err == 0) then
+                   call create_fluid_vector(self%mesh%dm, max_component_name_length, &
+                        self%eos%component_names, max_phase_name_length, &
+                        self%eos%phase_names, self%fluid, self%fluid_range_start)
 
-                   call self%update_rock_properties(self%time)
+                   call setup_initial(json, self%mesh, self%eos, &
+                        self%time, self%solution, self%fluid, self%aux_solution, &
+                        self%solution_range_start, self%fluid_range_start, &
+                        self%aux_solution_range_start, self%tracers, &
+                        self%initial_filename, self%logfile, err)
 
-                   if (self%mesh%rebalance) then
-                      call self%redistribute(redist_err)
-                      if (redist_err > 0) then
-                         call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
-                              'redistribution', logical_keys = ['fail'], &
-                              logical_values = [PETSC_TRUE])
-                      end if
-                   end if
-
-                   call self%output_cell_indices()
-                   call self%add_boundary_ghost_cells()
-
-                   call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
-                   call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
-                   call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
-                   CHKERRQ(ierr)
-                   call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
-                   CHKERRQ(ierr)
-                   call self%mesh%label_remote_faces()
-                   call self%mesh%label_flux_faces()
-                   call self%mesh%setup_flux_face_array()
-                   call self%mesh%compact_face_geometry()
-                   call self%setup_flux_vector()
-
-                   call self%setup_update_cell()
-                   call self%mesh%set_boundary_conditions(json, self%fluid, &
-                        self%rock, self%aux_solution, self%eos, &
-                        self%fluid_range_start, self%rock_range_start, &
-                        self%aux_solution_range_start, size(self%tracers), &
-                        self%relative_permeability, self%capillary_pressure, self%logfile, err)
                    if (err == 0) then
-                      call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
-                           self%solution_range_start, self%fluid_range_start)
-                      call self%fluid_init(self%time, self%solution, err)
+
+                      call self%update_rock_properties(self%time)
+
+                      if (self%mesh%rebalance) then
+                         call self%redistribute(redist_err)
+                         if (redist_err > 0) then
+                            call self%logfile%write(LOG_LEVEL_WARN, 'simulation', &
+                                 'redistribution', logical_keys = ['fail'], &
+                                 logical_values = [PETSC_TRUE])
+                         end if
+                      end if
+
+                      call self%output_cell_indices()
+                      call self%add_boundary_ghost_cells()
+
+                      call VecDuplicate(self%solution, self%balances, ierr); CHKERRQ(ierr)
+                      call VecDuplicate(self%fluid, self%current_fluid, ierr); CHKERRQ(ierr)
+                      call VecDuplicate(self%fluid, self%last_timestep_fluid, ierr)
+                      CHKERRQ(ierr)
+                      call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
+                      CHKERRQ(ierr)
+                      call self%mesh%label_remote_faces()
+                      call self%mesh%label_flux_faces()
+                      call self%mesh%setup_flux_face_array()
+                      call self%mesh%compact_face_geometry()
+                      call self%setup_flux_vector()
+
+                      call self%setup_update_cell()
+                      call self%mesh%set_boundary_conditions(json, self%fluid, &
+                           self%rock, self%aux_solution, self%eos, &
+                           self%fluid_range_start, self%rock_range_start, &
+                           self%aux_solution_range_start, size(self%tracers), &
+                           self%relative_permeability, self%capillary_pressure, self%logfile, err)
                       if (err == 0) then
-                         call setup_source_network(json, self%mesh%dm, self%mesh%cell_natural_global, &
-                              self%eos, self%tracers, self%thermo, self%time, self%fluid, &
-                              self%fluid_range_start, self%source_network, self%logfile, err)
+                         call scale_initial_primary(self%mesh, self%eos, self%solution, self%fluid, &
+                              self%solution_range_start, self%fluid_range_start)
+                         call self%fluid_init(self%time, self%solution, err)
                          if (err == 0) then
-                            call self%setup_output_fields(json)
-                            call self%output_face_cell_indices()
-                            call self%output_mesh_geometry()
-                            call self%output_minc_data()
-                            call self%output_source_indices()
-                            call self%output_source_constant_integer_fields()
-                            call self%setup_jacobian()
-                            call self%setup_auxiliary()
+                            call setup_source_network(json, self%mesh%dm, self%mesh%cell_natural_global, &
+                                 self%eos, self%tracers, self%thermo, self%time, self%fluid, &
+                                 self%fluid_range_start, self%source_network, self%logfile, err)
+                            if (err == 0) then
+                               call self%setup_output_fields(json)
+                               call self%output_face_cell_indices()
+                               call self%output_mesh_geometry()
+                               call self%output_minc_data()
+                               call self%output_source_indices()
+                               call self%output_source_constant_integer_fields()
+                               call self%setup_jacobian()
+                               call self%setup_auxiliary()
+                            end if
                          end if
                       end if
                    end if
@@ -1354,7 +1356,7 @@ contains
     ! Locals:
     PetscInt :: f, i, np, nf, iface
     PetscInt :: start_cell, end_cell, end_interior_cell
-    Vec :: local_fluid, local_rock, local_update
+    Vec :: local_fluid, local_rock, local_update, converted_fluid
     PetscReal, pointer, contiguous :: rhs_array(:)
     PetscReal, pointer, contiguous :: cell_geom_array(:), face_geom_array(:)
     PetscReal, pointer, contiguous :: fluid_array(:), rock_array(:)
@@ -1377,6 +1379,10 @@ contains
     nf = np + self%eos%num_mobile_phases ! total number of fluxes stored
     allocate(face_flux(nf), face_component_flow(np))
 
+    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
+    CHKERRQ(ierr)
+    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
+
     call global_vec_section(rhs, rhs_section)
     call VecGetArrayF90(rhs, rhs_array, ierr); CHKERRQ(ierr)
     rhs_array = 0._dp
@@ -1388,7 +1394,8 @@ contains
     call VecGetArrayReadF90(self%mesh%face_geom, face_geom_array, ierr)
     CHKERRQ(ierr)
 
-    call global_to_local_vec_section(self%current_fluid, local_fluid, &
+    call convert_fluids(self%current_fluid, converted_fluid)
+    call global_to_local_vec_section(converted_fluid, local_fluid, &
          fluid_section)
     call VecGetArrayReadF90(local_fluid, fluid_array, ierr); CHKERRQ(ierr)
 
@@ -1403,9 +1410,6 @@ contains
     call VecGetArrayF90(self%flux, flux_array, ierr); CHKERRQ(ierr)
 
     call face%init(self%eos%num_components, self%eos%num_mobile_phases)
-    call DMPlexGetHeightStratum(self%mesh%dm, 0, start_cell, end_cell, ierr)
-    CHKERRQ(ierr)
-    end_interior_cell = dm_get_end_interior_cell(self%mesh%dm, end_cell)
 
     do iface = 1, size(self%mesh%flux_face)
 
@@ -1481,6 +1485,53 @@ contains
     call restore_dm_local_vec(local_fluid)
     call restore_dm_local_vec(local_rock)
     deallocate(face_flux, face_component_flow)
+    call VecDestroy(converted_fluid, ierr); CHKERRQ(ierr)
+
+  contains
+
+    subroutine convert_fluids(current_fluid, converted_fluid)
+      !! Convert fluids for flux calculation - for e.g. supercritical
+      !! cells that need to be converted to an equivalent two-phase
+      !! representation.
+
+      use fluid_module, only: fluid_type
+
+      Vec, intent(in) :: current_fluid
+      Vec, intent(out) :: converted_fluid
+      ! Locals:
+      PetscInt :: nc, nph, c, fluid_offset
+      PetscReal, pointer, contiguous :: fluid_array(:), converted_fluid_array(:)
+      type(fluid_type) :: fluid, cfluid
+      PetscSection :: section
+
+      call VecDuplicate(current_fluid, converted_fluid, ierr); CHKERRQ(ierr)
+      call VecCopy(current_fluid, converted_fluid, ierr); CHKERRQ(ierr)
+
+      call global_vec_section(current_fluid, section)
+      call VecGetArrayReadF90(current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+      call VecGetArrayF90(converted_fluid, converted_fluid_array, ierr); CHKERRQ(ierr)
+
+      nc = self%eos%num_components
+      nph = self%eos%num_phases
+      call fluid%init(nc, nph)
+      call cfluid%init(nc, nph)
+
+      do c = start_cell, end_interior_cell - 1
+         if (self%mesh%ghost_cell(c) < 0) then
+            fluid_offset = global_section_offset(section, c, &
+                 self%fluid_range_start)
+            call fluid%assign(fluid_array, fluid_offset)
+            call cfluid%assign(converted_fluid_array, fluid_offset)
+            call self%eos%convert_fluid(fluid, cfluid)
+         end if
+      end do
+
+      call fluid%destroy()
+      call cfluid%destroy()
+      call VecRestoreArrayF90(converted_fluid, converted_fluid_array, ierr); CHKERRQ(ierr)
+      call VecRestoreArrayReadF90(self%current_fluid, fluid_array, ierr); CHKERRQ(ierr)
+
+    end subroutine convert_fluids
 
   end subroutine flow_simulation_cell_inflows
 
@@ -2238,31 +2289,14 @@ contains
           call cell%fluid%assign(fluid_array, fluid_offset)
           cell_primary = self%eos%unscale(scaled_cell_primary, nint(cell%fluid%region))
 
-          call self%eos%bulk_properties(cell_primary, cell%fluid, err)
-
-          if (err == 0) then
-             call self%eos%phase_properties(cell_primary, cell%rock, &
-                  cell%fluid, err)
-             if (err > 0) then
-                natural = self%mesh%local_to_parent_natural(c)
-                minc_level = self%mesh%local_cell_minc_level(c)
-                call self%mesh%natural_cell_output_arrays( &
-                     natural, minc_level, cell_keys, cell_values)
-                call self%logfile%write(LOG_LEVEL_ERR, &
-                     'initialize', 'fluid_phase_properties', &
-                     [cell_keys, ['region']], &
-                     [cell_values, [int(cell%fluid%region)]], &
-                     real_array_key = 'primary', real_array_value = cell_primary, &
-                     rank = rank)
-                exit
-             end if
-          else
+          call self%eos%fluid_properties(cell_primary, cell%rock, cell%fluid, err)
+          if (err > 0) then
              natural = self%mesh%local_to_parent_natural(c)
              minc_level = self%mesh%local_cell_minc_level(c)
              call self%mesh%natural_cell_output_arrays( &
                   natural, minc_level, cell_keys, cell_values)
              call self%logfile%write(LOG_LEVEL_ERR, &
-                  'initialize', 'fluid_bulk_properties', &
+                  'initialize', 'fluid_properties', &
                   [cell_keys, ['region']], &
                   [cell_values, [int(cell%fluid%region)]], &
                   real_array_key = 'primary', real_array_value = cell_primary, &
@@ -2367,30 +2401,15 @@ contains
              call cell%fluid%assign(fluid_array, fluid_offset)
              cell_primary = self%eos%unscale(scaled_cell_primary, nint(cell%fluid%region))
 
-             call self%eos%bulk_properties(cell_primary, cell%fluid, err)
+             call self%eos%fluid_properties(cell_primary, cell%rock, cell%fluid, err)
 
-             if (err == 0) then
-                call self%eos%phase_properties(cell_primary, cell%rock, &
-                     cell%fluid, err)
-                if (err > 0) then
-                   natural = self%mesh%local_to_parent_natural(c)
-                   minc_level = self%mesh%local_cell_minc_level(c)
-                   call self%mesh%natural_cell_output_arrays( &
-                        natural, minc_level, cell_keys, cell_values)
-                   call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                        'phase_properties_not_found', &
-                        cell_keys, cell_values, &
-                        real_array_key = 'primary         ', &
-                        real_array_value = cell_primary, rank = rank)
-                   exit
-                end if
-             else
+             if (err > 0) then
                 natural = self%mesh%local_to_parent_natural(c)
                 minc_level = self%mesh%local_cell_minc_level(c)
                 call self%mesh%natural_cell_output_arrays( &
                      natural, minc_level, cell_keys, cell_values)
                 call self%logfile%write(LOG_LEVEL_WARN, 'fluid', &
-                     'bulk_properties_not_found', &
+                     'properties_not_found', &
                      cell_keys, cell_values, &
                      real_array_key = 'primary         ', &
                      real_array_value = cell_primary, rank = rank)

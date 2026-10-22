@@ -66,11 +66,15 @@ module eos_module
      private
      procedure(eos_init_procedure), public, deferred :: init
      procedure, public :: destroy => eos_destroy
+     procedure, public :: partial_pressures => eos_partial_pressures
+     procedure, public :: water_pressure => eos_water_pressure
+     procedure, public :: set_water_pressure => eos_set_water_pressure
      procedure(eos_transition_procedure), public, deferred :: transition
-     procedure(eos_bulk_properties_procedure), public, deferred :: bulk_properties
      procedure, public :: phase_composition => eos_phase_composition
-     procedure(eos_phase_properties_procedure), public, deferred :: phase_properties
-     procedure(eos_primary_variables_procedure), public, deferred :: primary_variables
+     procedure, public :: convert_fluid => eos_convert_fluid
+     procedure, public :: process_conditions => eos_process_conditions
+     procedure(eos_fluid_properties_procedure), public, deferred :: fluid_properties
+     procedure, public :: primary_variables => eos_primary_variables
      procedure(eos_check_primary_variables_procedure), public, deferred :: check_primary_variables
      procedure, public :: conductivity => eos_conductivity
      procedure, public :: component_index => eos_component_index
@@ -114,18 +118,8 @@ module eos_module
        PetscErrorCode, intent(out) :: err
      end subroutine eos_transition_procedure
 
-     subroutine eos_bulk_properties_procedure(self, primary, fluid, err)
-       !! Calculate bulk fluid properties from primary variables.
-       use fluid_module, only: fluid_type
-       import :: eos_type
-       class(eos_type), intent(in out) :: self
-       PetscReal, intent(in) :: primary(self%num_primary_variables)
-       type(fluid_type), intent(in out) :: fluid
-       PetscErrorCode, intent(out) :: err
-     end subroutine eos_bulk_properties_procedure
-
-     subroutine eos_phase_properties_procedure(self, primary, rock, fluid, err)
-       !! Calculate phase fluid properties from primary variables.
+     subroutine eos_fluid_properties_procedure(self, primary, rock, fluid, err)
+       !! Calculate fluid properties from primary variables.
        use rock_module, only: rock_type
        use fluid_module, only: fluid_type
        import :: eos_type
@@ -134,7 +128,7 @@ module eos_module
        type(rock_type), intent(in out) :: rock
        type(fluid_type), intent(in out) :: fluid
        PetscErrorCode, intent(out) :: err
-     end subroutine eos_phase_properties_procedure
+     end subroutine eos_fluid_properties_procedure
 
      subroutine eos_primary_variables_procedure(self, fluid, primary)
        !! Determine primary variables from fluid properties.
@@ -222,9 +216,11 @@ contains
     PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscInt :: region, phases
+    PetscReal :: water_pressure
 
     region = nint(fluid%region)
-    phases = self%thermo%phase_composition(region, fluid%pressure, &
+    water_pressure = fluid%partial_pressure(1)
+    phases = self%thermo%phase_composition(region, water_pressure, &
          fluid%temperature)
     if (phases > 0) then
        fluid%phase_composition = dble(phases)
@@ -234,6 +230,56 @@ contains
     end if
 
   end subroutine eos_phase_composition
+
+!------------------------------------------------------------------------
+
+  subroutine eos_convert_fluid(self, fluid, converted_fluid)
+
+    !! Carry out any conversions of fluid objects before computing
+    !! fluxes on face between them. This routine can be overridden by
+    !! derived EOSes.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    type(fluid_type), intent(in out) :: converted_fluid
+
+    continue
+
+  end subroutine eos_convert_fluid
+
+!------------------------------------------------------------------------
+
+  subroutine eos_process_conditions(self, primary, region, err)
+
+    !! Carry out processing of initial and boundary conditions - to be
+    !! overridden as needed by derived EOSes.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables) !! Primary variables
+    PetscInt, intent(in) :: region !! Thermodynamic region
+    PetscErrorCode, intent(out) :: err !! Error code
+
+    err = 0
+
+  end subroutine eos_process_conditions
+
+!------------------------------------------------------------------------
+
+  subroutine eos_primary_variables(self, fluid, primary)
+    !! Determine primary variables from fluid properties. To be
+    !! overridden by derived types.
+
+    use fluid_module, only: fluid_type
+
+    class(eos_type), intent(in) :: self
+    type(fluid_type), intent(in) :: fluid
+    PetscReal, intent(out) :: primary(self%num_primary_variables)
+
+    primary(1) = fluid%pressure
+
+  end subroutine eos_primary_variables
 
 !------------------------------------------------------------------------
 
@@ -311,6 +357,62 @@ contains
     self%thermo => null()
 
   end subroutine eos_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine eos_partial_pressures(self, primary, region, &
+       partial_pressures, err)
+    !! Set partial pressures from primary variables.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
+    PetscInt, intent(in) :: region
+    PetscReal, intent(out) :: partial_pressures(self%num_components)
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    associate (pressure => primary(1))
+      partial_pressures(1) = pressure
+    end associate
+
+  end subroutine eos_partial_pressures
+
+!------------------------------------------------------------------------
+
+  subroutine eos_water_pressure(self, primary, region, liquid, &
+       water_pressure, err)
+    !! Return water pressure from primary variables, for liquid or
+    !! vapour phase.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscBool, intent(in) :: liquid
+    PetscReal, intent(out) :: water_pressure
+    PetscErrorCode, intent(out) :: err
+
+    err = 0
+    associate (pressure => primary(1))
+      water_pressure = pressure
+    end associate
+
+  end subroutine eos_water_pressure
+
+!------------------------------------------------------------------------
+
+  subroutine eos_set_water_pressure(self, water_pressure, primary)
+    !! Update primary variables for specified water pressure - regions
+    !! 1, 2 and 4 only.
+
+    class(eos_type), intent(in) :: self
+    PetscReal, intent(in) :: water_pressure
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+
+    associate (pressure => primary(1))
+      pressure = water_pressure
+    end associate
+
+  end subroutine eos_set_water_pressure
 
 !------------------------------------------------------------------------
 ! Primary variable interpolator

@@ -21,6 +21,7 @@ module thermodynamics_setup_module
 #include <petsc/finclude/petscsys.h>
 
   use petscsys
+  use kinds_module
   use thermodynamics_module
   use IAPWS_module
   use IFC67_module
@@ -54,39 +55,29 @@ contains
     ! Locals:
     character(max_thermo_ID_length) :: thermo_ID
     PetscInt :: thermo_type
-    PetscBool :: extrapolate
-    PetscBool, parameter :: default_extrapolate = PETSC_FALSE
 
     if (fson_has_mpi(json, "thermodynamics")) then
        thermo_type = fson_type_mpi(json, "thermodynamics")
        if (thermo_type == TYPE_STRING) then
           call fson_get_mpi(json, "thermodynamics", val = thermo_ID)
-          extrapolate = default_extrapolate
        else
           call fson_get_mpi(json, "thermodynamics.name", &
                default_thermo_ID, thermo_ID, logfile)
-          call fson_get_mpi(json, "thermodynamics.extrapolate", &
-               default_extrapolate, extrapolate, logfile)
        end if
     else
        thermo_ID = default_thermo_ID
        call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
             str_key = 'thermodynamics.name', str_value = default_thermo_ID)
-       extrapolate = default_extrapolate
-       call logfile%write(LOG_LEVEL_INFO, 'input', 'default', &
-            logical_keys = ['thermodynamics.extrapolate'], &
-            logical_values = [default_extrapolate])
     end if
 
-    thermo_ID = str_to_lower(thermo_ID)
-    select case (thermo_ID)
+    select case (str_to_lower(thermo_ID))
     case ("ifc67")
        allocate(IFC67_type :: thermo)
     case default
        allocate(IAPWS_type :: thermo)
     end select
 
-    call thermo%init(extrapolate)
+    call thermo%init(json, logfile)
 
   end subroutine setup_thermodynamics
 

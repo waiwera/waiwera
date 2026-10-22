@@ -56,6 +56,7 @@ module utils_module
 
   interface newton1d
      module procedure newton1d_general
+     module procedure newton1d_general_derivative
      module procedure newton1d_polynomial
   end interface newton1d
 
@@ -68,7 +69,10 @@ module utils_module
        array_exclusive_products, array_sorted, &
        array_indices_in_int_array, clock_elapsed_time, &
        array_is_permutation, array_is_permutation_of, &
-       array_unique, array_progressive_limit, newton1d, sign_test
+       array_unique, array_progressive_limit, newton1d, sign_test, &
+       hermite_spline_00, hermite_spline_01, hermite_spline_10, &
+       hermite_spline_11, hermite_interpolate, &
+       hermite_spline_inv_00
 
 contains
 
@@ -674,6 +678,7 @@ contains
     PetscInt :: i
     PetscBool :: found
 
+    err = 0
     delx = x_increment * x
     found = PETSC_FALSE
 
@@ -710,6 +715,73 @@ contains
 
 !------------------------------------------------------------------------
 
+  recursive subroutine newton1d_general_derivative(f, df, x, ftol, xtol, &
+       max_iterations, err)
+    !! 1-D Newton solve to find f(x) = 0, for the specified function
+    !! f, derivative df, function tolerance, variable tolerance and
+    !! maximum number of iterations. The error flag returns nonzero if
+    !! there were any errors in function evaluation or the iteration
+    !! limit was exceeded.
+
+    interface
+
+       PetscReal function f(x, err)
+         PetscReal, intent(in) :: x
+         PetscErrorCode, intent(out) :: err
+       end function f
+
+       PetscReal function df(x, err)
+         PetscReal, intent(in) :: x
+         PetscErrorCode, intent(out) :: err
+       end function df
+
+    end interface
+
+    PetscReal, intent(in out) :: x !! Starting and final variable value
+    PetscReal, intent(in) :: ftol !! Function tolerance
+    PetscReal, intent(in) :: xtol !! Variable tolerance
+    PetscInt, intent(in) :: max_iterations !! Maximum number of iterations
+    PetscErrorCode, intent(out) :: err !! Error code
+    ! Locals:
+    PetscReal :: fx, fd, dx
+    PetscInt :: i
+    PetscBool :: found
+
+    err = 0
+    found = PETSC_FALSE
+
+    do i = 1, max_iterations
+       fx = f(x, err)
+       if (err == 0) then
+          if (abs(fx) <= ftol) then
+             found = PETSC_TRUE
+             exit
+          else
+             fd = df(x, err)
+             if (err == 0) then
+                dx = -fx / fd
+                x = x + dx
+                if (abs(dx) <= xtol) then
+                   found = PETSC_TRUE
+                   exit
+                end if
+             else
+                exit
+             end if
+          end if
+       else
+          exit
+       end if
+    end do
+
+    if ((err == 0) .and. (.not.(found))) then
+       err = 1
+    end if
+
+  end subroutine newton1d_general_derivative
+
+!------------------------------------------------------------------------
+
   recursive subroutine newton1d_polynomial(f, x, ftol, xtol, &
        max_iterations, err)
     !! 1-D Newton solve to find f(x) = 0, for the specified polynomial
@@ -730,6 +802,7 @@ contains
     PetscInt :: i
     PetscBool :: found
 
+    err = 0
     fdash = polynomial_derivative(f)
     found = PETSC_FALSE
 
@@ -774,6 +847,91 @@ contains
     end if
 
   end function sign_test
+
+!------------------------------------------------------------------------
+
+  PetscReal function hermite_spline_00(xi) result(h)
+    !! Cubic Hermite spline basis function 00.
+
+    PetscReal, intent(in) :: xi
+
+    h = polynomial([1.0_dp, 0._dp, -3._dp, 2._dp], xi)
+
+  end function hermite_spline_00
+
+  PetscReal function hermite_spline_01(xi) result(h)
+    !! Cubic Hermite spline basis function 01.
+
+    PetscReal, intent(in) :: xi
+
+    h = xi * xi * polynomial([3._dp, -2._dp], xi)
+
+  end function hermite_spline_01
+
+  PetscReal function hermite_spline_10(xi) result(h)
+    !! Cubic Hermite spline basis function 10.
+
+    PetscReal, intent(in) :: xi
+
+    h = xi * polynomial([1._dp, -2._dp, 1._dp], xi)
+
+  end function hermite_spline_10
+
+  PetscReal function hermite_spline_11(xi) result(h)
+    !! Cubic Hermite spline basis function 11.
+
+    PetscReal, intent(in) :: xi
+
+    h = xi * xi * polynomial([-1._dp, 1._dp], xi)
+
+  end function hermite_spline_11
+
+  function hermite_splines(xi) result(h)
+    !! Cubic Hermite spline basis functions 00, 01, 10 and 11.
+
+    PetscReal, intent(in) :: xi
+    PetscReal :: h(4)
+    ! Locals:
+    PetscReal, parameter :: coefs(4, 4) = reshape([&
+         1._dp, 0._dp, 0._dp, 0._dp, &
+         0._dp, 0._dp, 1._dp, 0._dp, &
+         -3._dp, 3._dp, -2._dp, -1._dp, &
+         2._dp, -2._dp, 1._dp, 1._dp], &
+         [4, 4])
+
+    h = polynomial(coefs, xi)
+
+  end function hermite_splines
+
+  PetscReal function hermite_spline_inv_00(h) result(xi)
+    !! Inverse of cubic Hermite spline basis function 00.
+
+    PetscReal, intent(in) :: h
+    ! Locals:
+    PetscReal :: r, theta
+
+    r = 2._dp * h - 1._dp
+    r = min(max(-1._dp, r), 1._dp)
+    theta = acos(r)
+    xi = 0.5_dp - sin(pi / 6._dp - theta / 3._dp)
+
+  end function hermite_spline_inv_00
+
+!------------------------------------------------------------------------
+
+  PetscReal function hermite_interpolate(y0, y1, d0, d1, dx, xi) result(hi)
+    !! Cubic Hermite spline interpolation between values y0, y1 and
+    !! slopes d0, d1, on an interval of length dx, at normalised
+    !! coordinate xi.
+
+    PetscReal, intent(in) :: y0, y1, d0, d1, dx, xi
+    ! Locals:
+    PetscReal :: h(4)
+
+    h = hermite_splines(xi)
+    hi = h(1) * y0 + h(2) * y1 + dx * (h(3) * d0 + h(4) * d1)
+
+  end function hermite_interpolate
 
 !------------------------------------------------------------------------
 

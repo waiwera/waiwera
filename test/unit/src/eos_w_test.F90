@@ -96,14 +96,13 @@ contains
 
     primary = pressure
     fluid%region = dble(region)
-    call eos%bulk_properties(primary, fluid, err)
-    call eos%phase_composition(fluid, err)
-    call eos%phase_properties(primary, rock, fluid, err)
+    call eos%fluid_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       call test%assert(0, err, "Error code")
        call test%assert(pressure, fluid%pressure, "Pressure")
        call test%assert(eos%temperature, fluid%temperature, "Temperature")
        call test%assert(phase_composition, nint(fluid%phase_composition), "Phase composition")

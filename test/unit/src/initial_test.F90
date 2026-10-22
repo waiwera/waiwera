@@ -463,8 +463,7 @@ contains
             call column_primary_variables(z, gravity(3), primary)
           end associate
           fluid%region = region
-          call eos%bulk_properties(primary, fluid, err)
-          call eos%phase_properties(primary, rock, fluid, err)
+          call eos%fluid_properties(primary, rock, fluid, err)
        end if
     end do
 

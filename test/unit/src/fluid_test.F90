@@ -14,7 +14,9 @@ module fluid_test
 
   public :: setup, teardown
   public :: test_fluid_assign, test_fluid_component_density, &
-     test_fluid_energy, test_fluid_enthalpy, test_fluid_permeability_modifier
+       test_fluid_energy, test_fluid_enthalpy, test_fluid_permeability_modifier, &
+       test_fluid_relative_permeability_modifier, &
+       test_fluid_capillary_pressure_modifier
 
 contains
   
@@ -56,7 +58,7 @@ contains
     PetscInt :: i, ip, nc, phase_dof
     PetscMPIInt :: rank
     PetscInt :: ierr
-    PetscInt, parameter :: expected_dof = 8 + 2 * 9
+    PetscInt, parameter :: expected_dof = 10 + 2 * 9
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -78,7 +80,9 @@ contains
        call test%assert(fluid_data(offset+3), fluid%old_region, "old region")
        call test%assert(fluid_data(offset+4), fluid%phase_composition, "phase composition")
        call test%assert(fluid_data(offset+5), fluid%permeability_factor, "permeability factor")
-       call test%assert(fluid_data(offset+6: offset+6 + num_components - 1), &
+       call test%assert(fluid_data(offset+6), fluid%liquidlike_fraction, "liquidlike fraction")
+       call test%assert(fluid_data(offset+7), fluid%supercritical_phases, "supercritical phases")
+       call test%assert(fluid_data(offset+8: offset+8 + num_components - 1), &
             fluid%partial_pressure, "partial pressure")
 
        i = offset + num_fluid_variables + num_components - 1
@@ -133,7 +137,8 @@ contains
        call fluid%init(num_components, num_phases)
        allocate(fluid_data(offset - 1 + fluid%dof))
 
-       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0._dp, 0._dp, &
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, &
+            0._dp, 0._dp, &
             935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
@@ -172,7 +177,8 @@ contains
        call fluid%init(num_components, num_phases)
 
        allocate(fluid_data(offset - 1 + fluid%dof))
-       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0._dp, 0._dp, &
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, &
+            0._dp, 0._dp, &
             935._dp, 0._dp, 0.8_dp, 0._dp, 0._dp, 0._dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  0._dp, 0.2_dp, 0._dp, 0._dp, 0._dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
@@ -216,7 +222,8 @@ contains
        call fluid%init(num_components, num_phases)
 
        allocate(fluid_data(offset - 1 + fluid%dof))
-       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0._dp, 0._dp, &
+       fluid_data = [2.7e5_dp, 130._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.8_dp, 3._dp, &
+            0._dp, 0._dp, &
             935._dp, 1.e-6_dp, 0.8_dp, 0.7_dp, 0._dp, 83.9e3_dp, 5.461e5_dp, 0.7_dp, 0.3_dp, &
             1.5_dp,  2.e-7_dp, 0.2_dp, 0.3_dp, 0._dp, 800.e3_dp, 2.540e6_dp, 0.4_dp, 0.6_dp]
 
@@ -326,6 +333,151 @@ contains
     end if
 
   end subroutine test_fluid_permeability_modifier
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_relative_permeability_modifier(test)
+    ! Fluid relative permeability modifier
+
+    use fson
+    use IAPWS_module, only: critical
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fluid_type) :: fluid
+    type(fson_value), pointer :: json
+    type(fluid_relative_permeability_linear_temperature_type) :: linear
+    PetscInt, parameter :: num_components = 2, num_phases = 3
+    PetscInt,  parameter :: offset = 1
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+       call fluid%init(num_components, num_phases)
+       allocate(fluid_data(offset - 1 + fluid%dof))
+       fluid_data = 0._dp
+       call fluid%assign(fluid_data, offset)
+
+       call linear%init(json)
+       linear%min_temperature = 350._dp
+       linear%max_temperature = critical%temperature
+
+       call modifier_case(fluid, linear, 100._dp, [0.4_dp, 0.6_dp], &
+            [0.25_dp, 0.75_dp], [0.25_dp, 0.75_dp], "100 deg C")
+       call modifier_case(fluid, linear, 350._dp, [0.4_dp, 0.6_dp], &
+            [0.25_dp, 0.75_dp], [0.25_dp, 0.75_dp], "350 deg C")
+       call modifier_case(fluid, linear, 360._dp, [0.25_dp, 0.75_dp], &
+            [0.4_dp, 0.6_dp], [0.337359057881_dp, 0.662640942119_dp], "360 deg C")
+       call modifier_case(fluid, linear, critical%temperature, [0.25_dp, 0.75_dp], &
+            [0.4_dp, 0.6_dp], [0.25_dp, 0.75_dp], "Tc")
+       call modifier_case(fluid, linear, 400._dp, [0.25_dp, 0.75_dp], &
+            [0.4_dp, 0.6_dp], [0.25_dp, 0.75_dp], "> Tc")
+
+       call linear%destroy()
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  contains
+
+    subroutine modifier_case(fluid, modifier, temperature, saturation, &
+         initial, expected, title)
+
+      type(fluid_type), intent(in out) :: fluid
+      type(fluid_relative_permeability_linear_temperature_type), &
+           intent(in out) :: modifier
+      PetscReal, intent(in) :: temperature, saturation(2), &
+           initial(2), expected(2)
+      character(*), intent(in) :: title
+
+      fluid%temperature = temperature
+      fluid%phase(1)%saturation = saturation(1)
+      fluid%phase(2)%saturation = saturation(2)
+      fluid%phase(1)%relative_permeability = initial(1)
+      fluid%phase(2)%relative_permeability = initial(2)
+
+      call modifier%modify(fluid)
+      call test%assert(expected(1), fluid%phase(1)%relative_permeability, &
+           title // " kr 1")
+      call test%assert(expected(2), fluid%phase(2)%relative_permeability, &
+           title // " kr 2")
+
+    end subroutine modifier_case
+
+  end subroutine test_fluid_relative_permeability_modifier
+
+!------------------------------------------------------------------------
+
+  subroutine test_fluid_capillary_pressure_modifier(test)
+    ! Fluid capillary pressure modifier
+
+    use fson
+    use IAPWS_module, only: critical
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fluid_type) :: fluid
+    type(fson_value), pointer :: json
+    type(fluid_capillary_pressure_linear_temperature_type) :: linear
+    PetscInt, parameter :: num_components = 2, num_phases = 3
+    PetscInt,  parameter :: offset = 1
+    PetscReal, pointer, contiguous :: fluid_data(:)
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    if (rank == 0) then
+       call fluid%init(num_components, num_phases)
+       allocate(fluid_data(offset - 1 + fluid%dof))
+       fluid_data = 0._dp
+       call fluid%assign(fluid_data, offset)
+
+       call linear%init(json)
+       linear%min_temperature = 350._dp
+       linear%max_temperature = critical%temperature
+
+       call modifier_case(fluid, linear, 100._dp, &
+            -0.1e5_dp, -0.1e5_dp, "100 deg C")
+       call modifier_case(fluid, linear, 350._dp, &
+            -0.1e5_dp, -0.1e5_dp, "350 deg C")
+       call modifier_case(fluid, linear, 360._dp, &
+            -0.1e5_dp, -5823.93719202_dp, "360 deg C")
+       call modifier_case(fluid, linear, critical%temperature, &
+            -0.1e5_dp, 0._dp, "Tc")
+       call modifier_case(fluid, linear, 400._dp, &
+            -0.1e5_dp, 0._dp, "> Tc")
+
+       call linear%destroy()
+       call fluid%destroy()
+       deallocate(fluid_data)
+
+    end if
+
+  contains
+
+    subroutine modifier_case(fluid, modifier, temperature, &
+         initial, expected, title)
+
+      type(fluid_type), intent(in out) :: fluid
+      type(fluid_capillary_pressure_linear_temperature_type), &
+           intent(in out) :: modifier
+      PetscReal, intent(in) :: temperature, initial, expected
+      character(*), intent(in) :: title
+
+      fluid%temperature = temperature
+      fluid%phase(1)%capillary_pressure = initial
+
+      call modifier%modify(fluid)
+      call test%assert(expected, fluid%phase(1)%capillary_pressure, title)
+
+    end subroutine modifier_case
+
+  end subroutine test_fluid_capillary_pressure_modifier
 
 !------------------------------------------------------------------------
 

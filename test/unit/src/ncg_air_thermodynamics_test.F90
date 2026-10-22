@@ -339,8 +339,8 @@ contains
     PetscReal, parameter :: water_viscosity(num_cases) = [ &
          0.171595480e-4_dp, 0.128139659e-4_dp, 8.73278989112e-6_dp]
     PetscReal, parameter :: expected_visc(num_cases) = [ &
-         1.81800535828e-05_dp, 0.178797007e-4_dp, 1.67537163543e-5_dp]
-    PetscReal, parameter :: tol = 1.e-5_dp
+         1.8180003350333566e-5_dp, 1.787954184824908e-5_dp, 1.675361665050422e-5_dp]
+    PetscReal, parameter :: tol = 1.e-7_dp
 
     call thermo%init()
     call gas%init()

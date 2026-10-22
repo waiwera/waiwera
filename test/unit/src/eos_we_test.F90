@@ -15,14 +15,15 @@ module eos_we_test_module
   use fson
   use fson_mpi_module
   use eos_we_module
-  use unit_test_utils_module, only: transition_compare
+  use unit_test_utils_module, only: transition_compare, fluid_compare
 
   implicit none
   private
 
   public :: setup, teardown, setup_test
   public :: test_eos_we_fluid_properties, test_eos_we_transition, &
-       test_eos_we_errors, test_eos_we_conductivity
+       test_eos_we_errors, test_eos_we_conductivity, &
+       test_eos_we_bdy_consistency
 
 contains
 
@@ -121,13 +122,12 @@ contains
     fluid%region = dble(region)
     fluid%old_region = fluid%region
     fluid%permeability_factor = 1._dp
-    call eos%bulk_properties(primary, fluid, err)
-    call eos%phase_composition(fluid, err)
-    call eos%phase_properties(primary, rock, fluid, err)
+    call eos%fluid_properties(primary, rock, fluid, err)
     call eos%primary_variables(fluid, primary2)
 
     if (rank == 0) then
 
+       call test%assert(0, err, "Error code")
        call test%assert(pressure, fluid%pressure, "Pressure")
        call test%assert(temperature, fluid%temperature, "Temperature")
        call test%assert(phase_composition, nint(fluid%phase_composition), "Phase composition")
@@ -199,7 +199,7 @@ contains
     PetscReal, pointer, contiguous :: old_fluid_data(:), fluid_data(:)
     PetscReal :: old_primary(num_primary_variables), primary(num_primary_variables)
     PetscReal :: expected_primary(num_primary_variables), temperature
-    PetscInt :: expected_region
+    PetscInt :: expected_region, expected_err
     PetscBool :: transition, expected_transition
     type(eos_we_type) :: eos
     type(IAPWS_type) :: thermo
@@ -232,11 +232,12 @@ contains
        expected_region = 1
        expected_primary = [1.e5_dp, 20._dp]
        expected_transition = PETSC_FALSE
+       expected_err = 0
        old_primary = expected_primary
        primary = expected_primary
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
-            expected_transition, primary, fluid, transition, err, title)
+            expected_transition, expected_err, primary, fluid, transition, err, title)
 
        title = "Region 1 to 4"
        old_fluid%region = dble(1)
@@ -244,11 +245,12 @@ contains
        expected_region = 4
        expected_primary = [16.647121334271149e5_dp, small]
        expected_transition = PETSC_TRUE
+       expected_err = 0
        old_primary = [20.e5_dp, 210._dp]
        primary = [15.e5_dp, 200._dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
-            expected_transition, primary, fluid, transition, err, title)
+            expected_transition, expected_err, primary, fluid, transition, err, title)
 
        title = "Region 2 null transition"
        old_fluid%region = dble(2)
@@ -258,9 +260,10 @@ contains
        old_primary = expected_primary
        primary = expected_primary
        expected_transition = PETSC_FALSE
+       expected_err = 0
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
-            expected_transition, primary, fluid, transition, err, title)
+            expected_transition, expected_err, primary, fluid, transition, err, title)
 
        title = "Region 2 to 4"
        old_fluid%region = dble(2)
@@ -268,11 +271,12 @@ contains
        expected_region = 4
        expected_primary = [85.621455812056474e5_dp, 1._dp - small]
        expected_transition = PETSC_TRUE
+       expected_err = 0
        old_primary = [84.0e5_dp, 302._dp]
        primary = [86.e5_dp, 299.27215502281706_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
-            expected_transition, primary, fluid, transition, err, title)
+            expected_transition, expected_err, primary, fluid, transition, err, title)
 
        title = "Region 4 null transition"
        old_fluid%region = dble(4)
@@ -282,9 +286,10 @@ contains
        old_primary = expected_primary
        primary = expected_primary
        expected_transition = PETSC_FALSE
+       expected_err = 0
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
-            expected_transition, primary, fluid, transition, err, title)
+            expected_transition, expected_err, primary, fluid, transition, err, title)
 
        title = "Region 4 to 1"
        temperature = 299.27215502281706_dp
@@ -294,11 +299,12 @@ contains
        expected_region = 1
        expected_primary = [85.90917681818182e5_dp, 300.02645326107097_dp]
        expected_transition = PETSC_TRUE
+       expected_err = 0
        old_primary = [85.e5_dp, 0.1_dp]
        primary = [86.e5_dp, -0.01_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
-            expected_transition, primary, fluid, transition, err, title)
+            expected_transition, expected_err, primary, fluid, transition, err, title)
 
        title = "Region 4 to 2"
        temperature = 212.38453531849041_dp
@@ -308,11 +314,12 @@ contains
        expected_region = 2
        expected_primary = [20.08331325e5_dp, 212.59487472987195_dp]
        expected_transition = PETSC_TRUE
+       expected_err = 0
        old_primary = [20.e5_dp, 0.9_dp]
        primary = [20.1e5_dp, 1.02_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
-            expected_transition, primary, fluid, transition, err, title)
+            expected_transition, expected_err, primary, fluid, transition, err, title)
 
     end if
 
@@ -376,9 +383,7 @@ contains
     do i = 1, n
        primary = data(i, :)
        fluid%region = dble(region(i))
-       call eos%bulk_properties(primary, fluid, err)
-       call eos%phase_composition(fluid, err)
-       call eos%phase_properties(primary, rock, fluid, err)
+       call eos%fluid_properties(primary, rock, fluid, err)
        if (rank == 0) then
           call test%assert(1, err, "error code")
        end if
@@ -433,7 +438,7 @@ contains
 
     if (rank == 0) then
 
-       associate(sl => fluid_data(10))
+       associate(sl => fluid_data(12))
 
          sl = 0.0_dp
          expected_cond = 1.0_dp
@@ -474,5 +479,94 @@ contains
   end subroutine test_eos_we_conductivity
 
 !------------------------------------------------------------------------
-  
+
+  subroutine test_eos_we_bdy_consistency(test)
+
+    ! Test eos_we boundary consistency
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(fson_value), pointer :: json
+    type(IAPWS_type) :: thermo
+    type(eos_we_type) :: eos
+    PetscReal, pointer, contiguous :: fluid_data(:), rock_data(:)
+    type(fluid_type) :: fluid1, fluid2
+    type(rock_type) :: rock
+    class(relative_permeability_type), allocatable :: rp
+    class(capillary_pressure_type), allocatable :: cp
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal, allocatable :: primary1(:), primary2(:)
+    PetscErrorCode :: err
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+    json => fson_parse_mpi(str = '{}')
+    call thermo%init()
+    call eos%init(json, thermo)
+    allocate(primary1(eos%num_primary_variables))
+    allocate(primary2(eos%num_primary_variables))
+    call fluid1%init(eos%num_components, eos%num_phases)
+    call fluid2%init(eos%num_components, eos%num_phases)
+    call rock%init()
+    allocate(fluid_data(fluid1%dof + fluid2%dof))
+    allocate(rock_data(rock%dof))
+    call setup_relative_permeabilities(json, rp)
+    call setup_capillary_pressures(json, cp)
+
+    fluid_data = 0._dp
+    rock_data = 0._dp
+
+    call fluid1%assign(fluid_data, 1)
+    call fluid2%assign(fluid_data, fluid1%dof + 1)
+    call rock%assign(rock_data, 1)
+    call rock%assign_relative_permeability(rp)
+    call rock%assign_capillary_pressure(cp)
+
+    if (rank == 0) then
+
+       ! region 1 / 4
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            P2 => primary2(1), Sv2 => primary2(2))
+         T1 = 200._dp
+         call thermo%saturation%pressure(T1, P1, err)
+         P2 = P1
+         Sv2 = 0._dp
+       end associate
+       fluid1%region = dble(1)
+       fluid2%region = dble(4)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 1/4")
+
+       ! region 2 / 4
+       associate (P1 => primary1(1), T1 => primary1(2), &
+            P2 => primary2(1), Sv2 => primary2(2))
+         T1 = 300._dp
+         call thermo%saturation%pressure(T1, P1, err)
+         P2 = P1
+         Sv2 = 1._dp
+       end associate
+       fluid1%region = dble(2)
+       fluid2%region = dble(4)
+       call eos%fluid_properties(primary1, rock, fluid1, err)
+       call eos%fluid_properties(primary2, rock, fluid2, err)
+       call fluid_compare(test, fluid1, fluid2, "region 2/4")
+
+    end if
+
+    call fluid1%destroy()
+    call fluid2%destroy()
+    call rock%destroy()
+    call eos%destroy()
+    call thermo%destroy()
+    call fson_destroy_mpi(json)
+    deallocate(fluid_data, primary1, primary2)
+    call rp%destroy()
+    deallocate(rp)
+    call cp%destroy()
+    deallocate(cp)
+
+  end subroutine test_eos_we_bdy_consistency
+
 end module eos_we_test_module

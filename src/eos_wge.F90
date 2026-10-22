@@ -6,32 +6,31 @@ module eos_wge_module
   use petscsys
   use kinds_module
   use eos_module
+  use eos_we_module
   use ncg_thermodynamics_module
   use root_finder_module
 
   implicit none
   private
 
-  type, public, extends(eos_type) :: eos_wge_type
+  type, public, extends(eos_we_type) :: eos_wge_type
      !! Pure water, non-condensible gas and energy equation of state type.
      private
      class(ncg_thermodynamics_type), allocatable, public :: gas
-     type(root_finder_type) :: saturation_line_finder
-     type(primary_variable_interpolator_type), pointer :: &
-          primary_variable_interpolator
    contains
      private
      procedure, public :: init => eos_wge_init
      procedure, public :: destroy => eos_wge_destroy
-     procedure, public :: transition => eos_wge_transition
-     procedure, public :: transition_to_single_phase => eos_wge_transition_to_single_phase
-     procedure, public :: transition_to_two_phase => eos_wge_transition_to_two_phase
-     procedure, public :: bulk_properties => eos_wge_bulk_properties
+     procedure, public :: water_pressure => eos_wge_water_pressure
+     procedure, public :: set_water_pressure => eos_wge_set_water_pressure
+     procedure, public :: enforce_consistency => eos_wge_enforce_consistency
+     procedure, public :: partial_pressures => eos_wge_partial_pressures
      procedure, public :: phase_properties => eos_wge_phase_properties
      procedure, public :: primary_variables => eos_wge_primary_variables
-     procedure, public :: phase_saturations => eos_wge_phase_saturations
      procedure, public :: check_primary_variables => eos_wge_check_primary_variables
   end type eos_wge_type
+
+  public :: eos_wge_saturation_difference
 
 contains
 
@@ -51,7 +50,7 @@ contains
     class(thermodynamics_type), intent(in), target :: thermo !! Thermodynamics object
     type(logfile_type), intent(in out), optional :: logfile
     ! Locals:
-    procedure(root_finder_function), pointer :: f
+    procedure(root_finder_routine), pointer :: f
     class(*), pointer :: pinterp
     PetscReal, allocatable :: data(:, :)
     PetscReal :: pressure_scale, temperature_scale, partial_pressure_scale
@@ -133,15 +132,8 @@ contains
 
     class(eos_wge_type), intent(in out) :: self
 
-    deallocate(self%primary_variable_names)
-    deallocate(self%phase_names, self%component_names)
-    deallocate(self%default_primary)
-    deallocate(self%primary_scale)
-    self%thermo => null()
+    call self%eos_we_type%destroy()
 
-    call self%saturation_line_finder%destroy()
-    call self%primary_variable_interpolator%destroy()
-    deallocate(self%primary_variable_interpolator)
     if (allocated(self%gas)) then
        call self%gas%destroy()
        deallocate(self%gas)
@@ -151,270 +143,81 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_transition_to_single_phase(self, old_primary, old_fluid, &
-       new_region, primary, fluid, transition, err)
-    !! For eos_wge, make transition from two-phase to single-phase with
-    !! specified region.
+  subroutine eos_wge_water_pressure(self, primary, region, liquid, &
+       water_pressure, err)
 
-    use fluid_module, only: fluid_type
+    !! For eos_wge, return water pressure from primary variables, for
+    !! liquid or vapour phase.
 
-    class(eos_wge_type), intent(in out) :: self
-    type(fluid_type), intent(in) :: old_fluid
-    PetscInt, intent(in) :: new_region
-    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
-    PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in) :: primary(self%num_primary_variables)
+    PetscInt, intent(in) :: region
+    PetscBool, intent(in) :: liquid
+    PetscReal, intent(out) :: water_pressure
     PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscReal :: old_saturation_pressure, pressure_factor
-    PetscReal :: saturation_bound, xi, interpolated_water_pressure
-    PetscReal :: interpolated_primary(self%num_primary_variables)
-    PetscReal, parameter :: small = 1.e-6_dp
 
     err = 0
-    transition = PETSC_FALSE
-
-    if (new_region == 1) then
-       saturation_bound = 0._dp
-       pressure_factor = 1._dp + small
-    else
-       saturation_bound = 1._dp
-       pressure_factor = 1._dp - small
-    end if
-
-    associate (pressure => primary(1), temperature => primary(2), &
-         partial_pressure => primary(3))
-
-      partial_pressure = max(0._dp, min(partial_pressure, pressure))
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-      call self%primary_variable_interpolator%set_index(1)
-      call self%primary_variable_interpolator%find_component_at_index(&
-           saturation_bound, 2, xi, err)
-
-      if (err == 0) then
-
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         associate(interpolated_pressure => interpolated_primary(1), &
-              interpolated_partial_pressure => interpolated_primary(3))
-           interpolated_water_pressure = interpolated_pressure - &
-                interpolated_partial_pressure
-           pressure = pressure_factor * interpolated_water_pressure + &
-                interpolated_partial_pressure
-           partial_pressure = interpolated_partial_pressure
-         end associate
-
-         call self%thermo%saturation%temperature(interpolated_water_pressure, &
-              temperature, err)
-         if (err == 0) then
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
-
+    associate (pressure => primary(1), partial_pressure => primary(3))
+      if (liquid) then
+         water_pressure = pressure
       else
-
-         call self%thermo%saturation%pressure(old_fluid%temperature, &
-              old_saturation_pressure, err)
-         if (err == 0) then
-            pressure = pressure_factor * old_saturation_pressure + &
-                 partial_pressure
-            temperature = old_fluid%temperature
-            fluid%region = dble(new_region)
-            transition = PETSC_TRUE
-         end if
-
+         water_pressure = pressure - partial_pressure
       end if
-
     end associate
 
-  end subroutine eos_wge_transition_to_single_phase
+  end subroutine eos_wge_water_pressure
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_transition_to_two_phase(self, saturation_pressure, &
-       old_primary, old_fluid, primary, fluid, transition, err)
-    !! For eos_wge, make transition from single-phase to two-phase.
+  subroutine eos_wge_set_water_pressure(self, water_pressure, primary)
+    !! For eos_wge, update primary variables for specified water pressure.
 
-    use fluid_module, only: fluid_type
-
-    class(eos_wge_type), intent(in out) :: self
-    PetscReal, intent(in) :: saturation_pressure
-    type(fluid_type), intent(in) :: old_fluid
-    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    class(eos_wge_type), intent(in) :: self
+    PetscReal, intent(in) :: water_pressure
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: old_region
-    PetscReal :: interpolated_primary(self%num_primary_variables)
-    PetscReal :: xi
-    PetscReal, parameter :: small = 1.e-6_dp
 
-    err = 0
-    associate (pressure => primary(1), vapour_saturation => primary(2), &
-         partial_pressure => primary(3))
-
-      partial_pressure = max(0._dp, min(partial_pressure, pressure))
-      self%primary_variable_interpolator%val(:, 1) = old_primary
-      self%primary_variable_interpolator%val(:, 2) = primary
-      call self%saturation_line_finder%find()
-
-      if (self%saturation_line_finder%err == 0) then
-         xi = self%saturation_line_finder%root
-         interpolated_primary = self%primary_variable_interpolator%interpolate(xi)
-         associate(interpolated_pressure => interpolated_primary(1), &
-              interpolated_partial_pressure => interpolated_primary(3))
-           pressure = interpolated_pressure
-           partial_pressure = interpolated_partial_pressure
-         end associate
-      else
-         pressure = saturation_pressure + partial_pressure
-      end if
-
-      old_region = nint(old_fluid%region)
-      if (old_region == 1) then
-         vapour_saturation = small
-      else
-         vapour_saturation = 1._dp - small
-      end if
-
-      fluid%region = dble(4)
-      transition = PETSC_TRUE
-
+    associate (pressure => primary(1), partial_pressure => primary(3))
+      pressure = water_pressure + partial_pressure
     end associate
 
-  end subroutine eos_wge_transition_to_two_phase
+  end subroutine eos_wge_set_water_pressure
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_transition(self, old_primary, primary, &
-       old_fluid, fluid, transition, err)
-    !! Check primary variables for eos_wge and make thermodynamic
-    !! region transitions if needed.
+  subroutine eos_wge_enforce_consistency(self, primary)
+    !! Check internal consistency of primary variables and adjust if
+    !! necessary.
 
-    use fluid_module, only: fluid_type
-    
-    class(eos_wge_type), intent(in out) :: self
-    PetscReal, intent(in) :: old_primary(self%num_primary_variables)
+    class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in out) :: primary(self%num_primary_variables)
-    type(fluid_type), intent(in) :: old_fluid
-    type(fluid_type), intent(in out) :: fluid
-    PetscBool, intent(out) :: transition
-    PetscErrorCode, intent(out) :: err
-    ! Locals:
-    PetscInt :: old_region
-    PetscReal :: saturation_pressure
-    PetscReal :: water_pressure
 
-    err = 0
-    transition = PETSC_FALSE
-    old_region = nint(old_fluid%region)
+    associate (pressure => primary(1), partial_pressure => primary(3))
+      partial_pressure = max(0._dp, min(partial_pressure, pressure))
+    end associate
 
-    if (old_region == 4) then  ! Two-phase
-       associate (vapour_saturation => primary(2))
-
-         if (vapour_saturation < 0._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 1, primary, fluid, transition, err)
-         else if (vapour_saturation > 1._dp) then
-            call self%transition_to_single_phase(old_primary, old_fluid, &
-                 2, primary, fluid, transition, err)
-         end if
-
-     end associate
-    else  ! Single-phase
-       associate (pressure => primary(1), temperature => primary(2), &
-            partial_pressure => primary(3))
-
-         call self%thermo%saturation%pressure(temperature, &
-              saturation_pressure, err)
-
-         if (err == 0) then
-            water_pressure = pressure - partial_pressure
-            if (((old_region == 1) .and. (water_pressure < saturation_pressure)) .or. &
-                 ((old_region == 2) .and. (water_pressure > saturation_pressure))) then
-               call self%transition_to_two_phase(saturation_pressure, &
-                    old_primary, old_fluid, primary, fluid, transition, err)
-            end if
-         end if
-
-       end associate
-    end if
-
-  end subroutine eos_wge_transition
+  end subroutine eos_wge_enforce_consistency
 
 !------------------------------------------------------------------------
 
-  subroutine eos_wge_bulk_properties(self, primary, fluid, err)
-    !! Calculate fluid bulk properties from region and primary variables
-    !! for non-isothermal water and non-condensible gas.
+  subroutine eos_wge_partial_pressures(self, primary, region, &
+       partial_pressures, err)
+    !! Set partial pressures from primary variables for non-isothermal
+    !! water and non-condensible gas.
 
-    use fluid_module, only: fluid_type
-
-    class(eos_wge_type), intent(in out) :: self
+    class(eos_wge_type), intent(in) :: self
     PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
+    PetscInt, intent(in) :: region !! Fluid region
+    PetscReal, intent(out) :: partial_pressures(self%num_components) !! Partial pressures
     PetscErrorCode, intent(out) :: err !! Error code
-    ! Locals:
-    PetscInt :: region
 
     err = 0
-    fluid%pressure = primary(1)
-    region = nint(fluid%region)
-
-    associate(partial_pressure => primary(3))
-      fluid%partial_pressure(1) = fluid%pressure - partial_pressure
-      fluid%partial_pressure(2) = partial_pressure
+    associate (partial_pressure => primary(3))
+      call self%water_pressure(primary, region, PETSC_FALSE, &
+           partial_pressures(1), err)
+      partial_pressures(2) = partial_pressure
     end associate
 
-    if (region == 4) then
-       ! Two-phase
-       call self%thermo%saturation%temperature( &
-            fluid%partial_pressure(1), fluid%temperature, err)
-    else
-       ! Single-phase
-       fluid%temperature = primary(2)
-    end if
-
-    if (err == 0) then
-       fluid%permeability_factor = 1._dp
-       call self%phase_composition(fluid, err)
-       if (err == 0) then
-          call self%phase_saturations(primary, fluid)
-       end if
-    end if
-
-  end subroutine eos_wge_bulk_properties
-
-!------------------------------------------------------------------------
-
-  subroutine eos_wge_phase_saturations(self, primary, fluid)
-    !! Assigns fluid phase saturations from fluid region and primary variables.
-
-    use fluid_module, only: fluid_type
-    class(eos_wge_type), intent(in out) :: self
-    PetscReal, intent(in) :: primary(self%num_primary_variables) !! Primary thermodynamic variables
-    type(fluid_type), intent(in out) :: fluid !! Fluid object
-    ! Locals:
-    PetscInt :: region
-
-    region = nint(fluid%region)
-
-    select case (region)
-    case (1)
-       fluid%phase(1)%saturation = 1._dp
-       fluid%phase(2)%saturation = 0._dp
-    case (2)
-       fluid%phase(1)%saturation = 0._dp
-       fluid%phase(2)%saturation = 1._dp
-    case (4)
-       fluid%phase(1)%saturation = 1._dp - primary(2)
-       fluid%phase(2)%saturation = primary(2)
-    end select
-
-  end subroutine eos_wge_phase_saturations
+  end subroutine eos_wge_partial_pressures
 
 !------------------------------------------------------------------------
 
@@ -431,7 +234,7 @@ contains
     type(fluid_type), intent(in out) :: fluid !! Fluid object
     PetscErrorCode, intent(out) :: err !! Error code
     ! Locals:
-    PetscInt :: p, phases
+    PetscInt :: region, p, phases, rindex
     PetscReal :: sl, xg
     PetscReal :: henrys_constant, constituent_henrys_constant(self%gas%num_constituents)
     PetscReal :: water_properties(2), water_viscosity, water_enthalpy
@@ -440,6 +243,7 @@ contains
     PetscReal :: gas_properties(2), effective_gas_properties(2)
 
     err = 0
+    region = nint(fluid%region)
     phases = nint(fluid%phase_composition)
 
     sl = fluid%phase(1)%saturation
@@ -451,88 +255,86 @@ contains
     if (err == 0) then
 
        do p = 1, self%num_phases
-          associate(phase => fluid%phase(p), region => self%thermo%region(p)%ptr)
+          associate(phase => fluid%phase(p))
 
             if (btest(phases, p - 1)) then
 
-               if (p == 1) then
-                  water_pressure = fluid%pressure
-                  capillary_pressure = rock%capillary_pressure%value(sl, &
-                       fluid%temperature)
-                  call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
-                       constituent_henrys_constant, err)
-                  if (err == 0) then
-                     call self%gas%energy_solution(fluid%temperature, &
-                          constituent_henrys_constant, energy_solution, err)
-                  end if
-               else
-                  water_pressure = fluid%partial_pressure(1)
-                  capillary_pressure = 0._dp
-                  henrys_constant = 0._dp
-                  energy_solution = 0._dp
-               end if
+               rindex = self%region_index(p, region)
+               associate (regionp => self%thermo%region(rindex)%ptr, liquid => (p == 1))
 
-               if (err == 0) then
+                 if (liquid) then
+                    call self%water_pressure(primary, region, liquid, water_pressure, err)
+                    capillary_pressure = rock%capillary_pressure%value(sl, &
+                         fluid%temperature)
+                    call self%gas%henrys_constant(fluid%temperature, henrys_constant, &
+                         constituent_henrys_constant, err)
+                    if (err == 0) then
+                       call self%gas%energy_solution(fluid%temperature, &
+                            constituent_henrys_constant, energy_solution, err)
+                    end if
+                 else
+                    water_pressure = fluid%partial_pressure(1)
+                    capillary_pressure = 0._dp
+                    henrys_constant = 0._dp
+                    energy_solution = 0._dp
+                 end if
 
-                  call region%properties([water_pressure, fluid%temperature], &
-                       water_properties, err)
+                 if (err == 0) then
 
-                  if (err == 0) then
+                    call regionp%properties([water_pressure, fluid%temperature], &
+                         water_properties, err)
 
-                     call self%gas%effective_properties(gas_properties, p, &
-                          effective_gas_properties)
+                    if (err == 0) then
 
-                     associate(water_density => water_properties(1), &
-                          water_internal_energy => water_properties(2), &
-                          gas_density => effective_gas_properties(1), &
-                          gas_enthalpy => effective_gas_properties(2))
+                       call self%gas%effective_properties(gas_properties, p, &
+                            effective_gas_properties)
 
-                       call self%gas%mass_fraction(fluid%partial_pressure(2), &
-                            fluid%temperature, p, gas_density, water_density, &
-                            henrys_constant, xg, err)
+                       associate(water_density => water_properties(1), &
+                            water_internal_energy => water_properties(2), &
+                            gas_density => effective_gas_properties(1), &
+                            gas_enthalpy => effective_gas_properties(2))
 
-                       if (err == 0) then
+                         call self%gas%mass_fraction(fluid%partial_pressure(2), &
+                              fluid%temperature, p, gas_density, water_density, &
+                              henrys_constant, xg, err)
 
-                          call region%viscosity(fluid%temperature, fluid%pressure, &
-                               water_density, water_viscosity)
-                          call self%gas%mixture_viscosity(water_viscosity, &
-                               fluid%temperature, fluid%partial_pressure(2), xg, p, &
-                               phase%viscosity, err)
+                         if (err == 0) then
 
-                          if (err == 0) then
-                             phase%density = water_density + gas_density
-                             phase%mass_fraction = [1._dp - xg, xg]
-                             phase%relative_permeability = relative_permeability(p)
-                             phase%capillary_pressure =  capillary_pressure
-                             water_enthalpy = water_internal_energy &
-                                  + water_pressure / water_density
-                             phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
-                                  + (gas_enthalpy + energy_solution) * xg
-                             phase%internal_energy = phase%specific_enthalpy &
-                                  - fluid%pressure / phase%density
-                          else
-                             exit
-                          end if
-                       else
-                          exit
-                       end if
+                            call regionp%viscosity(fluid%temperature, fluid%pressure, &
+                                 water_density, water_viscosity)
+                            call self%gas%mixture_viscosity(water_viscosity, &
+                                 fluid%temperature, fluid%partial_pressure(2), xg, p, &
+                                 phase%viscosity, err)
 
-                     end associate
-                  else
-                     exit
-                  end if
-               else
-                  exit
-               end if
+                            if (err == 0) then
+                               phase%density = water_density + gas_density
+                               phase%mass_fraction = [1._dp - xg, xg]
+                               phase%relative_permeability = relative_permeability(p)
+                               phase%capillary_pressure =  capillary_pressure
+                               water_enthalpy = water_internal_energy &
+                                    + water_pressure / water_density
+                               phase%specific_enthalpy = water_enthalpy * (1._dp - xg) &
+                                    + (gas_enthalpy + energy_solution) * xg
+                               phase%internal_energy = phase%specific_enthalpy &
+                                    - fluid%pressure / phase%density
+                            else
+                               exit
+                            end if
+                         else
+                            exit
+                         end if
+
+                       end associate
+                    else
+                       exit
+                    end if
+                 else
+                    exit
+                 end if
+               end associate
 
             else
-               phase%density = 0._dp
-               phase%internal_energy = 0._dp
-               phase%specific_enthalpy = 0._dp
-               phase%relative_permeability = 0._dp
-               phase%capillary_pressure = 0._dp
-               phase%viscosity = 0._dp
-               phase%mass_fraction = 0._dp
+               call phase%zero()
             end if
 
           end associate
@@ -552,17 +354,8 @@ contains
     class(eos_wge_type), intent(in) :: self
     type(fluid_type), intent(in) :: fluid
     PetscReal, intent(out) :: primary(self%num_primary_variables)
-    ! Locals:
-    PetscInt :: region
 
-    primary(1) = fluid%pressure
-
-    region = nint(fluid%region)
-    if (region == 4) then
-       primary(2) = fluid%phase(2)%saturation
-    else
-       primary(2) = fluid%temperature
-    end if
+    call self%eos_we_type%primary_variables(fluid, primary)
 
     primary(3) = fluid%partial_pressure(2)
 
@@ -590,6 +383,7 @@ contains
 
     changed = PETSC_FALSE
     err = 0
+    region = nint(fluid%region)
 
     associate (total_pressure => primary(1), partial_pressure => primary(3))
 
@@ -605,27 +399,27 @@ contains
            end if
          end associate
 
-         p = total_pressure - partial_pressure
-         if (p > 100.e6_dp) then
-            err = 1
-         else
-            region = nint(fluid%region)
-            if (region == 4) then
-               associate (vapour_saturation => primary(2))
-                 if ((vapour_saturation < -1._dp) .or. &
-                      (vapour_saturation > 2._dp)) then
-                    err = 1
-                 end if
-               end associate
+         call self%water_pressure(primary, region, PETSC_FALSE, p, err)
+         if (err == 0) then
+            if (p > 100.e6_dp) then
+               err = 1
             else
-               associate (t => primary(2))
-                 if ((t < 0._dp) .or. (t > 800._dp)) then
-                    err = 1
-                 end if
-               end associate
+               if (region == 4) then
+                  associate (vapour_saturation => primary(2))
+                    if ((vapour_saturation < -1._dp) .or. &
+                         (vapour_saturation > 2._dp)) then
+                       err = 1
+                    end if
+                  end associate
+               else
+                  associate (t => primary(2))
+                    if ((t < 0._dp) .or. (t > 800._dp)) then
+                       err = 1
+                    end if
+                  end associate
+               end if
             end if
          end if
-
       else
          err = 1
       end if
@@ -675,30 +469,34 @@ contains
 
 !------------------------------------------------------------------------
 
-  PetscReal function eos_wge_saturation_difference(x, context) result(dp)
+  subroutine eos_wge_saturation_difference(x, context, f, err)
     !! Returns difference between saturation pressure and water
     !! pressure at normalised point 0 <= x <= 1 along line between
     !! start and end primary variables.
 
     PetscReal, intent(in) :: x
     class(*), pointer, intent(in out) :: context
+    PetscReal, intent(out) :: f
+    PetscErrorCode, intent(out) :: err
     ! Locals:
     PetscReal, allocatable :: var(:)
     PetscReal :: Ps
-    PetscInt :: err
 
+    err = 0
     select type (context)
     type is (primary_variable_interpolator_type)
        allocate(var(context%dim))
        var = context%interpolate_at_index(x)
        associate(P => var(1), T => var(2), Pg => var(3))
          call context%thermo%saturation%pressure(T, Ps, err)
-         dp = P - Pg - Ps
+         if (err == 0) then
+            f = P - Pg - Ps
+         end if
        end associate
        deallocate(var)
     end select
 
-  end function eos_wge_saturation_difference
+  end subroutine eos_wge_saturation_difference
 
 !------------------------------------------------------------------------
 

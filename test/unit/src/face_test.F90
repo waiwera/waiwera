@@ -19,7 +19,8 @@ module face_test
        test_face_permeability_direction, test_face_normal_gradient, &
        test_face_harmonic_average, test_face_flux_zero_horizontal, &
        test_face_flux_vertical_gravity, test_face_flux_hydrostatic, &
-       test_face_flux_two_phase_vertical
+       test_face_flux_two_phase_vertical, test_face_flux_supercritical, &
+       test_face_flux_sub_supercritical
 
 contains
   
@@ -401,7 +402,7 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
+            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
             84011.8_dp, 83911.6_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -494,7 +495,7 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &
+            1.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, 0._dp, &
             998.2_dp, 1.e-3_dp, 1._dp, 1._dp, 0._dp, &
             84011.8_dp, 83911.6_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -585,12 +586,13 @@ contains
             1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp,  2.5_dp, 0.1_dp, &
             2200._dp, 1000._dp]
        fluid_data = [ &
-            2.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
+            2.e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
             998.2512244888_dp, 0.00100156652270771_dp, 1._dp, 1._dp, 0._dp, &
             84105.9189422008_dp, 83905.5685743839_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
             0._dp, 0._dp, 0._dp, &
-            7.87050606076185e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            7.87050606076185e5_dp, 20._dp, 1._dp, 1._dp, 1._dp, 1._dp, & ! cell 2
+            1._dp, 1._dp, 0._dp, &
             998.5195444779_dp, 0.00100138700807062_dp, 1._dp, 1._dp, 0._dp, &
             84658.2021844106_dp, 83869.9846573438_dp, 1._dp, &
             0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -686,12 +688,12 @@ contains
             2.e-14_dp, 3.e-14_dp, 6.e-15_dp,  2.7_dp, 2.7_dp, 0.05_dp, & ! cell 2
             2300._dp, 995._dp]
        fluid_data = [ &
-            6.2e5_dp, 160._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0._dp, &  ! cell 1
+            6.2e5_dp, 160._dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.25_dp, 3._dp, 0._dp, &  ! cell 1
             907.45_dp, 1.7e-4_dp, 0.25_dp, 0.75_dp, 0._dp, & ! liquid
             675574.7_dp, 674893.5_dp, 1._dp, &
             3.26_dp, 1.43e-5_dp, 0.75_dp, 0.25_dp, 0._dp,  & ! vapour
             2757430.53_dp, 2567774.0_dp, 1._dp, &
-            8.2e5_dp, 171.44_dp, 4._dp, 4._dp, 3._dp, 1._dp, 0._dp, & ! cell 2
+            8.2e5_dp, 171.44_dp, 4._dp, 4._dp, 3._dp, 1._dp, 0.4_dp, 3._dp, 0._dp, & ! cell 2
             895.98_dp, 1.58e-4_dp, 0.4_dp, 0.6_dp, 0._dp,  & ! liquid
             725517.1_dp, 724601.9_dp, 1._dp, &
             4.26_dp, 1.47e-5_dp, 0.6_dp, 0.4_dp, 0._dp,    & ! vapour
@@ -726,6 +728,227 @@ contains
     call thermo%destroy()
 
   end subroutine test_face_flux_two_phase_vertical
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_flux_supercritical(test)
+
+    ! Face flux() test, both cells supercritical
+
+    use cell_module
+    use rock_module
+    use fluid_module
+    use eos_se_module
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(face_type) :: face
+    type(cell_type) :: cell
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid, cfluid
+    type(eos_se_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
+    PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: converted_fluid_data(:)
+    PetscReal, allocatable :: flux(:)
+    PetscInt :: face_offset, cell_offsets(2), i
+    PetscInt :: rock_offsets(2), fluid_offsets(2)
+    PetscReal :: density
+    PetscReal, parameter :: expected_density = 656._dp
+    PetscReal, parameter :: expected_component_flux(2) = &
+         [0.002736740571428572_dp, 5065.470057142858_dp]
+    PetscReal, parameter :: expected_phase_flux(3) = &
+         [0.002736740571428572_dp, 0._dp, 0._dp]
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call thermo%init()
+    json => fson_parse(str = '{}')
+    call eos%init(json, thermo)
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call cell%init(eos%num_components, eos%num_phases)
+       call face%init(eos%num_components, eos%num_phases)
+       call fluid%init(eos%num_components, eos%num_phases)
+       call cfluid%init(eos%num_components, eos%num_phases)
+       call rock%init()
+       allocate(face_data(face%dof), cell_data(cell%dof))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof * 2), &
+            converted_fluid_data(fluid%dof * 2))
+       allocate(flux(eos%num_primary_variables + eos%num_mobile_phases))
+       face_offset = 1
+       cell_offsets = [1, 1]
+       rock_offsets = [1, 1]
+       fluid_offsets = [1, 1 + fluid%dof]
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, 9.8_dp, &
+            0._dp, 0._dp, 0._dp, 3._dp]
+       cell_data = 0._dp ! not needed
+       rock_data = [ &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &
+            2200._dp, 1000._dp]
+       fluid_data = [ &
+            56.0e6_dp, 400._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 1
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
+            600._dp, 7.e-5_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
+            1850.e3_dp, 1760.e3_dp, 1._dp, &
+            50.0e6_dp, 340._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
+            712._dp, 9.e-5_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
+            1500.e3_dp, 1450.e3_dp, 1._dp]
+       converted_fluid_data = fluid_data
+
+       call face%assign_geometry(face_data, face_offset)
+       call face%assign_cell_geometry(cell_data, cell_offsets)
+       call face%assign_cell_rock(rock_data, rock_offsets)
+       call face%assign_cell_fluid(converted_fluid_data, fluid_offsets)
+
+       do i = 1, 2
+          call fluid%assign(fluid_data, fluid_offsets(i))
+          call cfluid%assign(converted_fluid_data, fluid_offsets(i))
+          call eos%convert_fluid(fluid, cfluid)
+       end do
+
+       density = face%phase_density(1)
+       call test%assert(expected_density, density, "Liquid density")
+
+       flux = face%flux(eos)
+       call test%assert(expected_component_flux, flux(1:2), "Component flux")
+       call test%assert(expected_phase_flux, flux(3:5), "Phase flux")
+
+       call cell%destroy()
+       call face%destroy()
+       call fluid%destroy()
+       call cfluid%destroy()
+       call rock%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data, &
+            converted_fluid_data, flux)
+
+    end if
+
+    call eos%destroy()
+    call fson_destroy(json)
+    call thermo%destroy()
+
+  end subroutine test_face_flux_supercritical
+
+!------------------------------------------------------------------------
+
+  subroutine test_face_flux_sub_supercritical(test)
+
+    ! Face flux() test, sub- to super-critical
+
+    use cell_module
+    use rock_module
+    use fluid_module
+    use eos_se_module
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    type(face_type) :: face
+    type(cell_type) :: cell
+    type(rock_type) :: rock
+    type(fluid_type) :: fluid, cfluid
+    type(eos_se_type) :: eos
+    type(IAPWS_type) :: thermo
+    type(fson_value), pointer :: json
+    PetscReal, pointer, contiguous :: face_data(:), cell_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: converted_fluid_data(:)
+    PetscReal, allocatable :: flux(:)
+    PetscInt :: i, face_offset, cell_offsets(2)
+    PetscInt :: rock_offsets(2), fluid_offsets(2)
+    PetscReal :: density
+    PetscReal, parameter :: expected_density(2) = &
+         [466.06282088228045_dp, 107.43296467569115_dp]
+    PetscReal, parameter :: expected_component_flux(2) = &
+         [-0.003251293577245116_dp, -6585.7512348298133_dp]
+    PetscReal, parameter :: expected_phase_flux(3) = &
+         [-0.003251293577245116_dp, 0._dp, 0._dp]
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+
+    call thermo%init()
+    json => fson_parse(str = '{}')
+    call eos%init(json, thermo)
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       call cell%init(eos%num_components, eos%num_phases)
+       call face%init(eos%num_components, eos%num_phases)
+       call fluid%init(eos%num_components, eos%num_phases)
+       call cfluid%init(eos%num_components, eos%num_phases)
+       call rock%init()
+       allocate(face_data(face%dof), cell_data(cell%dof))
+       allocate(rock_data(rock%dof), fluid_data(fluid%dof * 2), &
+            converted_fluid_data(fluid%dof * 2))
+       allocate(flux(eos%num_primary_variables + eos%num_mobile_phases))
+       face_offset = 1
+       cell_offsets = [1, 1]
+       rock_offsets = [1, 1]
+       fluid_offsets = [1, 1 + fluid%dof]
+       face_data = [0._dp,  25._dp, 35._dp,  60._dp, 0._dp, 0._dp, -1._dp, 9.8_dp, &
+            0._dp, 0._dp, 0._dp, 3._dp]
+       cell_data = 0._dp ! not needed
+       rock_data = [ &
+            1.e-14_dp, 2.e-14_dp, 3.e-15_dp,  2.5_dp, 2.5_dp, 0.1_dp, &
+            2200._dp, 1000._dp]
+       fluid_data = [ &
+            16.e6_dp, 347.35653444596915_dp, 4._dp, 4._dp, 3._dp, &
+            1._dp, 0.7_dp, 0._dp, 0._dp, &  ! cell 1
+            584.9537549266726_dp, 6.705610248476079e-05_dp, 0.7_dp, 0.7_dp, 0._dp, &
+            1649.6719434728284e3_dp, 1622.3193538616963e3_dp, 1._dp, & ! liquid
+            107.43296467569115_dp, 2.3362689988441827e-5_dp, 0.3_dp, 0.3_dp, 0._dp, &
+            2580.8044282594847e3_dp, 2431.874348480905e3_dp, 1._dp, & ! vapour
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! supercritical
+            24.0e6_dp, 380._dp, 3._dp, 3._dp, 4._dp, 1._dp, 1._dp, 1._dp, 0._dp, &  ! cell 2
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! liquid
+            0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, & ! vapour
+            382.839167051206_dp, 4.5486482996368864e-05_dp, 1._dp, 1._dp, 0._dp,  & ! supercritical
+            2025.1604273800494e3_dp, 1962.4709168347767e3_dp, 1._dp]
+       converted_fluid_data = fluid_data
+
+       call face%assign_geometry(face_data, face_offset)
+       call face%assign_cell_geometry(cell_data, cell_offsets)
+       call face%assign_cell_rock(rock_data, rock_offsets)
+       call face%assign_cell_fluid(converted_fluid_data, fluid_offsets)
+
+       do i = 1, 2
+          call fluid%assign(fluid_data, fluid_offsets(i))
+          call cfluid%assign(converted_fluid_data, fluid_offsets(i))
+          call eos%convert_fluid(fluid, cfluid)
+       end do
+
+       flux = face%flux(eos)
+       call test%assert(expected_component_flux, flux(1:2), "Component flux")
+       call test%assert(expected_phase_flux, flux(3:5), "Phase flux")
+
+       density = face%phase_density(1)
+       call test%assert(expected_density(1), density, "Liquid density")
+       density = face%phase_density(2)
+       call test%assert(expected_density(2), density, "Vapour density")
+
+       call cell%destroy()
+       call face%destroy()
+       call fluid%destroy()
+       call cfluid%destroy()
+       call rock%destroy()
+       deallocate(face_data, cell_data, rock_data, fluid_data, &
+            converted_fluid_data, flux)
+
+    end if
+
+    call eos%destroy()
+    call fson_destroy(json)
+    call thermo%destroy()
+
+  end subroutine test_face_flux_sub_supercritical
 
 !------------------------------------------------------------------------
 

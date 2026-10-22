@@ -272,7 +272,7 @@ contains
       n2 = n20 + n21 * sqrt(xmol + n22) + n23 * xmol
 
       tstar_v = n1 + n2 * temperature + deviation(pbar, temperature, xmol)
-      if (pressure <= thermo%pcritical) then
+      if (pressure <= thermo%critical%pressure) then
          call thermo%saturation%temperature(pressure, ts, err)
          if (err == 0) then
             extrapolate = (tstar_v > ts)
