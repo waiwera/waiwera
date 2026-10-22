@@ -72,6 +72,18 @@ module rock_control_module
      procedure, public :: init => hayba_ingebritsen_permeability_rock_control_init
   end type hayba_ingebritsen_permeability_rock_control_type
 
+  type, public, extends(fluid_rock_control_type) :: &
+       temperature_dependent_specific_heat_rock_control_type
+     !! Controls rock specific heat according to fluid temperature.
+     private
+     class(interpolation_table_type), allocatable, public :: table !! Table of specific heat vs. temperature
+   contains
+     procedure, public :: init => temperature_dependent_specific_heat_rock_control_init
+     procedure, public :: local_update => &
+          temperature_dependent_specific_heat_rock_control_local_update
+     procedure, public :: destroy => temperature_dependent_specific_heat_rock_control_destroy
+  end type temperature_dependent_specific_heat_rock_control_type
+
 contains
   
 !------------------------------------------------------------------------
@@ -319,6 +331,71 @@ contains
     self%eos => eos
 
   end subroutine hayba_ingebritsen_permeability_rock_control_init
+
+!------------------------------------------------------------------------
+! Temperature-dependent specific heat rock control
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_specific_heat_rock_control_init(self, &
+       data, indices, interpolation_type, eos)
+    !! Initialises temperature-dependent specific heat rock control
+    !! object. The data and interpolation type are used to create an
+    !! internal table of specific heat vs. temperature.
+
+    class(temperature_dependent_specific_heat_rock_control_type), intent(in out) :: self
+    PetscReal, intent(in) :: data(:,:) !! Data for interpolation table
+    PetscInt, intent(in) :: indices(:) !! Vector indices
+    PetscInt, intent(in) :: interpolation_type !! Interpolation type for data
+    class(eos_type), intent(in), target :: eos
+
+    select case (interpolation_type)
+    case (INTERP_LINEAR)
+       allocate(interpolation_table_type :: self%table)
+    case (INTERP_PCHIP)
+       allocate(interpolation_table_pchip_type :: self%table)
+    case default
+       allocate(interpolation_table_step_type :: self%table)
+    end select
+
+    call self%table%init(data)
+    self%indices = indices
+    self%eos => eos
+
+  end subroutine temperature_dependent_specific_heat_rock_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_specific_heat_rock_control_local_update( &
+       self, fluid, rock)
+    !! Updates rock specific heat according to local fluid temperature
+    !! based on internal table of specific heat vs. temperature.
+
+    use fluid_module, only: fluid_type
+
+    class(temperature_dependent_specific_heat_rock_control_type), &
+         intent(in out) :: self
+    type(fluid_type), intent(in) :: fluid
+    type(rock_type), intent(in out) :: rock
+    ! Locals:
+    PetscReal :: cp
+
+    rock%specific_heat = self%table%interpolate(fluid%temperature, 1)
+
+  end subroutine temperature_dependent_specific_heat_rock_control_local_update
+
+!------------------------------------------------------------------------
+
+  subroutine temperature_dependent_specific_heat_rock_control_destroy(self)
+    !! Destroys a temperature-dependent specific heat rock control.
+
+    class(temperature_dependent_specific_heat_rock_control_type), intent(in out) :: self
+
+    if (allocated(self%indices)) deallocate(self%indices)
+    call self%table%destroy()
+    deallocate(self%table)
+    self%eos => null()
+
+  end subroutine temperature_dependent_specific_heat_rock_control_destroy
 
 !------------------------------------------------------------------------
 
