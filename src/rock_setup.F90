@@ -443,7 +443,7 @@ contains
       PetscReal, intent(out) :: porosity
       PetscBool, intent(out) :: porosity_init
       ! Locals:
-      PetscInt :: porosity_type, rank
+      PetscInt :: porosity_type
 
       porosity_init = PETSC_TRUE
 

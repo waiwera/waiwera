@@ -376,8 +376,6 @@ contains
          intent(in out) :: self
     type(fluid_type), intent(in) :: fluid
     type(rock_type), intent(in out) :: rock
-    ! Locals:
-    PetscReal :: cp
 
     rock%specific_heat = self%table%interpolate(fluid%temperature, 1)
 
