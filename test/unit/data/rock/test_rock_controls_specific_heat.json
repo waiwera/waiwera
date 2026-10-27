@@ -1,0 +1,11 @@
+{
+    "title": "Test temperature-dependent specific heat rock controls",
+    "mesh": "../test/unit/data/flow_simulation/mesh/4x3_2d.exo",
+    "rock": {"types": [
+        {"name": "specific_heat",
+         "cells": [1],
+         "permeability": {"value": 1e-15,
+                          "temperature": "hayba-ingebritsen"},
+         "specific_heat": {"temperature": [[0, 1e3], [750, 2e3]]}}
+    ]}
+}
