@@ -71,7 +71,7 @@ Rock types may be specified in the Waiwera JSON input file via the **"rock.types
     +------------------+--------------+----------------------+----------------------------------+
     |"density"         |number        |2200 kg / m\ :sup:`3` |grain density (kg / m\ :sup:`3`)  |
     +------------------+--------------+----------------------+----------------------------------+
-    |"specific_heat"   |number        |1000 J / (kg          |specific heat (J / (kg            |
+    |"specific_heat"   |number|object |1000 J / (kg          |specific heat (J / (kg            |
     |                  |              |:math:`^{\circ}`\ C)  |:math:`^{\circ}`\ C))             |
     +------------------+--------------+----------------------+----------------------------------+
     |"cells"           |array         |[]                    |cells with this rock type         |
@@ -227,6 +227,8 @@ A commonly-used formulation for the high-temperature dependence of permeability 
 
 The Hayba-Ingebritsen formulation can be used by specifying the **"temperature"** value of the permeability object as the string "Hayba-Ingebritsen" (or "hayba-ingebritsen"). In this case the baseline low-temperature permeability can be specified using **"value"**. This can be a number, which gives isotropic permeability, as in the original formulation. Alternatively it can be specified as an array for anisotropic baseline permeability (however, this will still become isotropic above 400 :math:`^{\circ}`\ C).
 
+(Note that the Hayba-Ingebritsen formulation also used a :ref:`temperature_dependent_specific_heat`.)
+
 Alternatively, the temperature dependence of permeability can be specified more generally by setting the **"temperature"** value to a table (i.e. an array of arrays). The first column of the table gives the temperature values, and the remaining columns represent the corresponding isotropic or anisotropic permeabilities. (In this case, it is not necessary to specify "value" as well.) Again, the logarithm of permeability is interpolated between the specified table values. By default this is carried out using linear interpolation but other methods can be specified using the **"interpolation"** value (see :ref:`interpolation_tables`). Below and above the specified temperature bounds the permeabilities are held constant at their low-and high-temperature values.
 
 In this example:
@@ -255,6 +257,48 @@ a rock type is given isotropic baseline permeability of 10\ :sup:`-14` m\ :sup:`
 a rock type is given values of temperature-dependent anisotropic permeabilities for temperatures of 350 -- 520 :math:`^{\circ}`\ C.
 
 .. [HI97] Hayba, D.O and Ingebritsen, S.E. (1997). "Multiphase groundwater flow near cooling plutons", Journal of Geophysical Research, 102(B6), 12,235 -- 12,252.
+
+.. _temperature_dependent_specific_heat:
+
+Temperature-dependent specific heat
+-----------------------------------
+
+For some high-temperature situations it is necessary to use a rock specific heat that is temperature-dependent. For example the Hayba-Ingebritsen formulation (see :ref:`temperature_dependent_permeability`) introduces a step change in specific heat at a specified temperature to account for latent heat of crystallization.
+
+Temperature-dependent specific heat can be used in Waiwera by specifying the rock specific heat in the JSON input file as an object rather than a number. This object has a **"temperature"** value containing an array of specific heats vs. temperature. The interpolation type (see :ref:`interpolation_tables`) can be specified via the **"interpolation"** value. Note that this defaults to step interpolation.
+
+.. admonition:: JSON input
+
+   **JSON object**: rock specific heat
+
+   **JSON path**: rock.types[`index`].specific_heat
+
+   +------------------------+----------+-----------+----------------------------+
+   |**name**                |**type**  |**default**|**value**                   |
+   +------------------------+----------+-----------+----------------------------+
+   |"temperature"           |array     |[]         |table of specific heat      |
+   |                        |          |           |(J/(kg :math:`^{\circ}`\ C))|
+   |                        |          |           |vs. temperature             |
+   |                        |          |           |(:math:`^{\circ}`\ C)       |
+   +------------------------+----------+-----------+----------------------------+
+   |"interpolation"         |string    |"step"     |interpolation type for      |
+   |                        |          |           |temperature-dependent       |
+   |                        |          |           |specific heat table         |
+   +------------------------+----------+-----------+----------------------------+
+
+For example:
+
+.. code-block:: json
+
+   {"name": "greywacke",
+    "zones": ["basement"],
+    "permeability":
+      {"value": 1e-14, "temperature": "hayba-ingebritsen"},
+    "specific_heat":
+      {"temperature": [[0, 1000], [750, 2000]]}
+    }
+
+specifies a rock type with permeability varying with temperature according to the Hayba-Ingebritsen formulation. The specific heat is 1000 J/(kg :math:`^{\circ}`\ C) for temperatures below 750\ :math:`^{\circ}`\ C and 2000 J/(kg :math:`^{\circ}`\ C) above that.
 
 .. _rock_type_cells_and_zones:
 
