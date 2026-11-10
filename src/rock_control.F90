@@ -43,7 +43,7 @@ module rock_control_module
      procedure, public :: update => porosity_table_rock_control_update
   end type porosity_table_rock_control_type
 
-  type, public, abstract, extends(vector_vector_control_type) :: fluid_rock_control_type
+  type, public, abstract, extends(vector_control_type) :: fluid_rock_control_type
      !! Controls rock properties according to fluid properties.
      private
      class(eos_type), pointer :: eos !! Equation of state
@@ -165,14 +165,14 @@ contains
 ! Fluid rock control
 !------------------------------------------------------------------------
 
-  subroutine fluid_rock_control_local_update(self, fluid, rock)
-    !! Updates rock object according to fluid object. Derived types
-    !! override this procedure.
+  subroutine fluid_rock_control_local_update(self, old_fluid, fluid, rock)
+    !! Updates rock object according to old and current fluid
+    !! objects. Derived types override this procedure.
 
     use fluid_module, only: fluid_type
 
     class(fluid_rock_control_type), intent(in out) :: self
-    type(fluid_type), intent(in) :: fluid
+    type(fluid_type), intent(in) :: old_fluid, fluid
     type(rock_type), intent(in out) :: rock
 
     continue
@@ -181,38 +181,43 @@ contains
 
 !------------------------------------------------------------------------
 
-  subroutine fluid_rock_control_update(self, &
-       subject_array, subject_section, subject_range_start, &
-       object_array, object_section, object_range_start)
-    !! Updates rock vector based on the fluid vector.
+  subroutine fluid_rock_control_update(self, old_fluid_array, &
+       fluid_array, fluid_section, fluid_range_start, &
+       rock_array, rock_section, rock_range_start)
+    !! Updates rock vector based on current and old values of the
+    !! fluid vector.
 
     use dm_utils_module, only: global_section_offset
     use fluid_module, only: fluid_type
 
     class(fluid_rock_control_type), intent(in out) :: self
-    PetscReal, pointer, contiguous, intent(in) :: subject_array(:) !! Array on fluid vector
-    PetscSection, intent(in) :: subject_section !! Global section for fluid vector
-    PetscInt, intent(in) :: subject_range_start !! Range start for fluid vector
-    PetscReal, pointer, contiguous, intent(in out) :: object_array(:) !! Array on rock vector
-    PetscSection, intent(in) :: object_section !! Global section for rock vector
-    PetscInt, intent(in) :: object_range_start !! Range start for rock vector
+    PetscReal, pointer, contiguous, intent(in) :: old_fluid_array(:) !! Array on old fluid vector
+    PetscReal, pointer, contiguous, intent(in) :: fluid_array(:) !! Array on fluid vector
+    PetscSection, intent(in) :: fluid_section !! Global section for fluid vector
+    PetscInt, intent(in) :: fluid_range_start !! Range start for fluid vector
+    PetscReal, pointer, contiguous, intent(in out) :: rock_array(:) !! Array on rock vector
+    PetscSection, intent(in) :: rock_section !! Global section for rock vector
+    PetscInt, intent(in) :: rock_range_start !! Range start for rock vector
     ! Locals:
     PetscInt :: i, c, fluid_offset, rock_offset
     type(rock_type) :: rock
-    type(fluid_type) :: fluid
+    type(fluid_type) :: old_fluid, fluid
 
+    call old_fluid%init(self%eos%num_components, self%eos%num_phases)
     call fluid%init(self%eos%num_components, self%eos%num_phases)
     call rock%init()
 
     do i = 1, size(self%indices)
        c = self%indices(i)
-       fluid_offset = global_section_offset(subject_section, c, subject_range_start)
-       rock_offset = global_section_offset(object_section, c, object_range_start)
-       call fluid%assign(subject_array, fluid_offset)
-       call rock%assign(object_array, rock_offset)
-       call self%local_update(fluid, rock)
+       fluid_offset = global_section_offset(fluid_section, c, fluid_range_start)
+       rock_offset = global_section_offset(rock_section, c, rock_range_start)
+       call old_fluid%assign(old_fluid_array, fluid_offset)
+       call fluid%assign(fluid_array, fluid_offset)
+       call rock%assign(rock_array, rock_offset)
+       call self%local_update(old_fluid, fluid, rock)
     end do
 
+    call old_fluid%destroy()
     call fluid%destroy()
     call rock%destroy()
 
@@ -257,7 +262,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine temperature_dependent_permeability_rock_control_local_update( &
-       self, fluid, rock)
+       self, old_fluid, fluid, rock)
     !! Updates rock permeability according to local fluid temperature
     !! based on internal table of log permeability vs. temperature.
 
@@ -265,7 +270,7 @@ contains
 
     class(temperature_dependent_permeability_rock_control_type), &
          intent(in out) :: self
-    type(fluid_type), intent(in) :: fluid
+    type(fluid_type), intent(in) :: old_fluid, fluid
     type(rock_type), intent(in out) :: rock
     ! Locals:
     PetscReal :: logk(self%table%dim)
@@ -366,7 +371,7 @@ contains
 !------------------------------------------------------------------------
 
   subroutine temperature_dependent_specific_heat_rock_control_local_update( &
-       self, fluid, rock)
+       self, old_fluid, fluid, rock)
     !! Updates rock specific heat according to local fluid temperature
     !! based on internal table of specific heat vs. temperature.
 
@@ -374,7 +379,7 @@ contains
 
     class(temperature_dependent_specific_heat_rock_control_type), &
          intent(in out) :: self
-    type(fluid_type), intent(in) :: fluid
+    type(fluid_type), intent(in) :: old_fluid, fluid
     type(rock_type), intent(in out) :: rock
 
     rock%specific_heat = self%table%interpolate(fluid%temperature, 1)

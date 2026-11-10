@@ -337,7 +337,8 @@ contains
       PetscBool, intent(out) :: stopped
       select type (rock_control => node%data)
       class is (fluid_rock_control_type)
-         call rock_control%update(fluid_array, fluid_section, fluid_range_start, &
+         call rock_control%update(fluid_array, fluid_array, &
+              fluid_section, fluid_range_start, &
               rock_array, rock_section, rock_range_start)
       end select
       stopped = PETSC_FALSE
@@ -501,7 +502,8 @@ contains
       PetscBool, intent(out) :: stopped
       select type (rock_control => node%data)
       class is (fluid_rock_control_type)
-         call rock_control%update(fluid_array, fluid_section, fluid_range_start, &
+         call rock_control%update(fluid_array, fluid_array, &
+              fluid_section, fluid_range_start, &
               rock_array, rock_section, rock_range_start)
       end select
       stopped = PETSC_FALSE

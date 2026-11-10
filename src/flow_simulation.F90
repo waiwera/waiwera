@@ -992,8 +992,6 @@ contains
 
                    if (err == 0) then
 
-                      call self%update_rock_properties(self%time)
-
                       if (self%mesh%rebalance) then
                          call self%redistribute(redist_err)
                          if (redist_err > 0) then
@@ -1012,6 +1010,10 @@ contains
                       CHKERRQ(ierr)
                       call VecDuplicate(self%fluid, self%last_iteration_fluid, ierr)
                       CHKERRQ(ierr)
+
+                      call VecCopy(self%fluid, self%last_timestep_fluid, ierr); CHKERRQ(ierr)
+                      call self%update_rock_properties(self%time)
+
                       call self%mesh%label_remote_faces()
                       call self%mesh%label_flux_faces()
                       call self%mesh%setup_flux_face_array()
@@ -2124,15 +2126,18 @@ contains
 
     ! Locals:
     PetscSection :: rock_section, fluid_section
-    PetscReal, pointer, contiguous :: rock_data(:), fluid_data(:)
+    PetscReal, pointer, contiguous :: rock_data(:)
+    PetscReal, pointer, contiguous :: old_fluid_data(:), fluid_data(:)
     PetscErrorCode :: ierr
 
     call global_vec_section(self%rock, rock_section)
     call VecGetArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
     call global_vec_section(self%fluid, fluid_section)
+    call VecGetArrayF90(self%last_timestep_fluid, old_fluid_data, ierr); CHKERRQ(ierr)
     call VecGetArrayF90(self%fluid, fluid_data, ierr); CHKERRQ(ierr)
     call self%rock_controls%traverse(rock_control_iterator)
     call VecRestoreArrayF90(self%rock, rock_data, ierr); CHKERRQ(ierr)
+    call VecRestoreArrayF90(self%last_timestep_fluid, old_fluid_data, ierr); CHKERRQ(ierr)
     call VecRestoreArrayF90(self%fluid, fluid_data, ierr); CHKERRQ(ierr)
 
   contains
@@ -2149,7 +2154,8 @@ contains
          call rock_control%update(t, rock_data, &
               rock_section, self%rock_range_start)
       class is (fluid_rock_control_type)
-         call rock_control%update(fluid_data, fluid_section, self%fluid_range_start, &
+         call rock_control%update(old_fluid_data, fluid_data, &
+              fluid_section, self%fluid_range_start, &
               rock_data, rock_section, self%rock_range_start)
       end select
 
