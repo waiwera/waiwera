@@ -52,6 +52,17 @@ module rock_control_module
      procedure, public :: update => fluid_rock_control_update
   end type fluid_rock_control_type
 
+  type, public, extends(fluid_rock_control_type) :: compressibility_rock_control_type
+     !! Modifies rock porosity according to changes in fluid pressure,
+     !! according to compressibility relation.
+     private
+     PetscReal :: compressibility
+   contains
+     procedure, public :: init => compressibility_rock_control_init
+     procedure, public :: local_update => compressibility_rock_control_local_update
+     procedure, public :: destroy => compressibility_rock_control_destroy
+  end type compressibility_rock_control_type
+
   type, public, extends(fluid_rock_control_type) :: &
        temperature_dependent_permeability_rock_control_type
      !! Controls rock permeability according to fluid temperature.
@@ -222,6 +233,52 @@ contains
     call rock%destroy()
 
   end subroutine fluid_rock_control_update
+
+!------------------------------------------------------------------------
+! Compressibility rock control
+!------------------------------------------------------------------------
+
+  subroutine compressibility_rock_control_init(self, indices, compressibility)
+    !! Initialises compressibility rock control object.
+
+    class(compressibility_rock_control_type), intent(in out) :: self
+    PetscInt, intent(in) :: indices(:) !! Vector indices
+    PetscReal, intent(in) :: compressibility !! Rock compressibility
+
+    self%indices = indices
+    self%compressibility = compressibility
+
+  end subroutine compressibility_rock_control_init
+
+!------------------------------------------------------------------------
+
+  subroutine compressibility_rock_control_local_update( &
+       self, old_fluid, fluid, rock)
+    !! Updates rock porosity according to local fluid pressure change
+    !! based on compressibility relation.
+
+    use fluid_module, only: fluid_type
+
+    class(compressibility_rock_control_type), intent(in out) :: self
+    type(fluid_type), intent(in) :: old_fluid, fluid
+    type(rock_type), intent(in out) :: rock
+
+    rock%porosity = rock%porosity * (1._dp - self%compressibility * &
+         (fluid%pressure - old_fluid%pressure))
+
+  end subroutine compressibility_rock_control_local_update
+
+!------------------------------------------------------------------------
+
+  subroutine compressibility_rock_control_destroy(self)
+    !! Destroys a compressibility rock control.
+
+    class(compressibility_rock_control_type), intent(in out) :: self
+
+    if (allocated(self%indices)) deallocate(self%indices)
+    self%eos => null()
+
+  end subroutine compressibility_rock_control_destroy
 
 !------------------------------------------------------------------------
 ! Temperature-dependent permeability rock control

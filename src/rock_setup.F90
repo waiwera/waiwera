@@ -300,6 +300,9 @@ contains
                permeability_init, err)
           if (err == 0) then
 
+             call setup_compressibility(r, rock_cell)
+             ! TODO: if compressibility used, disallow porosity table (or vice-versa)
+
              call setup_porosity(r, rock_cell, porosity, porosity_init)
 
              call fson_get_mpi(r, "wet_conductivity", default_heat_conductivity, &
@@ -644,6 +647,28 @@ contains
       deallocate(porosity_table)
 
     end subroutine setup_porosity_time_rock_control
+
+!........................................................................
+
+    subroutine setup_compressibility(rock_json, rock_cell)
+      !! Sets up rock control for compressibility from JSON input.
+
+      type(fson_value), pointer, intent(in) :: rock_json
+      PetscInt, intent(in) :: rock_cell(:)
+      ! Locals:
+      PetscReal :: compressibility
+      type(compressibility_rock_control_type), pointer :: control
+
+      if (fson_has_mpi(rock_json, "compressibility")) then
+         call fson_get_mpi(rock_json, "compressibility", val = compressibility)
+         if (size(rock_cell) > 0) then
+            allocate(control)
+            call control%init(rock_cell, compressibility)
+            call rock_controls%append(control)
+         end if
+      end if
+
+    end subroutine setup_compressibility
 
   end subroutine setup_rocks_from_types
 
