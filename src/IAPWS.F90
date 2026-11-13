@@ -1022,6 +1022,74 @@ module IAPWS_module
   end type IAPWS_region5_type
 
 !------------------------------------------------------------------------
+! IAPWS-95 region type
+!------------------------------------------------------------------------
+
+  type, public, extends(IAPWS_region_type) :: IAPWS95_region_type
+     !! IAPWS-95 region type.
+     private
+     PetscReal :: specific_gas_constant = 0.46151805e3_dp
+     PetscReal :: n0(8) = [ &
+          -8.32044648201_dp, 6.6832105268_dp, 3.00632_dp, 0.012436_dp, &
+          0.97315_dp, 1.27950_dp, 0.96956_dp, 0.24873_dp]
+     PetscReal :: gam0(8) = [ &
+          0._dp, 0._dp, 0._dp, 1.28728967_dp, &
+          3.53734222_dp, 7.74073708_dp, 9.24437796_dp, 27.5075105_dp]
+     PetscInt :: c(51) = [ &
+          0, 0, 0, 0, 0, 0, 0, &
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, &
+          2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, &
+          3, 3, 3, 3, 4, 6, 6, 6, 6]
+     PetscInt :: d(54) = [ &
+          1, 1, 1, 2, 2, 3, 4, 1, 1, 1, &
+          2, 2, 3, 4, 4, 5, 7, 9, 10, 11, &
+          13, 15, 1, 2, 2, 2, 3, 4, 4, 4, &
+          5, 6, 6, 7, 9, 9, 9, 9, 9, 10, &
+          10, 12, 3, 4, 4, 5, 14, 3, 6, 6, &
+          6, 3, 3, 3]
+     PetscReal :: tf(7) = [ &
+          -0.5_dp, 0.875_dp, 1._dp, 0.5_dp, 0.75_dp, 0.375_dp, 1._dp]
+     PetscInt :: t(8:54) = [ &
+          4, 6, 12, &
+          1, 5, 4, 2, 13, 9, 3, 4, 11, 4, &
+          13, 1, 7, 1, 9, 10, 10, 3, 7, 10, &
+          10, 6, 10, 10, 1, 2, 3, 4, 8, 6, &
+          9, 8, 16, 22, 23, 23, 10, 50, 44, 46, &
+          50, 0, 1, 4]
+     PetscReal :: n(56) = [ &
+          0.12533547935523e-1_dp, 0.78957634722828e1_dp, -0.87803203303561e1_dp, &
+          0.31802509345418_dp, -0.26145533859358_dp, -0.78199751687981e-2_dp, &
+          0.88089493102134e-2_dp, -0.66856572307965_dp, 0.20433810950965_dp, &
+          -0.66212605039687e-4_dp, -0.19232721156002_dp, -0.25709043003438_dp, &
+          0.16074868486251_dp, -0.40092828925807e-1_dp, 0.39343422603254e-6_dp, &
+          -0.75941377088144e-5_dp, 0.56250979351888e-3_dp, -0.15608652257135e-4_dp, &
+          0.11537996422951e-8_dp, 0.36582165144204e-6_dp, -0.13251180074668e-11_dp, &
+          -0.62639586912454e-9_dp, -0.10793600908932_dp, 0.17611491008752e-1_dp, &
+          0.22132295167546_dp, -0.40247669763528_dp, 0.58083399985759_dp, &
+          0.49969146990806e-2_dp, -0.31358700712549e-1_dp, -0.74315929710341_dp, &
+          0.47807329915480_dp, 0.20527940895948e-1_dp, -0.13636435110343_dp, &
+          0.14180634400617e-1_dp, 0.83326504880713e-2_dp, -0.29052336009585e-1_dp, &
+          0.38615085574206e-1_dp, -0.20393486513704e-1_dp, -0.16554050063734e-2_dp, &
+          0.19955571979541e-2_dp, 0.15870308324157e-3_dp, -0.16388568342530e-4_dp, &
+          0.43613615723811e-1_dp, 0.34994005463765e-1_dp, -0.76788197844621e-1_dp, &
+          0.22446277332006e-1_dp, -0.62689710414685e-4_dp, -0.55711118565645e-9_dp, &
+          -0.19905718354408_dp, 0.31777497330738_dp, -0.11841182425981_dp,&
+          -0.31306260323435e2_dp, 0.31546140237781e2_dp, -0.25213154341695e4_dp, &
+          -0.14874640856724_dp, 0.31806110878444_dp]
+     PetscReal :: alpha(52:54) = [20._dp, 20._dp, 20._dp]
+     PetscReal :: beta(52:54) = [150._dp, 150._dp, 250._dp]
+     PetscReal :: gam(52:54) = [1.21_dp, 1.21_dp, 1.25_dp]
+     PetscReal :: eps(52:54) = [1._dp, 1._dp, 1._dp]
+     type(powertable_type) :: pdc, pt
+     PetscReal, public :: max_temperature, max_pressure
+   contains
+     private
+     procedure, public :: init => region95_init
+     procedure, public :: destroy => region95_destroy
+     procedure, public :: properties => region95_properties
+  end type IAPWS95_region_type
+
+!------------------------------------------------------------------------
 ! Region 2/3 boundary type
 !------------------------------------------------------------------------
 
@@ -2940,6 +3008,156 @@ contains
     end subroutine properties
 
   end subroutine region5_properties
+
+!------------------------------------------------------------------------
+! IAPWS-95 region type
+!------------------------------------------------------------------------
+
+  subroutine region95_init(self, thermo)
+    !! Initializes IAPWS-95 region object.
+
+    class(IAPWS95_region_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
+
+    call self%IAPWS_region_type%init(thermo)
+
+    self%name = 'IAPWS-95'
+
+    call self%pdc%configure(self%d)
+    call self%pdc%configure(self%d(1:51) - 1)
+    call self%pdc%configure(self%c(8:51))
+
+    call self%pt%configure(self%t)
+    call self%pt%configure(self%t(8:51) - 1)
+
+    self%max_temperature = 1000._dp
+    self%max_pressure = 1000.e6_dp
+
+  end subroutine region95_init
+
+!------------------------------------------------------------------------
+
+  subroutine region95_destroy(self)
+    !! Destroys IAPWS-95 region object.
+
+    class(IAPWS95_region_type), intent(in out) :: self
+
+    call self%IAPWS_region_type%destroy()
+
+    call self%pdc%destroy()
+    call self%pt%destroy()
+
+  end subroutine region95_destroy
+
+!------------------------------------------------------------------------
+
+  subroutine region95_properties(self, param, props, err)
+    !! Calculates pressure and internal energy as a function of
+    !! density and temperature (deg C).
+    !!
+    !! Returns err = 1 if called outside its operating range (0 < t <= 1000 deg C,
+    !! 0 < p <= 1000 MPa).
+
+    class(IAPWS95_region_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
+    PetscReal, intent(out):: props(:)  !! (pressure, internal energy)
+    PetscInt, intent(out) :: err  !! error code
+    ! Locals:
+    PetscReal:: tk, rt, del, tau
+    PetscReal :: phir_del, phi0_tau, phir_tau
+
+    err = 0
+    select type (thermo => self%thermo)
+    type is (IAPWS_type)
+       associate (d => param(1), t => param(2))
+         if ((0._dp < t) .and. (t <= self%max_temperature)) then
+
+            tk = t + tc_k
+            rt = self%specific_gas_constant * tk
+            del = d / self%thermo%critical%density
+            tau = self%thermo%critical%temperature_k / tk
+
+            call self%pdc%compute(del)
+            call self%pt%compute(tau)
+
+            phi0_tau = dphi0_dtau(tau)
+            phir_del = dphir_ddelta(del, tau)
+            phir_tau = dphir_dtau(del, tau)
+
+            props(1) = d * rt * (1._dp + del * phir_del) ! pressure
+            props(2) = tau * rt * (phi0_tau + phir_tau) ! internal energy
+
+         else
+            err = 1
+         end if
+       end associate
+    end select
+
+  contains
+
+!........................................................................
+
+    PetscReal function dphi0_dtau(tau) result(dphi)
+      !! Derivative of ideal-gas part of dimensionless Helmholtz free
+      !! energy with respect to dimensionless temperature tau.
+
+      PetscReal, intent(in) :: tau
+
+      dphi = self%n0(2) + self%n0(3) / tau + &
+           sum(self%n0(4:8) * self%gam0(4:8) * &
+           (1._dp / (1._dp - exp(-self%gam0(4:8) * tau)) - 1._dp))
+
+    end function dphi0_dtau
+
+!........................................................................
+
+    PetscReal function dphir_ddelta(del, tau) result(dphi)
+      !! Derivative of residual part of dimensionless Helmholtz free
+      !! energy with respect to dimensionless density del.
+
+      PetscReal, intent(in) :: del, tau
+
+      associate (n => self%n(1:7), d => self%d(1:7))
+        dphi = sum(n * d * self%pdc%power(d - 1) * tau ** self%tf)
+      end associate
+
+      associate (n => self%n(8:51), c => self%c(8:51), &
+           d => self%d(8:51), t => self%t(8:51))
+        dphi = dphi + sum(n * exp(-self%pdc%power(c)) * &
+             (self%pdc%power(d - 1) * self%pt%power(t) * &
+             (d - c * self%pdc%power(c))))
+      end associate
+
+      associate(n => self%n(52:54), d => self%d(52:54), &
+           t => self%t(52:54))
+        dphi = dphi + sum( &
+             n * self%pdc%power(d) * self%pt%power(t) * &
+             exp(-self%alpha * (del - self%eps) ** 2 - &
+             self%beta * (tau - self%gam) ** 2) * &
+             (d / del - 2._dp * self%alpha * (del - self%eps)))
+      end associate
+
+      !TODO: last bit
+
+    end function dphir_ddelta
+
+!........................................................................
+
+    PetscReal function dphir_dtau(del, tau) result(dphi)
+      !! Derivative of residual part of dimensionless Helmholtz free
+      !! energy with respect to dimensionless temperature tau.
+
+      PetscReal, intent(in) :: del, tau
+
+      associate (n => self%n(1:7), d => self%d(1:7))
+        dphi = sum(n * self%tf * self%pdc%power(d) * tau ** (self%tf - 1._dp))
+      end associate
+
+      ! TODO
+
+    end function dphir_dtau
+
+  end subroutine region95_properties
 
 !------------------------------------------------------------------------
 ! Viscosity
