@@ -1028,7 +1028,7 @@ module IAPWS_module
   type, public, extends(IAPWS_region_type) :: IAPWS95_region_type
      !! IAPWS-95 region type.
      private
-     PetscReal :: specific_gas_constant = 0.46151805e3_dp
+     PetscReal, public :: specific_gas_constant = 0.46151805e3_dp
      PetscReal :: n0(8) = [ &
           -8.32044648201_dp, 6.6832105268_dp, 3.00632_dp, 0.012436_dp, &
           0.97315_dp, 1.27950_dp, 0.96956_dp, 0.24873_dp]
@@ -1077,9 +1077,16 @@ module IAPWS_module
           -0.31306260323435e2_dp, 0.31546140237781e2_dp, -0.25213154341695e4_dp, &
           -0.14874640856724_dp, 0.31806110878444_dp]
      PetscReal :: alpha(52:54) = [20._dp, 20._dp, 20._dp]
-     PetscReal :: beta(52:54) = [150._dp, 150._dp, 250._dp]
+     PetscReal :: beta(52:56) = [150._dp, 150._dp, 250._dp, 0.3_dp, 0.3_dp]
      PetscReal :: gam(52:54) = [1.21_dp, 1.21_dp, 1.25_dp]
      PetscReal :: eps(52:54) = [1._dp, 1._dp, 1._dp]
+     PetscReal :: a(55:56) = [3.5_dp, 3.5_dp]
+     PetscReal :: b(55:56) = [0.85_dp, 0.95_dp]
+     PetscReal :: aa(55:56) = [0.32_dp, 0.32_dp]
+     PetscReal :: bb(55:56) = [0.2_dp, 0.2_dp]
+     PetscInt :: cc(55:56) = [28, 32]
+     PetscInt :: dd(55:56) = [700, 800]
+
      type(powertable_type) :: pdc, pt
      PetscReal, public :: max_temperature, max_pressure
    contains
@@ -1087,6 +1094,7 @@ module IAPWS_module
      procedure, public :: init => region95_init
      procedure, public :: destroy => region95_destroy
      procedure, public :: properties => region95_properties
+     procedure, public :: phi => region95_phi
   end type IAPWS95_region_type
 
 !------------------------------------------------------------------------
@@ -1122,6 +1130,7 @@ module IAPWS_module
      PetscReal, allocatable, public :: widom_delta_slope(:) !! Widom delta boundary slopes
      PetscReal :: widom_delta_angle(2) !! Widom delta boundary angles in T*, P* space
      type(interpolation_table_pchip_type) :: sigmoid !! Sigmoid interpolator for liquidlike fraction in Widom delta
+     class(region_type), allocatable, public :: IAPWS95 !! IAPWS-95 region
    contains
      private
      procedure, public :: init => IAPWS_init
@@ -1176,13 +1185,15 @@ contains
     allocate(IAPWS_region2_type :: self%steam)
     allocate(IAPWS_region3_type :: self%supercritical)
     allocate(IAPWS_region5_type :: self%htsteam)
-    allocate(self%region(self%num_regions))
+    allocate(IAPWS95_region_type :: self%IAPWS95)
+    allocate(self%region(0: self%num_regions))
 
     call self%region(1)%set(self%water)
     call self%region(2)%set(self%steam)
     call self%region(3)%set(self%supercritical)
     self%region(4)%ptr => null()
     call self%region(5)%set(self%htsteam)
+    call self%region(0)%set(self%IAPWS95)
 
     defaults = PETSC_TRUE
     if (present(json)) then
@@ -1215,7 +1226,7 @@ contains
        end if
     end if
 
-    do i = 1, self%num_regions
+    do i = 0, self%num_regions
        if (associated(self%region(i)%ptr)) then
           call self%region(i)%ptr%init(self)
        end if
@@ -1252,14 +1263,17 @@ contains
     ! Locals:
     PetscInt :: i
     
-    do i = 1, self%num_regions
+    do i = 0, self%num_regions
        if (associated(self%region(i)%ptr)) then
           call self%region(i)%ptr%destroy()
        end if
     end do
+
     deallocate(self%region)
-    deallocate(self%water, self%steam, self%supercritical, self%htsteam)
+    deallocate(self%water, self%steam, self%supercritical, &
+         self%htsteam, self%IAPWS95)
     deallocate(self%saturation)
+
     call self%sigmoid%destroy()
 
   end subroutine IAPWS_destroy
@@ -3103,9 +3117,11 @@ contains
 
       PetscReal, intent(in) :: tau
 
-      dphi = self%n0(2) + self%n0(3) / tau + &
-           sum(self%n0(4:8) * self%gam0(4:8) * &
-           (1._dp / (1._dp - exp(-self%gam0(4:8) * tau)) - 1._dp))
+      associate (n0 => self%n0, gam0 => self%gam0(4:8))
+        dphi = n0(2) + n0(3) / tau + &
+             sum(n0(4:8) * gam0 * &
+             (1._dp / (1._dp - exp(-gam0 * tau)) - 1._dp))
+      end associate
 
     end function dphi0_dtau
 
@@ -3116,6 +3132,10 @@ contains
       !! energy with respect to dimensionless density del.
 
       PetscReal, intent(in) :: del, tau
+      ! Locals:
+      PetscReal, dimension(55:56) :: theta, delta, psi, delta_b, &
+           dpsi_ddel, ddelta_b_ddel, ddelta_ddel
+      PetscReal :: dm1_2
 
       associate (n => self%n(1:7), d => self%d(1:7))
         dphi = sum(n * d * self%pdc%power(d - 1) * tau ** self%tf)
@@ -3129,15 +3149,33 @@ contains
       end associate
 
       associate(n => self%n(52:54), d => self%d(52:54), &
-           t => self%t(52:54))
+           t => self%t(52:54), alpha => self%alpha(52:54), &
+           beta => self%beta(52:54), gam => self%gam, &
+           eps => self%eps)
         dphi = dphi + sum( &
              n * self%pdc%power(d) * self%pt%power(t) * &
-             exp(-self%alpha * (del - self%eps) ** 2 - &
-             self%beta * (tau - self%gam) ** 2) * &
-             (d / del - 2._dp * self%alpha * (del - self%eps)))
+             exp(-alpha * (del - eps) ** 2 - &
+             beta * (tau - gam) ** 2) * &
+             (d / del - 2._dp * alpha * (del - eps)))
       end associate
 
-      !TODO: last bit
+      associate(n => self%n(55:56), beta => self%beta(55:56), &
+           a => self%a, b => self%b, aa => self%aa, bb => self%bb, &
+           cc => self%cc, dd => self%dd)
+        dm1_2 = (del - 1._dp) ** 2
+        theta = 1._dp - tau + aa * dm1_2 ** (0.5_dp / beta)
+        delta = theta ** 2 + bb * dm1_2 ** a
+        psi = exp(-cc * dm1_2 - dd * (tau - 1._dp) ** 2)
+        delta_b = delta ** b
+        dpsi_ddel = -2._dp * cc * (del - 1._dp) * psi
+        ddelta_ddel = (del - 1._dp) * (2._dp * aa * theta / beta * &
+             dm1_2 ** (0.5_dp / beta - 1._dp) + &
+             2._dp * bb * a * dm1_2 ** (a - 1._dp))
+        ddelta_b_ddel = b * delta ** (b - 1._dp) * ddelta_ddel
+        dphi = dphi + sum( &
+             n * (delta_b * (psi + del * dpsi_ddel) + &
+             ddelta_b_ddel * del * psi))
+      end associate
 
     end function dphir_ddelta
 
@@ -3148,16 +3186,125 @@ contains
       !! energy with respect to dimensionless temperature tau.
 
       PetscReal, intent(in) :: del, tau
+      ! Locals:
+      PetscReal, dimension(55:56) :: theta, delta, psi, delta_b, &
+           dpsi_dtau, ddelta_b_dtau
+      PetscReal :: dm1_2
 
       associate (n => self%n(1:7), d => self%d(1:7))
         dphi = sum(n * self%tf * self%pdc%power(d) * tau ** (self%tf - 1._dp))
       end associate
 
-      ! TODO
+      associate (n => self%n(8:51), c => self%c(8:51), &
+           d => self%d(8:51), t => self%t(8:51))
+        dphi = dphi + sum(n * t * self%pdc%power(d) * &
+             self%pt%power(t - 1) * exp(-self%pdc%power(c)))
+      end associate
+
+      associate(n => self%n(52:54), d => self%d(52:54), &
+           t => self%t(52:54), alpha => self%alpha(52:54), &
+           beta => self%beta(52:54), gam => self%gam, &
+           eps => self%eps)
+        dphi = dphi + sum( &
+             n * self%pdc%power(d) * self%pt%power(t) * &
+             exp(-alpha * (del - eps) ** 2 - &
+             beta * (tau - gam) ** 2) * &
+             (t / tau - 2._dp * beta * (tau - gam)))
+      end associate
+
+      associate(n => self%n(55:56), beta => self%beta(55:56), &
+           a => self%a, b => self%b, aa => self%aa, bb => self%bb, &
+           cc => self%cc, dd => self%dd)
+        dm1_2 = (del - 1._dp) ** 2
+        theta = 1._dp - tau + aa * dm1_2 ** (0.5_dp / beta)
+        delta = theta ** 2 + bb * dm1_2 ** a
+        psi = exp(-cc * dm1_2 - dd * (tau - 1._dp) ** 2)
+        delta_b = delta ** b
+        dpsi_dtau = -2._dp * dd * (tau - 1._dp) * psi
+        ddelta_b_dtau = -2._dp * theta * b * delta ** (b - 1._dp)
+        dphi = dphi + sum( &
+             n * del * (ddelta_b_dtau * psi + delta_b * dpsi_dtau))
+      end associate
 
     end function dphir_dtau
 
   end subroutine region95_properties
+
+!------------------------------------------------------------------------
+
+  subroutine region95_phi(self, param, phi0, phir, err)
+    !! Calculates ideal-gas and residual parts of dimensionless
+    !! Helmholtz free energy as a function of density and temperature
+    !! (deg C).
+    !!
+    !! Returns err = 1 if called outside its operating range (0 < t <= 1000 deg C,
+    !! 0 < p <= 1000 MPa).
+
+    class(IAPWS95_region_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
+    PetscReal, intent(out) :: phi0, phir
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: tk, rt, del, tau, dm1_2
+    PetscReal, dimension(55:56) :: theta, delta, psi, delta_b
+
+    err = 0
+    select type (thermo => self%thermo)
+    type is (IAPWS_type)
+       associate (d => param(1), t => param(2))
+         if ((0._dp < t) .and. (t <= self%max_temperature)) then
+
+            tk = t + tc_k
+            rt = self%specific_gas_constant * tk
+            del = d / self%thermo%critical%density
+            tau = self%thermo%critical%temperature_k / tk
+
+            call self%pdc%compute(del)
+            call self%pt%compute(tau)
+
+            associate (n0 => self%n0, gam0 => self%gam0(4:8))
+              phi0 = log(del) + n0(1) + n0(2) * tau + n0(3) * log(tau) + &
+                   sum(n0(4:8) * log(1._dp - exp(-gam0 * tau)))
+            end associate
+
+            associate (n => self%n(1:7), d => self%d(1:7))
+              phir = sum(n * self%pdc%power(d) * tau ** self%tf)
+            end associate
+
+            associate (n => self%n(8:51), c => self%c(8:51), &
+                 d => self%d(8:51), t => self%t(8:51))
+              phir = phir + sum(n * self%pdc%power(d) * &
+                   self%pt%power(t) * exp(-self%pdc%power(c)))
+            end associate
+
+            associate(n => self%n(52:54), d => self%d(52:54), &
+                 t => self%t(52:54), alpha => self%alpha(52:54), &
+                 beta => self%beta(52:54), gam => self%gam, &
+                 eps => self%eps)
+              phir = phir + sum( &
+                   n * self%pdc%power(d) * self%pt%power(t) * &
+                   exp(-alpha * (del - eps) ** 2 - &
+                   beta * (tau - gam) ** 2))
+            end associate
+
+            associate(n => self%n(55:56), beta => self%beta(55:56), &
+                 a => self%a, b => self%b, aa => self%aa, bb => self%bb, &
+                 cc => self%cc, dd => self%dd)
+              dm1_2 = (del - 1._dp) ** 2
+              theta = 1._dp - tau + aa * dm1_2 ** (0.5_dp / beta)
+              delta = theta ** 2 + bb * dm1_2 ** a
+              psi = exp(-cc * dm1_2 - dd * (tau - 1._dp) ** 2)
+              delta_b = delta ** b
+              phir = phir + sum(n * delta_b * del * psi)
+            end associate
+
+         else
+            err = 1
+         end if
+       end associate
+    end select
+
+  end subroutine region95_phi
 
 !------------------------------------------------------------------------
 ! Viscosity
