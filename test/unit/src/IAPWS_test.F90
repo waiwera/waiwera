@@ -23,7 +23,8 @@ module IAPWS_test
        test_IAPWS_region3_density, test_IAPWS_region3_saturation_density, &
        test_IAPWS_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
-       test_IAPWS_region3_subregion_index, test_IAPWS_bdy_consistency
+       test_IAPWS_region3_subregion_index, test_IAPWS_bdy_consistency, &
+       test_IAPWS95_region_phi, test_IAPWS95_region_properties
 
   contains
 
@@ -1163,6 +1164,94 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_bdy_consistency
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS95_region_phi(test)
+    ! IAPWS-95 region phi test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscErrorCode :: err
+    PetscReal :: phi0, phir
+    PetscReal, parameter :: Tk = 500._dp, rho = 838.025_dp
+    PetscReal, parameter :: expected_phi0 = 0.204797733e1_dp
+    PetscReal, parameter :: expected_phir = -0.342693206e1_dp
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       associate (param => [rho, Tk - tc_k])
+         select type (IAPWS95 => IAPWS%IAPWS95)
+         type is (IAPWS95_region_type)
+            call IAPWS95%phi(param, phi0, phir, err)
+         end select
+         call test%assert(expected_phi0, phi0, 'phi0')
+         call test%assert(expected_phir, phir, 'phir')
+       end associate
+
+    end if
+
+  end subroutine test_IAPWS95_region_phi
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS95_region_properties(test)
+    ! IAPWS-95 region properties test
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr, i
+    PetscErrorCode :: err, err2
+    PetscReal :: param(2), props(2)
+    PetscInt, parameter :: n = 11
+    PetscReal :: params(n,2) = reshape([ &
+         0.996556e3_dp, 0.1005308e4_dp, 0.1188202e4_dp, &
+         0.4350000_dp,  0.4532000e1_dp, 0.8380250e3_dp, 0.1084564e4_dp, &
+         0.3580000e3_dp, &
+         0.2410000_dp,  0.5261500e2_dp, 0.8707690e3_dp, &
+         300._dp, 300._dp, 300._dp, &
+         500._dp, 500._dp, 500._dp, 500._dp, &
+         647._dp, &
+         900._dp, 900._dp, 900._dp], [n, 2])
+    PetscReal, parameter :: p(n) = [ &
+         0.992418352e5_dp, 0.200022515e8_dp, 0.700004704e9_dp, &
+         0.999679423e5_dp, 0.999938125e6_dp, 0.100003858e8_dp, 0.700000405e9_dp, &
+         0.220384756e8_dp, &
+         0.100062559e6_dp, 0.200000690e8_dp, 0.700000006e9_dp]
+    PetscReal, parameter :: s(n) = [ &
+         0.393062643e3_dp, 0.387405401e3_dp, 0.132609616e3_dp, &
+         0.794488271e4_dp, 0.682502725e4_dp, 0.256690919e4_dp, 0.203237509e4_dp, &
+         0.432092307e4_dp, &
+         0.916653194e4_dp, 0.659070225e4_dp, 0.417223802e4_dp]
+    PetscReal :: phi0, phir, phi, Tk(n), entropy
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+
+       Tk = params(:,2)
+       params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
+
+       do i = 1, n
+          param = params(i,:)
+          select type (IAPWS95 => IAPWS%IAPWS95)
+          type is (IAPWS95_region_type)
+             call IAPWS95%properties(param, props, err)
+             call IAPWS95%phi(param, phi0, phir, err2)
+             call test%assert(p(i), props(1), 'pressure')
+             phi = phi0 + phir
+             entropy = props(2) / Tk(i) - IAPWS95%specific_gas_constant * phi
+          end select
+          call test%assert(s(i), entropy, 'entropy')
+          call test%assert(0, err, 'no error')
+       end do
+
+    end if
+
+  end subroutine test_IAPWS95_region_properties
 
 !------------------------------------------------------------------------
 
