@@ -2882,11 +2882,11 @@ contains
        PetscReal, parameter :: al = 0.21155279113277403_dp, bl = 0.47596649012452547_dp
        PetscReal, parameter :: av = -0.1392624113377829_dp, bv = 0.5432817613990589_dp
 
-       associate (dp => self%thermo%critical%pressure - param(1))
+       associate (dpr => self%thermo%critical%pressure - param(1))
          if (liquid) then
-            density = self%thermo%critical%density + al * dp ** bl
+            density = self%thermo%critical%density + al * dpr ** bl
          else
-            density = self%thermo%critical%density + av * dp ** bv
+            density = self%thermo%critical%density + av * dpr ** bv
          end if
        end associate
 
