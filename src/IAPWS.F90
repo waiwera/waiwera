@@ -974,7 +974,7 @@ module IAPWS_module
           0.00000000000000e+00_dp, 0.00000000000000e+00_dp, 0.00000000000000e+00_dp, &
           0.00000000000000e+00_dp, 0.00000000000000e+00_dp], &
           [43,26])
-     PetscReal, public :: max_pressure
+     PetscReal, public :: max_pressure, max_temperature
      PetscReal, public :: computed_critical_pressure
    contains
      private
@@ -2220,6 +2220,10 @@ contains
     end do
 
     self%max_pressure = 100.e6_dp
+    select type (thermo => self%thermo)
+    type is (IAPWS_type)
+       call thermo%boundary23%temperature(self%max_pressure, self%max_temperature)
+    end select
     call self%properties([self%thermo%critical%density, &
          self%thermo%critical%temperature], props, err)
     associate(pressure => props(1))
@@ -2267,13 +2271,13 @@ contains
     PetscReal :: b23_pressure, min_pressure
     ! Approximate density and temperature domain:
     PetscReal, parameter :: min_density = 110._dp, max_density = 765._dp
-    PetscReal, parameter :: min_temperature = 348._dp, max_temperature = 590._dp
+    PetscReal, parameter :: min_temperature = 348._dp
     PetscReal, parameter :: eps = 1.e-3_dp
 
     associate (d => param(1), t => param(2))
 
       if ((min_density < d) .and. (d < max_density) .and. &
-           (min_temperature < t) .and. (t <= max_temperature)) then
+           (min_temperature < t) .and. (t <= self%max_temperature)) then
 
          tk = t + tc_k
          rt = specific_gas_constant * tk
