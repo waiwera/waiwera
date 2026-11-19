@@ -3102,8 +3102,14 @@ contains
             phir_del = dphir_ddelta(del, tau)
             phir_tau = dphir_dtau(del, tau)
 
-            props(1) = d * rt * (1._dp + del * phir_del) ! pressure
-            props(2) = tau * rt * (phi0_tau + phir_tau) ! internal energy
+            associate (p => props(1), u => props(2))
+              p = d * rt * (1._dp + del * phir_del)
+              if (p > self%max_pressure) then
+                 err = 1
+              else
+                 u = tau * rt * (phi0_tau + phir_tau)
+              end if
+            end associate
 
          else
             err = 1
