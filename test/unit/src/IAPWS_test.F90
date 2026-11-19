@@ -1175,6 +1175,7 @@ module IAPWS_test
     PetscMPIInt :: rank
     PetscInt :: ierr
     PetscErrorCode :: err
+    type(IAPWS95_region_type) :: IAPWS95
     PetscReal :: phi0, phir
     PetscReal, parameter :: Tk = 500._dp, rho = 838.025_dp
     PetscReal, parameter :: expected_phi0 = 0.204797733e1_dp
@@ -1183,14 +1184,15 @@ module IAPWS_test
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       call IAPWS95%init(IAPWS)
+
        associate (param => [rho, Tk - tc_k])
-         select type (IAPWS95 => IAPWS%IAPWS95)
-         type is (IAPWS95_region_type)
-            call IAPWS95%phi(param, phi0, phir, err)
-         end select
+         call IAPWS95%phi(param, phi0, phir, err)
          call test%assert(expected_phi0, phi0, 'phi0')
          call test%assert(expected_phir, phir, 'phir')
        end associate
+
+       call IAPWS95%destroy()
 
     end if
 
@@ -1207,6 +1209,7 @@ module IAPWS_test
     PetscInt :: ierr, i
     PetscErrorCode :: err, err2
     PetscReal :: param(2), props(2)
+    type(IAPWS95_region_type) :: IAPWS95
     PetscInt, parameter :: n = 11
     PetscReal :: params(n,2) = reshape([ &
          0.996556e3_dp, 0.1005308e4_dp, 0.1188202e4_dp, &
@@ -1232,22 +1235,23 @@ module IAPWS_test
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
 
+       call IAPWS95%init(IAPWS)
+
        Tk = params(:,2)
        params(:,2) = params(:,2) - tc_k  ! convert temperatures to Celcius
 
        do i = 1, n
           param = params(i,:)
-          select type (IAPWS95 => IAPWS%IAPWS95)
-          type is (IAPWS95_region_type)
-             call IAPWS95%properties(param, props, err)
-             call IAPWS95%phi(param, phi0, phir, err2)
-             call test%assert(p(i), props(1), 'pressure')
-             phi = phi0 + phir
-             entropy = props(2) / Tk(i) - IAPWS95%specific_gas_constant * phi
-          end select
+          call IAPWS95%properties(param, props, err)
+          call IAPWS95%phi(param, phi0, phir, err2)
+          call test%assert(p(i), props(1), 'pressure')
+          phi = phi0 + phir
+          entropy = props(2) / Tk(i) - IAPWS95%specific_gas_constant * phi
           call test%assert(s(i), entropy, 'entropy')
           call test%assert(0, err, 'no error')
        end do
+
+       call IAPWS95%destroy()
 
     end if
 
