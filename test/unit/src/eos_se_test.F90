@@ -509,7 +509,6 @@ contains
        old_primary = [22.063731864615474e6_dp, 0.02_dp]
        primary = [22.063e6_dp, -0.04_dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
-       write (*,*) primary
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
