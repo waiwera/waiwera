@@ -1098,6 +1098,18 @@ module IAPWS_module
   end type IAPWS95_region_type
 
 !------------------------------------------------------------------------
+! IAPWS region 0 type (high-pressure IAPWS-95 extension to IAPWS-97)
+!------------------------------------------------------------------------
+
+  type, public, extends(IAPWS95_region_type) :: IAPWS_region0_type
+   contains
+     private
+     procedure, public :: init => region0_init
+     procedure, public :: properties => region0_properties
+     procedure, public :: density => region0_density
+  end type IAPWS_region0_type
+
+!------------------------------------------------------------------------
 ! Region 2/3 boundary type
 !------------------------------------------------------------------------
 
@@ -1130,7 +1142,7 @@ module IAPWS_module
      PetscReal, allocatable, public :: widom_delta_slope(:) !! Widom delta boundary slopes
      PetscReal :: widom_delta_angle(2) !! Widom delta boundary angles in T*, P* space
      type(interpolation_table_pchip_type) :: sigmoid !! Sigmoid interpolator for liquidlike fraction in Widom delta
-     class(region_type), allocatable, public :: IAPWS95 !! IAPWS-95 region
+     class(region_type), allocatable, public :: highp !! High-pressure IAPWS-95 extension to IAPWS-97
    contains
      private
      procedure, public :: init => IAPWS_init
@@ -1185,7 +1197,7 @@ contains
     allocate(IAPWS_region2_type :: self%steam)
     allocate(IAPWS_region3_type :: self%supercritical)
     allocate(IAPWS_region5_type :: self%htsteam)
-    allocate(IAPWS95_region_type :: self%IAPWS95)
+    allocate(IAPWS_region0_type :: self%highp)
     allocate(self%region(0: self%num_regions))
 
     call self%region(1)%set(self%water)
@@ -1193,7 +1205,7 @@ contains
     call self%region(3)%set(self%supercritical)
     self%region(4)%ptr => null()
     call self%region(5)%set(self%htsteam)
-    call self%region(0)%set(self%IAPWS95)
+    call self%region(0)%set(self%highp)
 
     defaults = PETSC_TRUE
     if (present(json)) then
@@ -1271,7 +1283,7 @@ contains
 
     deallocate(self%region)
     deallocate(self%water, self%steam, self%supercritical, &
-         self%htsteam, self%IAPWS95)
+         self%htsteam, self%highp)
     deallocate(self%saturation)
 
     call self%sigmoid%destroy()
@@ -3315,6 +3327,205 @@ contains
     end select
 
   end subroutine region95_phi
+
+!------------------------------------------------------------------------
+! IAPWS region 0 type
+!------------------------------------------------------------------------
+
+  subroutine region0_init(self, thermo)
+    !! Initializes IAPWS region 0 object.
+
+    class(IAPWS_region0_type), intent(in out) :: self
+    class(thermodynamics_type), intent(in), target :: thermo
+
+    call self%IAPWS95_region_type%init(thermo)
+
+    self%name = 'High pressure'
+
+  end subroutine region0_init
+
+!------------------------------------------------------------------------
+
+  subroutine region0_properties(self, param, props, err)
+    !! Calculates pressure and internal energy as a function of
+    !! density and temperature (deg C) in high-pressure IAPWS-95
+    !! extension to IAPWS-97.
+    !!
+    !! Returns err = 1 if called outside its operating range (0 < t <= 1000 deg C,
+    !! 0 < p <= 1000 MPa and outside IAPWS-97 regions 1 - 5).
+    !!
+    !! For points close to the boundaries with regions 1, 2, 3 and 5, properties
+    !! are interpolated between the properties for region 0 and for those regions,
+    !! to avoid continuity problems at the boundary.
+
+    class(IAPWS_region0_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
+    PetscReal, intent(out):: props(:)  !! (pressure, internal energy)
+    PetscInt, intent(out) :: err  !! error code
+    ! Locals:
+    PetscReal, parameter :: dPr = 0.1e5_dp  ! Pressure interpolation interval
+    PetscReal, parameter :: dT = 0.05_dp    ! Temperature interpolation interval
+    PetscReal, parameter :: eps = 1.e-3_dp  ! Boundary tolerance
+    PetscReal :: T_a, T_b, P_a, P_b
+
+    call self%IAPWS95_region_type%properties(param, props, err)
+
+    if (err == 0) then
+
+       associate (d => param(1), t => param(2), p => props(1))
+         select type (thermo => self%thermo)
+         type is (IAPWS_type)
+
+            select type (region2 => thermo%region(2)%ptr)
+            type is (IAPWS_region2_type)
+
+               if (t < region2%max_temperature) then
+
+                  P_b = region2%max_pressure
+                  P_a = P_b + dPr
+
+                  if (p > (1._dp - eps) * P_b) then
+
+                     if (p < P_a) then
+                        select type (region3 => thermo%region(3)%ptr)
+                        type is (IAPWS_region3_type)
+                           if (t < thermo%temperature_bdy_1_3) then
+                              call interpolate_P(param, P_a, P_b, 1, props)
+                           else if (t < region3%max_temperature) then
+                              call interpolate_P_region3(param, P_a, P_b, &
+                                   props)
+                           else
+                              call interpolate_P(param, P_a, P_b, 2, props)
+                           end if
+                        end select
+                     end if
+
+                  else
+                     err = 1
+                  end if
+
+               else
+                  select type (region5 => self%thermo%region(5)%ptr)
+                  type is (IAPWS_region5_type)
+                     P_b = region5%max_pressure
+                     P_a = P_b + dPr
+                     if (p > (1._dp - eps) * P_b) then
+                        if (p < P_a) then
+                           call interpolate_P(param, P_a, P_b, 5, props)
+                        else if (t < region2%max_temperature + dT) then
+                           T_b = region2%max_temperature
+                           T_a = T_b + dT
+                           call interpolate_T_region2(param, T_a, T_b, props)
+                        end if
+                     else
+                        err = 1
+                     end if
+                  end select
+               end if
+
+            end select
+         end select
+       end associate
+    end if
+
+  contains
+
+    subroutine interpolate_P(param, P_a, P_b, region, props)
+      !! Interpolate properties based on pressure between region 0 and
+      !! the given region.
+      PetscReal, intent(in) :: param(:), P_a, P_b
+      PetscInt, intent(in) :: region
+      PetscReal, intent(out) :: props(:)
+      ! Locals:
+      PetscReal :: rho_a, props_a(2), props_b(2), props0(2)
+      PetscReal :: xi
+      PetscErrorCode :: err
+
+      props0 = props
+      associate (p => props(1), t => param(2))
+        call self%thermo%region(region)%ptr%properties([P_b, t], props_b, err)
+        if (err == 0) then
+           rho_a = props_b(1) ! Estimate for iteration
+           call self%density([P_a, t], rho_a, err)
+           if (err == 0) then
+              call self%IAPWS95_region_type%properties([rho_a, t], props_a, err)
+              if (err == 0) then
+                 xi = (p - P_b) / dPr
+                 props_b(1) = P_b
+                 props = (1._dp - xi) * props_b + xi * props_a
+              end if
+           end if
+        end if
+      end associate
+
+      if (err > 0) then ! fallback
+         props = props0
+         err = 0
+      end if
+
+    end subroutine interpolate_P
+
+!........................................................................
+
+    subroutine interpolate_P_region3(param, P_a, P_b, props)
+      !! Interpolate properties based on pressure between regions 0 and 3.
+      PetscReal, intent(in) :: param(:), P_a, P_b
+      PetscReal, intent(out) :: props(:)
+
+      ! TODO
+
+    end subroutine interpolate_P_region3
+
+!........................................................................
+
+    subroutine interpolate_T_region2(param, T_a, T_b, props)
+      !! Interpolate properties based on temperature between regions 0 and 2.
+      PetscReal, intent(in) :: param(:), T_a, T_b
+      PetscReal, intent(out) :: props(:)
+
+      ! TODO
+
+    end subroutine interpolate_T_region2
+
+  end subroutine region0_properties
+
+!------------------------------------------------------------------------
+
+  subroutine region0_density(self, param, density, err)
+    !! Calculates density in region 0 as a function of pressure and
+    !! temperature (deg C). The density parameter is passed in with
+    !! an initial estimate to start the iteration and on successful
+    !! exit contains the result.
+
+    class(IAPWS_region0_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
+    PetscReal, intent(out):: density  !! density
+    PetscInt, intent(out) :: err  !! error code
+    ! Locals:
+    PetscInt, parameter :: maxit = 16
+    PetscReal, parameter :: ftol = 1.e-4_dp
+    PetscReal, parameter :: xtol = 1.e-3_dp, x_increment = 1.e-8_dp
+
+    err = 0
+    call newton1d(f, density, ftol, xtol, maxit, x_increment, err)
+
+  contains
+
+    PetscReal function f(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: props(2)
+
+      associate(density => x, pcalc => props(1), &
+           p => param(1), t => param(2))
+        call self%IAPWS95_region_type%properties([density, t], props, err)
+        f = pcalc - p
+      end associate
+
+    end function f
+
+  end subroutine region0_density
 
 !------------------------------------------------------------------------
 ! Viscosity

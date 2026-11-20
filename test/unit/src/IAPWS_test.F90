@@ -24,7 +24,8 @@ module IAPWS_test
        test_IAPWS_pi_liquidlike, &
        test_IAPWS_region1_pressure, test_IAPWS_region2_pressure, &
        test_IAPWS_region3_subregion_index, test_IAPWS_bdy_consistency, &
-       test_IAPWS95_region_phi, test_IAPWS95_region_properties
+       test_IAPWS95_region_phi, test_IAPWS95_region_properties, &
+       test_IAPWS_region0_density, test_IAPWS_region0_properties
 
   contains
 
@@ -1258,5 +1259,93 @@ module IAPWS_test
   end subroutine test_IAPWS95_region_properties
 
 !------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region0_density(test)
+    ! Region 0 density tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscInt, parameter :: n = 9
+    PetscReal :: data(n, 4) = transpose(reshape([ &
+         100.1e6_dp, 20._dp, 1000._dp, 1039.6666775250847_dp, &
+         110.e6_dp, 20._dp, 1000._dp, 1043.3508798155653_dp, &
+         200.e6_dp, 20._dp, 1000._dp, 1074.047577851863_dp, &
+         500.e6_dp, 20._dp, 1000._dp, 1151.9628591435464_dp, &
+         900.e6_dp, 20._dp, 1200._dp, 1225.7293754924563_dp, &
+         110.e6_dp, 300._dp, 800._dp, 830.7421287754571_dp, &
+         200.e6_dp, 400._dp, 800._dp, 792.5259096183835_dp, &
+         200.e6_dp, 700._dp, 800._dp, 498.594325999525_dp, &
+         60.e6_dp,  900._dp,  97._dp, 117.38767752394439_dp], &
+         [4, n]))
+    PetscInt :: i, err
+    PetscMPIInt :: rank
+    PetscInt :: ierr
+    PetscReal :: param(2), density, p, props(2)
+    character(2) :: istr
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       do i = 1, n
+          write(istr, '(i2)') i
+          param = data(i, 1:2)
+          select type (region0 => IAPWS%region(0)%ptr)
+          type is (IAPWS_region0_type)
+
+             density = data(i, 3)
+             call region0%density(param, density, err)
+             call test%assert(0, err, 'error' // istr)
+
+             if (err == 0) then
+                call test%assert(data(i, 4), density, 'density' // istr)
+                p = data(i, 1)
+                param(1) = density
+                call region0%properties(param, props, err)
+                associate(pback => props(1))
+                  call test%assert(p, pback, 'p back' // istr)
+                end associate
+             end if
+
+          end select
+       end do
+    end if
+
+  end subroutine test_IAPWS_region0_density
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_region0_properties(test)
+    ! Region 0 properties tests
+    ! (near IAPWS-97 region boundaries)
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr, i
+    PetscErrorCode :: err
+    PetscReal :: param(2), props(2)
+    character(2) :: istr
+    PetscInt, parameter :: n = 2
+    PetscReal :: data(n, 4) = transpose(reshape([ &
+         1039.63_dp, 20._dp, 100.0023500576397e6_dp, 78.03790728154362e3_dp, &
+         775.16_dp, 340._dp, 100.00928863601115e6_dp, 1379.1297146017373e3_dp], &
+         [4, n]))
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       do i = 1, n
+          write(istr, '(i2)') i
+          param = data(i, 1:2)
+          select type (region0 => IAPWS%region(0)%ptr)
+          type is (IAPWS_region0_type)
+             call region0%properties(param, props, err)
+             call test%assert(0, err, 'error' // istr)
+             if (err == 0) then
+                call test%assert(data(i, 3:4), props, 'properties' // istr)
+             end if
+          end select
+       end do
+    end if
+
+  end subroutine test_IAPWS_region0_properties
 
 end module IAPWS_test
