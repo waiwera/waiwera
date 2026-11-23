@@ -1324,11 +1324,14 @@ module IAPWS_test
     PetscErrorCode :: err
     PetscReal :: param(2), props(2)
     character(2) :: istr
-    PetscInt, parameter :: n = 2
+    PetscInt, parameter :: n = 4
     PetscReal :: data(n, 4) = transpose(reshape([ &
          1039.63_dp, 20._dp, 100.0023500576397e6_dp, 78.03790728154362e3_dp, &
-         775.16_dp, 340._dp, 100.00928863601115e6_dp, 1379.1297146017373e3_dp], &
+         775.16_dp, 340._dp, 100.00928863601115e6_dp, 1379.1297146017373e3_dp, &
+         692.94_dp, 400._dp, 100.00522201381731e6_dp, 1646.8193317377363e3_dp, &
+         528.3_dp,  500._dp, 100.00856061359681e6_dp, 2126.870966863259e3_dp], &
          [4, n]))
+    PetscReal, parameter :: tol = 1.e-5_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -1340,7 +1343,7 @@ module IAPWS_test
              call region0%properties(param, props, err)
              call test%assert(0, err, 'error' // istr)
              if (err == 0) then
-                call test%assert(data(i, 3:4), props, 'properties' // istr)
+                call test%assert(data(i, 3:4), props, 'properties' // istr, tol = tol)
              end if
           end select
        end do

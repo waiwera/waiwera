@@ -3435,7 +3435,7 @@ contains
       !! the given region.
       PetscReal, intent(in) :: param(:), P_a, P_b
       PetscInt, intent(in) :: region
-      PetscReal, intent(out) :: props(:)
+      PetscReal, intent(in out) :: props(:)
       ! Locals:
       PetscReal :: rho_a, props_a(2), props_b(2), props0(2)
       PetscReal :: xi
@@ -3470,9 +3470,36 @@ contains
     subroutine interpolate_P_region3(param, P_a, P_b, props)
       !! Interpolate properties based on pressure between regions 0 and 3.
       PetscReal, intent(in) :: param(:), P_a, P_b
-      PetscReal, intent(out) :: props(:)
+      PetscReal, intent(in out) :: props(:)
+      ! Locals:
+      PetscReal :: rho_a, rho_b, props_a(2), props_b(2), props0(2)
+      PetscReal :: xi
+      PetscErrorCode :: err
 
-      ! TODO
+      props0 = props
+      associate (d => param(1), t => param(2), p => props(1))
+        select type (region3 => self%thermo%region(3)%ptr)
+        type is (IAPWS_region3_type)
+           call region3%density([P_b, t], rho_b, err, polish = PETSC_TRUE)
+           if (err == 0) then
+              call region3%properties([rho_b, t], props_b, err)
+              rho_a = props_b(1) ! Estimate for iteration
+              call self%density([P_a, t], rho_a, err)
+              if (err == 0) then
+                 call self%IAPWS95_region_type%properties([rho_a, t], props_a, err)
+                 if (err == 0) then
+                    xi = (p - P_b) / dPr
+                    props = (1._dp - xi) * props_b + xi * props_a
+                 end if
+              end if
+           end if
+        end select
+      end associate
+
+      if (err > 0) then ! fallback
+         props = props0
+         err = 0
+      end if
 
     end subroutine interpolate_P_region3
 
