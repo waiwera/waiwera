@@ -3498,8 +3498,7 @@ contains
     !! exit contains the result.
 
     class(IAPWS_region0_type), intent(in out) :: self
-    PetscReal, intent(in) :: param(:) !! Primary variables (density, temperature)
-    PetscReal, intent(out):: density  !! density
+    PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
     PetscInt, intent(out) :: err  !! error code
     ! Locals:
     PetscInt, parameter :: maxit = 16
