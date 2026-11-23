@@ -3509,8 +3509,31 @@ contains
       !! Interpolate properties based on temperature between regions 0 and 2.
       PetscReal, intent(in) :: param(:), T_a, T_b
       PetscReal, intent(out) :: props(:)
+      ! Locals:
+      PetscReal :: rho_a, props_a(2), props_b(2), props0(2)
+      PetscReal :: xi
+      PetscErrorCode :: err
 
-      ! TODO
+      props0 = props
+      associate (p => props(1), t => param(2))
+        call self%thermo%region(2)%ptr%properties([p, T_b], props_b, err)
+        if (err == 0) then
+           rho_a = props_b(1) ! Estimate for iteration
+           call self%density([p, T_a], rho_a, err)
+           if (err == 0) then
+              call self%IAPWS95_region_type%properties([rho_a, T_a], props_a, err)
+              if (err == 0) then
+                 xi = (t - T_b) / dT
+                 props(2) = (1._dp - xi) * props_b(2) + xi * props_a(2)
+              end if
+           end if
+        end if
+      end associate
+
+      if (err > 0) then ! fallback
+         props = props0
+         err = 0
+      end if
 
     end subroutine interpolate_T_region2
 

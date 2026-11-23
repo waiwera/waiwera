@@ -1324,12 +1324,13 @@ module IAPWS_test
     PetscErrorCode :: err
     PetscReal :: param(2), props(2)
     character(2) :: istr
-    PetscInt, parameter :: n = 4
+    PetscInt, parameter :: n = 5
     PetscReal :: data(n, 4) = transpose(reshape([ &
          1039.63_dp, 20._dp, 100.0023500576397e6_dp, 78.03790728154362e3_dp, &
          775.16_dp, 340._dp, 100.00928863601115e6_dp, 1379.1297146017373e3_dp, &
          692.94_dp, 400._dp, 100.00522201381731e6_dp, 1646.8193317377363e3_dp, &
-         528.3_dp,  500._dp, 100.00856061359681e6_dp, 2126.870966863259e3_dp], &
+         528.3_dp,  500._dp, 100.00856061359681e6_dp, 2126.870966863259e3_dp, &
+         160._dp, 800.02_dp, 70.69768347496991e6_dp,  3390.943318215376e3_dp], &
          [4, n]))
     PetscReal, parameter :: tol = 1.e-5_dp
 
