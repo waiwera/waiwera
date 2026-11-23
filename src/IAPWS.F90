@@ -3516,9 +3516,9 @@ contains
       ! Locals:
       PetscReal :: props(2)
 
-      associate(density => x, pcalc => props(1), &
+      associate(rho => x, pcalc => props(1), &
            p => param(1), t => param(2))
-        call self%IAPWS95_region_type%properties([density, t], props, err)
+        call self%IAPWS95_region_type%properties([rho, t], props, err)
         f = pcalc - p
       end associate
 
