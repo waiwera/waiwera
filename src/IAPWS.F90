@@ -3499,6 +3499,7 @@ contains
 
     class(IAPWS_region0_type), intent(in out) :: self
     PetscReal, intent(in) :: param(:) !! Primary variables (pressure, temperature)
+    PetscReal, intent(in out) :: density  !! density
     PetscInt, intent(out) :: err  !! error code
     ! Locals:
     PetscInt, parameter :: maxit = 16
