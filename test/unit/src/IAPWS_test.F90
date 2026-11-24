@@ -1066,7 +1066,7 @@ module IAPWS_test
 !------------------------------------------------------------------------
 
   subroutine test_IAPWS_bdy_consistency(test)
-    ! IAPWS-97 boundary consistency test
+    ! IAPWS boundary consistency test
 
     class(unit_test_type), intent(in out) :: test
     ! Locals:
@@ -1076,8 +1076,9 @@ module IAPWS_test
     PetscReal :: T_a, T_b, P_a, P_b
     PetscErrorCode :: err
     character(1) :: name
-    PetscReal :: P_13(4), T_23(4)
-    PetscReal, parameter :: dT = 1.e-6_dp
+    PetscReal :: P_13(4), T_23(4), T_01(4), T_03(3), T_02(2), &
+         T_05(2), P_02(4)
+    PetscReal, parameter :: dT = 1.e-6_dp, dPr = 1.e-6_dp
 
     call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
     if (rank == 0) then
@@ -1161,6 +1162,91 @@ module IAPWS_test
        call IAPWS%steam%properties([P_a, T_a], props_a, err)
        call IAPWS%steam%properties([P_b, T_b], props_b, err)
        call test%assert(props_a, props_b, 'region 2/4 just below 350 C ')
+
+       ! region 0/1:
+       T_01 = [50._dp, 150._dp, 250._dp, 340._dp]
+       do i = 1, size(T_01)
+          write(name, '(i1)') i
+          T = T_01(i)
+          P = 100.e6_dp
+          call IAPWS%water%properties([P, T], props_a, err)
+          select type (region0 => IAPWS%region(0)%ptr)
+          type is (IAPWS_region0_type)
+             d = props_a(1)
+             call region0%density([P, T], d, err)
+             call region0%properties([d, T], props_b, err)
+          end select
+          ! Can't test density as it's chosen to match P
+          call test%assert(props_a(2), props_b(2), 'region 0/1 ' // name)
+       end do
+
+       ! region 0/3:
+       T_03 = [360._dp, 450._dp, 570._dp]
+       do i = 1, size(T_03)
+          write(name, '(i1)') i
+          T = T_03(i)
+          P = 100.e6_dp
+          select type (region3 => IAPWS%region(3)%ptr)
+          type is (IAPWS_region3_type)
+             call region3%density([P, T], d, err, polish = PETSC_TRUE)
+             call region3%properties([d, T], props_a, err)
+          end select
+          select type (region0 => IAPWS%region(0)%ptr)
+          type is (IAPWS_region0_type)
+             call region0%density([P, T], d, err)
+             call region0%properties([d, T], props_b, err)
+          end select
+          call test%assert(props_a(2), props_b(2), 'region 0/3 ' // name, &
+               tol = 1.e-3_dp)
+       end do
+
+       ! region 0/2:
+       T_02 = [700._dp, 750._dp]
+       do i = 1, size(T_02)
+          write(name, '(i1)') i
+          T = T_02(i)
+          P = 100.e6_dp
+          call IAPWS%steam%properties([P, T], props_a, err)
+          select type (region0 => IAPWS%region(0)%ptr)
+          type is (IAPWS_region0_type)
+             d = props_a(1)
+             call region0%density([P, T], d, err)
+             call region0%properties([d, T], props_b, err)
+          end select
+          call test%assert(props_a(2), props_b(2), 'region 0/2 ' // name)
+       end do
+
+       ! region 0/2 temperature:
+       P_02 = [60.e6_dp, 70.e6_dp, 80.e6_dp, 90.e6_dp]
+       do i = 1, size(P_02)
+          write(name, '(i1)') i
+          P = P_02(i)
+          T = 800._dp
+          call IAPWS%steam%properties([P, T], props_a, err)
+          select type (region0 => IAPWS%region(0)%ptr)
+          type is (IAPWS_region0_type)
+             d = props_a(1)
+             call region0%density([P, T], d, err)
+             call region0%properties([d, T], props_b, err)
+          end select
+          call test%assert(props_a(2), props_b(2), 'region 0/2 T ' // name)
+       end do
+
+       ! region 0/5:
+       T_05 = [850._dp, 950._dp]
+       do i = 1, size(T_05)
+          write(name, '(i1)') i
+          T = T_05(i)
+          P = 50.e6_dp
+          call IAPWS%region(5)%ptr%properties([P, T], props_a, err)
+          select type (region0 => IAPWS%region(0)%ptr)
+          type is (IAPWS_region0_type)
+             d = props_a(1)
+             call region0%density([P, T], d, err)
+             call region0%properties([d, T], props_b, err)
+          end select
+          call test%assert(props_a(2), props_b(2), 'region 0/5 ' // name)
+       end do
 
     end if
 
