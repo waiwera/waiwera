@@ -3433,24 +3433,18 @@ contains
                   P_b = region2%max_pressure
                   P_a = P_b + dPr
 
-                  if (p > (1._dp - eps) * P_b) then
-
-                     if (p < P_a) then
-                        select type (region3 => thermo%region(3)%ptr)
-                        type is (IAPWS_region3_type)
-                           if (t < thermo%temperature_bdy_1_3) then
-                              call interpolate_P(param, P_a, P_b, 1, props)
-                           else if (t < region3%max_temperature) then
-                              call interpolate_P_region3(param, P_a, P_b, &
-                                   props)
-                           else
-                              call interpolate_P(param, P_a, P_b, 2, props)
-                           end if
-                        end select
-                     end if
-
-                  else
-                     err = 1
+                  if (((1._dp - eps) * P_b < p) .and. (p < P_a)) then
+                     select type (region3 => thermo%region(3)%ptr)
+                     type is (IAPWS_region3_type)
+                        if (t < thermo%temperature_bdy_1_3) then
+                           call interpolate_P(param, P_a, P_b, 1, props)
+                        else if (t < region3%max_temperature) then
+                           call interpolate_P_region3(param, P_a, P_b, &
+                                props)
+                        else
+                           call interpolate_P(param, P_a, P_b, 2, props)
+                        end if
+                     end select
                   end if
 
                else
@@ -3458,16 +3452,12 @@ contains
                   type is (IAPWS_region5_type)
                      P_b = region5%max_pressure
                      P_a = P_b + dPr
-                     if (p > (1._dp - eps) * P_b) then
-                        if (p < P_a) then
-                           call interpolate_P(param, P_a, P_b, 5, props)
-                        else if (t < region2%max_temperature + dT) then
-                           T_b = region2%max_temperature
-                           T_a = T_b + dT
-                           call interpolate_T_region2(param, T_a, T_b, props)
-                        end if
-                     else
-                        err = 1
+                     if (((1._dp - eps) * P_b < p) .and. (p < P_a)) then
+                        call interpolate_P(param, P_a, P_b, 5, props)
+                     else if (t < region2%max_temperature + dT) then
+                        T_b = region2%max_temperature
+                        T_a = T_b + dT
+                        call interpolate_T_region2(param, T_a, T_b, props)
                      end if
                   end select
                end if
