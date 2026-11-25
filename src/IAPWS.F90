@@ -1019,6 +1019,7 @@ module IAPWS_module
      procedure, public :: init => region5_init
      procedure, public :: destroy => region5_destroy
      procedure, public :: properties => region5_properties
+     procedure, public :: pressure => region5_pressure
   end type IAPWS_region5_type
 
 !------------------------------------------------------------------------
@@ -3038,6 +3039,54 @@ contains
     end subroutine properties
 
   end subroutine region5_properties
+
+!------------------------------------------------------------------------
+
+  subroutine region5_pressure(self, param, pressure, err)
+    !! Returns pressure as a function of density and temperature. The
+    !! pressure parameter is passed in with an initial estimate to
+    !! start the iteration and on successful exit contains the result.
+
+    class(IAPWS_region5_type), intent(in out) :: self
+    PetscReal, intent(in) :: param(2)
+    PetscReal, intent(in out) :: pressure
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscInt, parameter :: maxit = 16
+    PetscReal, parameter :: ftol_rel = 1.e-7_dp, ftol_max = 1.e-5_dp
+    PetscReal, parameter :: xtol = 1.e-3_dp, x_increment = 1.e-8_dp
+    PetscReal, parameter :: P0_min = 10._dp
+    PetscReal :: ftol, P0_max
+    PetscReal, parameter :: eps = 1.e-2_dp
+
+    err = 0
+    associate(density => param(1))
+      ftol = min(ftol_rel * density, ftol_max)
+    end associate
+    P0_max = (1._dp - eps) * self%max_pressure
+    pressure = min(max(pressure, P0_min), P0_max)
+
+    call newton1d(f, pressure, ftol, xtol, maxit, x_increment, err)
+
+  contains
+
+!........................................................................
+
+    PetscReal function f(x, err)
+      PetscReal, intent(in) :: x
+      PetscErrorCode, intent(out) :: err
+      ! Locals:
+      PetscReal :: props(2)
+
+      associate(pressure => x, density => props(1), &
+           d => param(1), t => param(2))
+        call self%properties([pressure, t], props, err)
+        f = density - d
+      end associate
+
+    end function f
+
+  end subroutine region5_pressure
 
 !------------------------------------------------------------------------
 ! IAPWS-95 region type
