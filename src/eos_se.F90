@@ -730,54 +730,90 @@ contains
          select type (thermo => self%thermo)
          type is (IAPWS_type)
 
-            if (temperature <= thermo%critical%temperature) then
+            select type (region1 => thermo%region(1)%ptr)
+            type is (IAPWS_region1_type)
 
-               call self%saturation_pressure(primary, old_region, &
-                    saturation_pressure, err)
-               if (err == 0) then
-                  if (water_pressure < saturation_pressure) then
-                     call self%transition_to_two_phase(saturation_pressure, &
-                          old_primary, old_fluid, primary, fluid, transition, err)
-                  else if (temperature > thermo%temperature_bdy_1_3) then
-                     call self%transition_single_phase_to_region3(primary, &
-                          fluid, transition, err)
-                  end if
-               end if
+               if (water_pressure <= region1%max_pressure) then
 
-            else
+                  if (temperature <= thermo%critical%temperature) then
 
-               if (water_pressure > thermo%critical%pressure) then
-                  call self%transition_single_phase_to_region3(primary, &
-                      fluid, transition, err)
-               else
-
-                  self%primary_variable_interpolator%val(:, 1) = old_primary
-                  self%primary_variable_interpolator%val(:, 2) = primary
-                  call self%primary_variable_interpolator%set_index(1)
-                  call self%primary_variable_interpolator%find_component_at_index(&
-                       thermo%critical%temperature, 2, xi, err)
-                  if (err == 0) then
-
-                     primary = self%primary_variable_interpolator%interpolate(xi)
-                     call self%water_pressure(primary, 1, PETSC_FALSE, &
-                          water_pressure, err)
+                     call self%saturation_pressure(primary, old_region, &
+                          saturation_pressure, err)
                      if (err == 0) then
-                        if (water_pressure < thermo%critical%pressure) then
-                           call self%transition_to_two_phase(water_pressure, &
+                        if (water_pressure < saturation_pressure) then
+                           call self%transition_to_two_phase(saturation_pressure, &
                                 old_primary, old_fluid, primary, fluid, transition, err)
-                        else
+                        else if (temperature > thermo%temperature_bdy_1_3) then
                            call self%transition_single_phase_to_region3(primary, &
                                 fluid, transition, err)
                         end if
                      end if
 
-                  end if
-               end if
-            end if
+                  else
 
+                     if (water_pressure > thermo%critical%pressure) then
+                        call self%transition_single_phase_to_region3(primary, &
+                             fluid, transition, err)
+                     else
+
+                        self%primary_variable_interpolator%val(:, 1) = old_primary
+                        self%primary_variable_interpolator%val(:, 2) = primary
+                        call self%primary_variable_interpolator%set_index(1)
+                        call self%primary_variable_interpolator%find_component_at_index(&
+                             thermo%critical%temperature, 2, xi, err)
+                        if (err == 0) then
+
+                           primary = self%primary_variable_interpolator%interpolate(xi)
+                           call self%water_pressure(primary, 1, PETSC_FALSE, &
+                                water_pressure, err)
+                           if (err == 0) then
+                              if (water_pressure < thermo%critical%pressure) then
+                                 call self%transition_to_two_phase(water_pressure, &
+                                      old_primary, old_fluid, primary, fluid, &
+                                      transition, err)
+                              else
+                                 call self%transition_single_phase_to_region3(primary, &
+                                      fluid, transition, err)
+                              end if
+                           end if
+
+                        end if
+                     end if
+                  end if
+               else
+                  call region1_to_region0_transitions()
+               end if
+            end select
          end select
        end associate
     end if
+
+  contains
+
+    subroutine region1_to_region0_transitions()
+      !! Transitions from region 1 to region 0.
+
+      ! Locals:
+      PetscReal :: water_density
+      PetscReal, parameter :: density0 = 900._dp ! estimate for iteration
+
+      water_density = density0
+      select type (region0 => self%thermo%region(0)%ptr)
+      type is (IAPWS_region0_type)
+         associate (temperature => primary(2))
+           call region0%density([water_pressure, temperature], water_density, err)
+         end associate
+      end select
+
+      if (err == 0) then
+         associate (density => primary(1))
+           density = water_density
+         end associate
+         fluid%region = dble(0)
+         transition = PETSC_TRUE
+      end if
+
+    end subroutine region1_to_region0_transitions
 
   end subroutine eos_se_region_1_transitions
 
