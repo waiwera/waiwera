@@ -1196,8 +1196,7 @@ module IAPWS_test
              call region0%density([P, T], d, err)
              call region0%properties([d, T], props_b, err)
           end select
-          call test%assert(props_a(2), props_b(2), 'region 0/3 ' // name, &
-               tol = 1.e-3_dp)
+          call test%assert(props_a(2), props_b(2), 'region 0/3 ' // name)
        end do
 
        ! region 0/2:
