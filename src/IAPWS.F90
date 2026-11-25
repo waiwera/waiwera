@@ -3480,7 +3480,7 @@ contains
       associate (d => param(1), t => param(2), p => props(1))
         select type (region3 => self%thermo%region(3)%ptr)
         type is (IAPWS_region3_type)
-           call region3%density([P_b, t], rho_b, err, polish = PETSC_TRUE)
+           call region3%density([P_b, t], rho_b, err, polish = PETSC_FALSE)
            if (err == 0) then
               call region3%properties([rho_b, t], props_b, err)
               rho_a = props_b(1) ! Estimate for iteration
