@@ -166,7 +166,7 @@ module IAPWS_module
      PetscReal :: nI(34), nJ(34)
      PetscInt :: I_1(34), J_1(34)
      type(powertable_type) :: pi, pj
-     PetscReal :: max_temperature, max_pressure
+     PetscReal, public :: max_temperature, max_pressure
    contains
      private
      procedure, public :: init => region1_init
