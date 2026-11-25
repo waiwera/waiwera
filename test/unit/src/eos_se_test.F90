@@ -717,6 +717,32 @@ contains
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
 
+       title = "Region 1 to 0"
+       old_fluid%region = dble(1)
+       fluid%region = old_fluid%region
+       expected_region = 0
+       expected_primary = [926.166054848291_dp, 200._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [95.e6_dp, 240._dp]
+       primary = [105.e6_dp, 200._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 0 to 1"
+       old_fluid%region = dble(0)
+       fluid%region = old_fluid%region
+       expected_region = 1
+       expected_primary = [91.992e6_dp, 330._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [1100._dp, 360._dp]
+       primary = [780._dp, 330._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
     end if
 
     call old_fluid%destroy()
