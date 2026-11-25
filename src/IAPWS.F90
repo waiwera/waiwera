@@ -3483,7 +3483,7 @@ contains
            call region3%density([P_b, t], rho_b, err, polish = PETSC_FALSE)
            if (err == 0) then
               call region3%properties([rho_b, t], props_b, err)
-              rho_a = props_b(1) ! Estimate for iteration
+              rho_a = rho_b ! Estimate for iteration
               call self%density([P_a, t], rho_a, err)
               if (err == 0) then
                  call self%IAPWS95_region_type%properties([rho_a, t], props_a, err)
