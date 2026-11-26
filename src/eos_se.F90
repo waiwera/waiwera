@@ -57,6 +57,7 @@ module eos_se_module
      procedure, public :: transition_to_single_phase => eos_se_transition_to_single_phase
      procedure, public :: transition_single_phase_to_region3 => eos_se_transition_single_phase_to_region3
      procedure, public :: transition_region4_to_supercritical => eos_se_transition_region4_to_supercritical
+     procedure, public :: PT_region_to_region0_transitions => eos_se_PT_region_to_region0_transitions
      procedure, public :: fluid_properties => eos_se_fluid_properties
      procedure, public :: region_1_fluid_properties => eos_se_region_1_fluid_properties
      procedure, public :: region_2_5_fluid_properties => eos_se_region_2_5_fluid_properties
@@ -706,6 +707,42 @@ contains
     end subroutine region0_to_PT_region_transitions
 
   end subroutine eos_se_region_0_transitions
+
+!------------------------------------------------------------------------
+
+  subroutine eos_se_PT_region_to_region0_transitions(self, primary, &
+       water_pressure, old_fluid, phase, fluid, transition, err)
+    !! Transitions from a region with pressure and temperature as
+    !! primary variables (regions 1, 2 and 5) to region 0.
+
+    class(eos_se_type), intent(in out) :: self
+    PetscReal, intent(in out) :: primary(self%num_primary_variables)
+    PetscReal, intent(in) :: water_pressure !! from primary
+    type(fluid_type), intent(in) :: old_fluid
+    PetscInt, intent(in) :: phase !! phase of old_fluid to use for density estimate
+    type(fluid_type), intent(in out) :: fluid
+    PetscBool, intent(out) :: transition
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: water_density
+
+    water_density = old_fluid%phase(phase)%density
+    select type (region0 => self%thermo%region(0)%ptr)
+    type is (IAPWS_region0_type)
+       associate (temperature => primary(2))
+         call region0%density([water_pressure, temperature], water_density, err)
+       end associate
+    end select
+
+    if (err == 0) then
+       associate (density => primary(1))
+         density = water_density
+       end associate
+       fluid%region = dble(0)
+       transition = PETSC_TRUE
+    end if
+
+  end subroutine eos_se_PT_region_to_region0_transitions
 
 !------------------------------------------------------------------------
 
