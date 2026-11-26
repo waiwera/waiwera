@@ -703,8 +703,8 @@ contains
 
   subroutine eos_se_region_2_transitions(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
-    !! For eos_se, carry out phase transitions from region 2 to 3 or
-    !! 4.
+    !! For eos_se, carry out phase transitions from region 2 to 3, 4
+    !! or 5.
 
     use fluid_module, only: fluid_type
 
@@ -764,13 +764,8 @@ contains
 
                call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
                if (water_pressure > pressure_bdy_2_3) then
-                  if (water_pressure > thermo%critical%pressure) then
-                     call self%transition_single_phase_to_region3(primary, &
-                          fluid, transition, err)
-                  else
-                     call self%transition_single_phase_to_region3(primary, &
-                          fluid, transition, err)
-                  end if
+                  call self%transition_single_phase_to_region3(primary, &
+                       fluid, transition, err)
                end if
 
             end if
