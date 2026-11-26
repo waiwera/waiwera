@@ -748,8 +748,8 @@ contains
 
   subroutine eos_se_region_1_transitions(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
-    !! For eos_se, carry out phase transitions from region 1 to 3 or
-    !! 4.
+    !! For eos_se, carry out phase transitions from region 1 to 3, 4
+    !! or 0.
 
     use fluid_module, only: fluid_type
 
