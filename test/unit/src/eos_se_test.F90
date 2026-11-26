@@ -719,6 +719,7 @@ contains
 
        title = "Region 1 to 0"
        old_fluid%region = dble(1)
+       old_fluid%phase(1)%density = 883.6_dp
        fluid%region = old_fluid%region
        expected_region = 0
        expected_primary = [926.166054848291_dp, 200._dp]
@@ -739,6 +740,87 @@ contains
        expected_err = 0
        old_primary = [1100._dp, 360._dp]
        primary = [780._dp, 330._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 0, 560 deg C"
+       old_fluid%region = dble(2)
+       old_fluid%phase(2)%density = 410.8_dp
+       fluid%region = old_fluid%region
+       expected_region = 0
+       expected_primary = [461.10721312443064_dp, 550._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [95.e6_dp, 560._dp]
+       primary = [105.e6_dp, 550._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 0, 700 deg C"
+       old_fluid%region = dble(2)
+       old_fluid%phase(2)%density = 279.4_dp
+       fluid%region = old_fluid%region
+       expected_region = 0
+       expected_primary = [284.9681368052739_dp, 700._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [98.e6_dp, 695._dp]
+       primary = [101.e6_dp, 700._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 2 to 0, 820 deg C"
+       old_fluid%region = dble(2)
+       old_fluid%phase(2)%density = 150.87_dp
+       fluid%region = old_fluid%region
+       expected_region = 0
+       expected_primary = [153.53804022029152_dp, 820._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [65.e6_dp, 780._dp]
+       primary = [70.e6_dp, 820._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 0 to 2, 560 deg C"
+       old_fluid%region = dble(0)
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [80.069574777e6_dp, 560._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [450._dp, 550._dp]
+       primary = [347._dp, 560._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 0 to 2, 750 deg C"
+       old_fluid%region = dble(0)
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [95.0811754256e6_dp, 750._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [270._dp, 760._dp]
+       primary = [240._dp, 750._dp]
+       call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
+       call transition_compare(test, expected_primary, expected_region, &
+            expected_transition, expected_err, primary, fluid, transition, err, title)
+
+       title = "Region 0 to 2, from 820 deg C"
+       old_fluid%region = dble(0)
+       fluid%region = old_fluid%region
+       expected_region = 2
+       expected_primary = [71.424931308e6_dp, 770._dp]
+       expected_transition = PETSC_TRUE
+       expected_err = 0
+       old_primary = [188.52_dp, 820._dp]
+       primary = [170._dp, 770._dp]
        call eos%transition(old_primary, primary, old_fluid, fluid, transition, err)
        call transition_compare(test, expected_primary, expected_region, &
             expected_transition, expected_err, primary, fluid, transition, err, title)
