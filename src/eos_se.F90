@@ -852,6 +852,7 @@ contains
     ! Locals:
     PetscReal :: water_pressure, saturation_pressure
     PetscReal :: pressure_bdy_2_3, temperature_bdy_2_5
+    PetscReal :: temperature_max_3, pressure_max_3, pressure_max_5
     PetscInt :: old_region
 
     old_region = nint(old_fluid%region)
@@ -865,6 +866,15 @@ contains
             select type (region2 => thermo%region(2)%ptr)
             type is (IAPWS_region2_type)
                temperature_bdy_2_5 = region2%max_temperature
+            end select
+            select type (region3 => thermo%region(3)%ptr)
+            type is (IAPWS_region3_type)
+               temperature_max_3 = region3%max_temperature
+               pressure_max_3 = region3%max_pressure
+            end select
+            select type (region5 => thermo%region(5)%ptr)
+            type is (IAPWS_region5_type)
+               pressure_max_5 = region5%max_pressure
             end select
 
             if (temperature <= thermo%critical%temperature) then
@@ -889,19 +899,32 @@ contains
                   end if
                end if
 
-            else if (temperature > temperature_bdy_2_5) then
+            else if (temperature < temperature_max_3) then
 
-               fluid%region = dble(5)
-               transition = PETSC_TRUE
-
-            else
-
-               call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
-               if (water_pressure > pressure_bdy_2_3) then
-                  call self%transition_single_phase_to_region3(primary, &
-                       fluid, transition, err)
+               if (water_pressure > pressure_max_3) then
+                  call self%PT_region_to_region0_transitions(primary, &
+                       water_pressure, old_fluid, 2, fluid, transition, err)
+               else
+                  call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
+                  if (water_pressure > pressure_bdy_2_3) then
+                     call self%transition_single_phase_to_region3(primary, &
+                          fluid, transition, err)
+                  end if
                end if
 
+            else if (temperature < temperature_bdy_2_5) then
+               if (water_pressure > pressure_max_3) then
+                  call self%PT_region_to_region0_transitions(primary, &
+                       water_pressure, old_fluid, 2, fluid, transition, err)
+               end if
+            else
+               if (water_pressure < pressure_max_5) then
+                  fluid%region = dble(5)
+                  transition = PETSC_TRUE
+               else
+                  call self%PT_region_to_region0_transitions(primary, &
+                       water_pressure, old_fluid, 2, fluid, transition, err)
+               end if
             end if
 
          end select
