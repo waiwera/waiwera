@@ -638,7 +638,7 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: props(2)
+    PetscReal :: props(2), pressure_bdy_2_3
 
     call self%thermo%region(0)%ptr%properties(primary(1:2), props, err)
     if (err == 0) then
@@ -655,8 +655,13 @@ contains
                         if (temperature < thermo%temperature_bdy_1_3) then
                            call region0_to_PT_region_transitions(1, water_pressure)
                         else if (temperature < region3%max_temperature) then
-                           fluid%region = dble(3)
-                           transition = PETSC_TRUE
+                           call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
+                           if (water_pressure < pressure_bdy_2_3) then
+                              call region0_to_PT_region_transitions(2, water_pressure)
+                           else
+                              fluid%region = dble(3)
+                              transition = PETSC_TRUE
+                           end if
                         else
                            call region0_to_PT_region_transitions(2, water_pressure)
                         end if
