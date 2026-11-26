@@ -823,39 +823,13 @@ contains
                      end if
                   end if
                else
-                  call region1_to_region0_transitions()
+                  call self%PT_region_to_region0_transitions(primary, &
+                       water_pressure, old_fluid, 1, fluid, transition, err)
                end if
             end select
          end select
        end associate
     end if
-
-  contains
-
-    subroutine region1_to_region0_transitions()
-      !! Transitions from region 1 to region 0.
-
-      ! Locals:
-      PetscReal :: water_density
-      PetscReal, parameter :: density0 = 900._dp ! estimate for iteration
-
-      water_density = density0
-      select type (region0 => self%thermo%region(0)%ptr)
-      type is (IAPWS_region0_type)
-         associate (temperature => primary(2))
-           call region0%density([water_pressure, temperature], water_density, err)
-         end associate
-      end select
-
-      if (err == 0) then
-         associate (density => primary(1))
-           density = water_density
-         end associate
-         fluid%region = dble(0)
-         transition = PETSC_TRUE
-      end if
-
-    end subroutine region1_to_region0_transitions
 
   end subroutine eos_se_region_1_transitions
 
