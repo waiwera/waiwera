@@ -1195,7 +1195,7 @@ contains
 
   subroutine eos_se_region_5_transitions(self, old_primary, primary, &
        old_fluid, fluid, transition, err)
-    !! For eos_se, carry out transitions from region 5 to 2.
+    !! For eos_se, carry out transitions from region 5 to 2 or 0.
 
     use fluid_module, only: fluid_type
 
@@ -1206,19 +1206,28 @@ contains
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: water_pressure
 
     err = 0
     transition = PETSC_FALSE
 
-    select type (region5 => self%thermo%region(5)%ptr)
-    type is (IAPWS_region5_type)
-       associate (temperature => primary(2))
-         if (temperature < region5%min_temperature) then
-            transition = PETSC_TRUE
-            fluid%region = dble(2)
-         end if
-       end associate
-    end select
+    call self%water_pressure(primary, 2, PETSC_FALSE, water_pressure, err)
+    if (err == 0) then
+
+       select type (region5 => self%thermo%region(5)%ptr)
+       type is (IAPWS_region5_type)
+          associate (temperature => primary(2))
+            if (temperature < region5%min_temperature) then
+               transition = PETSC_TRUE
+               fluid%region = dble(2)
+            else if (water_pressure > region5%max_pressure) then
+               call self%PT_region_to_region0_transitions(primary, &
+                    water_pressure, old_fluid, 2, fluid, transition, err)
+            end if
+          end associate
+       end select
+    end if
 
   end subroutine eos_se_region_5_transitions
 
