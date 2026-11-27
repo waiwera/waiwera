@@ -949,21 +949,27 @@ contains
     type(fluid_type), intent(in out) :: fluid
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: rho_b
 
-    associate (temperature => primary(2))
+    associate (density => primary(1), temperature => primary(2))
       select type (thermo => self%thermo)
       type is (IAPWS_type)
-         if (temperature < thermo%temperature_bdy_1_3) then
-            call region3_to_below_bdy_1_3_transitions()
-         else
-            call region3_to_above_bdy_1_3_transitions()
+         call thermo%max_pressure_97_density(temperature, rho_b, err)
+         if (err == 0) then
+            if (density > rho_b) then
+               fluid%region = dble(0)
+               transition = PETSC_TRUE
+            else if (temperature < thermo%temperature_bdy_1_3) then
+               call region3_to_below_bdy_1_3_transitions()
+            else
+               call region3_to_above_bdy_1_3_transitions()
+            end if
          end if
       end select
     end associate
 
   contains
-
-!........................................................................
 
     subroutine region3_to_below_bdy_1_3_transitions()
       !! Transitions from region 3 to temperatures below the region
