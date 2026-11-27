@@ -639,67 +639,66 @@ contains
     PetscBool, intent(out) :: transition
     PetscErrorCode, intent(out) :: err
     ! Locals:
-    PetscReal :: props(2), pressure_bdy_2_3
+    PetscReal :: props(2), rho_b, pressure_bdy_2_3
 
-    call self%thermo%region(0)%ptr%properties(primary(1:2), props, err)
-    if (err == 0) then
-       select type (thermo => self%thermo)
-       type is (IAPWS_type)
-          select type (region2 => thermo%region(2)%ptr)
-          type is (IAPWS_region2_type)
-             associate (water_pressure => props(1), temperature => primary(2))
-               if (temperature < region2%max_temperature) then
-                  if (water_pressure < region2%max_pressure) then
+    select type (thermo => self%thermo)
+    type is (IAPWS_type)
+       associate (density => primary(1), temperature => primary(2))
+         call thermo%max_pressure_97_density(temperature, rho_b, err)
+         if (err == 0) then
+            if (density < rho_b) then
 
-                     select type (region3 => thermo%region(3)%ptr)
-                     type is (IAPWS_region3_type)
-                        if (temperature < thermo%temperature_bdy_1_3) then
-                           call region0_to_PT_region_transitions(1, water_pressure)
-                        else if (temperature < region3%max_temperature) then
-                           call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
-                           if (water_pressure < pressure_bdy_2_3) then
-                              call region0_to_PT_region_transitions(2, water_pressure)
-                           else
-                              fluid%region = dble(3)
-                              transition = PETSC_TRUE
-                           end if
-                        else
-                           call region0_to_PT_region_transitions(2, water_pressure)
+               select type (region2 => thermo%region(2)%ptr)
+               type is (IAPWS_region2_type)
+                  select type (region3 => thermo%region(3)%ptr)
+                  type is (IAPWS_region3_type)
+                     if (temperature < thermo%temperature_bdy_1_3) then
+                        call region0_to_PT_region_transitions(1)
+                     else if (temperature < region3%max_temperature) then
+                        call thermo%boundary23%pressure(temperature, pressure_bdy_2_3)
+                        call region2%properties([pressure_bdy_2_3, temperature], &
+                             props, err)
+                        if (err == 0) then
+                           associate (density_bdy_2_3 => props(1))
+                             if (density < density_bdy_2_3) then
+                                call region0_to_PT_region_transitions(2)
+                             else
+                                fluid%region = dble(3)
+                                transition = PETSC_TRUE
+                             end if
+                           end associate
                         end if
-                     end select
-
-                  end if
-               else
-                  select type (region5 => self%thermo%region(5)%ptr)
-                  type is (IAPWS_region5_type)
-                     if (water_pressure < region5%max_pressure) then
-                        call region0_to_PT_region_transitions(5, water_pressure)
+                     else if (temperature < region2%max_temperature) then
+                        call region0_to_PT_region_transitions(2)
+                     else
+                        call region0_to_PT_region_transitions(5)
                      end if
                   end select
-               end if
-             end associate
-          end select
-       end select
-    end if
+               end select
+            end if
+         end if
+       end associate
+    end select
 
   contains
 
-    subroutine region0_to_PT_region_transitions(region, water_pressure)
+    subroutine region0_to_PT_region_transitions(region)
       !! Transitions from region 0 to specified region with pressure
       !! and temperature as primary variables.
 
       PetscInt, intent(in) :: region
-      PetscReal, intent(in) :: water_pressure
       ! Locals:
-      PetscReal :: Pw_new ! computed water pressure in new region
+      PetscReal :: water_pressure, props(2)
 
-      Pw_new = water_pressure
+      call self%thermo%region(0)%ptr%properties(primary(1:2), props, err)
+      water_pressure = props(1)
+
       select type (reg => self%thermo%region(region)%ptr)
       class is (IAPWS_region_type)
-         call reg%pressure(primary(1:2), Pw_new, err)
+         call reg%pressure(primary(1:2), water_pressure, err)
       end select
       if (err == 0) then
-         call self%set_water_pressure(Pw_new, primary)
+         call self%set_water_pressure(water_pressure, primary)
          fluid%region = dble(region)
          transition = PETSC_TRUE
       end if
