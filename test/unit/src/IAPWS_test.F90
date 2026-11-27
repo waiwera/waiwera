@@ -26,7 +26,8 @@ module IAPWS_test
        test_IAPWS_region5_pressure, &
        test_IAPWS_region3_subregion_index, test_IAPWS_bdy_consistency, &
        test_IAPWS95_region_phi, test_IAPWS95_region_properties, &
-       test_IAPWS_region0_density, test_IAPWS_region0_properties
+       test_IAPWS_region0_density, test_IAPWS_region0_properties, &
+       test_IAPWS_max_pressure_97_density
 
   contains
 
@@ -1489,5 +1490,45 @@ module IAPWS_test
     end if
 
   end subroutine test_IAPWS_region0_properties
+
+!------------------------------------------------------------------------
+
+  subroutine test_IAPWS_max_pressure_97_density(test)
+    ! IAPWS max pressure 97 tests
+
+    class(unit_test_type), intent(in out) :: test
+    ! Locals:
+    PetscMPIInt :: rank
+    PetscInt :: ierr, i
+    PetscErrorCode :: err
+    PetscReal :: T, rho
+    character(2) :: istr
+    PetscInt, parameter :: n = 9
+    PetscReal :: data(n, 2) = transpose(reshape([ &
+         20._dp, 1039.62911723115_dp, &
+         100._dp, 999.7617887973192_dp, &
+         300._dp, 823.1712402778201_dp, &
+         350._dp, 762.3392981714421_dp, &
+         500._dp, 528.2753856886685_dp, &
+         580._dp, 400.2918091355052_dp, &
+         700._dp, 282.0395674357601_dp, &
+         800._dp, 110.22387024244645_dp, &
+         950._dp, 91.94090895038319_dp], &
+         [2, n]))
+
+    call MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+    if (rank == 0) then
+       do i = 1, n
+          write(istr, '(i2)') i
+          T = data(i, 1)
+          call IAPWS%max_pressure_97_density(T, rho, err)
+          call test%assert(0, err, 'error' // istr)
+          if (err == 0) then
+             call test%assert(data(i, 2), rho, 'density' // istr)
+          end if
+       end do
+    end if
+
+  end subroutine test_IAPWS_max_pressure_97_density
 
 end module IAPWS_test

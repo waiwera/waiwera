@@ -1151,6 +1151,7 @@ module IAPWS_module
      procedure, public :: phase_composition => IAPWS_phase_composition
      procedure, public :: widom_delta => IAPWS_widom_delta
      procedure, public :: pi_liquidlike => IAPWS_pi_liquidlike
+     procedure, public :: max_pressure_97_density => IAPWS_max_pressure_97_density
   end type IAPWS_type
 
 !------------------------------------------------------------------------
@@ -1460,6 +1461,65 @@ contains
     end select
 
   end subroutine IAPWS_pi_liquidlike
+
+!------------------------------------------------------------------------
+
+  subroutine IAPWS_max_pressure_97_density(self, temperature, density, err)
+    !! Returns density at maximum IAPWS-97 pressure and given
+    !! temperature.
+
+    class(IAPWS_type), intent(in out) :: self
+    PetscReal, intent(in) :: temperature
+    PetscReal, intent(out) :: density
+    PetscErrorCode, intent(out) :: err
+    ! Locals:
+    PetscReal :: param(2), props(2), pmax
+
+    err = 0
+
+    ! Starting value of density for iteration:
+    select type (region1 => self%region(1)%ptr)
+    type is (IAPWS_region1_type)
+       select type (region2 => self%region(2)%ptr)
+       type is (IAPWS_region2_type)
+          select type (region3 => self%region(3)%ptr)
+          type is (IAPWS_region3_type)
+             select type (region5 => self%region(5)%ptr)
+             type is (IAPWS_region5_type)
+
+                if (temperature < region2%max_temperature) then
+                   pmax = region2%max_pressure
+                else
+                   pmax = region5%max_pressure
+                end if
+                param = [pmax, temperature]
+
+                if (temperature < self%temperature_bdy_1_3) then
+                   call region1%properties(param, props, err)
+                   density = props(1)
+                else if (temperature < region3%max_temperature) then
+                   call region3%density(param, density, err, polish = PETSC_FALSE)
+                else if (temperature < region2%max_temperature) then
+                   call region2%properties(param, props, err)
+                   density = props(1)
+                else if (temperature < region5%max_temperature) then
+                   call region5%properties(param, props, err)
+                   density = props(1)
+                else
+                   err = 1
+                end if
+
+             end select
+          end select
+       end select
+    end select
+
+    select type (region0 => self%region(0)%ptr)
+    type is (IAPWS_region0_type)
+       call region0%density(param, density, err)
+    end select
+
+  end subroutine IAPWS_max_pressure_97_density
 
 !------------------------------------------------------------------------
 ! Sub-region 3 type
